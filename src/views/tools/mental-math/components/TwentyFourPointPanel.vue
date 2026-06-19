@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import {
-  pickDropKeyFromPoint,
-  useTouchPointerDrag,
-  useTouchPrimaryDevice,
-} from '@/composables/useTouchPointerDrag'
+import { useTouchPrimaryDevice } from '@/composables/useTouchPointerDrag'
 
 type OpValue = '+' | '−' | '×' | '÷'
 type ParenValue = '(' | ')'
@@ -34,22 +30,13 @@ const emit = defineEmits<{
   (e: 'submit', expression: string): void
 }>()
 
-const { isTouchPrimary } = useTouchPrimaryDevice()
+const { isCompactLayout } = useTouchPrimaryDevice()
 
 let chipIdSeq = 0
 const chips = ref<ExprChip[]>([])
 const dragPayload = ref<DragPayload | null>(null)
 const dropIndex = ref<number | null>(null)
 const selectedExprIndex = ref<number | null>(null)
-let suppressClickUntil = 0
-
-function shouldSuppressClick() {
-  return Date.now() < suppressClickUntil
-}
-
-function markSuppressClick() {
-  suppressClickUntil = Date.now() + 380
-}
 
 const usedSlots = computed(() => {
   const used = props.nums.map(() => false)
@@ -142,34 +129,8 @@ function dropAt(index: number, drag: DragPayload) {
   }
 }
 
-function parseDropKey(key: string | null): { kind: 'slot'; index: number } | { kind: 'return' } | null {
-  if (!key) return null
-  if (key === 'return') return { kind: 'return' }
-  const m = /^slot:(\d+)$/.exec(key)
-  if (m) return { kind: 'slot', index: Number(m[1]) }
-  return null
-}
-
-const touchDrag = useTouchPointerDrag<DragPayload>({
-  canInteract: () => props.acceptingInput,
-  pickDropKey: pickDropKeyFromPoint,
-  onDrop: (payload, key) => {
-    markSuppressClick()
-    const target = parseDropKey(key)
-    if (!target) return
-    if (target.kind === 'return') {
-      if (payload.source === 'expr') {
-        const chip = chips.value[payload.fromIndex]
-        if (chip?.kind === 'num') removeChipAt(payload.fromIndex)
-      }
-      return
-    }
-    dropAt(target.index, payload)
-  },
-})
-
 function setDragPayload(payload: DragPayload, e: DragEvent) {
-  if (!props.acceptingInput || isTouchPrimary.value) return
+  if (!props.acceptingInput || isCompactLayout.value) return
   dragPayload.value = payload
   if (e.dataTransfer) {
     e.dataTransfer.effectAllowed = payload.source === 'expr' ? 'move' : 'copy'
@@ -183,7 +144,7 @@ function onDragEnd() {
 }
 
 function onDragOverSlot(index: number, e: DragEvent) {
-  if (!props.acceptingInput || !dragPayload.value || isTouchPrimary.value) return
+  if (!props.acceptingInput || !dragPayload.value || isCompactLayout.value) return
   e.preventDefault()
   if (e.dataTransfer) e.dataTransfer.dropEffect = dragPayload.value.source === 'expr' ? 'move' : 'copy'
   dropIndex.value = index
@@ -207,28 +168,24 @@ function onDropReturnPool(e: DragEvent) {
 }
 
 function appendNum(index: number) {
-  if (shouldSuppressClick()) return
   if (!props.acceptingInput || usedSlots.value[index]) return
   insertChipAt(chips.value.length, mkNumChip(index))
   selectedExprIndex.value = chips.value.length - 1
 }
 
 function appendOp(op: OpValue) {
-  if (shouldSuppressClick()) return
   if (!props.acceptingInput) return
   insertChipAt(chips.value.length, mkOpChip(op))
   selectedExprIndex.value = chips.value.length - 1
 }
 
 function appendParen(p: ParenValue) {
-  if (shouldSuppressClick()) return
   if (!props.acceptingInput) return
   insertChipAt(chips.value.length, mkParenChip(p))
   selectedExprIndex.value = chips.value.length - 1
 }
 
 function selectExprChip(index: number) {
-  if (shouldSuppressClick()) return
   if (!props.acceptingInput) return
   selectedExprIndex.value = selectedExprIndex.value === index ? null : index
 }
@@ -262,12 +219,7 @@ function submitDraft() {
   emit('submit', draftExpression.value)
 }
 
-function onPointerDownChip(payload: DragPayload, e: PointerEvent) {
-  touchDrag.onPointerDown(payload, e)
-}
-
 function slotDropActive(index: number) {
-  if (isTouchPrimary.value) return touchDrag.dropKey.value === `slot:${index}`
   return dropIndex.value === index
 }
 
@@ -314,11 +266,8 @@ defineExpose({
 <template>
   <div
     class="tf-panel"
-    :class="{ 'tf-panel--touch': isTouchPrimary }"
+    :class="{ 'tf-panel--touch': isCompactLayout }"
     @keydown="onKeydown"
-    @pointermove="touchDrag.onPointerMove"
-    @pointerup="touchDrag.onPointerUp"
-    @pointercancel="touchDrag.onPointerCancel"
   >
     <div
       class="question-block tf-question"
@@ -339,7 +288,7 @@ defineExpose({
       <p class="tf-zone__title">
         你的算式
         <span class="tf-zone__sub">
-          {{ isTouchPrimary ? '点下方牌追加；点算式块可移动/删除' : '拖拽牌到此处，可拖动调整顺序' }}
+          {{ isCompactLayout ? '点下方牌追加；点算式块可移动/删除' : '拖拽牌到此处，可拖动调整顺序' }}
         </span>
       </p>
       <div
@@ -350,7 +299,7 @@ defineExpose({
       >
         <template v-for="(chip, i) in chips" :key="chip.id">
           <div
-            v-if="!isTouchPrimary"
+            v-if="!isCompactLayout"
             class="tf-slot"
             :class="{ 'tf-slot--active': slotDropActive(i) }"
             :data-drop-key="`slot:${i}`"
@@ -358,23 +307,16 @@ defineExpose({
             @drop="onDropSlot(i, $event)"
           />
           <div
-            v-else
-            class="tf-slot tf-slot--touch"
-            :class="{ 'tf-slot--active': slotDropActive(i) }"
-            :data-drop-key="`slot:${i}`"
-          />
-          <div
             class="tf-chip tf-chip--in-expr"
             :class="{ 'tf-chip--selected': selectedExprIndex === i }"
-            :draggable="acceptingInput && !isTouchPrimary"
+            :draggable="acceptingInput && !isCompactLayout"
             @click.stop="selectExprChip(i)"
             @dragstart="setDragPayload({ source: 'expr', fromIndex: i }, $event)"
             @dragend="onDragEnd"
-            @pointerdown="onPointerDownChip({ source: 'expr', fromIndex: i }, $event)"
           >
             <span>{{ chipLabel(chip) }}</span>
             <button
-              v-if="isTouchPrimary"
+              v-if="isCompactLayout"
               type="button"
               class="tf-chip__remove"
               aria-label="删除此块"
@@ -385,25 +327,19 @@ defineExpose({
           </div>
         </template>
         <div
-          v-if="!isTouchPrimary"
+          v-if="!isCompactLayout"
           class="tf-slot tf-slot--end"
           :class="{ 'tf-slot--active': slotDropActive(chips.length) }"
           :data-drop-key="`slot:${chips.length}`"
           @dragover="onDragOverSlot(chips.length, $event)"
           @drop="onDropSlot(chips.length, $event)"
         />
-        <div
-          v-else
-          class="tf-slot tf-slot--touch tf-slot--end"
-          :class="{ 'tf-slot--active': slotDropActive(chips.length) }"
-          :data-drop-key="`slot:${chips.length}`"
-        />
         <p v-if="chips.length === 0" class="tf-lane__empty">
-          {{ isTouchPrimary ? '点下方数字与符号牌拼算式' : '把下方数字牌、符号牌拖到这里' }}
+          {{ isCompactLayout ? '点下方数字与符号牌拼算式' : '把下方数字牌、符号牌拖到这里' }}
         </p>
       </div>
 
-      <div v-if="isTouchPrimary && selectedExprIndex != null" class="tf-expr-tools">
+      <div v-if="isCompactLayout && selectedExprIndex != null" class="tf-expr-tools">
         <button
           type="button"
           class="tf-key tf-key--muted"
@@ -435,7 +371,7 @@ defineExpose({
     <section class="tf-zone" aria-label="数字牌">
       <p class="tf-zone__title">
         数字牌
-        <span class="tf-zone__sub">{{ isTouchPrimary ? '点击追加到算式末尾' : '拖入算式区 · 点击可追加到末尾' }}</span>
+        <span class="tf-zone__sub">{{ isCompactLayout ? '点击追加到算式末尾' : '拖入算式区 · 点击可追加到末尾' }}</span>
       </p>
       <div class="tf-palette">
         <div
@@ -443,11 +379,10 @@ defineExpose({
           :key="`n-${idx}`"
           class="tf-chip tf-chip--num"
           :class="{ 'tf-chip--used': usedSlots[idx] }"
-          :draggable="acceptingInput && !usedSlots[idx] && !isTouchPrimary"
+          :draggable="acceptingInput && !usedSlots[idx] && !isCompactLayout"
           @dragstart="setDragPayload({ source: 'pool-num', slotIndex: idx }, $event)"
           @dragend="onDragEnd"
           @click="appendNum(idx)"
-          @pointerdown="onPointerDownChip({ source: 'pool-num', slotIndex: idx }, $event)"
         >
           <span class="tf-chip__badge">{{ idx + 1 }}</span>
           <span>{{ n }}</span>
@@ -462,11 +397,10 @@ defineExpose({
           v-for="op in OP_SYMBOLS"
           :key="op"
           class="tf-chip tf-chip--sym"
-          :draggable="acceptingInput && !isTouchPrimary"
+          :draggable="acceptingInput && !isCompactLayout"
           @dragstart="setDragPayload({ source: 'pool-op', value: op }, $event)"
           @dragend="onDragEnd"
           @click="appendOp(op)"
-          @pointerdown="onPointerDownChip({ source: 'pool-op', value: op }, $event)"
         >
           {{ op }}
         </div>
@@ -474,11 +408,10 @@ defineExpose({
           v-for="p in PAREN_SYMBOLS"
           :key="p"
           class="tf-chip tf-chip--sym"
-          :draggable="acceptingInput && !isTouchPrimary"
+          :draggable="acceptingInput && !isCompactLayout"
           @dragstart="setDragPayload({ source: 'pool-paren', value: p }, $event)"
           @dragend="onDragEnd"
           @click="appendParen(p)"
-          @pointerdown="onPointerDownChip({ source: 'pool-paren', value: p }, $event)"
         >
           {{ p }}
         </div>
@@ -486,7 +419,7 @@ defineExpose({
     </section>
 
     <div
-      v-if="!isTouchPrimary"
+      v-if="!isCompactLayout"
       class="tf-return"
       :class="{ 'tf-return--active': dragPayload?.source === 'expr' }"
       data-drop-key="return"
@@ -509,8 +442,8 @@ defineExpose({
     </div>
 
     <p class="hint tf-hint-bar">
-      <template v-if="isTouchPrimary">
-        手机：点数字/符号追加；点算式块后可用「左移/右移/删除」；也可长按拖动到算式区
+      <template v-if="isCompactLayout">
+        手机：点数字/符号追加；点算式块后用「左移/右移/删除」或右上角 × 调整
       </template>
       <template v-else>
         拖拽拼算式，或在算式区内拖动调整顺序；<kbd>Enter</kbd> 提交；数字键
@@ -769,5 +702,22 @@ defineExpose({
   margin: 0;
   font-size: 0.82rem;
   line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .tf-panel .tf-chip {
+    min-width: 52px;
+    min-height: 52px;
+    font-size: 1.2rem;
+  }
+
+  .tf-panel .tf-chip--num {
+    min-width: 72px;
+  }
+
+  .tf-panel .tf-key {
+    min-height: 48px;
+    font-size: 1rem;
+  }
 }
 </style>

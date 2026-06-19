@@ -1,91 +1,54 @@
-import { onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 
-/** 是否以触摸为主（手机/平板） */
-export function useTouchPrimaryDevice() {
-  const isTouchPrimary = ref(false)
-  const mq = window.matchMedia('(hover: none) and (pointer: coarse)')
+const MOBILE_WIDTH_PX = 900
 
-  const sync = () => {
-    isTouchPrimary.value = mq.matches
-  }
-
-  sync()
-  mq.addEventListener('change', sync)
-  onBeforeUnmount(() => mq.removeEventListener('change', sync))
-
-  return { isTouchPrimary }
+function detectTouchPrimary(): boolean {
+  if (typeof window === 'undefined') return false
+  const coarse = window.matchMedia('(pointer: coarse)').matches
+  const noHover = window.matchMedia('(hover: none)').matches
+  const narrow = window.innerWidth <= MOBILE_WIDTH_PX
+  const hasTouch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window
+  return coarse || noHover || (hasTouch && narrow)
 }
 
-type TouchDragSession<T> = {
-  payload: T
-  pointerId: number
+function detectCompactLayout(): boolean {
+  if (typeof window === 'undefined') return false
+  return detectTouchPrimary() || window.innerWidth <= MOBILE_WIDTH_PX
 }
 
 /**
- * 触摸端指针拖拽：pointerdown 拾取，move 高亮落点，up 提交。
- * 鼠标仍走 HTML5 drag，避免两套逻辑冲突。
+ * isTouchPrimary：触摸为主设备；isCompactLayout：使用手机点击布局（含窄屏）
  */
-export function useTouchPointerDrag<T>(options: {
-  canInteract: () => boolean
-  pickDropKey: (clientX: number, clientY: number) => string | null
-  onDrop: (payload: T, dropKey: string | null) => void
-}) {
-  const dragging = ref<T | null>(null)
-  const dropKey = ref<string | null>(null)
-  let session: TouchDragSession<T> | null = null
+export function useTouchPrimaryDevice() {
+  const isTouchPrimary = ref(detectTouchPrimary())
+  const isCompactLayout = ref(detectCompactLayout())
 
-  const end = () => {
-    session = null
-    dragging.value = null
-    dropKey.value = null
+  const sync = () => {
+    isTouchPrimary.value = detectTouchPrimary()
+    isCompactLayout.value = detectCompactLayout()
   }
 
-  const onPointerDown = (payload: T, e: PointerEvent) => {
-    if (!options.canInteract()) return
-    if (e.pointerType === 'mouse') return
-    e.preventDefault()
-    const el = e.currentTarget as HTMLElement
-    el.setPointerCapture(e.pointerId)
-    session = { payload, pointerId: e.pointerId }
-    dragging.value = payload
-    dropKey.value = options.pickDropKey(e.clientX, e.clientY)
-  }
+  let cleanup: (() => void) | null = null
 
-  const onPointerMove = (e: PointerEvent) => {
-    if (!session || e.pointerId !== session.pointerId) return
-    e.preventDefault()
-    dropKey.value = options.pickDropKey(e.clientX, e.clientY)
-  }
+  onMounted(() => {
+    sync()
+    window.addEventListener('resize', sync)
+    window.addEventListener('orientationchange', sync)
+    const coarseMq = window.matchMedia('(pointer: coarse)')
+    const hoverMq = window.matchMedia('(hover: none)')
+    coarseMq.addEventListener('change', sync)
+    hoverMq.addEventListener('change', sync)
+    cleanup = () => {
+      window.removeEventListener('resize', sync)
+      window.removeEventListener('orientationchange', sync)
+      coarseMq.removeEventListener('change', sync)
+      hoverMq.removeEventListener('change', sync)
+    }
+  })
 
-  const onPointerUp = (e: PointerEvent) => {
-    if (!session || e.pointerId !== session.pointerId) return
-    e.preventDefault()
-    options.onDrop(session.payload, dropKey.value)
-    const el = e.currentTarget as HTMLElement
-    if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
-    end()
-  }
+  onBeforeUnmount(() => {
+    cleanup?.()
+  })
 
-  const onPointerCancel = (e: PointerEvent) => {
-    if (!session || e.pointerId !== session.pointerId) return
-    end()
-  }
-
-  return {
-    dragging,
-    dropKey,
-    onPointerDown,
-    onPointerMove,
-    onPointerUp,
-    onPointerCancel,
-    end,
-  }
-}
-
-/** 根据坐标查找带 data-drop-key 的最近落点元素 */
-export function pickDropKeyFromPoint(clientX: number, clientY: number): string | null {
-  const el = document.elementFromPoint(clientX, clientY)
-  if (!el) return null
-  const target = el.closest('[data-drop-key]') as HTMLElement | null
-  return target?.dataset.dropKey ?? null
+  return { isTouchPrimary, isCompactLayout }
 }

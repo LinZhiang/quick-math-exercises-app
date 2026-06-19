@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import {
-  pickDropKeyFromPoint,
-  useTouchPointerDrag,
-  useTouchPrimaryDevice,
-} from '@/composables/useTouchPointerDrag'
+import { useTouchPrimaryDevice } from '@/composables/useTouchPointerDrag'
 
 type DragPayload =
   | { source: 'pool'; value: number }
@@ -24,26 +20,13 @@ const emit = defineEmits<{
   (e: 'submit', grid: number[][]): void
 }>()
 
-const { isTouchPrimary } = useTouchPrimaryDevice()
+const { isCompactLayout } = useTouchPrimaryDevice()
 
 const draft = ref<number[][]>([])
 const selected = ref<{ row: number; col: number } | null>(null)
 const dragPayload = ref<DragPayload | null>(null)
 const dropTarget = ref<{ row: number; col: number } | null>(null)
 const suppressChipClick = ref(false)
-let suppressClickUntil = 0
-
-function shouldSuppressClick() {
-  return suppressChipClick.value || Date.now() < suppressClickUntil
-}
-
-function markSuppressClick() {
-  suppressClickUntil = Date.now() + 380
-  suppressChipClick.value = true
-  window.setTimeout(() => {
-    suppressChipClick.value = false
-  }, 400)
-}
 
 const digits = computed(() => Array.from({ length: props.size }, (_, i) => i + 1))
 
@@ -65,10 +48,12 @@ const canSubmit = computed(() => {
 })
 
 const selectedLabel = computed(() => {
-  if (!selected.value) return '未选中'
+  if (!selected.value) return '未选中（请先点棋盘上的空格）'
   const { row, col } = selected.value
-  return `第 ${row + 1} 行 · 第 ${col + 1} 列`
+  return `已选：第 ${row + 1} 行 · 第 ${col + 1} 列`
 })
+
+const needSelectHint = ref(false)
 
 function resetDraft() {
   draft.value = props.puzzle.map((row) => [...row])
@@ -105,18 +90,6 @@ function clearCell(row: number, col: number) {
   draft.value[row][col] = 0
 }
 
-function cellDropKey(row: number, col: number) {
-  return `cell:${row}:${col}`
-}
-
-function parseDropKey(key: string | null): { row: number; col: number } | 'return' | null {
-  if (!key) return null
-  if (key === 'return') return 'return'
-  const m = /^cell:(\d+):(\d+)$/.exec(key)
-  if (!m) return null
-  return { row: Number(m[1]), col: Number(m[2]) }
-}
-
 function applyDrop(row: number, col: number, drag: DragPayload) {
   if (isGiven(row, col)) return
   if (drag.source === 'pool') {
@@ -132,17 +105,35 @@ function applyDrop(row: number, col: number, drag: DragPayload) {
 }
 
 function selectCell(row: number, col: number) {
-  if (shouldSuppressClick()) return
   if (!props.acceptingInput || isGiven(row, col)) return
+  needSelectHint.value = false
+
   if (
+    isCompactLayout.value &&
+    selected.value &&
+    selected.value.row !== row &&
+    selected.value.col !== col &&
+    cellValue(selected.value.row, selected.value.col) > 0 &&
+    cellValue(row, col) === 0
+  ) {
+    const from = selected.value
+    const value = cellValue(from.row, from.col)
+    clearCell(from.row, from.col)
+    setCell(row, col, value)
+    selected.value = { row, col }
+    return
+  }
+
+  if (
+    isCompactLayout.value &&
     selected.value?.row === row &&
     selected.value?.col === col &&
-    cellValue(row, col) > 0 &&
-    isTouchPrimary.value
+    cellValue(row, col) > 0
   ) {
     clearCell(row, col)
     return
   }
+
   selected.value = { row, col }
 }
 
@@ -163,7 +154,7 @@ function decodePayload(e: DragEvent): DragPayload | null {
 }
 
 function setDragPayload(payload: DragPayload, e: DragEvent) {
-  if (!props.acceptingInput || isTouchPrimary.value) return
+  if (!props.acceptingInput || isCompactLayout.value) return
   if (payload.source === 'cell' && isGiven(payload.row, payload.col)) return
   dragPayload.value = payload
   const dt = e.dataTransfer
@@ -188,13 +179,13 @@ function onChipDragStart(value: number, e: DragEvent) {
 }
 
 function onCellDragStart(row: number, col: number, e: DragEvent) {
-  if (!props.acceptingInput || isGiven(row, col) || cellValue(row, col) <= 0 || isTouchPrimary.value) return
+  if (!props.acceptingInput || isGiven(row, col) || cellValue(row, col) <= 0 || isCompactLayout.value) return
   e.stopPropagation()
   setDragPayload({ source: 'cell', row, col }, e)
 }
 
 function onDragOverCell(row: number, col: number, e: DragEvent) {
-  if (!props.acceptingInput || isGiven(row, col) || !dragPayload.value || isTouchPrimary.value) return
+  if (!props.acceptingInput || isGiven(row, col) || !dragPayload.value || isCompactLayout.value) return
   e.preventDefault()
   e.stopPropagation()
   if (e.dataTransfer) {
@@ -239,46 +230,22 @@ function onDropReturn(e: DragEvent) {
   onDragEnd()
 }
 
-const touchDrag = useTouchPointerDrag<DragPayload>({
-  canInteract: () => props.acceptingInput,
-  pickDropKey: pickDropKeyFromPoint,
-  onDrop: (payload, key) => {
-    markSuppressClick()
-    const target = parseDropKey(key)
-    if (target === 'return') {
-      if (payload.source === 'cell') {
-        clearCell(payload.row, payload.col)
-        if (selected.value?.row === payload.row && selected.value?.col === payload.col) {
-          selected.value = null
-        }
-      }
-      return
-    }
-    if (!target || typeof target === 'string') return
-    applyDrop(target.row, target.col, payload)
-  },
-})
-
 function isCellDropActive(row: number, col: number) {
-  if (isTouchPrimary.value) {
-    const key = touchDrag.dropKey.value
-    return key === cellDropKey(row, col)
-  }
   return dropTarget.value?.row === row && dropTarget.value?.col === col
-}
-
-function onPointerDownPayload(payload: DragPayload, e: PointerEvent) {
-  touchDrag.onPointerDown(payload, e)
 }
 
 function fillSelectedDigit(value: number) {
   if (!props.acceptingInput) return
-  if (!selected.value) return
+  if (!selected.value) {
+    needSelectHint.value = true
+    return
+  }
+  needSelectHint.value = false
   setCell(selected.value.row, selected.value.col, value)
 }
 
 function onChipClick(value: number) {
-  if (shouldSuppressClick()) return
+  if (suppressChipClick.value) return
   fillSelectedDigit(value)
 }
 
@@ -339,11 +306,8 @@ defineExpose({
 <template>
   <div
     class="sd-panel"
-    :class="{ 'sd-panel--touch': isTouchPrimary }"
+    :class="{ 'sd-panel--touch': isCompactLayout }"
     @keydown="onKeydown"
-    @pointermove="touchDrag.onPointerMove"
-    @pointerup="touchDrag.onPointerUp"
-    @pointercancel="touchDrag.onPointerCancel"
   >
     <div
       class="question-block sd-question"
@@ -367,13 +331,18 @@ defineExpose({
         棋盘
         <span class="sd-zone__sub">
           {{
-            isTouchPrimary
-              ? '先点空格选中，再点下方数字；也可长按拖动'
+            isCompactLayout
+              ? '先点空格填数；点已填格再点空格可移动；再点同一格可清除'
               : '把数字牌拖到任意空格；或点格选中后点数字'
           }}
         </span>
       </p>
-      <p v-if="isTouchPrimary" class="sd-selection-hint">当前：{{ selectedLabel }}</p>
+      <p
+        class="sd-selection-hint"
+        :class="{ 'sd-selection-hint--warn': needSelectHint || !selected }"
+      >
+        {{ selectedLabel }}
+      </p>
       <div
         class="sd-grid-wrap"
         :class="`sd-grid-wrap--${size}`"
@@ -399,10 +368,9 @@ defineExpose({
                 'sd-cell--box-edge-b': size === 9 && (r - 1) % 3 === 2 && r < size,
               }"
               role="gridcell"
-              :data-drop-key="cellDropKey(r - 1, c - 1)"
               :aria-selected="selected?.row === r - 1 && selected?.col === c - 1"
               :draggable="
-                !isTouchPrimary &&
+                !isCompactLayout &&
                 acceptingInput &&
                 !isGiven(r - 1, c - 1) &&
                 cellValue(r - 1, c - 1) > 0
@@ -413,11 +381,6 @@ defineExpose({
               @dragover="onDragOverCell(r - 1, c - 1, $event)"
               @dragleave="onDragLeaveCell(r - 1, c - 1, $event)"
               @drop="onDropCell(r - 1, c - 1, $event)"
-              @pointerdown="
-                cellValue(r - 1, c - 1) > 0 && !isGiven(r - 1, c - 1)
-                  ? onPointerDownPayload({ source: 'cell', row: r - 1, col: c - 1 }, $event)
-                  : undefined
-              "
             >
               <template v-if="isGiven(r - 1, c - 1)">
                 <span class="sd-cell__val sd-cell__val--given">{{ cellValue(r - 1, c - 1) }}</span>
@@ -436,7 +399,7 @@ defineExpose({
       <p class="sd-zone__title">
         数字牌
         <span class="sd-zone__sub">
-          {{ isTouchPrimary ? '点格子后再点数字；再点已填格可清除' : '拖到棋盘空格 · 或先点格子再点数字' }}
+          {{ isCompactLayout ? '点格子后再点数字；再点已填格可清除' : '拖到棋盘空格 · 或先点格子再点数字' }}
         </span>
       </p>
       <div class="sd-palette">
@@ -444,16 +407,15 @@ defineExpose({
           v-for="n in digits"
           :key="n"
           class="sd-chip"
-          :draggable="acceptingInput && !isTouchPrimary"
+          :draggable="acceptingInput && !isCompactLayout"
           @dragstart="onChipDragStart(n, $event)"
           @dragend="onDragEnd"
           @click="onChipClick(n)"
-          @pointerdown="onPointerDownPayload({ source: 'pool', value: n }, $event)"
         >
           {{ n }}
         </div>
         <button
-          v-if="isTouchPrimary"
+          v-if="isCompactLayout"
           type="button"
           class="sd-chip sd-chip--erase"
           :disabled="!acceptingInput || !selected"
@@ -465,7 +427,7 @@ defineExpose({
     </section>
 
     <div
-      v-if="!isTouchPrimary"
+      v-if="!isCompactLayout"
       class="sd-return"
       :class="{ 'sd-return--active': dragPayload?.source === 'cell' }"
       data-drop-key="return"
@@ -473,14 +435,6 @@ defineExpose({
       @drop="onDropReturn($event)"
     >
       拖到这里清空已填数字
-    </div>
-    <div
-      v-else
-      class="sd-return"
-      :class="{ 'sd-return--active': touchDrag.dropKey.value === 'return' }"
-      data-drop-key="return"
-    >
-      拖动已填数字到这里可清空
     </div>
 
     <div class="sd-actions">
@@ -496,8 +450,8 @@ defineExpose({
     </div>
 
     <p class="hint sd-hint-bar">
-      <template v-if="isTouchPrimary">
-        手机推荐：① 点空格 ② 点数字；再点同一格可擦掉；长按数字/已填格可拖到其他格
+      <template v-if="isCompactLayout">
+        手机：① 点空格 ② 点数字填数；点已填格再点另一空格可移动；再点同一格或「清除」可擦掉
       </template>
       <template v-else>
         数字牌可拖到任意空格；选中格后按 <kbd>1</kbd>～<kbd>{{ size }}</kbd> 填数；<kbd>Enter</kbd> 提交
@@ -535,9 +489,13 @@ defineExpose({
 
 .sd-selection-hint {
   margin: 0 0 8px;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   color: var(--app-primary, #2563eb);
   font-weight: 600;
+}
+
+.sd-selection-hint--warn {
+  color: #c2410c;
 }
 
 .sd-grid-wrap {
@@ -756,5 +714,28 @@ defineExpose({
   margin: 0;
   font-size: 0.78rem;
   line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .sd-panel .sd-grid--5 {
+    grid-template-columns: repeat(5, minmax(48px, 14vw));
+    grid-auto-rows: minmax(48px, 14vw);
+  }
+
+  .sd-panel .sd-grid--9 {
+    grid-template-columns: repeat(9, minmax(36px, 10.5vw));
+    grid-auto-rows: minmax(36px, 10.5vw);
+  }
+
+  .sd-panel .sd-chip {
+    min-width: 52px;
+    min-height: 52px;
+    font-size: 1.15rem;
+  }
+
+  .sd-panel .sd-key {
+    min-height: 48px;
+    font-size: 1rem;
+  }
 }
 </style>
