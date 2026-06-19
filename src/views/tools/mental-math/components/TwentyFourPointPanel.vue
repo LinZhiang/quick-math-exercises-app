@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import {
+  pickDropKeyFromPoint,
+  useTouchPointerDrag,
+  useTouchPrimaryDevice,
+} from '@/composables/useTouchPointerDrag'
 
 type OpValue = '+' | '−' | '×' | '÷'
 type ParenValue = '(' | ')'
@@ -29,10 +34,22 @@ const emit = defineEmits<{
   (e: 'submit', expression: string): void
 }>()
 
+const { isTouchPrimary } = useTouchPrimaryDevice()
+
 let chipIdSeq = 0
 const chips = ref<ExprChip[]>([])
 const dragPayload = ref<DragPayload | null>(null)
 const dropIndex = ref<number | null>(null)
+const selectedExprIndex = ref<number | null>(null)
+let suppressClickUntil = 0
+
+function shouldSuppressClick() {
+  return Date.now() < suppressClickUntil
+}
+
+function markSuppressClick() {
+  suppressClickUntil = Date.now() + 380
+}
 
 const usedSlots = computed(() => {
   const used = props.nums.map(() => false)
@@ -74,6 +91,7 @@ function resetDraft() {
   chips.value = []
   dragPayload.value = null
   dropIndex.value = null
+  selectedExprIndex.value = null
 }
 
 watch(
@@ -89,27 +107,6 @@ watch(
   },
 )
 
-function setDragPayload(payload: DragPayload, e: DragEvent) {
-  if (!props.acceptingInput) return
-  dragPayload.value = payload
-  if (e.dataTransfer) {
-    e.dataTransfer.effectAllowed = payload.source === 'expr' ? 'move' : 'copy'
-    e.dataTransfer.setData('text/plain', 'tf-chip')
-  }
-}
-
-function onDragEnd() {
-  dragPayload.value = null
-  dropIndex.value = null
-}
-
-function onDragOverSlot(index: number, e: DragEvent) {
-  if (!props.acceptingInput || !dragPayload.value) return
-  e.preventDefault()
-  if (e.dataTransfer) e.dataTransfer.dropEffect = dragPayload.value.source === 'expr' ? 'move' : 'copy'
-  dropIndex.value = index
-}
-
 function insertChipAt(index: number, chip: ExprChip) {
   const i = Math.max(0, Math.min(index, chips.value.length))
   chips.value.splice(i, 0, chip)
@@ -117,11 +114,14 @@ function insertChipAt(index: number, chip: ExprChip) {
 
 function removeChipAt(index: number) {
   chips.value.splice(index, 1)
+  if (selectedExprIndex.value != null) {
+    if (selectedExprIndex.value === index) selectedExprIndex.value = null
+    else if (selectedExprIndex.value > index) selectedExprIndex.value -= 1
+  }
 }
 
-function dropAt(index: number) {
-  const drag = dragPayload.value
-  if (!props.acceptingInput || !drag) return
+function dropAt(index: number, drag: DragPayload) {
+  if (!props.acceptingInput) return
 
   if (drag.source === 'pool-num') {
     if (usedSlots.value[drag.slotIndex]) return
@@ -138,14 +138,63 @@ function dropAt(index: number) {
     if (from < to) to -= 1
     to = Math.max(0, Math.min(to, chips.value.length))
     chips.value.splice(to, 0, moved)
+    selectedExprIndex.value = to
   }
+}
 
-  onDragEnd()
+function parseDropKey(key: string | null): { kind: 'slot'; index: number } | { kind: 'return' } | null {
+  if (!key) return null
+  if (key === 'return') return { kind: 'return' }
+  const m = /^slot:(\d+)$/.exec(key)
+  if (m) return { kind: 'slot', index: Number(m[1]) }
+  return null
+}
+
+const touchDrag = useTouchPointerDrag<DragPayload>({
+  canInteract: () => props.acceptingInput,
+  pickDropKey: pickDropKeyFromPoint,
+  onDrop: (payload, key) => {
+    markSuppressClick()
+    const target = parseDropKey(key)
+    if (!target) return
+    if (target.kind === 'return') {
+      if (payload.source === 'expr') {
+        const chip = chips.value[payload.fromIndex]
+        if (chip?.kind === 'num') removeChipAt(payload.fromIndex)
+      }
+      return
+    }
+    dropAt(target.index, payload)
+  },
+})
+
+function setDragPayload(payload: DragPayload, e: DragEvent) {
+  if (!props.acceptingInput || isTouchPrimary.value) return
+  dragPayload.value = payload
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = payload.source === 'expr' ? 'move' : 'copy'
+    e.dataTransfer.setData('text/plain', 'tf-chip')
+  }
+}
+
+function onDragEnd() {
+  dragPayload.value = null
+  dropIndex.value = null
+}
+
+function onDragOverSlot(index: number, e: DragEvent) {
+  if (!props.acceptingInput || !dragPayload.value || isTouchPrimary.value) return
+  e.preventDefault()
+  if (e.dataTransfer) e.dataTransfer.dropEffect = dragPayload.value.source === 'expr' ? 'move' : 'copy'
+  dropIndex.value = index
 }
 
 function onDropSlot(index: number, e: DragEvent) {
   e.preventDefault()
-  dropAt(index)
+  const drag = dragPayload.value
+  if (!drag) return
+  dropAt(index, drag)
+  onDragEnd()
 }
 
 function onDropReturnPool(e: DragEvent) {
@@ -158,18 +207,44 @@ function onDropReturnPool(e: DragEvent) {
 }
 
 function appendNum(index: number) {
+  if (shouldSuppressClick()) return
   if (!props.acceptingInput || usedSlots.value[index]) return
   insertChipAt(chips.value.length, mkNumChip(index))
+  selectedExprIndex.value = chips.value.length - 1
 }
 
 function appendOp(op: OpValue) {
+  if (shouldSuppressClick()) return
   if (!props.acceptingInput) return
   insertChipAt(chips.value.length, mkOpChip(op))
+  selectedExprIndex.value = chips.value.length - 1
 }
 
 function appendParen(p: ParenValue) {
+  if (shouldSuppressClick()) return
   if (!props.acceptingInput) return
   insertChipAt(chips.value.length, mkParenChip(p))
+  selectedExprIndex.value = chips.value.length - 1
+}
+
+function selectExprChip(index: number) {
+  if (shouldSuppressClick()) return
+  if (!props.acceptingInput) return
+  selectedExprIndex.value = selectedExprIndex.value === index ? null : index
+}
+
+function removeExprChip(index: number) {
+  if (!props.acceptingInput) return
+  removeChipAt(index)
+}
+
+function moveExprChip(index: number, delta: number) {
+  if (!props.acceptingInput) return
+  const to = index + delta
+  if (to < 0 || to >= chips.value.length) return
+  const [moved] = chips.value.splice(index, 1)
+  chips.value.splice(to, 0, moved)
+  selectedExprIndex.value = to
 }
 
 function backspace() {
@@ -185,6 +260,15 @@ function clearDraft() {
 function submitDraft() {
   if (!canSubmit.value) return
   emit('submit', draftExpression.value)
+}
+
+function onPointerDownChip(payload: DragPayload, e: PointerEvent) {
+  touchDrag.onPointerDown(payload, e)
+}
+
+function slotDropActive(index: number) {
+  if (isTouchPrimary.value) return touchDrag.dropKey.value === `slot:${index}`
+  return dropIndex.value === index
 }
 
 function onKeydown(e: KeyboardEvent) {
@@ -228,7 +312,14 @@ defineExpose({
 </script>
 
 <template>
-  <div class="tf-panel" @keydown="onKeydown">
+  <div
+    class="tf-panel"
+    :class="{ 'tf-panel--touch': isTouchPrimary }"
+    @keydown="onKeydown"
+    @pointermove="touchDrag.onPointerMove"
+    @pointerup="touchDrag.onPointerUp"
+    @pointercancel="touchDrag.onPointerCancel"
+  >
     <div
       class="question-block tf-question"
       :class="{
@@ -244,54 +335,119 @@ defineExpose({
       </p>
     </div>
 
-  <section class="tf-zone tf-zone--expr" aria-label="算式区">
-      <p class="tf-zone__title">你的算式 <span class="tf-zone__sub">拖拽牌到此处，可拖动调整顺序</span></p>
+    <section class="tf-zone tf-zone--expr" aria-label="算式区">
+      <p class="tf-zone__title">
+        你的算式
+        <span class="tf-zone__sub">
+          {{ isTouchPrimary ? '点下方牌追加；点算式块可移动/删除' : '拖拽牌到此处，可拖动调整顺序' }}
+        </span>
+      </p>
       <div
         class="tf-lane"
+        data-drop-key="slot:0"
         @dragover.prevent
         @drop="onDropSlot(chips.length, $event)"
       >
         <template v-for="(chip, i) in chips" :key="chip.id">
           <div
+            v-if="!isTouchPrimary"
             class="tf-slot"
-            :class="{ 'tf-slot--active': dropIndex === i }"
+            :class="{ 'tf-slot--active': slotDropActive(i) }"
+            :data-drop-key="`slot:${i}`"
             @dragover="onDragOverSlot(i, $event)"
             @drop="onDropSlot(i, $event)"
           />
           <div
+            v-else
+            class="tf-slot tf-slot--touch"
+            :class="{ 'tf-slot--active': slotDropActive(i) }"
+            :data-drop-key="`slot:${i}`"
+          />
+          <div
             class="tf-chip tf-chip--in-expr"
-            draggable="true"
+            :class="{ 'tf-chip--selected': selectedExprIndex === i }"
+            :draggable="acceptingInput && !isTouchPrimary"
+            @click.stop="selectExprChip(i)"
             @dragstart="setDragPayload({ source: 'expr', fromIndex: i }, $event)"
             @dragend="onDragEnd"
+            @pointerdown="onPointerDownChip({ source: 'expr', fromIndex: i }, $event)"
           >
-            {{ chipLabel(chip) }}
+            <span>{{ chipLabel(chip) }}</span>
+            <button
+              v-if="isTouchPrimary"
+              type="button"
+              class="tf-chip__remove"
+              aria-label="删除此块"
+              @click.stop="removeExprChip(i)"
+            >
+              ×
+            </button>
           </div>
         </template>
         <div
+          v-if="!isTouchPrimary"
           class="tf-slot tf-slot--end"
-          :class="{ 'tf-slot--active': dropIndex === chips.length }"
+          :class="{ 'tf-slot--active': slotDropActive(chips.length) }"
+          :data-drop-key="`slot:${chips.length}`"
           @dragover="onDragOverSlot(chips.length, $event)"
           @drop="onDropSlot(chips.length, $event)"
         />
-        <p v-if="chips.length === 0" class="tf-lane__empty">把下方数字牌、符号牌拖到这里</p>
+        <div
+          v-else
+          class="tf-slot tf-slot--touch tf-slot--end"
+          :class="{ 'tf-slot--active': slotDropActive(chips.length) }"
+          :data-drop-key="`slot:${chips.length}`"
+        />
+        <p v-if="chips.length === 0" class="tf-lane__empty">
+          {{ isTouchPrimary ? '点下方数字与符号牌拼算式' : '把下方数字牌、符号牌拖到这里' }}
+        </p>
       </div>
-      <p class="tf-expr-preview" aria-live="polite">
-        预览：{{ draftExpression || '—' }}
-      </p>
+
+      <div v-if="isTouchPrimary && selectedExprIndex != null" class="tf-expr-tools">
+        <button
+          type="button"
+          class="tf-key tf-key--muted"
+          :disabled="selectedExprIndex <= 0"
+          @click="moveExprChip(selectedExprIndex, -1)"
+        >
+          ← 左移
+        </button>
+        <button
+          type="button"
+          class="tf-key tf-key--muted"
+          @click="removeExprChip(selectedExprIndex)"
+        >
+          删除选中
+        </button>
+        <button
+          type="button"
+          class="tf-key tf-key--muted"
+          :disabled="selectedExprIndex >= chips.length - 1"
+          @click="moveExprChip(selectedExprIndex, 1)"
+        >
+          右移 →
+        </button>
+      </div>
+
+      <p class="tf-expr-preview" aria-live="polite">预览：{{ draftExpression || '—' }}</p>
     </section>
 
     <section class="tf-zone" aria-label="数字牌">
-      <p class="tf-zone__title">数字牌 <span class="tf-zone__sub">拖入算式区 · 点击可追加到末尾</span></p>
+      <p class="tf-zone__title">
+        数字牌
+        <span class="tf-zone__sub">{{ isTouchPrimary ? '点击追加到算式末尾' : '拖入算式区 · 点击可追加到末尾' }}</span>
+      </p>
       <div class="tf-palette">
         <div
           v-for="(n, idx) in nums"
           :key="`n-${idx}`"
           class="tf-chip tf-chip--num"
           :class="{ 'tf-chip--used': usedSlots[idx] }"
-          :draggable="acceptingInput && !usedSlots[idx]"
+          :draggable="acceptingInput && !usedSlots[idx] && !isTouchPrimary"
           @dragstart="setDragPayload({ source: 'pool-num', slotIndex: idx }, $event)"
           @dragend="onDragEnd"
           @click="appendNum(idx)"
+          @pointerdown="onPointerDownChip({ source: 'pool-num', slotIndex: idx }, $event)"
         >
           <span class="tf-chip__badge">{{ idx + 1 }}</span>
           <span>{{ n }}</span>
@@ -301,15 +457,16 @@ defineExpose({
 
     <section class="tf-zone" aria-label="符号牌">
       <p class="tf-zone__title">符号牌</p>
-      <div class="tf-palette">
+      <div class="tf-palette tf-palette--ops">
         <div
           v-for="op in OP_SYMBOLS"
           :key="op"
           class="tf-chip tf-chip--sym"
-          :draggable="acceptingInput"
+          :draggable="acceptingInput && !isTouchPrimary"
           @dragstart="setDragPayload({ source: 'pool-op', value: op }, $event)"
           @dragend="onDragEnd"
           @click="appendOp(op)"
+          @pointerdown="onPointerDownChip({ source: 'pool-op', value: op }, $event)"
         >
           {{ op }}
         </div>
@@ -317,10 +474,11 @@ defineExpose({
           v-for="p in PAREN_SYMBOLS"
           :key="p"
           class="tf-chip tf-chip--sym"
-          :draggable="acceptingInput"
+          :draggable="acceptingInput && !isTouchPrimary"
           @dragstart="setDragPayload({ source: 'pool-paren', value: p }, $event)"
           @dragend="onDragEnd"
           @click="appendParen(p)"
+          @pointerdown="onPointerDownChip({ source: 'pool-paren', value: p }, $event)"
         >
           {{ p }}
         </div>
@@ -328,8 +486,10 @@ defineExpose({
     </section>
 
     <div
+      v-if="!isTouchPrimary"
       class="tf-return"
       :class="{ 'tf-return--active': dragPayload?.source === 'expr' }"
+      data-drop-key="return"
       @dragover.prevent
       @drop="onDropReturnPool($event)"
     >
@@ -349,8 +509,13 @@ defineExpose({
     </div>
 
     <p class="hint tf-hint-bar">
-      拖拽拼算式，或在算式区内拖动调整顺序；<kbd>Enter</kbd> 提交；数字键
-      <kbd>1</kbd>～<kbd>4</kbd> 追加对应数字
+      <template v-if="isTouchPrimary">
+        手机：点数字/符号追加；点算式块后可用「左移/右移/删除」；也可长按拖动到算式区
+      </template>
+      <template v-else>
+        拖拽拼算式，或在算式区内拖动调整顺序；<kbd>Enter</kbd> 提交；数字键
+        <kbd>1</kbd>～<kbd>4</kbd> 追加对应数字
+      </template>
     </p>
   </div>
 </template>
@@ -391,12 +556,13 @@ defineExpose({
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   min-height: 56px;
   padding: 10px;
   border-radius: 10px;
   border: 2px dashed rgba(46, 125, 90, 0.35);
   background: var(--app-surface, #fff);
+  overflow-x: auto;
 }
 
 .tf-lane__empty {
@@ -412,17 +578,24 @@ defineExpose({
   width: 10px;
   min-height: 40px;
   border-radius: 4px;
-  transition: background 0.12s, width 0.12s;
+  transition:
+    background 0.12s,
+    width 0.12s;
+}
+
+.tf-slot--touch {
+  width: 4px;
+  min-height: 44px;
 }
 
 .tf-slot--active {
-  width: 18px;
+  width: 14px;
   background: rgba(46, 125, 90, 0.25);
 }
 
 .tf-slot--end {
   flex: 1;
-  min-width: 24px;
+  min-width: 16px;
   min-height: 40px;
 }
 
@@ -431,12 +604,26 @@ defineExpose({
   font-size: 0.85rem;
   color: var(--app-text-secondary, #777);
   font-variant-numeric: tabular-nums;
+  word-break: break-all;
+}
+
+.tf-expr-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .tf-palette {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.tf-palette--ops {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  max-width: 320px;
 }
 
 .tf-chip {
@@ -453,25 +640,40 @@ defineExpose({
   font-size: 1.1rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  cursor: grab;
+  cursor: pointer;
   user-select: none;
-  transition: transform 0.1s, opacity 0.15s, box-shadow 0.12s;
+  touch-action: manipulation;
+  transition:
+    transform 0.1s,
+    opacity 0.15s,
+    box-shadow 0.12s;
 }
 
-.tf-chip:active {
-  cursor: grabbing;
+.tf-panel--touch .tf-chip {
+  min-width: 52px;
+  min-height: 52px;
+  font-size: 1.2rem;
 }
 
 .tf-chip--in-expr {
   border-color: rgba(46, 125, 90, 0.55);
   background: rgba(46, 125, 90, 0.1);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+}
+
+.tf-chip--selected {
+  box-shadow: inset 0 0 0 2px rgba(46, 125, 90, 0.65);
 }
 
 .tf-chip--num {
   border-color: rgba(46, 125, 90, 0.45);
   background: rgba(46, 125, 90, 0.08);
   min-width: 64px;
+}
+
+.tf-panel--touch .tf-chip--num {
+  min-width: 72px;
 }
 
 .tf-chip--num.tf-chip--used {
@@ -491,6 +693,20 @@ defineExpose({
   color: var(--app-text-secondary, #888);
 }
 
+.tf-chip__remove {
+  margin-left: 2px;
+  border: none;
+  background: rgba(0, 0, 0, 0.06);
+  color: #a05040;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 .tf-return {
   padding: 10px 12px;
   border-radius: 8px;
@@ -498,7 +714,9 @@ defineExpose({
   font-size: 0.82rem;
   color: var(--app-text-secondary, #888);
   text-align: center;
-  transition: border-color 0.12s, background 0.12s;
+  transition:
+    border-color 0.12s,
+    background 0.12s;
 }
 
 .tf-return--active {
@@ -515,12 +733,14 @@ defineExpose({
 
 .tf-key {
   min-width: 44px;
+  min-height: 44px;
   padding: 8px 12px;
   border-radius: 8px;
   border: 1px solid var(--app-border-soft, #ddd);
   background: var(--app-surface, #fff);
   font-size: 0.95rem;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .tf-key:disabled {
@@ -547,5 +767,7 @@ defineExpose({
 
 .tf-hint-bar {
   margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
 }
 </style>

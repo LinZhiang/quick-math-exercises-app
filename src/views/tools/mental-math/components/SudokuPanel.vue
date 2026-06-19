@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import {
+  pickDropKeyFromPoint,
+  useTouchPointerDrag,
+  useTouchPrimaryDevice,
+} from '@/composables/useTouchPointerDrag'
 
 type DragPayload =
   | { source: 'pool'; value: number }
@@ -19,11 +24,26 @@ const emit = defineEmits<{
   (e: 'submit', grid: number[][]): void
 }>()
 
+const { isTouchPrimary } = useTouchPrimaryDevice()
+
 const draft = ref<number[][]>([])
 const selected = ref<{ row: number; col: number } | null>(null)
 const dragPayload = ref<DragPayload | null>(null)
 const dropTarget = ref<{ row: number; col: number } | null>(null)
 const suppressChipClick = ref(false)
+let suppressClickUntil = 0
+
+function shouldSuppressClick() {
+  return suppressChipClick.value || Date.now() < suppressClickUntil
+}
+
+function markSuppressClick() {
+  suppressClickUntil = Date.now() + 380
+  suppressChipClick.value = true
+  window.setTimeout(() => {
+    suppressChipClick.value = false
+  }, 400)
+}
 
 const digits = computed(() => Array.from({ length: props.size }, (_, i) => i + 1))
 
@@ -42,6 +62,12 @@ const blankCells = computed(() => {
 const canSubmit = computed(() => {
   if (!props.acceptingInput) return false
   return blankCells.value.every(({ row, col }) => draft.value[row][col] > 0)
+})
+
+const selectedLabel = computed(() => {
+  if (!selected.value) return '未选中'
+  const { row, col } = selected.value
+  return `第 ${row + 1} 行 · 第 ${col + 1} 列`
 })
 
 function resetDraft() {
@@ -79,8 +105,44 @@ function clearCell(row: number, col: number) {
   draft.value[row][col] = 0
 }
 
+function cellDropKey(row: number, col: number) {
+  return `cell:${row}:${col}`
+}
+
+function parseDropKey(key: string | null): { row: number; col: number } | 'return' | null {
+  if (!key) return null
+  if (key === 'return') return 'return'
+  const m = /^cell:(\d+):(\d+)$/.exec(key)
+  if (!m) return null
+  return { row: Number(m[1]), col: Number(m[2]) }
+}
+
+function applyDrop(row: number, col: number, drag: DragPayload) {
+  if (isGiven(row, col)) return
+  if (drag.source === 'pool') {
+    setCell(row, col, drag.value)
+    selected.value = { row, col }
+    return
+  }
+  const fromVal = cellValue(drag.row, drag.col)
+  if (fromVal <= 0) return
+  setCell(row, col, fromVal)
+  if (drag.row !== row || drag.col !== col) clearCell(drag.row, drag.col)
+  selected.value = { row, col }
+}
+
 function selectCell(row: number, col: number) {
+  if (shouldSuppressClick()) return
   if (!props.acceptingInput || isGiven(row, col)) return
+  if (
+    selected.value?.row === row &&
+    selected.value?.col === col &&
+    cellValue(row, col) > 0 &&
+    isTouchPrimary.value
+  ) {
+    clearCell(row, col)
+    return
+  }
   selected.value = { row, col }
 }
 
@@ -101,7 +163,7 @@ function decodePayload(e: DragEvent): DragPayload | null {
 }
 
 function setDragPayload(payload: DragPayload, e: DragEvent) {
-  if (!props.acceptingInput) return
+  if (!props.acceptingInput || isTouchPrimary.value) return
   if (payload.source === 'cell' && isGiven(payload.row, payload.col)) return
   dragPayload.value = payload
   const dt = e.dataTransfer
@@ -126,13 +188,13 @@ function onChipDragStart(value: number, e: DragEvent) {
 }
 
 function onCellDragStart(row: number, col: number, e: DragEvent) {
-  if (!props.acceptingInput || isGiven(row, col) || cellValue(row, col) <= 0) return
+  if (!props.acceptingInput || isGiven(row, col) || cellValue(row, col) <= 0 || isTouchPrimary.value) return
   e.stopPropagation()
   setDragPayload({ source: 'cell', row, col }, e)
 }
 
 function onDragOverCell(row: number, col: number, e: DragEvent) {
-  if (!props.acceptingInput || isGiven(row, col) || !dragPayload.value) return
+  if (!props.acceptingInput || isGiven(row, col) || !dragPayload.value || isTouchPrimary.value) return
   e.preventDefault()
   e.stopPropagation()
   if (e.dataTransfer) {
@@ -148,19 +210,6 @@ function onDragLeaveCell(row: number, col: number, e: DragEvent) {
   if (dropTarget.value?.row === row && dropTarget.value?.col === col) {
     dropTarget.value = null
   }
-}
-
-function applyDrop(row: number, col: number, drag: DragPayload) {
-  if (drag.source === 'pool') {
-    setCell(row, col, drag.value)
-    selected.value = { row, col }
-    return
-  }
-  const fromVal = cellValue(drag.row, drag.col)
-  if (fromVal <= 0) return
-  setCell(row, col, fromVal)
-  if (drag.row !== row || drag.col !== col) clearCell(drag.row, drag.col)
-  selected.value = { row, col }
 }
 
 function onDropCell(row: number, col: number, e: DragEvent) {
@@ -190,6 +239,38 @@ function onDropReturn(e: DragEvent) {
   onDragEnd()
 }
 
+const touchDrag = useTouchPointerDrag<DragPayload>({
+  canInteract: () => props.acceptingInput,
+  pickDropKey: pickDropKeyFromPoint,
+  onDrop: (payload, key) => {
+    markSuppressClick()
+    const target = parseDropKey(key)
+    if (target === 'return') {
+      if (payload.source === 'cell') {
+        clearCell(payload.row, payload.col)
+        if (selected.value?.row === payload.row && selected.value?.col === payload.col) {
+          selected.value = null
+        }
+      }
+      return
+    }
+    if (!target || typeof target === 'string') return
+    applyDrop(target.row, target.col, payload)
+  },
+})
+
+function isCellDropActive(row: number, col: number) {
+  if (isTouchPrimary.value) {
+    const key = touchDrag.dropKey.value
+    return key === cellDropKey(row, col)
+  }
+  return dropTarget.value?.row === row && dropTarget.value?.col === col
+}
+
+function onPointerDownPayload(payload: DragPayload, e: PointerEvent) {
+  touchDrag.onPointerDown(payload, e)
+}
+
 function fillSelectedDigit(value: number) {
   if (!props.acceptingInput) return
   if (!selected.value) return
@@ -197,8 +278,13 @@ function fillSelectedDigit(value: number) {
 }
 
 function onChipClick(value: number) {
-  if (suppressChipClick.value) return
+  if (shouldSuppressClick()) return
   fillSelectedDigit(value)
+}
+
+function clearSelected() {
+  if (!props.acceptingInput || !selected.value) return
+  clearCell(selected.value.row, selected.value.col)
 }
 
 function backspace() {
@@ -251,7 +337,14 @@ defineExpose({
 </script>
 
 <template>
-  <div class="sd-panel" @keydown="onKeydown">
+  <div
+    class="sd-panel"
+    :class="{ 'sd-panel--touch': isTouchPrimary }"
+    @keydown="onKeydown"
+    @pointermove="touchDrag.onPointerMove"
+    @pointerup="touchDrag.onPointerUp"
+    @pointercancel="touchDrag.onPointerCancel"
+  >
     <div
       class="question-block sd-question"
       :class="{
@@ -272,79 +365,122 @@ defineExpose({
     <section class="sd-zone" aria-label="数独棋盘">
       <p class="sd-zone__title">
         棋盘
-        <span class="sd-zone__sub">把数字牌拖到任意空格；或点格选中后点数字</span>
+        <span class="sd-zone__sub">
+          {{
+            isTouchPrimary
+              ? '先点空格选中，再点下方数字；也可长按拖动'
+              : '把数字牌拖到任意空格；或点格选中后点数字'
+          }}
+        </span>
       </p>
+      <p v-if="isTouchPrimary" class="sd-selection-hint">当前：{{ selectedLabel }}</p>
       <div
-        class="sd-grid"
-        :class="`sd-grid--${size}`"
-        role="grid"
-        :aria-rowcount="size"
-        :aria-colcount="size"
+        class="sd-grid-wrap"
+        :class="`sd-grid-wrap--${size}`"
       >
-        <template v-for="r in size" :key="`r-${r}`">
-          <div
-            v-for="c in size"
-            :key="`c-${r}-${c}`"
-            class="sd-cell"
-            :class="{
-              'sd-cell--given': isGiven(r - 1, c - 1),
-              'sd-cell--blank': !isGiven(r - 1, c - 1),
-              'sd-cell--selected': selected?.row === r - 1 && selected?.col === c - 1,
-              'sd-cell--drop': dropTarget?.row === r - 1 && dropTarget?.col === c - 1,
-              'sd-cell--box-edge-r': size === 9 && (c - 1) % 3 === 2 && c < size,
-              'sd-cell--box-edge-b': size === 9 && (r - 1) % 3 === 2 && r < size,
-            }"
-            role="gridcell"
-            :aria-selected="selected?.row === r - 1 && selected?.col === c - 1"
-            :draggable="
-              acceptingInput && !isGiven(r - 1, c - 1) && cellValue(r - 1, c - 1) > 0
-            "
-            @click="selectCell(r - 1, c - 1)"
-            @dragstart="onCellDragStart(r - 1, c - 1, $event)"
-            @dragend="onDragEnd"
-            @dragover="onDragOverCell(r - 1, c - 1, $event)"
-            @dragleave="onDragLeaveCell(r - 1, c - 1, $event)"
-            @drop="onDropCell(r - 1, c - 1, $event)"
-          >
-            <template v-if="isGiven(r - 1, c - 1)">
-              <span class="sd-cell__val sd-cell__val--given">{{ cellValue(r - 1, c - 1) }}</span>
-            </template>
-            <template v-else-if="cellValue(r - 1, c - 1) > 0">
-              <span class="sd-cell__val sd-cell__val--user">{{ cellValue(r - 1, c - 1) }}</span>
-            </template>
-            <span v-else class="sd-cell__placeholder">·</span>
-          </div>
-        </template>
+        <div
+          class="sd-grid"
+          :class="`sd-grid--${size}`"
+          role="grid"
+          :aria-rowcount="size"
+          :aria-colcount="size"
+        >
+          <template v-for="r in size" :key="`r-${r}`">
+            <div
+              v-for="c in size"
+              :key="`c-${r}-${c}`"
+              class="sd-cell"
+              :class="{
+                'sd-cell--given': isGiven(r - 1, c - 1),
+                'sd-cell--blank': !isGiven(r - 1, c - 1),
+                'sd-cell--selected': selected?.row === r - 1 && selected?.col === c - 1,
+                'sd-cell--drop': isCellDropActive(r - 1, c - 1),
+                'sd-cell--box-edge-r': size === 9 && (c - 1) % 3 === 2 && c < size,
+                'sd-cell--box-edge-b': size === 9 && (r - 1) % 3 === 2 && r < size,
+              }"
+              role="gridcell"
+              :data-drop-key="cellDropKey(r - 1, c - 1)"
+              :aria-selected="selected?.row === r - 1 && selected?.col === c - 1"
+              :draggable="
+                !isTouchPrimary &&
+                acceptingInput &&
+                !isGiven(r - 1, c - 1) &&
+                cellValue(r - 1, c - 1) > 0
+              "
+              @click="selectCell(r - 1, c - 1)"
+              @dragstart="onCellDragStart(r - 1, c - 1, $event)"
+              @dragend="onDragEnd"
+              @dragover="onDragOverCell(r - 1, c - 1, $event)"
+              @dragleave="onDragLeaveCell(r - 1, c - 1, $event)"
+              @drop="onDropCell(r - 1, c - 1, $event)"
+              @pointerdown="
+                cellValue(r - 1, c - 1) > 0 && !isGiven(r - 1, c - 1)
+                  ? onPointerDownPayload({ source: 'cell', row: r - 1, col: c - 1 }, $event)
+                  : undefined
+              "
+            >
+              <template v-if="isGiven(r - 1, c - 1)">
+                <span class="sd-cell__val sd-cell__val--given">{{ cellValue(r - 1, c - 1) }}</span>
+              </template>
+              <template v-else-if="cellValue(r - 1, c - 1) > 0">
+                <span class="sd-cell__val sd-cell__val--user">{{ cellValue(r - 1, c - 1) }}</span>
+              </template>
+              <span v-else class="sd-cell__placeholder">·</span>
+            </div>
+          </template>
+        </div>
       </div>
     </section>
 
-    <section class="sd-zone" aria-label="数字牌">
+    <section class="sd-zone sd-zone--pad" aria-label="数字牌">
       <p class="sd-zone__title">
         数字牌
-        <span class="sd-zone__sub">拖到棋盘空格 · 或先点格子再点数字</span>
+        <span class="sd-zone__sub">
+          {{ isTouchPrimary ? '点格子后再点数字；再点已填格可清除' : '拖到棋盘空格 · 或先点格子再点数字' }}
+        </span>
       </p>
       <div class="sd-palette">
         <div
           v-for="n in digits"
           :key="n"
           class="sd-chip"
-          :draggable="acceptingInput"
+          :draggable="acceptingInput && !isTouchPrimary"
           @dragstart="onChipDragStart(n, $event)"
           @dragend="onDragEnd"
           @click="onChipClick(n)"
+          @pointerdown="onPointerDownPayload({ source: 'pool', value: n }, $event)"
         >
           {{ n }}
         </div>
+        <button
+          v-if="isTouchPrimary"
+          type="button"
+          class="sd-chip sd-chip--erase"
+          :disabled="!acceptingInput || !selected"
+          @click="clearSelected"
+        >
+          清除
+        </button>
       </div>
     </section>
 
     <div
+      v-if="!isTouchPrimary"
       class="sd-return"
       :class="{ 'sd-return--active': dragPayload?.source === 'cell' }"
+      data-drop-key="return"
       @dragover.prevent
       @drop="onDropReturn($event)"
     >
       拖到这里清空已填数字
+    </div>
+    <div
+      v-else
+      class="sd-return"
+      :class="{ 'sd-return--active': touchDrag.dropKey.value === 'return' }"
+      data-drop-key="return"
+    >
+      拖动已填数字到这里可清空
     </div>
 
     <div class="sd-actions">
@@ -360,7 +496,12 @@ defineExpose({
     </div>
 
     <p class="hint sd-hint-bar">
-      数字牌可拖到任意空格；选中格后按 <kbd>1</kbd>～<kbd>{{ size }}</kbd> 填数；<kbd>Enter</kbd> 提交
+      <template v-if="isTouchPrimary">
+        手机推荐：① 点空格 ② 点数字；再点同一格可擦掉；长按数字/已填格可拖到其他格
+      </template>
+      <template v-else>
+        数字牌可拖到任意空格；选中格后按 <kbd>1</kbd>～<kbd>{{ size }}</kbd> 填数；<kbd>Enter</kbd> 提交
+      </template>
     </p>
   </div>
 </template>
@@ -370,6 +511,7 @@ defineExpose({
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding-bottom: 8px;
 }
 
 .sd-question .question-prompt {
@@ -391,10 +533,22 @@ defineExpose({
   font-size: 0.75rem;
 }
 
+.sd-selection-hint {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: var(--app-primary, #2563eb);
+  font-weight: 600;
+}
+
+.sd-grid-wrap {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  overflow-x: auto;
+}
+
 .sd-grid {
   display: grid;
-  width: fit-content;
-  max-width: 100%;
   border: 2px solid rgba(72, 108, 160, 0.45);
   border-radius: 8px;
   overflow: hidden;
@@ -402,13 +556,23 @@ defineExpose({
 }
 
 .sd-grid--5 {
-  grid-template-columns: repeat(5, 34px);
-  grid-auto-rows: 34px;
+  grid-template-columns: repeat(5, minmax(40px, 12vw));
+  grid-auto-rows: minmax(40px, 12vw);
 }
 
 .sd-grid--9 {
-  grid-template-columns: repeat(9, 28px);
-  grid-auto-rows: 28px;
+  grid-template-columns: repeat(9, minmax(32px, 9.5vw));
+  grid-auto-rows: minmax(32px, 9.5vw);
+}
+
+.sd-panel--touch .sd-grid--5 {
+  grid-template-columns: repeat(5, minmax(48px, 14vw));
+  grid-auto-rows: minmax(48px, 14vw);
+}
+
+.sd-panel--touch .sd-grid--9 {
+  grid-template-columns: repeat(9, minmax(36px, 10.5vw));
+  grid-auto-rows: minmax(36px, 10.5vw);
 }
 
 .sd-cell {
@@ -418,8 +582,12 @@ defineExpose({
   border: 1px solid rgba(72, 108, 160, 0.18);
   box-sizing: border-box;
   cursor: pointer;
-  transition: background 0.12s, box-shadow 0.12s;
-  touch-action: none;
+  transition:
+    background 0.12s,
+    box-shadow 0.12s;
+  touch-action: manipulation;
+  min-width: 0;
+  min-height: 0;
 }
 
 .sd-cell--box-edge-r {
@@ -437,8 +605,8 @@ defineExpose({
   cursor: default;
 }
 
-.sd-cell--blank:hover {
-  background: rgba(72, 108, 160, 0.05);
+.sd-cell--blank:active {
+  background: rgba(72, 108, 160, 0.08);
 }
 
 .sd-cell--selected {
@@ -455,20 +623,12 @@ defineExpose({
   cursor: grab;
 }
 
-.sd-cell[draggable='true']:active {
-  cursor: grabbing;
-}
-
 .sd-cell__val {
-  font-size: 0.95rem;
+  font-size: clamp(0.85rem, 3.5vw, 1.1rem);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
   pointer-events: none;
-}
-
-.sd-grid--9 .sd-cell__val {
-  font-size: 0.82rem;
 }
 
 .sd-cell__val--given {
@@ -485,43 +645,65 @@ defineExpose({
   pointer-events: none;
 }
 
+.sd-zone--pad {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 10px 0 4px;
+  background: linear-gradient(to bottom, transparent, var(--app-surface, #fff) 24%);
+}
+
 .sd-palette {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
+  justify-content: center;
 }
 
 .sd-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 34px;
-  min-height: 34px;
-  padding: 4px 8px;
-  border-radius: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border-radius: 10px;
   border: 1px solid rgba(72, 108, 160, 0.45);
   background: rgba(72, 108, 160, 0.08);
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  cursor: grab;
+  cursor: pointer;
   user-select: none;
-  touch-action: none;
-  transition: transform 0.1s, box-shadow 0.12s;
+  touch-action: manipulation;
+  transition:
+    transform 0.1s,
+    box-shadow 0.12s;
 }
 
-.sd-chip:active {
-  cursor: grabbing;
+.sd-panel--touch .sd-chip {
+  min-width: 52px;
+  min-height: 52px;
+  font-size: 1.15rem;
+}
+
+.sd-chip--erase {
+  border-color: rgba(200, 80, 60, 0.45);
+  background: rgba(200, 80, 60, 0.08);
+  color: #a05040;
+  font-size: 0.9rem;
 }
 
 .sd-return {
-  padding: 6px 10px;
+  padding: 8px 10px;
   border-radius: 6px;
   border: 1px dashed var(--app-border-soft, #ccc);
   font-size: 0.78rem;
   color: var(--app-text-secondary, #888);
   text-align: center;
-  transition: border-color 0.12s, background 0.12s;
+  transition:
+    border-color 0.12s,
+    background 0.12s;
 }
 
 .sd-return--active {
@@ -533,17 +715,19 @@ defineExpose({
 .sd-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
 
 .sd-key {
-  min-width: 36px;
-  padding: 6px 10px;
-  border-radius: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 8px;
   border: 1px solid var(--app-border-soft, #ddd);
   background: var(--app-surface, #fff);
   font-size: 0.95rem;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .sd-key:disabled {
@@ -571,5 +755,6 @@ defineExpose({
 .sd-hint-bar {
   margin: 0;
   font-size: 0.78rem;
+  line-height: 1.5;
 }
 </style>
