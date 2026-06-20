@@ -1,20 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useTouchPrimaryDevice } from '@/composables/useTouchPointerDrag'
+import { getUsedSlotsFromExpression } from '@/utils/twentyFourPointPractice'
 
 type OpValue = '+' | '−' | '×' | '÷'
 type ParenValue = '(' | ')'
-
-type ExprChip =
-  | { id: number; kind: 'num'; slotIndex: number }
-  | { id: number; kind: 'op'; value: OpValue }
-  | { id: number; kind: 'paren'; value: ParenValue }
-
-type DragPayload =
-  | { source: 'pool-num'; slotIndex: number }
-  | { source: 'pool-op'; value: OpValue }
-  | { source: 'pool-paren'; value: ParenValue }
-  | { source: 'expr'; fromIndex: number }
 
 const OP_SYMBOLS: OpValue[] = ['+', '−', '×', '÷']
 const PAREN_SYMBOLS: ParenValue[] = ['(', ')']
@@ -32,53 +22,14 @@ const emit = defineEmits<{
 
 const { isCompactLayout } = useTouchPrimaryDevice()
 
-let chipIdSeq = 0
-const chips = ref<ExprChip[]>([])
-const dragPayload = ref<DragPayload | null>(null)
-const dropIndex = ref<number | null>(null)
-const selectedExprIndex = ref<number | null>(null)
+const textDraft = ref('')
 
-const usedSlots = computed(() => {
-  const used = props.nums.map(() => false)
-  for (const c of chips.value) {
-    if (c.kind === 'num') used[c.slotIndex] = true
-  }
-  return used
-})
+const usedSlots = computed(() => getUsedSlotsFromExpression(textDraft.value, props.nums))
 
-const draftExpression = computed(() =>
-  chips.value
-    .map((c) => {
-      if (c.kind === 'num') return String(props.nums[c.slotIndex])
-      return c.value
-    })
-    .join(''),
-)
-
-const canSubmit = computed(() => chips.value.length > 0 && props.acceptingInput)
-
-function mkNumChip(slotIndex: number): ExprChip {
-  return { id: ++chipIdSeq, kind: 'num', slotIndex }
-}
-
-function mkOpChip(value: OpValue): ExprChip {
-  return { id: ++chipIdSeq, kind: 'op', value }
-}
-
-function mkParenChip(value: ParenValue): ExprChip {
-  return { id: ++chipIdSeq, kind: 'paren', value }
-}
-
-function chipLabel(chip: ExprChip): string {
-  if (chip.kind === 'num') return String(props.nums[chip.slotIndex])
-  return chip.value
-}
+const canSubmit = computed(() => textDraft.value.trim().length > 0 && props.acceptingInput)
 
 function resetDraft() {
-  chips.value = []
-  dragPayload.value = null
-  dropIndex.value = null
-  selectedExprIndex.value = null
+  textDraft.value = ''
 }
 
 watch(
@@ -94,119 +45,27 @@ watch(
   },
 )
 
-function insertChipAt(index: number, chip: ExprChip) {
-  const i = Math.max(0, Math.min(index, chips.value.length))
-  chips.value.splice(i, 0, chip)
-}
-
-function removeChipAt(index: number) {
-  chips.value.splice(index, 1)
-  if (selectedExprIndex.value != null) {
-    if (selectedExprIndex.value === index) selectedExprIndex.value = null
-    else if (selectedExprIndex.value > index) selectedExprIndex.value -= 1
-  }
-}
-
-function dropAt(index: number, drag: DragPayload) {
-  if (!props.acceptingInput) return
-
-  if (drag.source === 'pool-num') {
-    if (usedSlots.value[drag.slotIndex]) return
-    insertChipAt(index, mkNumChip(drag.slotIndex))
-  } else if (drag.source === 'pool-op') {
-    insertChipAt(index, mkOpChip(drag.value))
-  } else if (drag.source === 'pool-paren') {
-    insertChipAt(index, mkParenChip(drag.value))
-  } else if (drag.source === 'expr') {
-    const from = drag.fromIndex
-    if (from < 0 || from >= chips.value.length) return
-    const [moved] = chips.value.splice(from, 1)
-    let to = index
-    if (from < to) to -= 1
-    to = Math.max(0, Math.min(to, chips.value.length))
-    chips.value.splice(to, 0, moved)
-    selectedExprIndex.value = to
-  }
-}
-
-function setDragPayload(payload: DragPayload, e: DragEvent) {
-  if (!props.acceptingInput || isCompactLayout.value) return
-  dragPayload.value = payload
-  if (e.dataTransfer) {
-    e.dataTransfer.effectAllowed = payload.source === 'expr' ? 'move' : 'copy'
-    e.dataTransfer.setData('text/plain', 'tf-chip')
-  }
-}
-
-function onDragEnd() {
-  dragPayload.value = null
-  dropIndex.value = null
-}
-
-function onDragOverSlot(index: number, e: DragEvent) {
-  if (!props.acceptingInput || !dragPayload.value || isCompactLayout.value) return
-  e.preventDefault()
-  if (e.dataTransfer) e.dataTransfer.dropEffect = dragPayload.value.source === 'expr' ? 'move' : 'copy'
-  dropIndex.value = index
-}
-
-function onDropSlot(index: number, e: DragEvent) {
-  e.preventDefault()
-  const drag = dragPayload.value
-  if (!drag) return
-  dropAt(index, drag)
-  onDragEnd()
-}
-
-function onDropReturnPool(e: DragEvent) {
-  e.preventDefault()
-  const drag = dragPayload.value
-  if (!props.acceptingInput || !drag || drag.source !== 'expr') return
-  const chip = chips.value[drag.fromIndex]
-  if (chip?.kind === 'num') removeChipAt(drag.fromIndex)
-  onDragEnd()
+function appendToText(fragment: string) {
+  if (!props.acceptingInput || !fragment) return
+  textDraft.value += fragment
 }
 
 function appendNum(index: number) {
   if (!props.acceptingInput || usedSlots.value[index]) return
-  insertChipAt(chips.value.length, mkNumChip(index))
-  selectedExprIndex.value = chips.value.length - 1
+  appendToText(String(props.nums[index]))
 }
 
 function appendOp(op: OpValue) {
-  if (!props.acceptingInput) return
-  insertChipAt(chips.value.length, mkOpChip(op))
-  selectedExprIndex.value = chips.value.length - 1
+  appendToText(op)
 }
 
 function appendParen(p: ParenValue) {
-  if (!props.acceptingInput) return
-  insertChipAt(chips.value.length, mkParenChip(p))
-  selectedExprIndex.value = chips.value.length - 1
-}
-
-function selectExprChip(index: number) {
-  if (!props.acceptingInput) return
-  selectedExprIndex.value = selectedExprIndex.value === index ? null : index
-}
-
-function removeExprChip(index: number) {
-  if (!props.acceptingInput) return
-  removeChipAt(index)
-}
-
-function moveExprChip(index: number, delta: number) {
-  if (!props.acceptingInput) return
-  const to = index + delta
-  if (to < 0 || to >= chips.value.length) return
-  const [moved] = chips.value.splice(index, 1)
-  chips.value.splice(to, 0, moved)
-  selectedExprIndex.value = to
+  appendToText(p)
 }
 
 function backspace() {
-  if (!props.acceptingInput || chips.value.length === 0) return
-  removeChipAt(chips.value.length - 1)
+  if (!props.acceptingInput || !textDraft.value) return
+  textDraft.value = textDraft.value.slice(0, -1)
 }
 
 function clearDraft() {
@@ -216,15 +75,25 @@ function clearDraft() {
 
 function submitDraft() {
   if (!canSubmit.value) return
-  emit('submit', draftExpression.value)
+  emit('submit', textDraft.value.trim())
 }
 
-function slotDropActive(index: number) {
-  return dropIndex.value === index
+function onTextInput(e: Event) {
+  if (!props.acceptingInput) return
+  textDraft.value = (e.target as HTMLInputElement).value
+}
+
+function onTextKeydown(e: KeyboardEvent) {
+  if (!props.acceptingInput) return
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    submitDraft()
+  }
 }
 
 function onKeydown(e: KeyboardEvent) {
   if (!props.acceptingInput) return
+  if ((e.target as HTMLElement).closest('.tf-expr-input')) return
   if (e.key === 'Enter') {
     e.preventDefault()
     submitDraft()
@@ -287,147 +156,72 @@ defineExpose({
     <section class="tf-zone tf-zone--expr" aria-label="算式区">
       <p class="tf-zone__title">
         你的算式
-        <span class="tf-zone__sub">
-          {{ isCompactLayout ? '点下方牌追加；点算式块可移动/删除' : '拖拽牌到此处，可拖动调整顺序' }}
-        </span>
+        <span class="tf-zone__sub">像平时写算式一样输入，或点下方数字/符号追加</span>
       </p>
-      <div
-        class="tf-lane"
-        data-drop-key="slot:0"
-        @dragover.prevent
-        @drop="onDropSlot(chips.length, $event)"
-      >
-        <template v-for="(chip, i) in chips" :key="chip.id">
-          <div
-            v-if="!isCompactLayout"
-            class="tf-slot"
-            :class="{ 'tf-slot--active': slotDropActive(i) }"
-            :data-drop-key="`slot:${i}`"
-            @dragover="onDragOverSlot(i, $event)"
-            @drop="onDropSlot(i, $event)"
-          />
-          <div
-            class="tf-chip tf-chip--in-expr"
-            :class="{ 'tf-chip--selected': selectedExprIndex === i }"
-            :draggable="acceptingInput && !isCompactLayout"
-            @click.stop="selectExprChip(i)"
-            @dragstart="setDragPayload({ source: 'expr', fromIndex: i }, $event)"
-            @dragend="onDragEnd"
-          >
-            <span>{{ chipLabel(chip) }}</span>
-            <button
-              v-if="isCompactLayout"
-              type="button"
-              class="tf-chip__remove"
-              aria-label="删除此块"
-              @click.stop="removeExprChip(i)"
-            >
-              ×
-            </button>
-          </div>
-        </template>
-        <div
-          v-if="!isCompactLayout"
-          class="tf-slot tf-slot--end"
-          :class="{ 'tf-slot--active': slotDropActive(chips.length) }"
-          :data-drop-key="`slot:${chips.length}`"
-          @dragover="onDragOverSlot(chips.length, $event)"
-          @drop="onDropSlot(chips.length, $event)"
+
+      <div class="tf-expr-input-wrap">
+        <input
+          class="tf-expr-input"
+          type="text"
+          inputmode="text"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          :disabled="!acceptingInput"
+          :value="textDraft"
+          placeholder="例如 (5-2)×4"
+          aria-label="算式输入"
+          @input="onTextInput"
+          @keydown="onTextKeydown"
         />
-        <p v-if="chips.length === 0" class="tf-lane__empty">
-          {{ isCompactLayout ? '点下方数字与符号牌拼算式' : '把下方数字牌、符号牌拖到这里' }}
-        </p>
       </div>
-
-      <div v-if="isCompactLayout && selectedExprIndex != null" class="tf-expr-tools">
-        <button
-          type="button"
-          class="tf-key tf-key--muted"
-          :disabled="selectedExprIndex <= 0"
-          @click="moveExprChip(selectedExprIndex, -1)"
-        >
-          ← 左移
-        </button>
-        <button
-          type="button"
-          class="tf-key tf-key--muted"
-          @click="removeExprChip(selectedExprIndex)"
-        >
-          删除选中
-        </button>
-        <button
-          type="button"
-          class="tf-key tf-key--muted"
-          :disabled="selectedExprIndex >= chips.length - 1"
-          @click="moveExprChip(selectedExprIndex, 1)"
-        >
-          右移 →
-        </button>
-      </div>
-
-      <p class="tf-expr-preview" aria-live="polite">预览：{{ draftExpression || '—' }}</p>
     </section>
 
-    <section class="tf-zone" aria-label="数字牌">
+    <section class="tf-zone" aria-label="数字">
       <p class="tf-zone__title">
-        数字牌
-        <span class="tf-zone__sub">{{ isCompactLayout ? '点击追加到算式末尾' : '拖入算式区 · 点击可追加到末尾' }}</span>
+        题目数字
+        <span class="tf-zone__sub">点击追加到算式末尾；变灰表示已用过</span>
       </p>
       <div class="tf-palette">
-        <div
+        <button
           v-for="(n, idx) in nums"
           :key="`n-${idx}`"
+          type="button"
           class="tf-chip tf-chip--num"
           :class="{ 'tf-chip--used': usedSlots[idx] }"
-          :draggable="acceptingInput && !usedSlots[idx] && !isCompactLayout"
-          @dragstart="setDragPayload({ source: 'pool-num', slotIndex: idx }, $event)"
-          @dragend="onDragEnd"
+          :disabled="!acceptingInput || usedSlots[idx]"
           @click="appendNum(idx)"
         >
-          <span class="tf-chip__badge">{{ idx + 1 }}</span>
-          <span>{{ n }}</span>
-        </div>
+          {{ n }}
+        </button>
       </div>
     </section>
 
-    <section class="tf-zone" aria-label="符号牌">
-      <p class="tf-zone__title">符号牌</p>
+    <section class="tf-zone" aria-label="符号">
+      <p class="tf-zone__title">运算符</p>
       <div class="tf-palette tf-palette--ops">
-        <div
+        <button
           v-for="op in OP_SYMBOLS"
           :key="op"
+          type="button"
           class="tf-chip tf-chip--sym"
-          :draggable="acceptingInput && !isCompactLayout"
-          @dragstart="setDragPayload({ source: 'pool-op', value: op }, $event)"
-          @dragend="onDragEnd"
+          :disabled="!acceptingInput"
           @click="appendOp(op)"
         >
           {{ op }}
-        </div>
-        <div
+        </button>
+        <button
           v-for="p in PAREN_SYMBOLS"
           :key="p"
+          type="button"
           class="tf-chip tf-chip--sym"
-          :draggable="acceptingInput && !isCompactLayout"
-          @dragstart="setDragPayload({ source: 'pool-paren', value: p }, $event)"
-          @dragend="onDragEnd"
+          :disabled="!acceptingInput"
           @click="appendParen(p)"
         >
           {{ p }}
-        </div>
+        </button>
       </div>
     </section>
-
-    <div
-      v-if="!isCompactLayout"
-      class="tf-return"
-      :class="{ 'tf-return--active': dragPayload?.source === 'expr' }"
-      data-drop-key="return"
-      @dragover.prevent
-      @drop="onDropReturnPool($event)"
-    >
-      拖到这里放回数字牌（仅数字可放回）
-    </div>
 
     <div class="tf-actions">
       <button type="button" class="tf-key tf-key--muted" :disabled="!acceptingInput" @click="backspace">
@@ -442,13 +236,7 @@ defineExpose({
     </div>
 
     <p class="hint tf-hint-bar">
-      <template v-if="isCompactLayout">
-        手机：点数字/符号追加；点算式块后用「左移/右移/删除」或右上角 × 调整
-      </template>
-      <template v-else>
-        拖拽拼算式，或在算式区内拖动调整顺序；<kbd>Enter</kbd> 提交；数字键
-        <kbd>1</kbd>～<kbd>4</kbd> 追加对应数字
-      </template>
+      直接输入算式（支持 + − × ÷ 与括号，也可用键盘 * / -）；点数字会追加对应数值；已用过的数字会变灰
     </p>
   </div>
 </template>
@@ -479,72 +267,39 @@ defineExpose({
 }
 
 .tf-zone--expr {
-  padding: 12px;
-  border-radius: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
   border: 1px solid var(--app-border-soft, #e0e0e0);
-  background: var(--app-surface-muted, rgba(0, 0, 0, 0.03));
+  background: var(--app-surface-muted, rgba(0, 0, 0, 0.02));
 }
 
-.tf-lane {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  min-height: 56px;
-  padding: 10px;
-  border-radius: 10px;
-  border: 2px dashed rgba(46, 125, 90, 0.35);
+.tf-expr-input-wrap {
+  margin-bottom: 0;
+}
+
+.tf-expr-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--app-border-soft, #d8d8d8);
+  border-radius: 6px;
   background: var(--app-surface, #fff);
-  overflow-x: auto;
-}
-
-.tf-lane__empty {
-  margin: 0;
-  flex: 1;
-  text-align: center;
-  font-size: 0.88rem;
-  color: var(--app-text-secondary, #999);
-  pointer-events: none;
-}
-
-.tf-slot {
-  width: 10px;
-  min-height: 40px;
-  border-radius: 4px;
-  transition:
-    background 0.12s,
-    width 0.12s;
-}
-
-.tf-slot--touch {
-  width: 4px;
-  min-height: 44px;
-}
-
-.tf-slot--active {
-  width: 14px;
-  background: rgba(46, 125, 90, 0.25);
-}
-
-.tf-slot--end {
-  flex: 1;
-  min-width: 16px;
-  min-height: 40px;
-}
-
-.tf-expr-preview {
-  margin: 8px 0 0;
-  font-size: 0.85rem;
-  color: var(--app-text-secondary, #777);
+  font-size: 1.05rem;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-  word-break: break-all;
+  letter-spacing: 0.02em;
+  color: var(--app-text-primary, #222);
+  outline: none;
+  transition: border-color 0.12s;
 }
 
-.tf-expr-tools {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+.tf-expr-input:focus {
+  border-color: rgba(46, 125, 90, 0.55);
+}
+
+.tf-expr-input:disabled {
+  opacity: 0.55;
+  background: var(--app-surface-muted, #f5f5f5);
 }
 
 .tf-palette {
@@ -555,107 +310,44 @@ defineExpose({
 
 .tf-palette--ops {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  max-width: 320px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  max-width: 360px;
 }
 
 .tf-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
   min-width: 44px;
-  min-height: 44px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 2px solid var(--app-border-soft, #ddd);
+  min-height: 40px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--app-border-soft, #ddd);
   background: var(--app-surface, #fff);
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   user-select: none;
   touch-action: manipulation;
-  transition:
-    transform 0.1s,
-    opacity 0.15s,
-    box-shadow 0.12s;
-}
-
-.tf-panel--touch .tf-chip {
-  min-width: 52px;
-  min-height: 52px;
-  font-size: 1.2rem;
-}
-
-.tf-chip--in-expr {
-  border-color: rgba(46, 125, 90, 0.55);
-  background: rgba(46, 125, 90, 0.1);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-  cursor: pointer;
-}
-
-.tf-chip--selected {
-  box-shadow: inset 0 0 0 2px rgba(46, 125, 90, 0.65);
+  transition: opacity 0.12s, border-color 0.12s, background 0.12s;
 }
 
 .tf-chip--num {
-  border-color: rgba(46, 125, 90, 0.45);
-  background: rgba(46, 125, 90, 0.08);
-  min-width: 64px;
+  border-color: rgba(46, 125, 90, 0.35);
+  background: rgba(46, 125, 90, 0.05);
+  min-width: 48px;
 }
 
-.tf-panel--touch .tf-chip--num {
-  min-width: 72px;
-}
-
-.tf-chip--num.tf-chip--used {
+.tf-chip--num.tf-chip--used,
+.tf-chip:disabled {
   opacity: 0.35;
   cursor: not-allowed;
-  pointer-events: none;
 }
 
 .tf-chip--sym {
-  min-width: 40px;
-  font-size: 1.15rem;
-}
-
-.tf-chip__badge {
-  font-size: 0.72rem;
-  font-weight: 500;
-  color: var(--app-text-secondary, #888);
-}
-
-.tf-chip__remove {
-  margin-left: 2px;
-  border: none;
-  background: rgba(0, 0, 0, 0.06);
-  color: #a05040;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  font-size: 1rem;
-  line-height: 1;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.tf-return {
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px dashed var(--app-border-soft, #ccc);
-  font-size: 0.82rem;
-  color: var(--app-text-secondary, #888);
-  text-align: center;
-  transition:
-    border-color 0.12s,
-    background 0.12s;
-}
-
-.tf-return--active {
-  border-color: rgba(200, 80, 60, 0.5);
-  background: rgba(200, 80, 60, 0.06);
-  color: #a05040;
+  min-width: 36px;
+  font-size: 0.95rem;
 }
 
 .tf-actions {
@@ -705,19 +397,19 @@ defineExpose({
 }
 
 @media (max-width: 900px) {
-  .tf-panel .tf-chip {
-    min-width: 52px;
-    min-height: 52px;
-    font-size: 1.2rem;
+  .tf-panel .tf-expr-input {
+    font-size: 16px;
   }
 
-  .tf-panel .tf-chip--num {
-    min-width: 72px;
+  .tf-panel .tf-chip {
+    min-width: 42px;
+    min-height: 38px;
+    font-size: 0.95rem;
   }
 
   .tf-panel .tf-key {
-    min-height: 48px;
-    font-size: 1rem;
+    min-height: 40px;
+    font-size: 0.9rem;
   }
 }
 </style>

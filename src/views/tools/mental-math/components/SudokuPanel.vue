@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useTouchPrimaryDevice } from '@/composables/useTouchPointerDrag'
 
 type DragPayload =
@@ -27,6 +27,7 @@ const selected = ref<{ row: number; col: number } | null>(null)
 const dragPayload = ref<DragPayload | null>(null)
 const dropTarget = ref<{ row: number; col: number } | null>(null)
 const suppressChipClick = ref(false)
+const digitInputRef = ref<HTMLInputElement | null>(null)
 
 const digits = computed(() => Array.from({ length: props.size }, (_, i) => i + 1))
 
@@ -48,9 +49,18 @@ const canSubmit = computed(() => {
 })
 
 const selectedLabel = computed(() => {
-  if (!selected.value) return '未选中（请先点棋盘上的空格）'
+  if (!selected.value) return '未选中（请先点要填数的格子）'
   const { row, col } = selected.value
-  return `已选：第 ${row + 1} 行 · 第 ${col + 1} 列`
+  const v = cellValue(row, col)
+  const pos = `第 ${row + 1} 行 · 第 ${col + 1} 列`
+  if (v > 0) return `已选：${pos}（当前 ${v}，可点数字修改）`
+  return `已选：${pos}（请点下方数字或输入）`
+})
+
+const selectedCellDisplay = computed(() => {
+  if (!selected.value) return ''
+  const v = cellValue(selected.value.row, selected.value.col)
+  return v > 0 ? String(v) : ''
 })
 
 const needSelectHint = ref(false)
@@ -107,34 +117,10 @@ function applyDrop(row: number, col: number, drag: DragPayload) {
 function selectCell(row: number, col: number) {
   if (!props.acceptingInput || isGiven(row, col)) return
   needSelectHint.value = false
-
-  if (
-    isCompactLayout.value &&
-    selected.value &&
-    selected.value.row !== row &&
-    selected.value.col !== col &&
-    cellValue(selected.value.row, selected.value.col) > 0 &&
-    cellValue(row, col) === 0
-  ) {
-    const from = selected.value
-    const value = cellValue(from.row, from.col)
-    clearCell(from.row, from.col)
-    setCell(row, col, value)
-    selected.value = { row, col }
-    return
-  }
-
-  if (
-    isCompactLayout.value &&
-    selected.value?.row === row &&
-    selected.value?.col === col &&
-    cellValue(row, col) > 0
-  ) {
-    clearCell(row, col)
-    return
-  }
-
   selected.value = { row, col }
+  if (isCompactLayout.value) {
+    nextTick(() => digitInputRef.value?.focus())
+  }
 }
 
 function encodePayload(payload: DragPayload): string {
@@ -249,6 +235,19 @@ function onChipClick(value: number) {
   fillSelectedDigit(value)
 }
 
+function onDirectDigitInput(e: Event) {
+  if (!props.acceptingInput || !selected.value) return
+  const raw = (e.target as HTMLInputElement).value.replace(/\D/g, '')
+  if (!raw) {
+    clearCell(selected.value.row, selected.value.col)
+    return
+  }
+  const n = Number(raw.slice(-1))
+  if (Number.isFinite(n) && n >= 1 && n <= props.size) {
+    fillSelectedDigit(n)
+  }
+}
+
 function clearSelected() {
   if (!props.acceptingInput || !selected.value) return
   clearCell(selected.value.row, selected.value.col)
@@ -279,6 +278,7 @@ function submitDraft() {
 
 function onKeydown(e: KeyboardEvent) {
   if (!props.acceptingInput) return
+  if ((e.target as HTMLElement).closest('.sd-digit-input')) return
   if (e.key === 'Enter') {
     e.preventDefault()
     submitDraft()
@@ -332,7 +332,7 @@ defineExpose({
         <span class="sd-zone__sub">
           {{
             isCompactLayout
-              ? '先点空格填数；点已填格再点空格可移动；再点同一格可清除'
+              ? '点格子选中，再点数字或键盘输入；换格只改选中，数字不会跟着走'
               : '把数字牌拖到任意空格；或点格选中后点数字'
           }}
         </span>
@@ -343,6 +343,21 @@ defineExpose({
       >
         {{ selectedLabel }}
       </p>
+      <div v-if="selected && isCompactLayout" class="sd-digit-input-wrap">
+        <input
+          ref="digitInputRef"
+          class="sd-digit-input"
+          type="tel"
+          inputmode="numeric"
+          autocomplete="off"
+          maxlength="1"
+          :disabled="!acceptingInput"
+          :value="selectedCellDisplay"
+          :placeholder="`输入 1～${size}`"
+          aria-label="当前格子填数"
+          @input="onDirectDigitInput"
+        />
+      </div>
       <div
         class="sd-grid-wrap"
         :class="`sd-grid-wrap--${size}`"
@@ -399,7 +414,7 @@ defineExpose({
       <p class="sd-zone__title">
         数字牌
         <span class="sd-zone__sub">
-          {{ isCompactLayout ? '点格子后再点数字；再点已填格可清除' : '拖到棋盘空格 · 或先点格子再点数字' }}
+          {{ isCompactLayout ? '先点格子，再点数字填入；点「清除」擦掉当前格' : '拖到棋盘空格 · 或先点格子再点数字' }}
         </span>
       </p>
       <div class="sd-palette">
@@ -451,7 +466,7 @@ defineExpose({
 
     <p class="hint sd-hint-bar">
       <template v-if="isCompactLayout">
-        手机：① 点空格 ② 点数字填数；点已填格再点另一空格可移动；再点同一格或「清除」可擦掉
+        ① 点格子选中 ② 点数字或上方输入框填数；换格不会移动已填数字；「清除」擦掉当前格
       </template>
       <template v-else>
         数字牌可拖到任意空格；选中格后按 <kbd>1</kbd>～<kbd>{{ size }}</kbd> 填数；<kbd>Enter</kbd> 提交
@@ -496,6 +511,33 @@ defineExpose({
 
 .sd-selection-hint--warn {
   color: #c2410c;
+}
+
+.sd-digit-input-wrap {
+  margin: 0 0 8px;
+}
+
+.sd-digit-input {
+  width: 100%;
+  max-width: 160px;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: 1px solid var(--app-border-soft, #d0d0d0);
+  border-radius: 6px;
+  background: var(--app-surface, #fff);
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  outline: none;
+}
+
+.sd-digit-input:focus {
+  border-color: rgba(72, 108, 160, 0.55);
+}
+
+.sd-digit-input:disabled {
+  opacity: 0.5;
 }
 
 .sd-grid-wrap {

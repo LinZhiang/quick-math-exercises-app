@@ -322,6 +322,90 @@ export function normalizeTwentyFourExpression(expr: string): string {
     .replace(/\s+/g, '')
 }
 
+export type TwentyFourParsedChip =
+  | { kind: 'num'; slotIndex: number }
+  | { kind: 'op'; value: '+' | '−' | '×' | '÷' }
+  | { kind: 'paren'; value: '(' | ')' }
+
+function normalizeOpChar(ch: string): '+' | '−' | '×' | '÷' | null {
+  if (ch === '+' || ch === '＋') return '+'
+  if (ch === '-' || ch === '−' || ch === '－') return '−'
+  if (ch === '*' || ch === '×' || ch === '＊') return '×'
+  if (ch === '/' || ch === '÷' || ch === '／') return '÷'
+  return null
+}
+
+/** 将显示算式解析为牌序列（与题目四数各用一次匹配）；空串返回 []，非法返回 null */
+export function parseTwentyFourDisplayExpression(
+  expr: string,
+  nums: number[],
+): TwentyFourParsedChip[] | null {
+  const trimmed = expr.trim()
+  if (!trimmed) return []
+
+  const tokens: TwentyFourParsedChip[] = []
+  const usedSlots = nums.map(() => false)
+  let i = 0
+
+  while (i < trimmed.length) {
+    const ch = trimmed[i]
+    if (/\s/.test(ch)) {
+      i += 1
+      continue
+    }
+    if (ch === '(' || ch === ')') {
+      tokens.push({ kind: 'paren', value: ch })
+      i += 1
+      continue
+    }
+    const op = normalizeOpChar(ch)
+    if (op) {
+      tokens.push({ kind: 'op', value: op })
+      i += 1
+      continue
+    }
+    if (/\d/.test(ch)) {
+      let numStr = ''
+      while (i < trimmed.length && /\d/.test(trimmed[i])) {
+        numStr += trimmed[i]
+        i += 1
+      }
+      const value = Number(numStr)
+      const slotIndex = nums.findIndex((n, idx) => n === value && !usedSlots[idx])
+      if (slotIndex < 0) return null
+      usedSlots[slotIndex] = true
+      tokens.push({ kind: 'num', slotIndex })
+      continue
+    }
+    return null
+  }
+
+  return tokens
+}
+
+/** 根据算式文本统计各数字牌是否已使用（支持未输完的式子） */
+export function getUsedSlotsFromExpression(expr: string, nums: number[]): boolean[] {
+  const used = nums.map(() => false)
+  const trimmed = expr.trim()
+  if (!trimmed) return used
+
+  const parsed = parseTwentyFourDisplayExpression(trimmed, nums)
+  if (parsed) {
+    for (const token of parsed) {
+      if (token.kind === 'num') used[token.slotIndex] = true
+    }
+    return used
+  }
+
+  const numbers = trimmed.match(/\d+/g)?.map((m) => Number(m)) ?? []
+  for (const value of numbers) {
+    const slotIndex = nums.findIndex((n, idx) => n === value && !used[idx])
+    if (slotIndex < 0) break
+    used[slotIndex] = true
+  }
+  return used
+}
+
 function extractNumbers(expr: string): number[] {
   const matches = expr.match(/\d+/g)
   return matches ? matches.map((m) => Number(m)) : []
