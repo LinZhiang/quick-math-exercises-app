@@ -3,6 +3,8 @@ export type ChinesePracticeTabId =
   | 'char-literacy'
   | 'poetry-practice'
   | 'common-sense'
+  | 'history-common-sense'
+  | 'party-history'
   | 'key-questions'
 
 export type ChinesePracticeTab = {
@@ -16,6 +18,8 @@ export const CHINESE_PRACTICE_TABS: ChinesePracticeTab[] = [
   { id: 'char-literacy', title: '字音字形' },
   { id: 'poetry-practice', title: '诗词练习' },
   { id: 'common-sense', title: '常识练习' },
+  { id: 'history-common-sense', title: '历史常识' },
+  { id: 'party-history', title: '中共党史' },
   { id: 'key-questions', title: '关键题练习' },
 ]
 
@@ -29,4 +33,6 @@ export const CHINESE_KEY_QUESTION_SOURCES: { id: ChineseKeyQuestionSource; title
   { id: 'char-literacy', title: '字音字形' },
   { id: 'poetry-practice', title: '诗词练习' },
   { id: 'common-sense', title: '常识练习' },
+  { id: 'history-common-sense', title: '历史常识' },
+  { id: 'party-history', title: '中共党史' },
 ]

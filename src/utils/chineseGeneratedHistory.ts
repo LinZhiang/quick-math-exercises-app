@@ -2,13 +2,21 @@
 
 export const CHINESE_GENERATED_HISTORY_LIMIT = 90
 
-export type ChineseGeneratedHistoryKind = 'idiom' | 'poetry' | 'common-sense' | 'char-literacy'
+export type ChineseGeneratedHistoryKind =
+  | 'idiom'
+  | 'poetry'
+  | 'common-sense'
+  | 'char-literacy'
+  | 'history-common-sense'
+  | 'party-history'
 
 const STORAGE_KEYS: Record<ChineseGeneratedHistoryKind, string> = {
   idiom: 'chinese-generated-history-idiom-v1',
   poetry: 'chinese-generated-history-poetry-v1',
   'common-sense': 'chinese-generated-history-common-sense-v1',
   'char-literacy': 'chinese-generated-history-char-literacy-v1',
+  'history-common-sense': 'chinese-generated-history-history-common-sense-v1',
+  'party-history': 'chinese-generated-history-party-history-v1',
 }
 
 function normalizeTerm(term: string): string {

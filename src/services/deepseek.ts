@@ -12,11 +12,23 @@ import {
   type CommonSenseQuestion,
 } from '@/utils/commonSensePractice'
 import {
+  buildHistoryCommonSenseQuestionFromMcq,
+  HISTORY_COMMON_SENSE_QUESTION_COUNT,
+  parseHistoryCommonSenseMcqAiObject,
+  type HistoryCommonSenseQuestion,
+} from '@/utils/historyCommonSensePractice'
+import {
   buildIdiomQuestionFromMcq,
   IDIOM_RECOGNITION_QUESTION_COUNT,
   parseIdiomMcqAiObject,
   type IdiomRecognitionQuestion,
 } from '@/utils/idiomRecognitionPractice'
+import {
+  buildPartyHistoryQuestionFromMcq,
+  PARTY_HISTORY_QUESTION_COUNT,
+  parsePartyHistoryMcqAiObject,
+  type PartyHistoryQuestion,
+} from '@/utils/partyHistoryPractice'
 import {
   buildPoetryQuestionFromMcq,
   parsePoetryMcqAiObject,
@@ -592,6 +604,221 @@ export async function requestCharLiteracyMcqs(input: {
       const fields = parseCharLiteracyMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildCharLiteracyQuestionFromMcq({ ...fields, seq: slot })
+      if (!q) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const HISTORY_COMMON_SENSE_SYSTEM = [
+  '你是公务员考试与事业单位考试「常识判断·中国史/世界史」命题专家，熟悉公考高频历史事件、人物、制度与时间节点。',
+  '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
+].join('\n')
+
+const HISTORY_COMMON_SENSE_FORMAT = `
+【题型】questionType 固定为 general
+
+【命题要求】
+- 优先事业编/国考常识判断常考：中国古代史（秦汉唐宋明清重大事件/制度）、近现代史（鸦片战争至新中国成立前关键节点）、世界史常考（工业革命、世界大战、重要条约）等
+- term 填知识点关键词（如「辛亥革命」「贞观之治」「鸦片战争」）
+- stem 写完整问句；选项 4 个互斥、干扰项易混但错误
+- explanation 用 1～2 句简体中文说明
+
+【JSON 示例】
+{"questionType":"general","term":"辛亥革命","stem":"辛亥革命爆发于哪一年？","correct":"1911年","distractors":["1919年","1921年","1949年"],"explanation":"……"}
+`.trim()
+
+function dedupeHistoryCommonSenseQuestions(
+  items: HistoryCommonSenseQuestion[],
+  blockedTerms?: Set<string>,
+): HistoryCommonSenseQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: HistoryCommonSenseQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestHistoryCommonSenseMcqs(input: {
+  count?: number
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<HistoryCommonSenseQuestion[]> {
+  const count = input.count ?? HISTORY_COMMON_SENSE_QUESTION_COUNT
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.('正在向 DeepSeek 请求历史常识题目…')
+
+  const historyHint = buildAvoidTermsHint('历史知识点', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 公考/事业编「历史常识」四选一练习题。`,
+    HISTORY_COMMON_SENSE_FORMAT,
+    historyHint,
+    `本批 ${count} 道的 term 必须互不相同。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: HISTORY_COMMON_SENSE_SYSTEM,
+    temperature: 0.72,
+    maxTokens: 8192,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: HistoryCommonSenseQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseHistoryCommonSenseMcqAiObject(item)
+    if (!fields) return
+    const q = buildHistoryCommonSenseQuestionFromMcq({ ...fields, seq: idx + 1 })
+    if (q) questions.push(q)
+  })
+
+  const deduped = dedupeHistoryCommonSenseQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('历史知识点', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        `请生成第 ${slot} 道历史常识四选一题。\n${HISTORY_COMMON_SENSE_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
+        { system: HISTORY_COMMON_SENSE_SYSTEM, temperature: 0.7, maxTokens: 900 },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseHistoryCommonSenseMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildHistoryCommonSenseQuestionFromMcq({ ...fields, seq: slot })
+      if (!q) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const PARTY_HISTORY_SYSTEM = [
+  '你是公务员考试与事业单位考试「常识判断·中共党史」命题专家，熟悉建党以来重要会议、事件、人物、路线方针与时间节点。',
+  '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
+].join('\n')
+
+const PARTY_HISTORY_FORMAT = `
+【题型】questionType 固定为 general
+
+【命题要求】
+- 优先事业编/国考常考：一大至二十大关键节点、遵义会议、长征、抗战、解放战争、建国、改革开放、十一届三中全会、重要决议与人物贡献等
+- term 填知识点关键词（如「遵义会议」「十一届三中全会」「中共一大」）
+- stem 写完整问句；选项互斥，干扰项为同时期易混会议/年份/人物
+- explanation 用 1～2 句简体中文说明
+- 表述客观、准确，符合公开权威表述
+
+【JSON 示例】
+{"questionType":"general","term":"遵义会议","stem":"遵义会议召开于哪一年？","correct":"1935年","distractors":["1921年","1927年","1945年"],"explanation":"……"}
+`.trim()
+
+function dedupePartyHistoryQuestions(
+  items: PartyHistoryQuestion[],
+  blockedTerms?: Set<string>,
+): PartyHistoryQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: PartyHistoryQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestPartyHistoryMcqs(input: {
+  count?: number
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<PartyHistoryQuestion[]> {
+  const count = input.count ?? PARTY_HISTORY_QUESTION_COUNT
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.('正在向 DeepSeek 请求中共党史题目…')
+
+  const historyHint = buildAvoidTermsHint('党史知识点', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 公考/事业编「中共党史」四选一练习题。`,
+    PARTY_HISTORY_FORMAT,
+    historyHint,
+    `本批 ${count} 道的 term 必须互不相同。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: PARTY_HISTORY_SYSTEM,
+    temperature: 0.72,
+    maxTokens: 8192,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: PartyHistoryQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parsePartyHistoryMcqAiObject(item)
+    if (!fields) return
+    const q = buildPartyHistoryQuestionFromMcq({ ...fields, seq: idx + 1 })
+    if (q) questions.push(q)
+  })
+
+  const deduped = dedupePartyHistoryQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('党史知识点', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        `请生成第 ${slot} 道中共党史四选一题。\n${PARTY_HISTORY_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
+        { system: PARTY_HISTORY_SYSTEM, temperature: 0.7, maxTokens: 900 },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parsePartyHistoryMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildPartyHistoryQuestionFromMcq({ ...fields, seq: slot })
       if (!q) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (

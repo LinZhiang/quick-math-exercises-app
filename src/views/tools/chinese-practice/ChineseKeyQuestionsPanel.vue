@@ -25,6 +25,17 @@ import {
   removeChineseCommonSenseWrong,
   storedCommonSenseToQuestion,
 } from '@/utils/chineseCommonSenseStorage'
+import type {
+  StoredHistoryCommonSenseFavoriteRecord,
+  StoredHistoryCommonSenseRecord,
+} from '@/utils/chineseHistoryCommonSenseStorage'
+import {
+  listChineseHistoryCommonSenseFavoriteRecords,
+  listChineseHistoryCommonSenseWrongRecords,
+  removeChineseHistoryCommonSenseFavorite,
+  removeChineseHistoryCommonSenseWrong,
+  storedHistoryCommonSenseToQuestion,
+} from '@/utils/chineseHistoryCommonSenseStorage'
 import {
   chinesePracticeDataTick,
   listChineseFavoriteRecords,
@@ -35,6 +46,17 @@ import {
   type StoredFavoriteRecord,
   type StoredIdiomRecord,
 } from '@/utils/chineseIdiomStorage'
+import type {
+  StoredPartyHistoryFavoriteRecord,
+  StoredPartyHistoryRecord,
+} from '@/utils/chinesePartyHistoryStorage'
+import {
+  listChinesePartyHistoryFavoriteRecords,
+  listChinesePartyHistoryWrongRecords,
+  removeChinesePartyHistoryFavorite,
+  removeChinesePartyHistoryWrong,
+  storedPartyHistoryToQuestion,
+} from '@/utils/chinesePartyHistoryStorage'
 import {
   listChinesePoetryFavoriteRecords,
   listChinesePoetryWrongRecords,
@@ -46,7 +68,9 @@ import {
 } from '@/utils/chinesePoetryStorage'
 import { charLiteracyQuestionTypeLabel } from '@/utils/charLiteracyPractice'
 import { commonSenseQuestionTypeLabel } from '@/utils/commonSensePractice'
+import { historyCommonSenseQuestionTypeLabel } from '@/utils/historyCommonSensePractice'
 import { idiomQuestionTypeLabel } from '@/utils/idiomRecognitionPractice'
+import { partyHistoryQuestionTypeLabel } from '@/utils/partyHistoryPractice'
 import { poetryQuestionTypeLabel } from '@/utils/poetryRecognitionPractice'
 import { getKeyQuestionNote, setKeyQuestionNote } from '@/utils/chineseKeyQuestionNotes'
 import { markdownToDisplaySafeHtml } from '@/utils/markdownToHtml'
@@ -60,6 +84,10 @@ type StoredRow =
   | StoredPoetryFavoriteRecord
   | StoredCommonSenseRecord
   | StoredCommonSenseFavoriteRecord
+  | StoredHistoryCommonSenseRecord
+  | StoredHistoryCommonSenseFavoriteRecord
+  | StoredPartyHistoryRecord
+  | StoredPartyHistoryFavoriteRecord
 
 const props = withDefaults(
   defineProps<{
@@ -94,6 +122,12 @@ function typeLabel(row: StoredRow): string {
   }
   if (source.value === 'poetry-practice') {
     return poetryQuestionTypeLabel(row.questionType as 'poem-to-author' | 'poem-to-theme')
+  }
+  if (source.value === 'history-common-sense') {
+    return historyCommonSenseQuestionTypeLabel('general')
+  }
+  if (source.value === 'party-history') {
+    return partyHistoryQuestionTypeLabel('general')
   }
   return commonSenseQuestionTypeLabel('general')
 }
@@ -136,6 +170,12 @@ function loadRows() {
   } else if (source.value === 'poetry-practice') {
     wrongRows.value = listChinesePoetryWrongRecords()
     favoriteRows.value = listChinesePoetryFavoriteRecords()
+  } else if (source.value === 'history-common-sense') {
+    wrongRows.value = listChineseHistoryCommonSenseWrongRecords()
+    favoriteRows.value = listChineseHistoryCommonSenseFavoriteRecords()
+  } else if (source.value === 'party-history') {
+    wrongRows.value = listChinesePartyHistoryWrongRecords()
+    favoriteRows.value = listChinesePartyHistoryFavoriteRecords()
   } else {
     wrongRows.value = listChineseCommonSenseWrongRecords()
     favoriteRows.value = listChineseCommonSenseFavoriteRecords()
@@ -235,6 +275,23 @@ function onPractice() {
         storedPoetryToQuestion(r as StoredPoetryRecord | StoredPoetryFavoriteRecord, i + 1),
       ),
     })
+  } else if (source.value === 'history-common-sense') {
+    emit('practice', {
+      source: 'history-common-sense',
+      questions: rows.map((r, i) =>
+        storedHistoryCommonSenseToQuestion(
+          r as StoredHistoryCommonSenseRecord | StoredHistoryCommonSenseFavoriteRecord,
+          i + 1,
+        ),
+      ),
+    })
+  } else if (source.value === 'party-history') {
+    emit('practice', {
+      source: 'party-history',
+      questions: rows.map((r, i) =>
+        storedPartyHistoryToQuestion(r as StoredPartyHistoryRecord | StoredPartyHistoryFavoriteRecord, i + 1),
+      ),
+    })
   } else {
     emit('practice', {
       source: 'common-sense',
@@ -255,6 +312,12 @@ function onRemove(fp: string) {
   } else if (source.value === 'poetry-practice') {
     if (keyTab.value === 'wrong') removeChinesePoetryWrong(fp)
     else removeChinesePoetryFavorite(fp)
+  } else if (source.value === 'history-common-sense') {
+    if (keyTab.value === 'wrong') removeChineseHistoryCommonSenseWrong(fp)
+    else removeChineseHistoryCommonSenseFavorite(fp)
+  } else if (source.value === 'party-history') {
+    if (keyTab.value === 'wrong') removeChinesePartyHistoryWrong(fp)
+    else removeChinesePartyHistoryFavorite(fp)
   } else if (keyTab.value === 'wrong') {
     removeChineseCommonSenseWrong(fp)
   } else {

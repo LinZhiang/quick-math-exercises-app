@@ -9,8 +9,10 @@ import {
 import type { KeyPracticePayload } from '@/types/chinese-practice'
 import ChineseCharLiteracyPanel from '@/views/tools/chinese-practice/ChineseCharLiteracyPanel.vue'
 import ChineseCommonSensePanel from '@/views/tools/chinese-practice/ChineseCommonSensePanel.vue'
+import ChineseHistoryCommonSensePanel from '@/views/tools/chinese-practice/ChineseHistoryCommonSensePanel.vue'
 import ChineseIdiomPanel from '@/views/tools/chinese-practice/ChineseIdiomPanel.vue'
 import ChineseKeyQuestionsPanel from '@/views/tools/chinese-practice/ChineseKeyQuestionsPanel.vue'
+import ChinesePartyHistoryPanel from '@/views/tools/chinese-practice/ChinesePartyHistoryPanel.vue'
 import ChinesePoetryPanel from '@/views/tools/chinese-practice/ChinesePoetryPanel.vue'
 
 export type { KeyPracticePayload } from '@/types/chinese-practice'
@@ -20,6 +22,8 @@ const idiomRef = ref<InstanceType<typeof ChineseIdiomPanel> | null>(null)
 const charLiteracyRef = ref<InstanceType<typeof ChineseCharLiteracyPanel> | null>(null)
 const poetryRef = ref<InstanceType<typeof ChinesePoetryPanel> | null>(null)
 const commonSenseRef = ref<InstanceType<typeof ChineseCommonSensePanel> | null>(null)
+const historyCommonSenseRef = ref<InstanceType<typeof ChineseHistoryCommonSensePanel> | null>(null)
+const partyHistoryRef = ref<InstanceType<typeof ChinesePartyHistoryPanel> | null>(null)
 
 const isRunningOrLoading = computed(
   () =>
@@ -27,6 +31,8 @@ const isRunningOrLoading = computed(
     charLiteracyRef.value?.isRunningOrLoading ||
     poetryRef.value?.isRunningOrLoading ||
     commonSenseRef.value?.isRunningOrLoading ||
+    historyCommonSenseRef.value?.isRunningOrLoading ||
+    partyHistoryRef.value?.isRunningOrLoading ||
     false,
 )
 
@@ -44,8 +50,12 @@ function onKeyPractice(payload: KeyPracticePayload) {
       charLiteracyRef.value?.startWith(payload.questions)
     } else if (payload.source === 'poetry-practice') {
       poetryRef.value?.startWith(payload.questions)
-    } else {
+    } else if (payload.source === 'common-sense') {
       commonSenseRef.value?.startWith(payload.questions)
+    } else if (payload.source === 'history-common-sense') {
+      historyCommonSenseRef.value?.startWith(payload.questions)
+    } else {
+      partyHistoryRef.value?.startWith(payload.questions)
     }
   })
 }
@@ -89,6 +99,14 @@ defineExpose({
     <ChineseCommonSensePanel
       v-show="activeTab === 'common-sense'"
       ref="commonSenseRef"
+    />
+    <ChineseHistoryCommonSensePanel
+      v-show="activeTab === 'history-common-sense'"
+      ref="historyCommonSenseRef"
+    />
+    <ChinesePartyHistoryPanel
+      v-show="activeTab === 'party-history'"
+      ref="partyHistoryRef"
     />
     <ChineseKeyQuestionsPanel
       v-show="activeTab === 'key-questions'"
