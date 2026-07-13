@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
+import AiProxyStatusBanner from '@/components/AiProxyStatusBanner.vue'
 import PwaInstallBanner from '@/components/PwaInstallBanner.vue'
 </script>
 
 <template>
   <div class="app-root">
     <PwaInstallBanner />
+    <AiProxyStatusBanner />
     <RouterView />
   </div>
 </template>

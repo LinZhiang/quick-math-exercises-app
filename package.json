@@ -4,15 +4,14 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "start": "node scripts/family-start.mjs",
+    "dev": "concurrently -k \"vite\" \"npm run dev:api\"",
+    "dev:web": "vite",
     "dev:api": "npm run start --prefix server",
-    "dev:all": "concurrently -k \"npm run dev\" \"npm run dev:api\"",
     "sync:env": "node scripts/sync-server-env.mjs",
     "certs": "node scripts/gen-https-certs.mjs",
     "install:server": "npm install --prefix server",
     "build": "vue-tsc -b && vite build",
-    "preview": "vite preview",
-    "preview:all": "npm run build && npm run serve --prefix server",
     "serve": "npm run serve --prefix server",
     "lan": "node scripts/show-lan-url.mjs",
     "type-check": "vue-tsc --noEmit"

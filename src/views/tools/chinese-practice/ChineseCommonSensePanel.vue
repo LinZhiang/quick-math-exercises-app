@@ -251,7 +251,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           </el-button>
         </div>
         <p v-if="!isAiChatConfigured()" class="chinese-quiz__assist-muted">
-          未配置 AI 代理时无法讲解（请启动本项目的 AI 服务：npm run dev:api 或 npm run serve）。
+          未配置 AI 时无法讲解。
         </p>
         <template v-else>
           <p v-if="assistLoading && !assistTurns.length" class="chinese-quiz__assist-muted">

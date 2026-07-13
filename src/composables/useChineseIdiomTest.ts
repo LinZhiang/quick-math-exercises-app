@@ -1,6 +1,6 @@
 import { ElMessage } from 'element-plus'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { isAiChatConfigured, requestIdiomRecognitionMcqs } from '@/services/deepseek'
+import { isAiChatConfigured, requestIdiomRecognitionMcqs, ensureAiReady } from '@/services/deepseek'
 import { upsertChineseWrong } from '@/utils/chineseIdiomStorage'
 import { playMentalMathStartSound } from '@/utils/mentalMathSounds'
 import {
@@ -105,7 +105,14 @@ export function useChineseIdiomTest() {
 
   async function generatePaper() {
     if (!isAiChatConfigured()) {
-      ElMessage.warning('AI 服务未就绪：请先在本项目执行 npm run dev:all 或 npm run serve')
+      ElMessage.warning('未配置 AI 代理')
+      return
+    }
+    const ready = await ensureAiReady()
+    if (!ready) {
+      const { probeAiHealth } = await import('@/services/deepseek')
+      const h = await probeAiHealth(true)
+      ElMessage.error(h.message)
       return
     }
     phase.value = 'loading'
