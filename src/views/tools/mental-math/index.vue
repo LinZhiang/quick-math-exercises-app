@@ -70,6 +70,7 @@ import {
   type SudokuMode,
   type SudokuQuestion,
 } from '@/utils/sudokuPractice'
+import ChinesePracticeSection from '@/views/tools/chinese-practice/ChinesePracticeSection.vue'
 
 type Phase = 'select' | 'countdown' | 'playing' | 'finished'
 type CountdownStep = 3 | 2 | 1 | 'GO'
@@ -88,6 +89,7 @@ const twentyFourQuestion = ref<TwentyFourPointQuestion | null>(null)
 const twentyFourPanelRef = ref<InstanceType<typeof TwentyFourPointPanel> | null>(null)
 const sudokuQuestion = ref<SudokuQuestion | null>(null)
 const sudokuPanelRef = ref<InstanceType<typeof SudokuPanel> | null>(null)
+const chinesePracticeRef = ref<InstanceType<typeof ChinesePracticeSection> | null>(null)
 const questionSeq = ref(0)
 const records = ref<MentalMathAnswerRecord[]>([])
 const graphicRecords = ref<GraphicReasoningAnswerRecord[]>([])
@@ -169,7 +171,12 @@ const showSudokuSection = computed(
 const showGraphicSection = computed(
   () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'graphic',
 )
+const showChineseSection = computed(
+  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'chinese',
+)
 const showGuideSection = computed(() => activeOutlineSection.value === 'guide')
+
+const chineseSessionActive = computed(() => chinesePracticeRef.value?.isRunningOrLoading ?? false)
 
 const mcqOptionCount = computed(() => {
   const mode = activeMode.value
@@ -179,6 +186,7 @@ const mcqOptionCount = computed(() => {
 })
 
 function selectOutlineSection(id: PracticeHubSectionId) {
+  if (chineseSessionActive.value) return
   activeOutlineSection.value = id
 }
 
@@ -619,6 +627,10 @@ onMounted(() => {
     activeOutlineSection.value = 'sudoku'
   } else if (hash === 'graphic' || route.query.section === 'graphic') {
     activeOutlineSection.value = 'graphic'
+  } else if (hash === 'chinese' || hash === 'chinese-idiom' || route.query.section === 'chinese' || route.query.section === 'chinese-idiom') {
+    activeOutlineSection.value = 'chinese'
+  } else if (hash === 'chinese-key' || route.query.section === 'chinese-key') {
+    activeOutlineSection.value = 'chinese'
   } else if (hash === 'fraction' || route.query.section === 'fraction') {
     activeOutlineSection.value = 'fraction'
   }
@@ -636,9 +648,8 @@ onBeforeUnmount(() => {
     <header class="page-hero">
       <h2 class="page-title">口算练习</h2>
       <p class="page-subtitle">
-        限时口算、次幂、平方与立方、估算分数与图形推理，结果仅在本页展示、不写入本地。左侧可打开「练习攻略」或切换分类；按数字键
-        <strong>1～3</strong>、<strong>1～4</strong> 或 <strong>1～5</strong> 作答；答对
-        <strong>+1 秒</strong>，答错 <strong>-1 秒</strong>。
+        限时口算、次幂、平方与立方、估算分数、图形推理；左侧「语文练习」含词语识记等子功能。
+        口算/图形结果仅在本页展示；词语识记每轮 15 题、正计时，DeepSeek 随机出题，错题与收藏在「关键题练习」。
       </p>
     </header>
 
@@ -650,6 +661,7 @@ onBeforeUnmount(() => {
           type="button"
           class="practice-sidebar__item"
           :class="{ 'practice-sidebar__item--active': activeOutlineSection === section.id }"
+          :disabled="chineseSessionActive && section.id !== activeOutlineSection"
           @click="selectOutlineSection(section.id)"
         >
           {{ section.title }}
@@ -796,6 +808,14 @@ onBeforeUnmount(() => {
               <span class="mode-card__cta">开始练习</span>
             </button>
           </div>
+        </section>
+
+        <section v-if="showChineseSection" class="mode-section" id="practice-chinese">
+          <h3 class="mode-section__title">语文练习</h3>
+          <p class="mode-section__hint">
+            面向公务员、事业单位言语理解；当前开放「词语识记」，后续可扩展更多子功能。
+          </p>
+          <ChinesePracticeSection ref="chinesePracticeRef" />
         </section>
       </div>
     </div>
@@ -1139,6 +1159,11 @@ onBeforeUnmount(() => {
 .mode-card--graphic:hover {
   border-color: color-mix(in srgb, var(--el-color-warning) 45%, var(--app-border-soft));
   box-shadow: 0 4px 16px rgba(245, 158, 11, 0.1);
+}
+
+.practice-sidebar__item:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .mode-section__title {

@@ -8,6 +8,7 @@ export type PracticeHubSectionId =
   | 'twentyfour'
   | 'sudoku'
   | 'graphic'
+  | 'chinese'
 
 export type PracticeHubSection = {
   id: PracticeHubSectionId
@@ -24,4 +25,5 @@ export const PRACTICE_HUB_SECTIONS: PracticeHubSection[] = [
   { id: 'twentyfour', title: '二十四点' },
   { id: 'sudoku', title: '数独' },
   { id: 'graphic', title: '图形推理' },
+  { id: 'chinese', title: '语文练习' },
 ]
