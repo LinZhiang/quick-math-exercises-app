@@ -626,15 +626,22 @@ export async function requestCharLiteracyMcqs(input: {
 }
 
 const HISTORY_COMMON_SENSE_SYSTEM = [
-  '你是公务员考试与事业单位考试「常识判断·中国史/世界史」命题专家，熟悉公考高频历史事件、人物、制度与时间节点。',
+  '你是公务员考试与事业单位考试「常识判断·历史」命题专家，熟悉中国史高频考点；世界史仅作少量补充。',
   '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
 ].join('\n')
 
 const HISTORY_COMMON_SENSE_FORMAT = `
 【题型】questionType 固定为 general
 
+【命题比例·必须遵守】
+- **以中国史为主**：约 **85%～90%** 为中国史（古代史 + 近现代史）
+- **世界史从少**：至多约 **10%～15%**（15 题中世界史不超过 2 题；补单题时优先出中国史）
+- 面向浙江杭州等地事业编/公考常见考法，少出冷门外国史细节
+
 【命题要求】
-- 优先事业编/国考常识判断常考：中国古代史（秦汉唐宋明清重大事件/制度）、近现代史（鸦片战争至新中国成立前关键节点）、世界史常考（工业革命、世界大战、重要条约）等
+- 中国古代史优先：秦汉唐宋元明清重大事件、制度、人物、都城与改革
+- 中国近现代史优先：鸦片战争至新中国成立前关键节点、条约、运动、人物
+- 世界史仅保留极少高频：如两次世界大战、工业革命等极常见点，不要堆砌国别琐事
 - term 填知识点关键词（如「辛亥革命」「贞观之治」「鸦片战争」）
 - stem 写完整问句；选项 4 个互斥、干扰项易混但错误
 - explanation 用 1～2 句简体中文说明
@@ -671,7 +678,7 @@ export async function requestHistoryCommonSenseMcqs(input: {
 
   const historyHint = buildAvoidTermsHint('历史知识点', [...blocked])
   const user = [
-    `请生成 **${count} 道** 公考/事业编「历史常识」四选一练习题。`,
+    `请生成 **${count} 道** 公考/事业编「历史常识」四选一练习题（面向杭州等地考情：**绝大部分为中国史**，世界史极少）。`,
     HISTORY_COMMON_SENSE_FORMAT,
     historyHint,
     `本批 ${count} 道的 term 必须互不相同。`,
@@ -704,7 +711,7 @@ export async function requestHistoryCommonSenseMcqs(input: {
     const avoidHint = buildAvoidTermsHint('历史知识点', avoidTerms)
     try {
       const oneRaw = await deepseekChatRaw(
-        `请生成第 ${slot} 道历史常识四选一题。\n${HISTORY_COMMON_SENSE_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
+        `请生成第 ${slot} 道历史常识四选一题（优先中国史，非必要不要出世界史）。\n${HISTORY_COMMON_SENSE_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
         { system: HISTORY_COMMON_SENSE_SYSTEM, temperature: 0.7, maxTokens: 900 },
       )
       const oneObj = parseAiJsonObjectLenient(oneRaw)

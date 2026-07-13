@@ -13,7 +13,7 @@ import { historyCommonSenseQuestionTypeLabel } from '@/utils/historyCommonSenseP
 import type { HistoryCommonSenseQuestion } from '@/utils/historyCommonSensePractice'
 
 const HIST_ASSIST_SYSTEM =
-  '你是事业编与公务员考试常识判断「历史」教练，擅长中国史与世界史高频考点、事件人物时间线与易混辨析。用简体中文讲解，回答要具体，避免空泛。'
+  '你是事业编与公务员考试常识判断「历史」教练，擅长中国古代史与近现代史高频考点；世界史仅作少量补充。用简体中文讲解，回答要具体，避免空泛。'
 
 const test = useChineseHistoryCommonSenseTest()
 const favorited = ref(false)
@@ -147,7 +147,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   <div class="chinese-idiom-panel">
     <template v-if="test.phase === 'idle' || test.phase === 'loading'">
       <p class="mode-section__hint">
-        针对公务员、事业单位「常识判断」高频历史考点：中国古代史、近现代史及常考世界史节点，
+        针对公务员、事业单位「常识判断」高频历史考点：以中国古代史、近现代史为主，世界史仅少量穿插，
         每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停并公布答案，点「下一题」继续。
       </p>
       <div class="chinese-setup">
