@@ -24,7 +24,10 @@ async function onInstall() {
     <h3 class="mode-section__title">安装到手机</h3>
     <p class="mode-section__hint">
       把「口算练习」添加到主屏幕后，可像普通 App 一样全屏打开，适合安卓 Chrome / Edge。
-      语文练习的 AI 出题需电脑运行 <code>npm run serve</code>，手机访问同一局域网地址（如 http://192.168.x.x:8790）。
+      手机请用电脑的 <strong>Wi‑Fi 局域网 IP</strong>（不要用 localhost，也不要用 192.168.137.x）。
+      开发时访问 <code>http://电脑IP:5174</code>；若要 AI 出题一键通，电脑运行
+      <code>npm run serve</code> 后访问 <code>http://电脑IP:8790</code>。
+      电脑可执行 <code>npm run lan</code> 查看正确地址并放行防火墙。
     </p>
 
     <div v-if="installed" class="install-card install-card--ok">

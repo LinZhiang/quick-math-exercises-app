@@ -13,6 +13,7 @@
     "preview": "vite preview",
     "preview:all": "npm run build && npm run serve --prefix server",
     "serve": "npm run serve --prefix server",
+    "lan": "node scripts/show-lan-url.mjs",
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {

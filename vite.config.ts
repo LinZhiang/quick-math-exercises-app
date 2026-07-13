@@ -7,7 +7,9 @@ export default defineConfig({
   server: {
     port: 5174,
     strictPort: true,
+    // 允许手机用局域网 IP 访问（Vite 默认会拦非 localhost Host）
     host: true,
+    allowedHosts: true,
     proxy: {
       '/api/ai': {
         target: 'http://127.0.0.1:8790',
@@ -20,6 +22,7 @@ export default defineConfig({
     port: 5174,
     strictPort: true,
     host: true,
+    allowedHosts: true,
     proxy: {
       '/api/ai': {
         target: 'http://127.0.0.1:8790',
