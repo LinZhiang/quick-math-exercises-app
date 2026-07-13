@@ -1,5 +1,6 @@
 /**
- * 把 server/.env 或主 App 的 DEEPSEEK_API_KEY 同步到 .env.local（构建进 App，手机出门也能用）
+ * 同步 DeepSeek 密钥到 .env.local（构建进 App，手机出门也能用）
+ * 优先级：环境变量（Cloudflare CI）> server/.env > 主 App 的 .env
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -10,11 +11,16 @@ const root = path.join(__dirname, '..')
 const serverEnv = path.join(root, 'server', '.env')
 const localEnv = path.join(root, '.env.local')
 
-const sources = [
-  serverEnv,
-  path.join(root, '..', 'my-learning-app', 'server', '.env'),
-  path.join(root, '..', 'my-learning-app', '.env'),
-]
+const isCi = Boolean(
+  process.env.CI ||
+    process.env.CF_PAGES ||
+    process.env.CLOUDFLARE_PAGES ||
+    process.env.NETLIFY,
+)
+
+function isPlaceholderKey(key) {
+  return !key || /your-deepseek|sk-your|placeholder/i.test(key)
+}
 
 function readKeyFromEnvFile(file) {
   if (!fs.existsSync(file)) return ''
@@ -23,8 +29,38 @@ function readKeyFromEnvFile(file) {
   return m?.[1]?.trim() ?? ''
 }
 
+function keyFromProcessEnv() {
+  return (process.env.VITE_DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY || '').trim()
+}
+
+function modelFromProcessEnv() {
+  return (process.env.VITE_DEEPSEEK_MODEL || 'deepseek-v4-flash').trim()
+}
+
+function writeLocalEnv(key, model, source) {
+  const localContent = [
+    `# 由 sync-server-env.mjs 生成（来源：${source}）`,
+    '# 密钥打进 App，手机/PWA 直连 DeepSeek，出门无需开电脑',
+    `VITE_DEEPSEEK_API_KEY=${key}`,
+    `VITE_DEEPSEEK_MODEL=${model}`,
+    '',
+  ].join('\n')
+  fs.writeFileSync(localEnv, localContent, 'utf8')
+  console.log(`[sync:env] 已写入 .env.local（${source}）`)
+}
+
+const envKey = keyFromProcessEnv()
+if (!isPlaceholderKey(envKey)) {
+  writeLocalEnv(envKey, modelFromProcessEnv(), '环境变量')
+  process.exit(0)
+}
+
 if (!fs.existsSync(serverEnv)) {
-  for (const src of sources.slice(1)) {
+  const fileSources = [
+    path.join(root, '..', 'my-learning-app', 'server', '.env'),
+    path.join(root, '..', 'my-learning-app', '.env'),
+  ]
+  for (const src of fileSources) {
     if (!fs.existsSync(src)) continue
     fs.mkdirSync(path.dirname(serverEnv), { recursive: true })
     fs.copyFileSync(src, serverEnv)
@@ -33,17 +69,23 @@ if (!fs.existsSync(serverEnv)) {
   }
 }
 
-const key = readKeyFromEnvFile(serverEnv)
-if (!key || key.includes('your-deepseek')) {
-  console.error('[sync:env] 未找到 DEEPSEEK_API_KEY。请编辑 server/.env 或先配置主学习 App 的密钥。')
-  process.exit(1)
+const fileKey = readKeyFromEnvFile(serverEnv)
+if (!isPlaceholderKey(fileKey)) {
+  writeLocalEnv(fileKey, modelFromProcessEnv(), 'server/.env')
+  process.exit(0)
 }
 
-const localContent = [
-  '# 家庭自用：密钥打进 App，手机/PWA 直连 DeepSeek，出门无需开电脑',
-  `VITE_DEEPSEEK_API_KEY=${key}`,
-  'VITE_DEEPSEEK_MODEL=deepseek-v4-flash',
-  '',
-].join('\n')
-fs.writeFileSync(localEnv, localContent, 'utf8')
-console.log('[sync:env] 已写入 .env.local')
+if (isCi) {
+  console.error(
+    '[sync:env] 云端构建未找到 DeepSeek 密钥。\n' +
+      '请在 Cloudflare Pages → Settings → Environment variables 添加：\n' +
+      '  VITE_DEEPSEEK_API_KEY = 你的 DeepSeek API Key\n' +
+      '（与主学习 App 的 DEEPSEEK_API_KEY 相同即可）',
+  )
+} else {
+  console.error(
+    '[sync:env] 未找到 DEEPSEEK_API_KEY。请编辑 server/.env 或先配置主学习 App 的密钥，\n' +
+      '也可设置环境变量 VITE_DEEPSEEK_API_KEY。',
+  )
+}
+process.exit(1)

@@ -16,9 +16,10 @@ async function onInstall() {
   <section class="mode-section install-panel" id="practice-install">
     <h3 class="mode-section__title">安装到手机</h3>
     <p class="mode-section__hint">
-      电脑只需<strong>一次性</strong>执行 <code>npm run setup</code>，然后手机 Chrome 打开本页地址 → 安装应用。
-      装好后<strong>出门不用开电脑</strong>，有手机网络就能练（DeepSeek 直连，与主 App 同一把密钥）。
-      若还没装过 App，电脑可临时执行 <code>npm run serve:install</code> 打开手机安装页（装完可关）。
+      手机 Chrome 打开本页（Cloudflare 公网地址或家里局域网地址）→ 安装应用。
+      装好后<strong>出门不用开电脑</strong>，有手机网络就能练（DeepSeek 直连）。
+      电脑本地首次构建可执行 <code>npm run setup</code>；仅在家里局域网装 App 时可临时用
+      <code>npm run serve:install</code>（装完可关）。
     </p>
 
     <div v-if="installed" class="install-card install-card--ok">
