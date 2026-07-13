@@ -1,9 +1,10 @@
 {
+  "id": "/",
   "name": "口算练习",
   "short_name": "口算练习",
   "description": "口算、图形推理与语文练习",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#f5f7fb",
@@ -27,12 +28,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    },
-    {
-      "src": "/icons/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
     }
   ]
 }

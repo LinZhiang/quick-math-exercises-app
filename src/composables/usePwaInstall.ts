@@ -10,6 +10,8 @@ const showIosHint: Ref<boolean> = ref(false)
 const installed: Ref<boolean> = ref(false)
 const isAndroid: Ref<boolean> = ref(false)
 const isChromeLike: Ref<boolean> = ref(false)
+const isSecure: Ref<boolean> = ref(true)
+const pageOrigin: Ref<string> = ref('')
 
 let deferred: BeforeInstallPromptEvent | null = null
 let listenersBound = false
@@ -53,6 +55,8 @@ function ensureListeners() {
   installed.value = isStandaloneDisplay()
   isAndroid.value = detectAndroid()
   isChromeLike.value = detectChromeLike()
+  isSecure.value = window.isSecureContext
+  pageOrigin.value = window.location.origin
   if (installed.value) return
   window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt)
   window.addEventListener('appinstalled', onAppInstalled)
@@ -84,11 +88,12 @@ export function usePwaInstall() {
     installed,
     isAndroid,
     isChromeLike,
+    isSecure,
+    pageOrigin,
     promptInstall,
   }
 }
 
-/** 尽早绑定，避免首屏错过 beforeinstallprompt */
 if (typeof window !== 'undefined') {
   ensureListeners()
 }

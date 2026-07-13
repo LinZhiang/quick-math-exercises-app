@@ -34,16 +34,17 @@ if (!show.length) {
 } else {
   for (const x of show) {
     console.log(`网卡 ${x.name}`)
-    console.log(`  开发页：http://${x.address}:5174/`)
-    console.log(`  全家桶：http://${x.address}:8790/  （需先 npm run serve）`)
+    console.log(`  开发页：http://${x.address}:5174/   （有证书则为 https）`)
+    console.log(`  安装用：https://${x.address}:8790/  （先 npm run certs && npm run build && npm run serve）`)
     console.log('')
   }
+  console.log('注意：')
+  console.log('1. 手机和电脑必须连同一个 Wi‑Fi（不要开「访客网络」）。')
+  console.log('2. 不要用 192.168.137.x（那是电脑热点网关，手机通常打不开）。')
+  console.log('3. 「安装应用」必须用 https://…:8790；纯 http 局域网只能加网页快捷方式。')
+  console.log('4. 电脑上用 localhost 能开，不代表手机能开——常被 Windows 防火墙拦住。')
+  console.log('')
 }
-console.log('注意：')
-console.log('1. 手机和电脑必须连同一个 Wi‑Fi（不要开「访客网络」）。')
-console.log('2. 不要用 192.168.137.x（那是电脑热点网关，手机通常打不开）。')
-console.log('3. 电脑上用 localhost 能开，不代表手机能开——常被 Windows 防火墙拦住。')
-console.log('')
 
 try {
   for (const p of PORTS) {

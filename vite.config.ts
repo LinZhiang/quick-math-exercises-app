@@ -1,15 +1,23 @@
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+
+const certKey = fileURLToPath(new URL('./server/certs/key.pem', import.meta.url))
+const certFile = fileURLToPath(new URL('./server/certs/cert.pem', import.meta.url))
+const https =
+  existsSync(certKey) && existsSync(certFile)
+    ? { key: readFileSync(certKey), cert: readFileSync(certFile) }
+    : undefined
 
 export default defineConfig({
   plugins: [vue()],
   server: {
     port: 5174,
     strictPort: true,
-    // 允许手机用局域网 IP 访问（Vite 默认会拦非 localhost Host）
     host: true,
     allowedHosts: true,
+    https,
     proxy: {
       '/api/ai': {
         target: 'http://127.0.0.1:8790',
@@ -23,6 +31,7 @@ export default defineConfig({
     strictPort: true,
     host: true,
     allowedHosts: true,
+    https,
     proxy: {
       '/api/ai': {
         target: 'http://127.0.0.1:8790',
