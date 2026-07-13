@@ -105,7 +105,7 @@ export function useChineseCommonSenseTest() {
 
   async function generatePaper() {
     if (!isAiChatConfigured()) {
-      ElMessage.warning('未配置 AI 代理：开发时请同时启动主站 server（8787）')
+      ElMessage.warning('AI 服务未就绪：请先在本项目执行 npm run dev:all 或 npm run serve')
       return
     }
     phase.value = 'loading'

@@ -23,14 +23,13 @@ const WENGU_AI_SOURCE = 'quick-math-exercises-app'
 function chatCompletionsUrl(): string {
   const base = import.meta.env.VITE_AI_API_BASE?.trim()
   if (base) return `${base.replace(/\/$/, '')}/chat/completions`
-  if (import.meta.env.DEV) return '/api/ai/chat/completions'
-  return ''
+  // 开发：Vite 代理 /api/ai；生产/局域网：同域 server 也提供 /api/ai
+  return '/api/ai/chat/completions'
 }
 
 export function isAiChatConfigured(): boolean {
   if (import.meta.env.VITE_AI_API_BASE?.trim()) return true
-  if (import.meta.env.DEV) return true
-  return false
+  return true
 }
 
 export type DeepSeekChatTurn = {
@@ -46,7 +45,7 @@ async function deepseekChatCompletion(
 ): Promise<string> {
   const url = chatCompletionsUrl()
   if (!url) {
-    throw new Error('未配置 AI 代理：请设置 VITE_AI_API_BASE，或开发时启动主站 server（8787）')
+    throw new Error('未配置 AI 代理：请设置 VITE_AI_API_BASE，或启动本项目的 server（npm run dev:api）')
   }
   const res = await fetch(url, {
     method: 'POST',

@@ -71,6 +71,7 @@ import {
   type SudokuQuestion,
 } from '@/utils/sudokuPractice'
 import ChinesePracticeSection from '@/views/tools/chinese-practice/ChinesePracticeSection.vue'
+import PwaInstallPanel from '@/components/PwaInstallPanel.vue'
 
 type Phase = 'select' | 'countdown' | 'playing' | 'finished'
 type CountdownStep = 3 | 2 | 1 | 'GO'
@@ -174,6 +175,7 @@ const showGraphicSection = computed(
 const showChineseSection = computed(
   () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'chinese',
 )
+const showInstallSection = computed(() => activeOutlineSection.value === 'install')
 const showGuideSection = computed(() => activeOutlineSection.value === 'guide')
 
 const chineseSessionActive = computed(() => chinesePracticeRef.value?.isRunningOrLoading ?? false)
@@ -631,6 +633,8 @@ onMounted(() => {
     activeOutlineSection.value = 'chinese'
   } else if (hash === 'chinese-key' || route.query.section === 'chinese-key') {
     activeOutlineSection.value = 'chinese'
+  } else if (hash === 'install' || route.query.section === 'install') {
+    activeOutlineSection.value = 'install'
   } else if (hash === 'fraction' || route.query.section === 'fraction') {
     activeOutlineSection.value = 'fraction'
   }
@@ -817,6 +821,8 @@ onBeforeUnmount(() => {
           </p>
           <ChinesePracticeSection ref="chinesePracticeRef" />
         </section>
+
+        <PwaInstallPanel v-if="showInstallSection" />
       </div>
     </div>
 

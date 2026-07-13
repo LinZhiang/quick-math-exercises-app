@@ -1,5 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ã—Ã`">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="????">
   <rect width="512" height="512" rx="96" fill="#2563eb"/>
-  <text x="256" y="210" text-anchor="middle" font-size="120" font-family="Arial, sans-serif" fill="#ffffff">—</text>
-  <text x="256" y="360" text-anchor="middle" font-size="88" font-family="Arial, sans-serif" fill="#dbeafe">‡</text>
+  <rect x="140" y="120" width="232" height="40" rx="12" fill="#ffffff"/>
+  <rect x="140" y="352" width="232" height="40" rx="12" fill="#ffffff"/>
+  <rect x="140" y="120" width="40" height="272" rx="12" fill="#ffffff"/>
+  <rect x="332" y="120" width="40" height="272" rx="12" fill="#ffffff"/>
+  <rect x="220" y="236" width="72" height="40" rx="12" fill="#dbeafe"/>
 </svg>

@@ -3,3 +3,6 @@ dist
 dist-ssr
 *.local
 .DS_Store
+server/node_modules
+server/.env
+server/logs
