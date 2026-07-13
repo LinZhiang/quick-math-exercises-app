@@ -1032,15 +1032,16 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 100vh;
   min-width: 0;
-  max-width: 1120px;
-  margin: 0 auto;
   width: 100%;
-  padding: 16px 20px 24px;
-  gap: 12px;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  gap: 0;
 }
 
 .page-hero {
   flex-shrink: 0;
+  padding: 12px 12px 10px;
 }
 
 .practice-shell {
@@ -1049,8 +1050,9 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: minmax(148px, 188px) minmax(0, 1fr);
   gap: 0;
-  border: 1px solid var(--app-border-soft);
-  border-radius: 14px;
+  border: none;
+  border-top: 1px solid var(--app-border-soft);
+  border-radius: 0;
   overflow: hidden;
   background: var(--app-surface);
 }
