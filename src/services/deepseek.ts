@@ -1,5 +1,11 @@
 import { parseAiJsonArrayLenient, parseAiJsonObjectLenient, stripAiJsonFence } from '@/utils/aiJsonParse'
 import {
+  buildCharLiteracyQuestionFromMcq,
+  CHAR_LITERACY_QUESTION_COUNT,
+  parseCharLiteracyMcqAiObject,
+  type CharLiteracyQuestion,
+} from '@/utils/charLiteracyPractice'
+import {
   buildCommonSenseQuestionFromMcq,
   COMMON_SENSE_QUESTION_COUNT,
   parseCommonSenseMcqAiObject,
@@ -152,12 +158,28 @@ const IDIOM_FORMAT = `
 选词语：{"questionType":"meaning-to-word","term":"脱颖而出","stem":"比喻人的才能全部显露出来的是？","correct":"脱颖而出","distractors":["出类拔萃","崭露头角","锋芒毕露"],"explanation":"……"}
 `.trim()
 
-function dedupeQuestions(items: IdiomRecognitionQuestion[]): IdiomRecognitionQuestion[] {
-  const seen = new Set<string>()
+function normalizeAvoidTerm(term: string): string {
+  return term.trim().replace(/\s+/g, '')
+}
+
+function buildAvoidTermsHint(label: string, terms: string[]): string {
+  const unique = [...new Set(terms.map(normalizeAvoidTerm).filter(Boolean))]
+  if (!unique.length) return ''
+  return `\n【禁止重复】以下${label}近期已练过，本批**一律不得**再出（含近义换题干）：${unique.join('、')}`
+}
+
+function dedupeQuestions(
+  items: IdiomRecognitionQuestion[],
+  blockedTerms?: Set<string>,
+): IdiomRecognitionQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
   const out: IdiomRecognitionQuestion[] = []
   for (const q of items) {
-    if (seen.has(q.fingerprint)) continue
-    seen.add(q.fingerprint)
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
     out.push(q)
   }
   return out
@@ -165,9 +187,12 @@ function dedupeQuestions(items: IdiomRecognitionQuestion[]): IdiomRecognitionQue
 
 export async function requestIdiomRecognitionMcqs(input: {
   count?: number
+  /** 跨轮次近期已出过的词语，连续约 90 道内避开 */
+  avoidTerms?: string[]
   onProgress?: (message: string) => void
 }): Promise<IdiomRecognitionQuestion[]> {
   const count = input.count ?? IDIOM_RECOGNITION_QUESTION_COUNT
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
   input.onProgress?.('正在向 DeepSeek 请求题目…')
 
   const typeHints = Array.from({ length: count }, (_, i) =>
@@ -176,16 +201,21 @@ export async function requestIdiomRecognitionMcqs(input: {
     .map((t, i) => `第 ${i + 1} 题建议 ${t}`)
     .join('；')
 
+  const historyHint = buildAvoidTermsHint('词语/成语', [...blocked])
   const user = [
     `请生成 **${count} 道** 词语/成语识记四选一练习题，用于公务员与事业单位言语理解备考。`,
     IDIOM_FORMAT,
     `本轮题型顺序参考：${typeHints}`,
+    historyHint,
+    `本批 ${count} 道的 term 必须互不相同。`,
     `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
-  ].join('\n\n')
+  ]
+    .filter(Boolean)
+    .join('\n\n')
 
   const raw = await deepseekChatRaw(user, {
     system: IDIOM_SYSTEM,
-    temperature: 0.62,
+    temperature: 0.72,
     maxTokens: 8192,
   })
 
@@ -198,36 +228,39 @@ export async function requestIdiomRecognitionMcqs(input: {
     if (q) questions.push(q)
   })
 
-  const deduped = dedupeQuestions(questions)
+  const deduped = dedupeQuestions(questions, blocked)
   input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
 
-  if (deduped.length >= count) return deduped.slice(0, count)
-
-  const avoidTerms = deduped.map((q) => q.term)
-  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 6; slot++) {
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
     input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
-    const avoidHint = avoidTerms.length
-      ? `\n请勿重复以下词语：${avoidTerms.slice(-20).join('、')}`
-      : ''
+    const avoidHint = buildAvoidTermsHint('词语/成语', avoidTerms)
     try {
       const oneRaw = await deepseekChatRaw(
         `请生成第 ${slot} 道词语/成语识记四选一题。\n${IDIOM_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
-        { system: IDIOM_SYSTEM, temperature: 0.55, maxTokens: 900 },
+        { system: IDIOM_SYSTEM, temperature: 0.7, maxTokens: 900 },
       )
       const oneObj = parseAiJsonObjectLenient(oneRaw)
       const fields = parseIdiomMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildIdiomQuestionFromMcq({ ...fields, seq: slot })
-      if (!q || deduped.some((x) => x.fingerprint === q.fingerprint)) continue
+      if (!q) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
       deduped.push(q)
-      avoidTerms.push(q.term)
+      if (termKey) avoidTerms.push(termKey)
     } catch {
       /* skip */
     }
   }
 
   if (deduped.length < count) {
-    throw new Error(`仅成功生成 ${deduped.length}/${count} 题，请稍后重试`)
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
   }
   return deduped.slice(0, count)
 }
@@ -255,12 +288,18 @@ const POETRY_FORMAT = `
 选描写：{"questionType":"poem-to-theme","term":"江雪","stem":"千山鸟飞绝，万径人踪灭。孤舟蓑笠翁，独钓寒江雪。","correct":"严冬江雪、孤寂寒境","distractors":["春日江南烟雨","秋夜洞庭月色","夏日荷塘清趣"],"explanation":"……"}
 `.trim()
 
-function dedupePoetryQuestions(items: PoetryRecognitionQuestion[]): PoetryRecognitionQuestion[] {
-  const seen = new Set<string>()
+function dedupePoetryQuestions(
+  items: PoetryRecognitionQuestion[],
+  blockedTerms?: Set<string>,
+): PoetryRecognitionQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
   const out: PoetryRecognitionQuestion[] = []
   for (const q of items) {
-    if (seen.has(q.fingerprint)) continue
-    seen.add(q.fingerprint)
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
     out.push(q)
   }
   return out
@@ -268,9 +307,11 @@ function dedupePoetryQuestions(items: PoetryRecognitionQuestion[]): PoetryRecogn
 
 export async function requestPoetryRecognitionMcqs(input: {
   count?: number
+  avoidTerms?: string[]
   onProgress?: (message: string) => void
 }): Promise<PoetryRecognitionQuestion[]> {
   const count = input.count ?? POETRY_RECOGNITION_QUESTION_COUNT
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
   input.onProgress?.('正在向 DeepSeek 请求诗词题目…')
 
   const typeHints = Array.from({ length: count }, (_, i) =>
@@ -279,16 +320,21 @@ export async function requestPoetryRecognitionMcqs(input: {
     .map((t, i) => `第 ${i + 1} 题建议 ${t}`)
     .join('；')
 
+  const historyHint = buildAvoidTermsHint('篇目', [...blocked])
   const user = [
     `请生成 **${count} 道** 古诗文识记四选一练习题，用于公务员与事业单位备考。`,
     POETRY_FORMAT,
     `本轮题型顺序参考：${typeHints}`,
+    historyHint,
+    `本批 ${count} 道的 term（篇目）必须互不相同。`,
     `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
-  ].join('\n\n')
+  ]
+    .filter(Boolean)
+    .join('\n\n')
 
   const raw = await deepseekChatRaw(user, {
     system: POETRY_SYSTEM,
-    temperature: 0.62,
+    temperature: 0.72,
     maxTokens: 8192,
   })
 
@@ -301,36 +347,39 @@ export async function requestPoetryRecognitionMcqs(input: {
     if (q) questions.push(q)
   })
 
-  const deduped = dedupePoetryQuestions(questions)
+  const deduped = dedupePoetryQuestions(questions, blocked)
   input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
 
-  if (deduped.length >= count) return deduped.slice(0, count)
-
-  const avoidTerms = deduped.map((q) => q.term)
-  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 6; slot++) {
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
     input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
-    const avoidHint = avoidTerms.length
-      ? `\n请勿重复以下篇目：${avoidTerms.slice(-20).join('、')}`
-      : ''
+    const avoidHint = buildAvoidTermsHint('篇目', avoidTerms)
     try {
       const oneRaw = await deepseekChatRaw(
         `请生成第 ${slot} 道古诗文识记四选一题。\n${POETRY_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
-        { system: POETRY_SYSTEM, temperature: 0.55, maxTokens: 900 },
+        { system: POETRY_SYSTEM, temperature: 0.7, maxTokens: 900 },
       )
       const oneObj = parseAiJsonObjectLenient(oneRaw)
       const fields = parsePoetryMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildPoetryQuestionFromMcq({ ...fields, seq: slot })
-      if (!q || deduped.some((x) => x.fingerprint === q.fingerprint)) continue
+      if (!q) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
       deduped.push(q)
-      avoidTerms.push(q.term)
+      if (termKey) avoidTerms.push(termKey)
     } catch {
       /* skip */
     }
   }
 
   if (deduped.length < count) {
-    throw new Error(`仅成功生成 ${deduped.length}/${count} 题，请稍后重试`)
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
   }
   return deduped.slice(0, count)
 }
@@ -355,12 +404,18 @@ const COMMON_SENSE_FORMAT = `
 {"questionType":"general","term":"罗汉果","stem":"罗汉果的主要功效是？","correct":"润肺止咳、生津利咽","distractors":["温中散寒、活血通络","清热解毒、利尿消肿","补气养血、安神益智"],"explanation":"……"}
 `.trim()
 
-function dedupeCommonSenseQuestions(items: CommonSenseQuestion[]): CommonSenseQuestion[] {
-  const seen = new Set<string>()
+function dedupeCommonSenseQuestions(
+  items: CommonSenseQuestion[],
+  blockedTerms?: Set<string>,
+): CommonSenseQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
   const out: CommonSenseQuestion[] = []
   for (const q of items) {
-    if (seen.has(q.fingerprint)) continue
-    seen.add(q.fingerprint)
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
     out.push(q)
   }
   return out
@@ -368,20 +423,27 @@ function dedupeCommonSenseQuestions(items: CommonSenseQuestion[]): CommonSenseQu
 
 export async function requestCommonSenseMcqs(input: {
   count?: number
+  avoidTerms?: string[]
   onProgress?: (message: string) => void
 }): Promise<CommonSenseQuestion[]> {
   const count = input.count ?? COMMON_SENSE_QUESTION_COUNT
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
   input.onProgress?.('正在向 DeepSeek 请求常识题目…')
 
+  const historyHint = buildAvoidTermsHint('知识点', [...blocked])
   const user = [
     `请生成 **${count} 道** 常识判断四选一练习题，用于公务员与事业单位备考。`,
     COMMON_SENSE_FORMAT,
+    historyHint,
+    `本批 ${count} 道的 term（知识点）必须互不相同。`,
     `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
-  ].join('\n\n')
+  ]
+    .filter(Boolean)
+    .join('\n\n')
 
   const raw = await deepseekChatRaw(user, {
     system: COMMON_SENSE_SYSTEM,
-    temperature: 0.62,
+    temperature: 0.72,
     maxTokens: 8192,
   })
 
@@ -394,36 +456,157 @@ export async function requestCommonSenseMcqs(input: {
     if (q) questions.push(q)
   })
 
-  const deduped = dedupeCommonSenseQuestions(questions)
+  const deduped = dedupeCommonSenseQuestions(questions, blocked)
   input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
 
-  if (deduped.length >= count) return deduped.slice(0, count)
-
-  const avoidTerms = deduped.map((q) => q.term)
-  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 6; slot++) {
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
     input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
-    const avoidHint = avoidTerms.length
-      ? `\n请勿重复以下知识点：${avoidTerms.slice(-20).join('、')}`
-      : ''
+    const avoidHint = buildAvoidTermsHint('知识点', avoidTerms)
     try {
       const oneRaw = await deepseekChatRaw(
         `请生成第 ${slot} 道常识判断四选一题。\n${COMMON_SENSE_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
-        { system: COMMON_SENSE_SYSTEM, temperature: 0.55, maxTokens: 900 },
+        { system: COMMON_SENSE_SYSTEM, temperature: 0.7, maxTokens: 900 },
       )
       const oneObj = parseAiJsonObjectLenient(oneRaw)
       const fields = parseCommonSenseMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildCommonSenseQuestionFromMcq({ ...fields, seq: slot })
-      if (!q || deduped.some((x) => x.fingerprint === q.fingerprint)) continue
+      if (!q) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
       deduped.push(q)
-      avoidTerms.push(q.term)
+      if (termKey) avoidTerms.push(termKey)
     } catch {
       /* skip */
     }
   }
 
   if (deduped.length < count) {
-    throw new Error(`仅成功生成 ${deduped.length}/${count} 题，请稍后重试`)
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const CHAR_LITERACY_SYSTEM = [
+  '你是公务员考试与事业单位考试「言语理解·字音字形」命题专家，熟悉公考高频易错读音、多音字、形近字与音近错别字。',
+  '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
+].join('\n')
+
+const CHAR_LITERACY_FORMAT = `
+【题型】每题 questionType 随机取其一：
+- pronunciation（读音辨析）：考查加点字/词语正确读音，或「下列读音全部正确的是」「下列加点字读音有误的是」等公考常见问法
+- typo（错别字）：考查「下列词语没有错别字的是」「下列词语有错别字的是」等，干扰项须含形近/音近错字
+
+【命题要求·干扰要强】
+- 优先事业编/国考言语理解高频易错点：多音字（如「差」「处」「载」）、习惯性误读、形近字（己/已/巳、戍/戌）、音近别字（一筹莫展/一愁莫展、再接再厉/再接再励）
+- term 填考点关键词（如「纨绔」「暴殄天物」「一筹莫展」）
+- 读音题：选项可用「词语+拼音」或整句加点字注音；干扰项须为常见误读（声调错、声母韵母混、多音字读错），不要出过于冷僻的字
+- 错别字题：四个选项各为一组成语/词语，正确项全对；干扰项用形近、音近错字，且错得「像真的」
+- explanation 用 1～2 句点明正确读音/正确字形及易混原因
+
+【JSON 示例】
+读音：{"questionType":"pronunciation","term":"纨绔","stem":"下列加点字读音正确的是？","correct":"纨绔子弟（kù）","distractors":["纨绔子弟（kuā）","纨绔子弟（guā）","纨绔子弟（huà）"],"explanation":"……"}
+错别字：{"questionType":"typo","term":"一筹莫展","stem":"下列词语没有错别字的是？","correct":"一筹莫展","distractors":["一愁莫展","一绸莫展","一酬莫展"],"explanation":"……"}
+`.trim()
+
+function dedupeCharLiteracyQuestions(
+  items: CharLiteracyQuestion[],
+  blockedTerms?: Set<string>,
+): CharLiteracyQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: CharLiteracyQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestCharLiteracyMcqs(input: {
+  count?: number
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<CharLiteracyQuestion[]> {
+  const count = input.count ?? CHAR_LITERACY_QUESTION_COUNT
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.('正在向 DeepSeek 请求字音字形题目…')
+
+  const typeHints = Array.from({ length: count }, (_, i) =>
+    i % 2 === 0 ? '读音辨析' : '错别字',
+  )
+    .map((t, i) => `第 ${i + 1} 题建议 ${t}`)
+    .join('；')
+
+  const historyHint = buildAvoidTermsHint('考点词语', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 公考/事业编高频「字音字形」四选一练习题，干扰项要强、易混。`,
+    CHAR_LITERACY_FORMAT,
+    `本轮题型顺序参考：${typeHints}`,
+    historyHint,
+    `本批 ${count} 道的 term 必须互不相同。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: CHAR_LITERACY_SYSTEM,
+    temperature: 0.72,
+    maxTokens: 8192,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: CharLiteracyQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseCharLiteracyMcqAiObject(item)
+    if (!fields) return
+    const q = buildCharLiteracyQuestionFromMcq({ ...fields, seq: idx + 1 })
+    if (q) questions.push(q)
+  })
+
+  const deduped = dedupeCharLiteracyQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('考点词语', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        `请生成第 ${slot} 道字音字形四选一题（读音或错别字均可）。\n${CHAR_LITERACY_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
+        { system: CHAR_LITERACY_SYSTEM, temperature: 0.7, maxTokens: 900 },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseCharLiteracyMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildCharLiteracyQuestionFromMcq({ ...fields, seq: slot })
+      if (!q) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
   }
   return deduped.slice(0, count)
 }

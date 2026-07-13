@@ -6,6 +6,17 @@ import {
   type ChineseKeyQuestionSource,
 } from '@/constants/chinese-practice-tabs'
 import type { KeyPracticePayload } from '@/types/chinese-practice'
+import type {
+  StoredCharLiteracyFavoriteRecord,
+  StoredCharLiteracyRecord,
+} from '@/utils/chineseCharLiteracyStorage'
+import {
+  listChineseCharLiteracyFavoriteRecords,
+  listChineseCharLiteracyWrongRecords,
+  removeChineseCharLiteracyFavorite,
+  removeChineseCharLiteracyWrong,
+  storedCharLiteracyToQuestion,
+} from '@/utils/chineseCharLiteracyStorage'
 import type { StoredCommonSenseFavoriteRecord, StoredCommonSenseRecord } from '@/utils/chineseCommonSenseStorage'
 import {
   listChineseCommonSenseFavoriteRecords,
@@ -33,6 +44,7 @@ import {
   type StoredPoetryFavoriteRecord,
   type StoredPoetryRecord,
 } from '@/utils/chinesePoetryStorage'
+import { charLiteracyQuestionTypeLabel } from '@/utils/charLiteracyPractice'
 import { commonSenseQuestionTypeLabel } from '@/utils/commonSensePractice'
 import { idiomQuestionTypeLabel } from '@/utils/idiomRecognitionPractice'
 import { poetryQuestionTypeLabel } from '@/utils/poetryRecognitionPractice'
@@ -40,6 +52,8 @@ import { poetryQuestionTypeLabel } from '@/utils/poetryRecognitionPractice'
 type StoredRow =
   | StoredIdiomRecord
   | StoredFavoriteRecord
+  | StoredCharLiteracyRecord
+  | StoredCharLiteracyFavoriteRecord
   | StoredPoetryRecord
   | StoredPoetryFavoriteRecord
   | StoredCommonSenseRecord
@@ -70,6 +84,9 @@ function typeLabel(row: StoredRow): string {
   if (source.value === 'word-memorization') {
     return idiomQuestionTypeLabel(row.questionType as 'word-to-meaning' | 'meaning-to-word')
   }
+  if (source.value === 'char-literacy') {
+    return charLiteracyQuestionTypeLabel(row.questionType as 'pronunciation' | 'typo')
+  }
   if (source.value === 'poetry-practice') {
     return poetryQuestionTypeLabel(row.questionType as 'poem-to-author' | 'poem-to-theme')
   }
@@ -92,12 +109,14 @@ function storedMeaningHint(row: StoredRow): string {
 
 function termDetailLabel(): string {
   if (source.value === 'word-memorization') return '词语'
+  if (source.value === 'char-literacy') return '考点'
   if (source.value === 'poetry-practice') return '篇目'
   return '知识点'
 }
 
 function hintDetailLabel(): string {
   if (source.value === 'word-memorization') return '释义'
+  if (source.value === 'char-literacy') return '答案'
   if (source.value === 'poetry-practice') return '要点'
   return '答案'
 }
@@ -106,6 +125,9 @@ function loadRows() {
   if (source.value === 'word-memorization') {
     wrongRows.value = listChineseWrongRecords()
     favoriteRows.value = listChineseFavoriteRecords()
+  } else if (source.value === 'char-literacy') {
+    wrongRows.value = listChineseCharLiteracyWrongRecords()
+    favoriteRows.value = listChineseCharLiteracyFavoriteRecords()
   } else if (source.value === 'poetry-practice') {
     wrongRows.value = listChinesePoetryWrongRecords()
     favoriteRows.value = listChinesePoetryFavoriteRecords()
@@ -156,6 +178,13 @@ function onPractice() {
       source: 'word-memorization',
       questions: rows.map((r, i) => storedToQuestion(r as StoredIdiomRecord | StoredFavoriteRecord, i + 1)),
     })
+  } else if (source.value === 'char-literacy') {
+    emit('practice', {
+      source: 'char-literacy',
+      questions: rows.map((r, i) =>
+        storedCharLiteracyToQuestion(r as StoredCharLiteracyRecord | StoredCharLiteracyFavoriteRecord, i + 1),
+      ),
+    })
   } else if (source.value === 'poetry-practice') {
     emit('practice', {
       source: 'poetry-practice',
@@ -177,6 +206,9 @@ function onRemove(fp: string) {
   if (source.value === 'word-memorization') {
     if (keyTab.value === 'wrong') removeChineseWrong(fp)
     else removeChineseFavorite(fp)
+  } else if (source.value === 'char-literacy') {
+    if (keyTab.value === 'wrong') removeChineseCharLiteracyWrong(fp)
+    else removeChineseCharLiteracyFavorite(fp)
   } else if (source.value === 'poetry-practice') {
     if (keyTab.value === 'wrong') removeChinesePoetryWrong(fp)
     else removeChinesePoetryFavorite(fp)

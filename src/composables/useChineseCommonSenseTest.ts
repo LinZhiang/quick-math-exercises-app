@@ -1,6 +1,10 @@
 import { ElMessage } from 'element-plus'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { isAiChatConfigured, requestCommonSenseMcqs } from '@/services/deepseek'
+import {
+  appendGeneratedTerms,
+  listRecentGeneratedTerms,
+} from '@/utils/chineseGeneratedHistory'
 import { upsertChineseCommonSenseWrong } from '@/utils/chineseCommonSenseStorage'
 import { playMentalMathStartSound } from '@/utils/mentalMathSounds'
 import {
@@ -113,12 +117,18 @@ export function useChineseCommonSenseTest() {
     phase.value = 'loading'
     loadingMessage.value = '正在生成题目…'
     try {
-      questions.value = await requestCommonSenseMcqs({
+      const generated = await requestCommonSenseMcqs({
         count: COMMON_SENSE_QUESTION_COUNT,
+        avoidTerms: listRecentGeneratedTerms('common-sense'),
         onProgress: (msg) => {
           loadingMessage.value = msg
         },
       })
+      appendGeneratedTerms(
+        'common-sense',
+        generated.map((q) => q.term),
+      )
+      questions.value = generated
       currentIndex.value = 0
       selectedIndex.value = null
       submitted.value = false

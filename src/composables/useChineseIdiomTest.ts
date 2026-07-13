@@ -1,6 +1,10 @@
 import { ElMessage } from 'element-plus'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { isAiChatConfigured, requestIdiomRecognitionMcqs } from '@/services/deepseek'
+import {
+  appendGeneratedTerms,
+  listRecentGeneratedTerms,
+} from '@/utils/chineseGeneratedHistory'
 import { upsertChineseWrong } from '@/utils/chineseIdiomStorage'
 import { playMentalMathStartSound } from '@/utils/mentalMathSounds'
 import {
@@ -113,12 +117,18 @@ export function useChineseIdiomTest() {
     phase.value = 'loading'
     loadingMessage.value = '正在生成题目…'
     try {
-      questions.value = await requestIdiomRecognitionMcqs({
+      const generated = await requestIdiomRecognitionMcqs({
         count: IDIOM_RECOGNITION_QUESTION_COUNT,
+        avoidTerms: listRecentGeneratedTerms('idiom'),
         onProgress: (msg) => {
           loadingMessage.value = msg
         },
       })
+      appendGeneratedTerms(
+        'idiom',
+        generated.map((q) => q.term),
+      )
+      questions.value = generated
       currentIndex.value = 0
       selectedIndex.value = null
       submitted.value = false

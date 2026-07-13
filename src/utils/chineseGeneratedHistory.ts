@@ -1,0 +1,62 @@
+/** 语文练习「生成题」近期去重：连续约 90 道内同一知识点不重复 */
+
+export const CHINESE_GENERATED_HISTORY_LIMIT = 90
+
+export type ChineseGeneratedHistoryKind = 'idiom' | 'poetry' | 'common-sense' | 'char-literacy'
+
+const STORAGE_KEYS: Record<ChineseGeneratedHistoryKind, string> = {
+  idiom: 'chinese-generated-history-idiom-v1',
+  poetry: 'chinese-generated-history-poetry-v1',
+  'common-sense': 'chinese-generated-history-common-sense-v1',
+  'char-literacy': 'chinese-generated-history-char-literacy-v1',
+}
+
+function normalizeTerm(term: string): string {
+  return term.trim().replace(/\s+/g, '')
+}
+
+function readTerms(kind: ChineseGeneratedHistoryKind): string[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS[kind])
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .map((t) => (typeof t === 'string' ? normalizeTerm(t) : ''))
+      .filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+function writeTerms(kind: ChineseGeneratedHistoryKind, terms: string[]) {
+  localStorage.setItem(STORAGE_KEYS[kind], JSON.stringify(terms.slice(-CHINESE_GENERATED_HISTORY_LIMIT)))
+}
+
+/** 近期已出过的知识点（最多 90 个，旧的自动挤出） */
+export function listRecentGeneratedTerms(kind: ChineseGeneratedHistoryKind): string[] {
+  return readTerms(kind)
+}
+
+/** 本轮生成成功后写入；同一知识点再次出现会挪到队尾 */
+export function appendGeneratedTerms(kind: ChineseGeneratedHistoryKind, terms: string[]) {
+  const incoming = terms.map(normalizeTerm).filter(Boolean)
+  if (!incoming.length) return
+  const seen = new Set<string>()
+  const merged: string[] = []
+  for (const t of [...readTerms(kind), ...incoming]) {
+    if (seen.has(t)) {
+      const idx = merged.indexOf(t)
+      if (idx >= 0) merged.splice(idx, 1)
+    }
+    seen.add(t)
+    merged.push(t)
+  }
+  writeTerms(kind, merged)
+}
+
+export function isTermInRecentGenerated(kind: ChineseGeneratedHistoryKind, term: string): boolean {
+  const key = normalizeTerm(term)
+  if (!key) return false
+  return readTerms(kind).includes(key)
+}

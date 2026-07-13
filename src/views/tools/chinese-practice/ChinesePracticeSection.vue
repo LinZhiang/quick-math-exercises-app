@@ -7,6 +7,7 @@ import {
   type ChinesePracticeTabId,
 } from '@/constants/chinese-practice-tabs'
 import type { KeyPracticePayload } from '@/types/chinese-practice'
+import ChineseCharLiteracyPanel from '@/views/tools/chinese-practice/ChineseCharLiteracyPanel.vue'
 import ChineseCommonSensePanel from '@/views/tools/chinese-practice/ChineseCommonSensePanel.vue'
 import ChineseIdiomPanel from '@/views/tools/chinese-practice/ChineseIdiomPanel.vue'
 import ChineseKeyQuestionsPanel from '@/views/tools/chinese-practice/ChineseKeyQuestionsPanel.vue'
@@ -16,12 +17,14 @@ export type { KeyPracticePayload } from '@/types/chinese-practice'
 
 const activeTab = ref<ChinesePracticeTabId>(DEFAULT_CHINESE_PRACTICE_TAB)
 const idiomRef = ref<InstanceType<typeof ChineseIdiomPanel> | null>(null)
+const charLiteracyRef = ref<InstanceType<typeof ChineseCharLiteracyPanel> | null>(null)
 const poetryRef = ref<InstanceType<typeof ChinesePoetryPanel> | null>(null)
 const commonSenseRef = ref<InstanceType<typeof ChineseCommonSensePanel> | null>(null)
 
 const isRunningOrLoading = computed(
   () =>
     idiomRef.value?.isRunningOrLoading ||
+    charLiteracyRef.value?.isRunningOrLoading ||
     poetryRef.value?.isRunningOrLoading ||
     commonSenseRef.value?.isRunningOrLoading ||
     false,
@@ -37,6 +40,8 @@ function onKeyPractice(payload: KeyPracticePayload) {
   void nextTick(() => {
     if (payload.source === 'word-memorization') {
       idiomRef.value?.startWith(payload.questions)
+    } else if (payload.source === 'char-literacy') {
+      charLiteracyRef.value?.startWith(payload.questions)
     } else if (payload.source === 'poetry-practice') {
       poetryRef.value?.startWith(payload.questions)
     } else {
@@ -72,6 +77,10 @@ defineExpose({
     <ChineseIdiomPanel
       v-show="activeTab === 'word-memorization'"
       ref="idiomRef"
+    />
+    <ChineseCharLiteracyPanel
+      v-show="activeTab === 'char-literacy'"
+      ref="charLiteracyRef"
     />
     <ChinesePoetryPanel
       v-show="activeTab === 'poetry-practice'"

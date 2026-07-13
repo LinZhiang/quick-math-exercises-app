@@ -1,27 +1,27 @@
 import { ElMessage } from 'element-plus'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { isAiChatConfigured, requestPoetryRecognitionMcqs } from '@/services/deepseek'
+import { isAiChatConfigured, requestCharLiteracyMcqs } from '@/services/deepseek'
 import {
   appendGeneratedTerms,
   listRecentGeneratedTerms,
 } from '@/utils/chineseGeneratedHistory'
-import { upsertChinesePoetryWrong } from '@/utils/chinesePoetryStorage'
+import { upsertChineseCharLiteracyWrong } from '@/utils/chineseCharLiteracyStorage'
 import { playMentalMathStartSound } from '@/utils/mentalMathSounds'
 import {
-  POETRY_RECOGNITION_QUESTION_COUNT,
-  poetryQuestionTypeLabel,
-  type PoetryRecognitionQuestion,
-} from '@/utils/poetryRecognitionPractice'
+  CHAR_LITERACY_QUESTION_COUNT,
+  charLiteracyQuestionTypeLabel,
+  type CharLiteracyQuestion,
+} from '@/utils/charLiteracyPractice'
 import type { ChinesePaperSource } from '@/types/chinese-practice'
 
-export type ChinesePoetryPhase = 'idle' | 'loading' | 'running' | 'summary'
+export type ChineseCharLiteracyPhase = 'idle' | 'loading' | 'running' | 'summary'
 
-export type ChinesePoetryResultRow = {
+export type ChineseCharLiteracyResultRow = {
   unitIndex: number
   typeLabel: string
   title: string
   correct: boolean
-  question: PoetryRecognitionQuestion
+  question: CharLiteracyQuestion
   chosenIndex: number | null
 }
 
@@ -33,15 +33,15 @@ function formatDuration(ms: number): string {
   return `${m} 分 ${s} 秒`
 }
 
-export function useChinesePoetryTest() {
-  const phase = ref<ChinesePoetryPhase>('idle')
+export function useChineseCharLiteracyTest() {
+  const phase = ref<ChineseCharLiteracyPhase>('idle')
   const loadingMessage = ref('')
-  const questions = ref<PoetryRecognitionQuestion[]>([])
+  const questions = ref<CharLiteracyQuestion[]>([])
   const currentIndex = ref(0)
   const selectedIndex = ref<number | null>(null)
   const submitted = ref(false)
   const paperSource = ref<ChinesePaperSource>(null)
-  const results = ref<ChinesePoetryResultRow[]>([])
+  const results = ref<ChineseCharLiteracyResultRow[]>([])
   const quizElapsedMs = ref(0)
   const quizRunningDisplayMs = ref(0)
 
@@ -53,7 +53,7 @@ export function useChinesePoetryTest() {
   const currentQuestion = computed(() => questions.value[currentIndex.value] ?? null)
   const correctCount = computed(() => results.value.filter((r) => r.correct).length)
   const questionCount = computed(() =>
-    questions.value.length > 0 ? questions.value.length : POETRY_RECOGNITION_QUESTION_COUNT,
+    questions.value.length > 0 ? questions.value.length : CHAR_LITERACY_QUESTION_COUNT,
   )
 
   const quizDurationSummaryText = computed(() => {
@@ -117,15 +117,15 @@ export function useChinesePoetryTest() {
     phase.value = 'loading'
     loadingMessage.value = '正在生成题目…'
     try {
-      const generated = await requestPoetryRecognitionMcqs({
-        count: POETRY_RECOGNITION_QUESTION_COUNT,
-        avoidTerms: listRecentGeneratedTerms('poetry'),
+      const generated = await requestCharLiteracyMcqs({
+        count: CHAR_LITERACY_QUESTION_COUNT,
+        avoidTerms: listRecentGeneratedTerms('char-literacy'),
         onProgress: (msg) => {
           loadingMessage.value = msg
         },
       })
       appendGeneratedTerms(
-        'poetry',
+        'char-literacy',
         generated.map((q) => q.term),
       )
       questions.value = generated
@@ -141,7 +141,7 @@ export function useChinesePoetryTest() {
     }
   }
 
-  function startQuiz(initialQuestions?: PoetryRecognitionQuestion[]) {
+  function startQuiz(initialQuestions?: CharLiteracyQuestion[]) {
     if (initialQuestions?.length) {
       questions.value = initialQuestions
       paperSource.value = 'review'
@@ -178,7 +178,7 @@ export function useChinesePoetryTest() {
     const correct = selectedIndex.value === q.correctIndex
     results.value.push({
       unitIndex: currentIndex.value + 1,
-      typeLabel: poetryQuestionTypeLabel(q.questionType),
+      typeLabel: charLiteracyQuestionTypeLabel(q.questionType),
       title: q.term,
       correct,
       question: q,
@@ -187,7 +187,7 @@ export function useChinesePoetryTest() {
     submitted.value = true
     if (!correct) {
       try {
-        upsertChinesePoetryWrong(q)
+        upsertChineseCharLiteracyWrong(q)
       } catch {
         ElMessage.error('错题保存失败')
       }
