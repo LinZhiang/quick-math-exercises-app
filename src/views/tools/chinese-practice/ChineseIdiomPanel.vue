@@ -112,12 +112,9 @@ watch(
 
 watch(
   () => [test.submitted, test.currentIndex] as const,
-  ([submitted]) => {
+  () => {
     resetAssist()
     followupInput.value = ''
-    if (submitted && test.currentQuestion && isAiChatConfigured()) {
-      void runAssistExplain()
-    }
   },
 )
 
@@ -184,6 +181,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
     <template v-else-if="test.phase === 'running'">
       <div class="chinese-quiz__top">
         <span>第 {{ test.currentIndex + 1 }} / {{ test.questionCount }} 题</span>
+        <span
+          v-if="test.paperSource === 'generated'"
+          class="chinese-quiz__badge chinese-quiz__badge--new"
+        >新题</span>
+        <span
+          v-else-if="test.paperSource === 'review'"
+          class="chinese-quiz__badge chinese-quiz__badge--review"
+        >复习题</span>
         <span v-if="test.currentQuestion">{{ idiomQuestionTypeLabel(test.currentQuestion.questionType) }}</span>
         <span class="chinese-quiz__timer" :class="{ 'is-paused': test.quizTimerPaused }">
           {{ test.quizRunningElapsedText }}
@@ -262,13 +267,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             :disabled="assistLoading"
             @click="runAssistExplain"
           >
-            重新讲解
+            {{ assistTurns.length ? '重新讲解' : '生成讲解' }}
           </el-button>
         </div>
         <p v-if="!isAiChatConfigured()" class="chinese-quiz__assist-muted">
           未配置 AI 时无法讲解。
         </p>
         <template v-else>
+          <p
+            v-if="!assistTurns.length && !assistLoading"
+            class="chinese-quiz__assist-muted"
+          >
+            需要时再点「生成讲解」，不会自动调用 AI。
+          </p>
           <p v-if="assistLoading && !assistTurns.length" class="chinese-quiz__assist-muted">
             正在生成讲解…
           </p>
@@ -356,6 +367,26 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 .chinese-quiz__timer.is-paused {
   color: var(--el-color-warning);
+}
+
+.chinese-quiz__badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.chinese-quiz__badge--new {
+  color: var(--el-color-primary);
+  background: color-mix(in srgb, var(--el-color-primary-light-9) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-color-primary) 35%, transparent);
+}
+
+.chinese-quiz__badge--review {
+  color: var(--el-color-warning);
+  background: color-mix(in srgb, var(--el-color-warning-light-9) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-color-warning) 35%, transparent);
 }
 
 .chinese-quiz__actions-top {

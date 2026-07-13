@@ -78,9 +78,12 @@ if (!isPlaceholderKey(fileKey)) {
 if (isCi) {
   console.error(
     '[sync:env] 云端构建未找到 DeepSeek 密钥。\n' +
-      '请在 Cloudflare Pages → Settings → Environment variables 添加：\n' +
-      '  VITE_DEEPSEEK_API_KEY = 你的 DeepSeek API Key\n' +
-      '（与主学习 App 的 DEEPSEEK_API_KEY 相同即可）',
+      '请在 Cloudflare Pages 项目 → Settings → Variables and secrets → + Add：\n' +
+      '  变量名：VITE_DEEPSEEK_API_KEY\n' +
+      '  类型：Secret（推荐）\n' +
+      '  值：与主学习 App server/.env 里的 DEEPSEEK_API_KEY 相同\n' +
+      '  环境：勾选 Production（Preview 也勾上）\n' +
+      '保存后到 Deployments 点 Retry deployment。',
   )
 } else {
   console.error(

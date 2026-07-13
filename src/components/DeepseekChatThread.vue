@@ -1,31 +1,48 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { markdownToDisplaySafeHtml } from '@/utils/markdownToHtml'
 import type { DeepSeekDisplayTurn } from '@/composables/useDeepseekConversation'
 
-defineProps<{
+const props = defineProps<{
   turns: DeepSeekDisplayTurn[]
   firstAssistantTitle?: string
 }>()
+
+const firstAssistantIndex = computed(() =>
+  props.turns.findIndex((turn) => turn.role === 'assistant'),
+)
+
+const renderedTurns = computed(() =>
+  props.turns.map((turn, index) => {
+    const displayLabel =
+      turn.label ??
+      (turn.role === 'assistant' &&
+      index === firstAssistantIndex.value &&
+      props.firstAssistantTitle
+        ? props.firstAssistantTitle
+        : turn.role === 'user'
+          ? '你的追问'
+          : 'DeepSeek')
+    return {
+      ...turn,
+      html: markdownToDisplaySafeHtml(turn.content),
+      displayLabel,
+    }
+  }),
+)
 </script>
 
 <template>
-  <div v-if="turns.length" class="deepseek-thread" aria-label="DeepSeek 对话">
+  <div v-if="renderedTurns.length" class="deepseek-thread" aria-label="DeepSeek 对话">
     <article
-      v-for="(turn, index) in turns"
+      v-for="(turn, index) in renderedTurns"
       :key="index"
       class="deepseek-thread-item"
       :class="turn.role === 'user' ? 'deepseek-thread-item--user' : 'deepseek-thread-item--assistant'"
     >
-      <h4 class="deepseek-thread-label">
-        {{
-          turn.label ??
-          (turn.role === 'assistant' && index === turns.findIndex((t) => t.role === 'assistant')
-            ? firstAssistantTitle ?? 'DeepSeek'
-            : turn.role === 'user'
-              ? '你的追问'
-              : 'DeepSeek')
-        }}
-      </h4>
-      <p class="deepseek-thread-body">{{ turn.content }}</p>
+      <h4 class="deepseek-thread-label">{{ turn.displayLabel }}</h4>
+      <!-- eslint-disable-next-line vue/no-v-html -->
+      <div class="deepseek-thread-body deepseek-md" v-html="turn.html" />
     </article>
   </div>
 </template>
@@ -58,7 +75,7 @@ defineProps<{
 
 .deepseek-thread-body {
   margin: 0;
-  white-space: pre-wrap;
   word-break: break-word;
+  color: var(--app-text, inherit);
 }
 </style>

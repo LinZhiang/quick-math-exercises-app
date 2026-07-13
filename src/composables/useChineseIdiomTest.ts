@@ -8,6 +8,7 @@ import {
   idiomQuestionTypeLabel,
   type IdiomRecognitionQuestion,
 } from '@/utils/idiomRecognitionPractice'
+import type { ChinesePaperSource } from '@/types/chinese-practice'
 
 export type ChineseIdiomPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -35,6 +36,7 @@ export function useChineseIdiomTest() {
   const currentIndex = ref(0)
   const selectedIndex = ref<number | null>(null)
   const submitted = ref(false)
+  const paperSource = ref<ChinesePaperSource>(null)
   const results = ref<ChineseIdiomResultRow[]>([])
   const quizElapsedMs = ref(0)
   const quizRunningDisplayMs = ref(0)
@@ -130,8 +132,13 @@ export function useChineseIdiomTest() {
   }
 
   function startQuiz(initialQuestions?: IdiomRecognitionQuestion[]) {
-    if (initialQuestions?.length) questions.value = initialQuestions
-    if (!questions.value.length) return
+    if (initialQuestions?.length) {
+      questions.value = initialQuestions
+      paperSource.value = 'review'
+    } else {
+      if (!questions.value.length) return
+      paperSource.value = 'generated'
+    }
     currentIndex.value = 0
     selectedIndex.value = null
     submitted.value = false
@@ -198,6 +205,7 @@ export function useChineseIdiomTest() {
     currentIndex.value = 0
     selectedIndex.value = null
     submitted.value = false
+    paperSource.value = null
     results.value = []
     quizElapsedMs.value = 0
     quizRunningDisplayMs.value = 0
@@ -237,6 +245,7 @@ export function useChineseIdiomTest() {
     currentIndex,
     selectedIndex,
     submitted,
+    paperSource,
     results,
     currentQuestion,
     correctCount,

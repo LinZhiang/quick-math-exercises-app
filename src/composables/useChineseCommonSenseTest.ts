@@ -8,6 +8,7 @@ import {
   commonSenseQuestionTypeLabel,
   type CommonSenseQuestion,
 } from '@/utils/commonSensePractice'
+import type { ChinesePaperSource } from '@/types/chinese-practice'
 
 export type ChineseCommonSensePhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -35,6 +36,7 @@ export function useChineseCommonSenseTest() {
   const currentIndex = ref(0)
   const selectedIndex = ref<number | null>(null)
   const submitted = ref(false)
+  const paperSource = ref<ChinesePaperSource>(null)
   const results = ref<ChineseCommonSenseResultRow[]>([])
   const quizElapsedMs = ref(0)
   const quizRunningDisplayMs = ref(0)
@@ -130,8 +132,13 @@ export function useChineseCommonSenseTest() {
   }
 
   function startQuiz(initialQuestions?: CommonSenseQuestion[]) {
-    if (initialQuestions?.length) questions.value = initialQuestions
-    if (!questions.value.length) return
+    if (initialQuestions?.length) {
+      questions.value = initialQuestions
+      paperSource.value = 'review'
+    } else {
+      if (!questions.value.length) return
+      paperSource.value = 'generated'
+    }
     currentIndex.value = 0
     selectedIndex.value = null
     submitted.value = false
@@ -198,6 +205,7 @@ export function useChineseCommonSenseTest() {
     currentIndex.value = 0
     selectedIndex.value = null
     submitted.value = false
+    paperSource.value = null
     results.value = []
     quizElapsedMs.value = 0
     quizRunningDisplayMs.value = 0
@@ -237,6 +245,7 @@ export function useChineseCommonSenseTest() {
     currentIndex,
     selectedIndex,
     submitted,
+    paperSource,
     results,
     currentQuestion,
     correctCount,

@@ -14,11 +14,14 @@
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "dompurify": "^3.4.12",
     "element-plus": "^2.13.7",
+    "marked": "^18.0.6",
     "vue": "^3.5.33",
     "vue-router": "^4.6.3"
   },
   "devDependencies": {
+    "@types/dompurify": "^3.0.5",
     "@vitejs/plugin-vue": "^6.0.6",
     "concurrently": "^9.2.4",
     "typescript": "~6.0.2",

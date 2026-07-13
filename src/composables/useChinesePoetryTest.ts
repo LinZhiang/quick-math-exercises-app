@@ -8,6 +8,7 @@ import {
   poetryQuestionTypeLabel,
   type PoetryRecognitionQuestion,
 } from '@/utils/poetryRecognitionPractice'
+import type { ChinesePaperSource } from '@/types/chinese-practice'
 
 export type ChinesePoetryPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -35,6 +36,7 @@ export function useChinesePoetryTest() {
   const currentIndex = ref(0)
   const selectedIndex = ref<number | null>(null)
   const submitted = ref(false)
+  const paperSource = ref<ChinesePaperSource>(null)
   const results = ref<ChinesePoetryResultRow[]>([])
   const quizElapsedMs = ref(0)
   const quizRunningDisplayMs = ref(0)
@@ -130,8 +132,13 @@ export function useChinesePoetryTest() {
   }
 
   function startQuiz(initialQuestions?: PoetryRecognitionQuestion[]) {
-    if (initialQuestions?.length) questions.value = initialQuestions
-    if (!questions.value.length) return
+    if (initialQuestions?.length) {
+      questions.value = initialQuestions
+      paperSource.value = 'review'
+    } else {
+      if (!questions.value.length) return
+      paperSource.value = 'generated'
+    }
     currentIndex.value = 0
     selectedIndex.value = null
     submitted.value = false
@@ -198,6 +205,7 @@ export function useChinesePoetryTest() {
     currentIndex.value = 0
     selectedIndex.value = null
     submitted.value = false
+    paperSource.value = null
     results.value = []
     quizElapsedMs.value = 0
     quizRunningDisplayMs.value = 0
@@ -237,6 +245,7 @@ export function useChinesePoetryTest() {
     currentIndex,
     selectedIndex,
     submitted,
+    paperSource,
     results,
     currentQuestion,
     correctCount,
