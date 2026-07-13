@@ -1,6 +1,6 @@
 import { ElMessage } from 'element-plus'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { isAiChatConfigured, requestPoetryRecognitionMcqs, ensureAiReady } from '@/services/deepseek'
+import { isAiChatConfigured, requestPoetryRecognitionMcqs } from '@/services/deepseek'
 import { upsertChinesePoetryWrong } from '@/utils/chinesePoetryStorage'
 import { playMentalMathStartSound } from '@/utils/mentalMathSounds'
 import {
@@ -105,14 +105,7 @@ export function useChinesePoetryTest() {
 
   async function generatePaper() {
     if (!isAiChatConfigured()) {
-      ElMessage.warning('未配置 AI 代理')
-      return
-    }
-    const ready = await ensureAiReady()
-    if (!ready) {
-      const { probeAiHealth } = await import('@/services/deepseek')
-      const h = await probeAiHealth(true)
-      ElMessage.error(h.message)
+      ElMessage.warning('未配置 DeepSeek，请在电脑执行 npm run setup 后重新安装 App')
       return
     }
     phase.value = 'loading'

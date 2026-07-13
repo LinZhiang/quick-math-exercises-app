@@ -19,87 +19,15 @@ import {
 } from '@/utils/poetryRecognitionPractice'
 
 const WENGU_AI_SOURCE = 'quick-math-exercises-app'
-const DEEPSEEK_UPSTREAM = 'https://api.deepseek.com/chat/completions'
+const DEEPSEEK_API = 'https://api.deepseek.com/chat/completions'
 
 function directApiKey(): string {
   return import.meta.env.VITE_DEEPSEEK_API_KEY?.trim() ?? ''
 }
 
-function useDirectApi(): boolean {
-  return Boolean(directApiKey())
-}
-
-function chatCompletionsUrl(): string {
-  if (useDirectApi()) return DEEPSEEK_UPSTREAM
-  const base = import.meta.env.VITE_AI_API_BASE?.trim()
-  if (base) return `${base.replace(/\/$/, '')}/chat/completions`
-  return '/api/ai/chat/completions'
-}
-
-function healthUrl(): string {
-  if (useDirectApi()) return ''
-  const base = import.meta.env.VITE_AI_API_BASE?.trim()
-  if (base) {
-    const root = base.replace(/\/v1\/?$/, '')
-    return `${root}/health`
-  }
-  return '/health'
-}
-
-export type AiProxyHealth = {
-  ok: boolean
-  hasApiKey: boolean
-  message: string
-}
-
-let healthCache: { at: number; value: AiProxyHealth } | null = null
-
-/** 探测 AI 是否可用 */
-export async function probeAiHealth(force = false): Promise<AiProxyHealth> {
-  if (useDirectApi()) {
-    const value: AiProxyHealth = { ok: true, hasApiKey: true, message: 'AI 直连已配置' }
-    healthCache = { at: Date.now(), value }
-    return value
-  }
-  if (!force && healthCache && Date.now() - healthCache.at < 20_000) {
-    return healthCache.value
-  }
-  try {
-    const res = await fetch(healthUrl(), { signal: AbortSignal.timeout(6000) })
-    if (!res.ok) {
-      const value: AiProxyHealth = {
-        ok: false,
-        hasApiKey: false,
-        message: 'AI 未就绪，请先在电脑执行 npm start',
-      }
-      healthCache = { at: Date.now(), value }
-      return value
-    }
-    const data = (await res.json()) as { hasApiKey?: boolean }
-    const hasApiKey = Boolean(data.hasApiKey)
-    const value: AiProxyHealth = hasApiKey
-      ? { ok: true, hasApiKey: true, message: 'AI 已就绪' }
-      : { ok: false, hasApiKey: false, message: '请在 server/.env 配置 DEEPSEEK_API_KEY 后重新 npm start' }
-    healthCache = { at: Date.now(), value }
-    return value
-  } catch {
-    const value: AiProxyHealth = {
-      ok: false,
-      hasApiKey: false,
-      message: 'AI 未就绪，请先在电脑执行 npm start',
-    }
-    healthCache = { at: Date.now(), value }
-    return value
-  }
-}
-
+/** 是否已配置 DeepSeek（构建时写入密钥即可，无需电脑代理） */
 export function isAiChatConfigured(): boolean {
-  return useDirectApi() || Boolean(import.meta.env.VITE_AI_API_BASE?.trim()) || true
-}
-
-export async function ensureAiReady(): Promise<boolean> {
-  const h = await probeAiHealth()
-  return h.ok && h.hasApiKey
+  return Boolean(directApiKey())
 }
 
 export type DeepSeekChatTurn = {
@@ -113,47 +41,35 @@ async function deepseekChatCompletion(
   messages: ChatMessage[],
   options?: { temperature?: number; maxTokens?: number },
 ): Promise<string> {
-  const body = JSON.stringify({
-    model: import.meta.env.VITE_DEEPSEEK_MODEL?.trim() || 'deepseek-v4-flash',
-    messages,
-    temperature: options?.temperature ?? 0.35,
-    max_tokens: options?.maxTokens ?? 8192,
-  })
-
-  async function request(url: string, withAuth: boolean): Promise<string> {
-    const headers: Record<string, string> = {
+  const key = directApiKey()
+  if (!key) {
+    throw new Error('未配置 DeepSeek 密钥。请在电脑执行 npm run setup，然后重新安装手机 App。')
+  }
+  const res = await fetch(DEEPSEEK_API, {
+    method: 'POST',
+    headers: {
       'Content-Type': 'application/json',
+      Authorization: `Bearer ${key}`,
       'X-Wengu-Ai-Source': WENGU_AI_SOURCE,
-    }
-    if (withAuth) {
-      headers.Authorization = `Bearer ${directApiKey()}`
-    }
-    const res = await fetch(url, { method: 'POST', headers, body })
-    if (!res.ok) {
-      const errText = await res.text()
-      throw new Error(`AI 请求失败 (${res.status})：${errText.slice(0, 200)}`)
-    }
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>
-    }
-    const msg = data.choices?.[0]?.message
-    const text = (msg?.content ?? msg?.reasoning_content ?? '').trim()
-    if (!text) throw new Error('AI 未返回有效内容')
-    return text
+    },
+    body: JSON.stringify({
+      model: import.meta.env.VITE_DEEPSEEK_MODEL?.trim() || 'deepseek-v4-flash',
+      messages,
+      temperature: options?.temperature ?? 0.35,
+      max_tokens: options?.maxTokens ?? 8192,
+    }),
+  })
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(`AI 请求失败 (${res.status})：${errText.slice(0, 200)}`)
   }
-
-  if (useDirectApi()) {
-    try {
-      return await request(DEEPSEEK_UPSTREAM, true)
-    } catch {
-      /* 浏览器直连可能被 CORS 拦截，回退同域代理 */
-      return await request('/api/ai/chat/completions', false)
-    }
+  const data = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>
   }
-
-  const url = chatCompletionsUrl()
-  if (!url) throw new Error('未配置 AI，请执行 npm start')
-  return await request(url, false)
+  const msg = data.choices?.[0]?.message
+  const text = (msg?.content ?? msg?.reasoning_content ?? '').trim()
+  if (!text) throw new Error('AI 未返回有效内容')
+  return text
 }
 
 async function deepseekChatRaw(

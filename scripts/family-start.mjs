@@ -1,5 +1,5 @@
 /**
- * 家庭一键启动：同步密钥 → 证书 → 构建 → 开服务（手机用终端里打印的 https 地址）
+ * 仅首次装手机 App 时用：同步密钥 → 证书 → 构建 → 开 HTTPS 静态服务（装完可关）
  */
 import { spawn, execSync } from 'node:child_process'
 import fs from 'node:fs'

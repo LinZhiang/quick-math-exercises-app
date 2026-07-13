@@ -1,5 +1,5 @@
 /**
- * 同步 DeepSeek 密钥：server/.env + 前端 .env.local（家庭自用，构建进 App，手机直连 DeepSeek）
+ * 把 server/.env 或主 App 的 DEEPSEEK_API_KEY 同步到 .env.local（构建进 App，手机出门也能用）
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -26,6 +26,7 @@ function readKeyFromEnvFile(file) {
 if (!fs.existsSync(serverEnv)) {
   for (const src of sources.slice(1)) {
     if (!fs.existsSync(src)) continue
+    fs.mkdirSync(path.dirname(serverEnv), { recursive: true })
     fs.copyFileSync(src, serverEnv)
     console.log(`[sync:env] 已从 ${src} 复制 server/.env`)
     break
@@ -34,15 +35,15 @@ if (!fs.existsSync(serverEnv)) {
 
 const key = readKeyFromEnvFile(serverEnv)
 if (!key || key.includes('your-deepseek')) {
-  console.warn('[sync:env] 未找到有效 DEEPSEEK_API_KEY，请编辑 server/.env')
+  console.error('[sync:env] 未找到 DEEPSEEK_API_KEY。请编辑 server/.env 或先配置主学习 App 的密钥。')
   process.exit(1)
 }
 
 const localContent = [
-  '# 家庭自用：构建时写入，手机/PWA 直连 DeepSeek，无需再开代理',
+  '# 家庭自用：密钥打进 App，手机/PWA 直连 DeepSeek，出门无需开电脑',
   `VITE_DEEPSEEK_API_KEY=${key}`,
   'VITE_DEEPSEEK_MODEL=deepseek-v4-flash',
   '',
 ].join('\n')
 fs.writeFileSync(localEnv, localContent, 'utf8')
-console.log('[sync:env] 已同步密钥到 .env.local（npm start 会自动 build）')
+console.log('[sync:env] 已写入 .env.local')

@@ -6,9 +6,9 @@ const { canInstall, showIosHint, installed, promptInstall } = usePwaInstall()
 
 async function onInstall() {
   const r = await promptInstall()
-  if (r === 'accepted') ElMessage.success('已开始安装')
+  if (r === 'accepted') ElMessage.success('已安装，出门有网也能用')
   else if (r === 'dismissed') ElMessage.info('已取消')
-  else ElMessage.info('请用 Chrome 菜单 → 安装应用 / 添加到主屏幕')
+  else ElMessage.info('Chrome 菜单 → 安装应用 / 添加到主屏幕')
 }
 </script>
 
@@ -16,25 +16,24 @@ async function onInstall() {
   <section class="mode-section install-panel" id="practice-install">
     <h3 class="mode-section__title">安装到手机</h3>
     <p class="mode-section__hint">
-      电脑先执行 <code>npm start</code>，手机 Chrome 打开终端里打印的 <strong>https://…:8790</strong>，
-      首次证书警告点「继续前往」，再点下面按钮或浏览器菜单「安装应用」。
+      电脑只需<strong>一次性</strong>执行 <code>npm run setup</code>，然后手机 Chrome 打开本页地址 → 安装应用。
+      装好后<strong>出门不用开电脑</strong>，有手机网络就能练（DeepSeek 直连，与主 App 同一把密钥）。
+      若还没装过 App，电脑可临时执行 <code>npm run serve:install</code> 打开手机安装页（装完可关）。
     </p>
 
     <div v-if="installed" class="install-card install-card--ok">
       <p class="install-card__title">已安装</p>
-      <p class="install-card__text">可从主屏幕直接打开。</p>
+      <p class="install-card__text">从主屏幕打开即可，无需电脑在线。</p>
     </div>
 
     <template v-else>
       <div class="install-card">
         <el-button type="primary" :disabled="!canInstall" @click="onInstall">
-          {{ canInstall ? '安装到主屏幕' : '请先用 https 地址打开本页' }}
+          {{ canInstall ? '安装到主屏幕' : '请用 Chrome 打开本页' }}
         </el-button>
       </div>
-
       <div v-if="showIosHint" class="install-card">
-        <p class="install-card__title">iPhone</p>
-        <p class="install-card__text">Safari → 分享 → 添加到主屏幕</p>
+        <p class="install-card__text">iPhone：Safari → 分享 → 添加到主屏幕</p>
       </div>
     </template>
   </section>

@@ -4,16 +4,13 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "start": "node scripts/family-start.mjs",
-    "dev": "concurrently -k \"vite\" \"npm run dev:api\"",
-    "dev:web": "vite",
-    "dev:api": "npm run start --prefix server",
-    "sync:env": "node scripts/sync-server-env.mjs",
-    "certs": "node scripts/gen-https-certs.mjs",
-    "install:server": "npm install --prefix server",
+    "setup": "node scripts/sync-server-env.mjs && vue-tsc -b && vite build",
+    "prebuild": "node scripts/sync-server-env.mjs",
+    "predev": "node scripts/sync-server-env.mjs",
+    "dev": "vite",
     "build": "vue-tsc -b && vite build",
-    "serve": "npm run serve --prefix server",
-    "lan": "node scripts/show-lan-url.mjs",
+    "sync:env": "node scripts/sync-server-env.mjs",
+    "serve:install": "node scripts/family-start.mjs",
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
