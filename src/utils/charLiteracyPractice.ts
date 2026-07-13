@@ -18,6 +18,25 @@ export function charLiteracyQuestionTypeLabel(type: ChineseCharLiteracyQuestionT
   return type === 'pronunciation' ? '读音辨析' : '错别字'
 }
 
+/**
+ * 选项里若带「（误）」、引号点错、× 等标记，会一眼暴露对错，必须丢弃。
+ * 合法读音括号如（kù）保留。
+ */
+export function optionHasObviousErrorMark(text: string): boolean {
+  const t = text.trim()
+  if (!t) return true
+  if (/[（(【［〔]\s*误\s*[）)】］〕]/.test(t)) return true
+  if (/(?:误读|错读|错误项|有误项|不正确)/.test(t)) return true
+  if (/(?:^|[^\u4e00-\u9fff])(?:错误|有误)(?:$|[^\u4e00-\u9fff])/.test(t)) return true
+  if (/[×✗✘╳✖]|❌/.test(t)) return true
+  // ASCII / 弯引号包住短片段：一'愁'莫展、"愁"（点出错字）
+  if (/[''`´].{1,6}[''`´]/.test(t)) return true
+  if (/[“”].{1,4}[“”]/.test(t)) return true
+  // 单字书名号点错：一「愁」莫展
+  if (/[「『].{1}[」』]/.test(t)) return true
+  return false
+}
+
 export function getCharLiteracyQuestionFingerprint(input: {
   questionType: ChineseCharLiteracyQuestionType
   term: string
@@ -51,6 +70,7 @@ export function buildCharLiteracyQuestionFromMcq(input: {
   const correct = input.correct.trim()
   const distractors = input.distractors.map((d) => d.trim()).filter(Boolean)
   if (!term || !stem || !correct || distractors.length !== 3) return null
+  if ([correct, ...distractors].some(optionHasObviousErrorMark)) return null
   const all = [correct, ...distractors]
   if (new Set(all).size !== 4) return null
   const options = shuffleInPlace([...all])
@@ -103,5 +123,6 @@ export function parseCharLiteracyMcqAiObject(item: unknown): {
     : []
   const explanation = String(o.explanation ?? o.analysis ?? '').trim()
   if (!term || !stem || !correct || distractors.length !== 3) return null
+  if ([correct, ...distractors].some(optionHasObviousErrorMark)) return null
   return { questionType, term, stem, correct, distractors, explanation }
 }

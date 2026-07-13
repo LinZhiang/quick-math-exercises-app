@@ -48,6 +48,8 @@ import { charLiteracyQuestionTypeLabel } from '@/utils/charLiteracyPractice'
 import { commonSenseQuestionTypeLabel } from '@/utils/commonSensePractice'
 import { idiomQuestionTypeLabel } from '@/utils/idiomRecognitionPractice'
 import { poetryQuestionTypeLabel } from '@/utils/poetryRecognitionPractice'
+import { getKeyQuestionNote, setKeyQuestionNote } from '@/utils/chineseKeyQuestionNotes'
+import { markdownToDisplaySafeHtml } from '@/utils/markdownToHtml'
 
 type StoredRow =
   | StoredIdiomRecord
@@ -77,6 +79,9 @@ const wrongRows = ref<StoredRow[]>([])
 const favoriteRows = ref<StoredRow[]>([])
 const selected = ref<Set<string>>(new Set())
 const expandedFingerprint = ref<string | null>(null)
+const noteDraft = ref('')
+const noteEditing = ref(false)
+const noteSaving = ref(false)
 
 const activeRows = computed(() => (keyTab.value === 'wrong' ? wrongRows.value : favoriteRows.value))
 
@@ -159,7 +164,45 @@ function toggleSelect(fp: string) {
 }
 
 function toggleRowDetail(fp: string) {
-  expandedFingerprint.value = expandedFingerprint.value === fp ? null : fp
+  if (expandedFingerprint.value === fp) {
+    expandedFingerprint.value = null
+    noteDraft.value = ''
+    noteEditing.value = false
+    return
+  }
+  expandedFingerprint.value = fp
+  noteDraft.value = getKeyQuestionNote(source.value, fp)
+  noteEditing.value = false
+}
+
+function rowNote(fp: string): string {
+  return getKeyQuestionNote(source.value, fp)
+}
+
+function noteHtml(fp: string): string {
+  const note = rowNote(fp)
+  return note ? markdownToDisplaySafeHtml(note) : ''
+}
+
+function onEditNote(fp: string) {
+  noteDraft.value = getKeyQuestionNote(source.value, fp)
+  noteEditing.value = true
+}
+
+function onCancelNoteEdit(fp: string) {
+  noteDraft.value = getKeyQuestionNote(source.value, fp)
+  noteEditing.value = false
+}
+
+function onSaveNote(fp: string) {
+  noteSaving.value = true
+  try {
+    setKeyQuestionNote(source.value, fp, noteDraft.value)
+    noteEditing.value = false
+    ElMessage.success(noteDraft.value.trim() ? '备注已保存' : '已清空备注')
+  } finally {
+    noteSaving.value = false
+  }
 }
 
 function selectAll() {
@@ -230,12 +273,16 @@ watch(chinesePracticeDataTick, () => {
 
 watch(source, () => {
   expandedFingerprint.value = null
+  noteDraft.value = ''
+  noteEditing.value = false
   keyTab.value = 'wrong'
   refresh()
 })
 
 watch(keyTab, () => {
   expandedFingerprint.value = null
+  noteDraft.value = ''
+  noteEditing.value = false
   syncSelectAll()
 })
 
@@ -321,6 +368,7 @@ defineExpose({ refresh })
             <template v-if="keyTab === 'wrong' && 'wrongCount' in row">
               · 错 {{ row.wrongCount }} 次
             </template>
+            <template v-if="rowNote(row.fingerprint)"> · 有备注</template>
             <span class="chinese-key__hint"> · 点击查看详情</span>
           </p>
           <div
@@ -354,6 +402,48 @@ defineExpose({ refresh })
                 {{ opt }}
               </span>
             </p>
+            <div class="chinese-key__note">
+              <div class="chinese-key__note-head">
+                <strong>备注</strong>
+                <el-button
+                  v-if="!noteEditing"
+                  size="small"
+                  text
+                  type="primary"
+                  @click="onEditNote(row.fingerprint)"
+                >
+                  {{ rowNote(row.fingerprint) ? '编辑' : '添加备注' }}
+                </el-button>
+              </div>
+              <template v-if="noteEditing">
+                <el-input
+                  v-model="noteDraft"
+                  type="textarea"
+                  :rows="3"
+                  maxlength="500"
+                  show-word-limit
+                  placeholder="支持 Markdown，如标题、列表、加粗等"
+                />
+                <div class="chinese-key__note-actions">
+                  <el-button
+                    size="small"
+                    type="primary"
+                    :loading="noteSaving"
+                    @click="onSaveNote(row.fingerprint)"
+                  >
+                    保存
+                  </el-button>
+                  <el-button size="small" plain @click="onCancelNoteEdit(row.fingerprint)">
+                    取消
+                  </el-button>
+                </div>
+              </template>
+              <template v-else-if="rowNote(row.fingerprint)">
+                <!-- eslint-disable-next-line vue/no-v-html -->
+                <div class="chinese-key__note-md deepseek-md" v-html="noteHtml(row.fingerprint)" />
+              </template>
+              <p v-else class="chinese-key__note-empty">暂无备注</p>
+            </div>
           </div>
         </button>
         <el-button size="small" text type="danger" @click.stop="onRemove(row.fingerprint)">
@@ -506,6 +596,40 @@ defineExpose({ refresh })
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+}
+
+.chinese-key__note {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--app-border-soft);
+  display: grid;
+  gap: 8px;
+}
+
+.chinese-key__note-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.chinese-key__note-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--app-text-muted);
+}
+
+.chinese-key__note-md {
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.chinese-key__note-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .chinese-key__option-tag {
