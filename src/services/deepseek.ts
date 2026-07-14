@@ -35,6 +35,50 @@ import {
   POETRY_RECOGNITION_QUESTION_COUNT,
   type PoetryRecognitionQuestion,
 } from '@/utils/poetryRecognitionPractice'
+import {
+  buildTheoryPolicyQuestionFromMcq,
+  THEORY_POLICY_QUESTION_COUNT,
+  parseTheoryPolicyMcqAiObject,
+  type TheoryPolicyQuestion,
+} from '@/utils/theoryPolicyPractice'
+import {
+  buildLegalCommonSenseQuestionFromMcq,
+  LEGAL_COMMON_SENSE_QUESTION_COUNT,
+  parseLegalCommonSenseMcqAiObject,
+  type LegalCommonSenseQuestion,
+} from '@/utils/legalCommonSensePractice'
+import {
+  buildEconomyCommonSenseQuestionFromMcq,
+  ECONOMY_COMMON_SENSE_QUESTION_COUNT,
+  parseEconomyCommonSenseMcqAiObject,
+  type EconomyCommonSenseQuestion,
+} from '@/utils/economyCommonSensePractice'
+import {
+  buildWordMemorizationQuestionFromMcq,
+  WORD_MEMORIZATION_QUESTION_COUNT,
+  parseWordMemorizationMcqAiObject,
+  type WordMemorizationQuestion,
+} from '@/utils/wordMemorizationPractice'
+import {
+  buildClassicalChineseQuestionFromMcq,
+  CLASSICAL_CHINESE_QUESTION_COUNT,
+  parseClassicalChineseMcqAiObject,
+  type ClassicalChineseQuestion,
+} from '@/utils/classicalChinesePractice'
+import {
+  buildRhetoricUsageQuestionFromMcq,
+  RHETORIC_USAGE_QUESTION_COUNT,
+  parseRhetoricUsageMcqAiObject,
+  type RhetoricUsageQuestion,
+} from '@/utils/rhetoricUsagePractice'
+import {
+  buildReadingComprehensionQuestionFromMcq,
+  READING_COMPREHENSION_QUESTION_COUNT,
+  parseReadingComprehensionMcqAiObject,
+  type ChineseReadingQuestionType,
+  type ReadingComprehensionQuestion,
+  readingComprehensionQuestionTypeLabel,
+} from '@/utils/readingComprehensionPractice'
 
 const WENGU_AI_SOURCE = 'quick-math-exercises-app'
 const DEEPSEEK_API = 'https://api.deepseek.com/chat/completions'
@@ -148,21 +192,23 @@ export async function deepseekChatConversation(input: {
 }
 
 const IDIOM_SYSTEM = [
-  '你是公务员考试与事业单位考试「言语理解」命题专家，熟悉选词填空、逻辑填空与类比推理中的高频词语与成语。',
+  '你是公务员考试与事业单位考试「言语理解」命题专家，专门命制**四字成语**识记题（含选词填空、类比推理高频成语）。',
+  '不要出非成语实词、关联词或双音节普通词语；目标必须是常用四字成语。',
   '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
 ].join('\n')
 
 const IDIOM_FORMAT = `
 【题型】每题 questionType 随机取其一：
-- word-to-meaning（选释义）：展示词语/成语，选项为四个释义；stem 可写「「XXX」的正确释义是？」
-- meaning-to-word（选词语）：仅给出释义或语境问句，选项为四个词语/成语；correct 必须等于 term
+- word-to-meaning（选释义）：展示成语，选项为四个释义；stem 可写「「XXX」的正确释义是？」
+- meaning-to-word（选词语）：仅给出释义或语境问句，选项为四个成语；correct 必须等于 term
 
 【命题要求】
-- 优先事业编/国考言语理解高频实词、成语、关联词及类比推理常考词
-- 干扰项须为近义、形近或常混的释义/词语
-- 释义选项 12～28 字，词语选项 2～6 字
-- term 字段填目标词语/成语（后台元数据，选词语题 **不得** 在 stem 中出现 term 或正确答案）
-- meaning-to-word 的 stem 只写释义/比喻义/语境，例如「比喻人的才能全部显露出来的是？」，禁止写出答案词语
+- **仅出四字成语**（如「潜移默化」「脱颖而出」），不要出双音节实词、关联词、网络新词或非成语短语
+- 优先事业编/国考言语理解、逻辑填空高频易混成语
+- 干扰项须为近义、形近或常混的释义/成语
+- 释义选项 12～28 字，成语选项须为四字
+- term 填目标成语（选词语题 **不得** 在 stem 中出现 term 或正确答案）
+- meaning-to-word 的 stem 只写释义/比喻义/语境，禁止写出答案成语
 - explanation 用 1～2 句简体中文说明辨析要点
 
 【JSON 示例】
@@ -213,13 +259,13 @@ export async function requestIdiomRecognitionMcqs(input: {
     .map((t, i) => `第 ${i + 1} 题建议 ${t}`)
     .join('；')
 
-  const historyHint = buildAvoidTermsHint('词语/成语', [...blocked])
+  const historyHint = buildAvoidTermsHint('成语', [...blocked])
   const user = [
-    `请生成 **${count} 道** 词语/成语识记四选一练习题，用于公务员与事业单位言语理解备考。`,
+    `请生成 **${count} 道** **四字成语**识记四选一练习题（不要出非成语词语），用于公务员与事业单位言语理解备考。`,
     IDIOM_FORMAT,
     `本轮题型顺序参考：${typeHints}`,
     historyHint,
-    `本批 ${count} 道的 term 必须互不相同。`,
+    `本批 ${count} 道的 term 必须互不相同，且均为四字成语。`,
     `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
   ]
     .filter(Boolean)
@@ -246,10 +292,10 @@ export async function requestIdiomRecognitionMcqs(input: {
   const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
   for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
     input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
-    const avoidHint = buildAvoidTermsHint('词语/成语', avoidTerms)
+    const avoidHint = buildAvoidTermsHint('成语', avoidTerms)
     try {
       const oneRaw = await deepseekChatRaw(
-        `请生成第 ${slot} 道词语/成语识记四选一题。\n${IDIOM_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
+        `请生成第 ${slot} 道四字成语识记四选一题（不要出非成语词语）。\n${IDIOM_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
         { system: IDIOM_SYSTEM, temperature: 0.7, maxTokens: 900 },
       )
       const oneObj = parseAiJsonObjectLenient(oneRaw)
@@ -741,21 +787,33 @@ export async function requestHistoryCommonSenseMcqs(input: {
 
 const PARTY_HISTORY_SYSTEM = [
   '你是公务员考试与事业单位考试「常识判断·中共党史」命题专家，熟悉建党以来重要会议、事件、人物、路线方针与时间节点。',
+  '命题以会议内容、事件意义、人物贡献、路线方针为主，纯时间节点题从少。',
   '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
 ].join('\n')
 
 const PARTY_HISTORY_FORMAT = `
 【题型】questionType 固定为 general
 
+【命题比例·必须遵守】（按考点考察角度分配，15 题一轮时严格控制数量）
+- **时间节点从少**：纯问「哪一年/哪一月/哪一天召开/发生」的题约 **10%～15%**（15 题中至多 **2** 题；补单题时优先非时间题）
+- **重要会议（内容/意义/地点/决策）**：约 **30%～35%**（会议确立了什么、通过了什么、历史意义等，勿改写成纯年份题）
+- **重要事件**：约 **25%～30%**（经过、结果、意义、与同期事件辨析）
+- **人物与贡献**：约 **15%～20%**（谁提出/领导/贡献，人物与事件对应关系）
+- **路线方针与决议**：约 **15%～20%**（路线、方针、重要决议名称与核心内容）
+
+【禁止偏题】
+- 不要批量出「××会议召开于哪一年」「××事件发生于哪一年」同类题
+- 干扰项优先易混会议名称、决议内容、人物贡献、事件意义；仅时间题才用易混年份作选项
+
 【命题要求】
-- 优先事业编/国考常考：一大至二十大关键节点、遵义会议、长征、抗战、解放战争、建国、改革开放、十一届三中全会、重要决议与人物贡献等
+- 优先事业编/国考常考：一大至二十大、遵义会议、长征、抗战、解放战争、建国、改革开放、十一届三中全会、重要决议与人物贡献等
 - term 填知识点关键词（如「遵义会议」「十一届三中全会」「中共一大」）
-- stem 写完整问句；选项互斥，干扰项为同时期易混会议/年份/人物
+- stem 写完整问句；选项互斥；同一批题考察角度要多样
 - explanation 用 1～2 句简体中文说明
 - 表述客观、准确，符合公开权威表述
 
-【JSON 示例】
-{"questionType":"general","term":"遵义会议","stem":"遵义会议召开于哪一年？","correct":"1935年","distractors":["1921年","1927年","1945年"],"explanation":"……"}
+【JSON 示例】（示例为会议内容题，勿模仿成时间题）
+{"questionType":"general","term":"遵义会议","stem":"遵义会议的重大历史意义是？","correct":"事实上确立了毛泽东在党中央和红军的领导地位","distractors":["通过了《关于建国以来党的若干历史问题的决议》","确立了社会主义市场经济体制的改革目标","提出了社会主义初级阶段的基本路线"],"explanation":"……"}
 `.trim()
 
 function dedupePartyHistoryQuestions(
@@ -786,10 +844,10 @@ export async function requestPartyHistoryMcqs(input: {
 
   const historyHint = buildAvoidTermsHint('党史知识点', [...blocked])
   const user = [
-    `请生成 **${count} 道** 公考/事业编「中共党史」四选一练习题。`,
+    `请生成 **${count} 道** 公考/事业编「中共党史」四选一练习题（**时间节点从少**，以会议内容、事件意义、人物贡献、路线方针为主）。`,
     PARTY_HISTORY_FORMAT,
     historyHint,
-    `本批 ${count} 道的 term 必须互不相同。`,
+    `本批 ${count} 道的 term 必须互不相同；考察角度须按【命题比例】分配，纯时间题不超过约 15%。`,
     `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
   ]
     .filter(Boolean)
@@ -819,13 +877,840 @@ export async function requestPartyHistoryMcqs(input: {
     const avoidHint = buildAvoidTermsHint('党史知识点', avoidTerms)
     try {
       const oneRaw = await deepseekChatRaw(
-        `请生成第 ${slot} 道中共党史四选一题。\n${PARTY_HISTORY_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
+        `请生成第 ${slot} 道中共党史四选一题（优先会议内容/事件意义/人物贡献/路线方针，非必要不要出纯时间节点题）。\n${PARTY_HISTORY_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
         { system: PARTY_HISTORY_SYSTEM, temperature: 0.7, maxTokens: 900 },
       )
       const oneObj = parseAiJsonObjectLenient(oneRaw)
       const fields = parsePartyHistoryMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildPartyHistoryQuestionFromMcq({ ...fields, seq: slot })
+      if (!q) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const THEORY_POLICY_SYSTEM = [
+  '你是事业单位与公务员考试「政治理论·政策法规」命题专家，熟悉习近平新时代中国特色社会主义思想、党的二十大报告、党的二十届三中全会《决定》及近年政府工作报告高频考点。',
+  '命题紧扣公开权威表述，选项准确、干扰项为易混提法；不要编造未公布的文件条款。',
+  '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
+].join('\n')
+
+const THEORY_POLICY_FORMAT = `
+【题型】questionType 固定为 general
+
+【命题比例·必须遵守】（15 题一轮时严格控制数量）
+- **习近平新时代中国特色社会主义思想**：约 **35%～40%**（核心要义、十个明确、十四个坚持、十三个方面成就、中国式现代化、新发展理念、高质量发展等）
+- **党的二十大报告**：约 **25%～30%**（中心任务、两步走、五个必由之路、三个务必、总体国家安全观、全过程人民民主等报告表述）
+- **党的二十届三中全会《决定》**：约 **20%～25%**（进一步全面深化改革总目标、七个聚焦、到 2029 年完成改革任务等《决定》要点）
+- **政府工作报告及相关政策表述**：约 **15%～20%**（近年政府工作报告高频目标、举措、民生与经济发展表述，与上述理论衔接）
+
+【命题要求】
+- 面向事业编/公考常考：核心概念辨析、原文关键表述填空式选择、目标/原则/任务对应关系
+- term 填知识点关键词（如「中国式现代化」「进一步全面深化改革」「高质量发展」「全过程人民民主」）
+- stem 写完整问句；选项互斥；干扰项为易混概念或相近文件提法，勿用明显错误到一眼识破的表述
+- explanation 用 1～2 句简体中文说明依据（文件/报告出处可点到即可）
+- 表述客观、准确，符合公开发布的权威表述；避免过时或相互矛盾的说法
+
+【JSON 示例】
+{"questionType":"general","term":"中国式现代化","stem":"党的二十大报告指出，中国式现代化是人口规模巨大的现代化，是全体人民共同富裕的现代化，是物质文明和精神文明相协调的现代化，是人与自然和谐共生的现代化，还是？","correct":"走和平发展道路的现代化","distractors":["对外扩张发展的现代化","依附外部市场的现代化","以资本为中心的现代化"],"explanation":"……"}
+`.trim()
+
+function dedupeTheoryPolicyQuestions(
+  items: TheoryPolicyQuestion[],
+  blockedTerms?: Set<string>,
+): TheoryPolicyQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: TheoryPolicyQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestTheoryPolicyMcqs(input: {
+  count?: number
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<TheoryPolicyQuestion[]> {
+  const count = input.count ?? THEORY_POLICY_QUESTION_COUNT
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.('正在向 DeepSeek 请求理论政策题目…')
+
+  const historyHint = buildAvoidTermsHint('理论政策知识点', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 事业编/公考「理论政策」四选一练习题（聚焦习近平新时代中国特色社会主义思想、二十大报告、二十届三中全会《决定》及政府工作报告）。`,
+    THEORY_POLICY_FORMAT,
+    historyHint,
+    `本批 ${count} 道的 term 必须互不相同；考察来源须按【命题比例】分配。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: THEORY_POLICY_SYSTEM,
+    temperature: 0.72,
+    maxTokens: 8192,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: TheoryPolicyQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseTheoryPolicyMcqAiObject(item)
+    if (!fields) return
+    const q = buildTheoryPolicyQuestionFromMcq({ ...fields, seq: idx + 1 })
+    if (q) questions.push(q)
+  })
+
+  const deduped = dedupeTheoryPolicyQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('理论政策知识点', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        `请生成第 ${slot} 道理论政策四选一题（按命题比例，覆盖习思想/二十大报告/三中全会《决定》/政府工作报告）。\n${THEORY_POLICY_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
+        { system: THEORY_POLICY_SYSTEM, temperature: 0.7, maxTokens: 900 },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseTheoryPolicyMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildTheoryPolicyQuestionFromMcq({ ...fields, seq: slot })
+      if (!q) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const LEGAL_COMMON_SENSE_SYSTEM = [
+  '你是事业编联考 C 类「公共基础知识·法律常识」命题专家，熟悉宪法、民法、刑法、行政法高频易考点。',
+  '题目以识记与辨析为主，难度中等偏易，不要出案例分析压轴题、不要堆砌冷门法条细节。',
+  '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
+].join('\n')
+
+const LEGAL_COMMON_SENSE_FORMAT = `
+【题型】questionType 固定为 general
+
+【难度】事业编联考 C 类公基常见难度：基础概念、常考制度、易混辨析即可；忌偏难怪。
+
+【命题比例·必须遵守】（15 题一轮）
+- **宪法**：约 **25%～30%**（国体政体、公民基本权利义务、国家机构、全国人大/国务院职权等高频点）
+- **民法**：约 **25%～30%**（民事主体、民事权利、合同基础、时效、婚姻继承常考点）
+- **刑法**：约 **20%～25%**（犯罪构成基础、正当防卫/紧急避险、刑罚种类、常见罪名辨识）
+- **行政法**：约 **20%～25%**（行政行为、行政处罚/许可/强制、行政复议与诉讼基础、公务员法常识）
+
+【命题要求】
+- term 填知识点关键词（如「公民基本权利」「行政处罚」「正当防卫」「诉讼时效」）
+- stem 写完整问句；选项互斥；干扰项为易混概念
+- explanation 用 1～2 句简体中文说明
+- 依据现行常用表述，表述准确但通俗
+
+【JSON 示例】
+{"questionType":"general","term":"正当防卫","stem":"为了使国家、公共利益、本人或者他人的人身、财产和其他权利免受正在进行的不法侵害，而采取的制止不法侵害的行为，对不法侵害人造成损害的，属于？","correct":"正当防卫","distractors":["紧急避险","过失犯罪","意外事件"],"explanation":"……"}
+`.trim()
+
+function dedupeLegalCommonSenseQuestions(
+  items: LegalCommonSenseQuestion[],
+  blockedTerms?: Set<string>,
+): LegalCommonSenseQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: LegalCommonSenseQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestLegalCommonSenseMcqs(input: {
+  count?: number
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<LegalCommonSenseQuestion[]> {
+  const count = input.count ?? LEGAL_COMMON_SENSE_QUESTION_COUNT
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.('正在向 DeepSeek 请求法律常识题目…')
+
+  const historyHint = buildAvoidTermsHint('法律知识点', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 事业编联考 C 类公基「法律常识」四选一练习题（宪法/民法/刑法/行政法，**难度中等偏易、高频考点**）。`,
+    LEGAL_COMMON_SENSE_FORMAT,
+    historyHint,
+    `本批 ${count} 道的 term 必须互不相同；按【命题比例】覆盖四法。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: LEGAL_COMMON_SENSE_SYSTEM,
+    temperature: 0.72,
+    maxTokens: 8192,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: LegalCommonSenseQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseLegalCommonSenseMcqAiObject(item)
+    if (!fields) return
+    const q = buildLegalCommonSenseQuestionFromMcq({ ...fields, seq: idx + 1 })
+    if (q) questions.push(q)
+  })
+
+  const deduped = dedupeLegalCommonSenseQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('法律知识点', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        `请生成第 ${slot} 道法律常识四选一题（C 类公基难度，宪法/民法/刑法/行政法高频点，勿出难题）。\n${LEGAL_COMMON_SENSE_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
+        { system: LEGAL_COMMON_SENSE_SYSTEM, temperature: 0.7, maxTokens: 900 },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseLegalCommonSenseMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildLegalCommonSenseQuestionFromMcq({ ...fields, seq: slot })
+      if (!q) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const ECONOMY_COMMON_SENSE_SYSTEM = [
+  '你是事业编联考 C 类「公共基础知识·经济常识」命题专家，熟悉微观经济、宏观经济、社会主义市场经济高频易考点。',
+  '题目以概念识记与简单辨析为主，难度中等偏易；不要出公式推导、复杂图表或专业金融计算。',
+  '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
+].join('\n')
+
+const ECONOMY_COMMON_SENSE_FORMAT = `
+【题型】questionType 固定为 general
+
+【难度】事业编联考 C 类公基常见难度：基础概念、政策工具辨识、易混提法辨析；忌过深理论。
+
+【命题比例·必须遵守】（15 题一轮）
+- **微观经济**：约 **30%～35%**（供给需求、价格、市场类型、机会成本、边际效用等高频基础点）
+- **宏观经济**：约 **30%～35%**（GDP、通胀通缩、财政货币政策、失业率、经济周期等高频点）
+- **社会主义市场经济**：约 **30%～35%**（基本经济制度、所有制、分配制度、市场决定作用与更好发挥政府作用等高频表述）
+
+【命题要求】
+- term 填知识点关键词（如「通货膨胀」「财政政策」「社会主义市场经济」「需求价格弹性」）
+- stem 写完整问句；选项互斥；干扰项为易混概念
+- explanation 用 1～2 句简体中文说明
+- 表述准确但通俗，贴近公基真题风格
+
+【JSON 示例】
+{"questionType":"general","term":"通货膨胀","stem":"一般物价水平持续上涨、货币购买力下降的经济现象称为？","correct":"通货膨胀","distractors":["通货紧缩","滞胀","流动性陷阱"],"explanation":"……"}
+`.trim()
+
+function dedupeEconomyCommonSenseQuestions(
+  items: EconomyCommonSenseQuestion[],
+  blockedTerms?: Set<string>,
+): EconomyCommonSenseQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: EconomyCommonSenseQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestEconomyCommonSenseMcqs(input: {
+  count?: number
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<EconomyCommonSenseQuestion[]> {
+  const count = input.count ?? ECONOMY_COMMON_SENSE_QUESTION_COUNT
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.('正在向 DeepSeek 请求经济常识题目…')
+
+  const historyHint = buildAvoidTermsHint('经济知识点', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 事业编联考 C 类公基「经济常识」四选一练习题（微观/宏观/社会主义市场经济，**难度中等偏易、高频考点**）。`,
+    ECONOMY_COMMON_SENSE_FORMAT,
+    historyHint,
+    `本批 ${count} 道的 term 必须互不相同；按【命题比例】覆盖三类。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: ECONOMY_COMMON_SENSE_SYSTEM,
+    temperature: 0.72,
+    maxTokens: 8192,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: EconomyCommonSenseQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseEconomyCommonSenseMcqAiObject(item)
+    if (!fields) return
+    const q = buildEconomyCommonSenseQuestionFromMcq({ ...fields, seq: idx + 1 })
+    if (q) questions.push(q)
+  })
+
+  const deduped = dedupeEconomyCommonSenseQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('经济知识点', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        `请生成第 ${slot} 道经济常识四选一题（C 类公基难度，微观/宏观/社会主义市场经济高频点，勿出难题）。\n${ECONOMY_COMMON_SENSE_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
+        { system: ECONOMY_COMMON_SENSE_SYSTEM, temperature: 0.7, maxTokens: 900 },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseEconomyCommonSenseMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildEconomyCommonSenseQuestionFromMcq({ ...fields, seq: slot })
+      if (!q) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const WORD_MEMORIZATION_SYSTEM = [
+  '你是公务员考试与事业单位考试「言语理解·词语识记」命题专家，专门命制**非四字成语**的词语识记题（实词、虚词、关联词、近义辨析等）。',
+  '禁止出四字成语；目标必须是双音节/三音节词语或常见关联词、短语。',
+  '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
+].join('\n')
+
+const WORD_MEMORIZATION_FORMAT = `
+【题型】每题 questionType 随机取其一：
+- word-to-meaning（选释义）：展示词语，选项为四个释义；stem 可写「「XXX」的正确释义是？」
+- meaning-to-word（选词语）：仅给出释义或语境问句，选项为四个词语；correct 必须等于 term
+
+【命题要求】
+- **禁止四字成语**；词语长度多为 2～3 字，或常见关联词（如「尽管如此」「不仅…而且…」类，可作 term 短标签）
+- 优先事业编/国考言语理解逻辑填空高频易混实词、虚词、近义辨析
+- 干扰项须为近义、形近或常混的释义/词语
+- 释义选项 10～28 字；词语选项须为非四字成语的短词语
+- term 填目标词语（选词语题 **不得** 在 stem 中出现 term 或正确答案）
+- meaning-to-word 的 stem 只写释义/用法/语境，禁止写出答案词语
+- explanation 用 1～2 句简体中文说明辨析要点
+
+【JSON 示例】
+选释义：{"questionType":"word-to-meaning","term":"砥砺","stem":"「砥砺」的正确释义是？","correct":"磨炼；激励","distractors":["指责批评","敷衍应付","故意拖延"],"explanation":"……"}
+选词语：{"questionType":"meaning-to-word","term":"贻误","stem":"因拖延或差错而造成不利影响，可用哪个词语？","correct":"贻误","distractors":["延误","耽误","辜负"],"explanation":"……"}
+`.trim()
+
+function dedupeWordMemorizationQuestions(
+  items: WordMemorizationQuestion[],
+  blockedTerms?: Set<string>,
+): WordMemorizationQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: WordMemorizationQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestWordMemorizationMcqs(input: {
+  count?: number
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<WordMemorizationQuestion[]> {
+  const count = input.count ?? WORD_MEMORIZATION_QUESTION_COUNT
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.('正在向 DeepSeek 请求词语识记题目…')
+
+  const typeHints = Array.from({ length: count }, (_, i) =>
+    i % 2 === 0 ? '选释义' : '选词语',
+  )
+    .map((t, i) => `第 ${i + 1} 题建议 ${t}`)
+    .join('；')
+
+  const historyHint = buildAvoidTermsHint('词语', [...blocked])
+  const user = [
+    `请生成 **${count} 道** **非四字成语**词语识记四选一练习题（实词、虚词、关联词、近义辨析等；禁止出四字成语），用于公务员与事业单位言语理解备考。`,
+    WORD_MEMORIZATION_FORMAT,
+    `本轮题型顺序参考：${typeHints}`,
+    historyHint,
+    `本批 ${count} 道的 term 必须互不相同，且均非四字成语。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: WORD_MEMORIZATION_SYSTEM,
+    temperature: 0.72,
+    maxTokens: 8192,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: WordMemorizationQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseWordMemorizationMcqAiObject(item)
+    if (!fields) return
+    const q = buildWordMemorizationQuestionFromMcq({ ...fields, seq: idx + 1 })
+    if (q) questions.push(q)
+  })
+
+  const deduped = dedupeWordMemorizationQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('词语', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        `请生成第 ${slot} 道非四字成语词语识记四选一题（禁止出四字成语）。\n${WORD_MEMORIZATION_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
+        { system: WORD_MEMORIZATION_SYSTEM, temperature: 0.7, maxTokens: 900 },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseWordMemorizationMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildWordMemorizationQuestionFromMcq({ ...fields, seq: slot })
+      if (!q) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const CLASSICAL_CHINESE_SYSTEM = [
+  '你是公务员考试与事业单位考试「言语理解·文言文」命题专家，熟悉文言实词虚词、古今异义、通假字、文言句式、一词多义等公考/事业编高频考点。',
+  '难度适中，贴近真题识记与辨析风格；不要出过长文言翻译压轴题。',
+  '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
+].join('\n')
+
+const CLASSICAL_CHINESE_FORMAT = `
+【题型】questionType 固定为 general
+
+【命题要求】
+- 聚焦：文言实词虚词、古今异义、通假字、文言句式、一词多义
+- 优先公考、事业编常考字词与句式，难度适中
+- term 填短知识点标签，如「之」「以为」「通假字·女」「宾语前置」
+- stem 写完整问句（可附短文言例句）；选项互斥；干扰项为易混义项或相近句式
+- explanation 用 1～2 句简体中文说明
+
+【JSON 示例】
+{"questionType":"general","term":"之","stem":"「攻而破之」中「之」的用法是？","correct":"代词，指代敌人","distractors":["助词，取消句子独立性","结构助词，的","动词，往、到"],"explanation":"……"}
+`.trim()
+
+function dedupeClassicalChineseQuestions(
+  items: ClassicalChineseQuestion[],
+  blockedTerms?: Set<string>,
+): ClassicalChineseQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: ClassicalChineseQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestClassicalChineseMcqs(input: {
+  count?: number
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<ClassicalChineseQuestion[]> {
+  const count = input.count ?? CLASSICAL_CHINESE_QUESTION_COUNT
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.('正在向 DeepSeek 请求文言文题目…')
+
+  const historyHint = buildAvoidTermsHint('文言知识点', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 事业编/公考「文言文」四选一练习题（文言实词虚词、古今异义、通假字、文言句式、一词多义，**难度适中、高频考点**）。`,
+    CLASSICAL_CHINESE_FORMAT,
+    historyHint,
+    `本批 ${count} 道的 term 必须互不相同。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: CLASSICAL_CHINESE_SYSTEM,
+    temperature: 0.72,
+    maxTokens: 8192,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: ClassicalChineseQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseClassicalChineseMcqAiObject(item)
+    if (!fields) return
+    const q = buildClassicalChineseQuestionFromMcq({ ...fields, seq: idx + 1 })
+    if (q) questions.push(q)
+  })
+
+  const deduped = dedupeClassicalChineseQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('文言知识点', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        `请生成第 ${slot} 道文言文四选一题（实词虚词/古今异义/通假字/句式/一词多义等高频点）。\n${CLASSICAL_CHINESE_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
+        { system: CLASSICAL_CHINESE_SYSTEM, temperature: 0.7, maxTokens: 900 },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseClassicalChineseMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildClassicalChineseQuestionFromMcq({ ...fields, seq: slot })
+      if (!q) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const RHETORIC_USAGE_SYSTEM = [
+  '你是公务员考试与事业单位考试「言语理解·修辞辨识与表达效果」命题专家，熟悉比喻、比拟、借代、夸张、对偶、排比、设问、反问、反复等公考高频修辞。',
+  '可考「这句话用了什么修辞」或修辞表达效果辨析；难度适中。',
+  '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
+].join('\n')
+
+const RHETORIC_USAGE_FORMAT = `
+【题型】questionType 固定为 general
+
+【命题要求】
+- 聚焦修辞辨识与表达效果：比喻、比拟、借代、夸张、对偶、排比、设问、反问、反复等
+- 也可出效果辨析（如增强气势、生动形象、突出强调等）
+- 优先公考、事业编言语理解高频考点
+- term 填短知识点标签（如「比喻」「排比·效果」「借代」）
+- stem 可含短句例句并设问；选项互斥；干扰项为易混修辞或相近效果表述
+- explanation 用 1～2 句简体中文说明
+
+【JSON 示例】
+{"questionType":"general","term":"比喻","stem":"「人生如逆旅，我亦是行人」主要运用的修辞是？","correct":"比喻","distractors":["夸张","借代","拟人"],"explanation":"……"}
+`.trim()
+
+function dedupeRhetoricUsageQuestions(
+  items: RhetoricUsageQuestion[],
+  blockedTerms?: Set<string>,
+): RhetoricUsageQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: RhetoricUsageQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestRhetoricUsageMcqs(input: {
+  count?: number
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<RhetoricUsageQuestion[]> {
+  const count = input.count ?? RHETORIC_USAGE_QUESTION_COUNT
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.('正在向 DeepSeek 请求修辞运用题目…')
+
+  const historyHint = buildAvoidTermsHint('修辞知识点', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 事业编/公考「修辞辨识与表达效果」四选一练习题（比喻、比拟、借代、夸张、对偶、排比、设问、反问、反复等，**公考高频**）。`,
+    RHETORIC_USAGE_FORMAT,
+    historyHint,
+    `本批 ${count} 道的 term 必须互不相同。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: RHETORIC_USAGE_SYSTEM,
+    temperature: 0.72,
+    maxTokens: 8192,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: RhetoricUsageQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseRhetoricUsageMcqAiObject(item)
+    if (!fields) return
+    const q = buildRhetoricUsageQuestionFromMcq({ ...fields, seq: idx + 1 })
+    if (q) questions.push(q)
+  })
+
+  const deduped = dedupeRhetoricUsageQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('修辞知识点', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        `请生成第 ${slot} 道修辞辨识/表达效果四选一题（公考高频修辞）。\n${RHETORIC_USAGE_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
+        { system: RHETORIC_USAGE_SYSTEM, temperature: 0.7, maxTokens: 900 },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseRhetoricUsageMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildRhetoricUsageQuestionFromMcq({ ...fields, seq: slot })
+      if (!q) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const READING_COMPREHENSION_SYSTEM = [
+  '你是公务员考试与事业单位考试「言语理解·阅读理解」命题专家，熟悉主旨观点、细节判断、词句理解、推断下文、标题添加等高频题型。',
+  '材料风格贴近公考议论文/说明文片段；难度适中。',
+  '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
+].join('\n')
+
+function readingComprehensionModeGuidance(mode: ChineseReadingQuestionType): string {
+  switch (mode) {
+    case 'main-idea':
+      return '【本题型专属】考主旨/意图/观点：问这段文字主要说明什么、意在强调什么、核心观点是？选项为概括性表述。'
+    case 'detail':
+      return '【本题型专属】考细节判断：根据材料判断哪项正确/错误或哪项能从文中推出；干扰项含无中生有、偷换概念。'
+    case 'word-sentence':
+      return '【本题型专属】考画线词句含义：stem 标出需理解的词句，选项解释其在文中的含义；须结合语境。'
+    case 'infer-next':
+      return '【本题型专属】考推断下文：问下文最可能写什么；选项为接下来可能展开的内容方向。'
+    case 'title':
+      return '【本题型专属】考标题添加：选出最适合的标题；须涵盖主旨且不过宽过窄。'
+  }
+}
+
+function readingComprehensionFormat(mode: ChineseReadingQuestionType): string {
+  const label = readingComprehensionQuestionTypeLabel(mode)
+  return `
+【题型】questionType **固定**为 \`${mode}\`（${label}），本批每题都必须是该题型，不得混用其它题型。
+
+${readingComprehensionModeGuidance(mode)}
+
+【命题要求】
+- 每题必须有 passage：短材料约 150～350 字，公考风格议论文/说明文片段
+- term：短主题标签（如「基层治理」「科技创新」）
+- stem：针对材料的设问；correct + 3 个 distractors，共 4 个互斥选项
+- explanation：1～2 句简体中文说明解题要点
+- 材料与设问须匹配题型 ${label}（${mode}）
+
+【JSON 示例】
+{"questionType":"${mode}","term":"基层治理","passage":"……约150～350字材料……","stem":"……设问……","correct":"……","distractors":["……","……","……"],"explanation":"……"}
+`.trim()
+}
+
+function dedupeReadingComprehensionQuestions(
+  items: ReadingComprehensionQuestion[],
+  blockedTerms?: Set<string>,
+): ReadingComprehensionQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: ReadingComprehensionQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestReadingComprehensionMcqs(input: {
+  count?: number
+  mode: ChineseReadingQuestionType
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<ReadingComprehensionQuestion[]> {
+  const count = input.count ?? READING_COMPREHENSION_QUESTION_COUNT
+  const mode = input.mode
+  const modeLabel = readingComprehensionQuestionTypeLabel(mode)
+  const format = readingComprehensionFormat(mode)
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.(`正在向 DeepSeek 请求阅读理解（${modeLabel}）题目…`)
+
+  const historyHint = buildAvoidTermsHint('阅读材料主题', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 事业编/公考「言语理解·阅读理解」四选一练习题，题型固定为 **${modeLabel}**（questionType=\`${mode}\`）。`,
+    format,
+    historyHint,
+    `本批 ${count} 道的 term 必须互不相同；每题须含独立 passage。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: READING_COMPREHENSION_SYSTEM,
+    temperature: 0.72,
+    maxTokens: 8192,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: ReadingComprehensionQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseReadingComprehensionMcqAiObject(item)
+    if (!fields) return
+    const q = buildReadingComprehensionQuestionFromMcq({
+      ...fields,
+      questionType: mode,
+      seq: idx + 1,
+    })
+    if (q) questions.push(q)
+  })
+
+  const deduped = dedupeReadingComprehensionQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('阅读材料主题', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        `请生成第 ${slot} 道阅读理解四选一题，题型固定为 **${modeLabel}**（questionType=\`${mode}\`）。\n${format}${avoidHint}\n仅返回一个 JSON 对象。`,
+        { system: READING_COMPREHENSION_SYSTEM, temperature: 0.7, maxTokens: 1500 },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseReadingComprehensionMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildReadingComprehensionQuestionFromMcq({
+        ...fields,
+        questionType: mode,
+        seq: slot,
+      })
       if (!q) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (

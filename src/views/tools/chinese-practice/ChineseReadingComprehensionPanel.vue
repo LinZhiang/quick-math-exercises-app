@@ -1,21 +1,33 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { useChinesePartyHistoryTest } from '@/composables/useChinesePartyHistoryTest'
+import { useChineseReadingComprehensionTest } from '@/composables/useChineseReadingComprehensionTest'
 import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
 import {
-  isChinesePartyHistoryFavorite,
-  toggleChinesePartyHistoryFavorite,
-} from '@/utils/chinesePartyHistoryStorage'
-import { partyHistoryQuestionTypeLabel } from '@/utils/partyHistoryPractice'
-import type { PartyHistoryQuestion } from '@/utils/partyHistoryPractice'
+  isChineseReadingComprehensionFavorite,
+  toggleChineseReadingComprehensionFavorite,
+} from '@/utils/chineseReadingComprehensionStorage'
+import {
+  readingComprehensionQuestionTypeLabel,
+  type ChineseReadingQuestionType,
+  type ReadingComprehensionQuestion,
+} from '@/utils/readingComprehensionPractice'
 
-const PARTY_ASSIST_SYSTEM =
-  '你是事业编与公务员考试常识判断「中共党史」教练，擅长重要会议内容与意义、事件、人物贡献、路线方针辨析，时间节点仅作辅助。用简体中文讲解，表述客观准确，回答要具体。'
+const READING_ASSIST_SYSTEM =
+  '你是事业编与公务员考试「言语理解·阅读理解」教练，擅长主旨观点、细节判断、词句理解、推断下文、标题添加等题型。用简体中文讲解，紧扣材料、分析干扰项，回答要具体。'
 
-const test = useChinesePartyHistoryTest()
+const READING_MODES: { mode: ChineseReadingQuestionType; label: string }[] = [
+  { mode: 'main-idea', label: '主旨观点' },
+  { mode: 'detail', label: '细节判断' },
+  { mode: 'word-sentence', label: '词句理解' },
+  { mode: 'infer-next', label: '推断下文' },
+  { mode: 'title', label: '标题添加' },
+]
+
+const selectedMode = ref<ChineseReadingQuestionType | null>(null)
+const test = useChineseReadingComprehensionTest(selectedMode)
 const favorited = ref(false)
 const regenerating = ref(false)
 const followupInput = ref('')
@@ -38,30 +50,54 @@ const isRunningOrLoading = computed(
   () => test.phase === 'running' || test.phase === 'loading',
 )
 
+const modeLabel = computed(() =>
+  selectedMode.value ? readingComprehensionQuestionTypeLabel(selectedMode.value) : '',
+)
+
 defineExpose({
   isRunningOrLoading,
-  startWith(questions: PartyHistoryQuestion[]) {
+  startWith(questions: ReadingComprehensionQuestion[], mode?: ChineseReadingQuestionType) {
     test.resetToIdle()
+    if (mode) {
+      selectedMode.value = mode
+    } else if (questions[0]) {
+      selectedMode.value = questions[0].questionType
+    }
     test.startQuiz(questions)
   },
 })
 
-function buildAssistPrompt(q: PartyHistoryQuestion): string {
+function selectMode(mode: ChineseReadingQuestionType) {
+  if (test.phase === 'loading') return
+  if (selectedMode.value !== mode) {
+    selectedMode.value = mode
+    test.questions = []
+  }
+}
+
+function clearMode() {
+  if (test.phase === 'loading') return
+  selectedMode.value = null
+  test.resetToIdle()
+}
+
+function buildAssistPrompt(q: ReadingComprehensionQuestion): string {
   const row = test.results[test.results.length - 1]
   const opts = q.options.map((o, i) => `${i + 1}. ${o}`).join('\n')
   const chosen =
     row?.chosenIndex != null ? String(q.options[row.chosenIndex] ?? '') : '（未选）'
   const correct = q.options[q.correctIndex] ?? ''
   return [
-    `题型：${partyHistoryQuestionTypeLabel(q.questionType)}`,
-    `知识点：${q.term}`,
+    `题型：${readingComprehensionQuestionTypeLabel(q.questionType)}`,
+    `材料主题：${q.term}`,
+    `阅读材料：\n${q.passage}`,
     `题干：${q.stem}`,
     `选项：\n${opts}`,
     `学员选择：${chosen}`,
     `正确答案：${correct}`,
     `作答结果：${row?.correct ? '正确' : '错误'}`,
     q.explanation ? `题目解析：${q.explanation}` : '',
-    '请讲解本题党史背景、会议/事件意义或人物贡献、易混考点及记忆方法；若涉及时点再补充年份。',
+    '请结合材料讲解本题解题思路、正确答案依据及干扰项排除方法。',
   ]
     .filter(Boolean)
     .join('\n\n')
@@ -74,11 +110,11 @@ async function runAssistExplain() {
   try {
     await startAssist({
       initialUser: userMsg,
-      displayUser: '请讲解本题中共党史',
-      system: PARTY_ASSIST_SYSTEM,
+      displayUser: '请讲解本题阅读理解',
+      system: READING_ASSIST_SYSTEM,
       fetch: () =>
         requestAssistantMarkdown({
-          system: PARTY_ASSIST_SYSTEM,
+          system: READING_ASSIST_SYSTEM,
           userMessage: userMsg,
         }),
     })
@@ -101,7 +137,7 @@ async function onSendFollowup() {
 watch(
   () => test.currentQuestion?.fingerprint,
   (fp) => {
-    favorited.value = fp ? isChinesePartyHistoryFavorite(fp) : false
+    favorited.value = fp ? isChineseReadingComprehensionFavorite(fp) : false
   },
 )
 
@@ -125,7 +161,7 @@ async function onRegenerate() {
 async function onToggleFavorite() {
   const q = test.currentQuestion
   if (!q) return
-  const r = toggleChinesePartyHistoryFavorite(q)
+  const r = toggleChineseReadingComprehensionFavorite(q)
   favorited.value = r === 'added'
   ElMessage.success(r === 'added' ? '已加入关键题收藏' : '已取消收藏')
 }
@@ -147,30 +183,58 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   <div class="chinese-idiom-panel">
     <template v-if="test.phase === 'idle' || test.phase === 'loading'">
       <p class="mode-section__hint">
-        针对公务员、事业单位「常识判断」高频中共党史考点：以重要会议内容与意义、事件、人物贡献、路线方针为主，时间节点从少，
-        每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停并公布答案，点「下一题」继续。
+        针对公考言语理解阅读类高频题：主旨观点、细节判断、词句理解、推断下文、标题添加。
+        请先选择题型，再生成短篇材料题，每轮 {{ test.questionCount }} 题四选一。
+        正计时，提交后暂停并公布答案，点「下一题」继续。
       </p>
-      <div class="chinese-setup">
+
+      <div class="chinese-reading__modes">
         <el-button
-          type="primary"
-          :loading="test.phase === 'loading'"
-          :disabled="!isAiChatConfigured()"
-          @click="test.generatePaper()"
+          v-for="item in READING_MODES"
+          :key="item.mode"
+          :type="selectedMode === item.mode ? 'primary' : 'default'"
+          :disabled="test.phase === 'loading'"
+          @click="selectMode(item.mode)"
         >
-          {{ test.questions.length ? '重新生成题目' : '生成题目' }}
-        </el-button>
-        <el-button
-          type="success"
-          :disabled="!test.questions.length || test.phase === 'loading'"
-          @click="test.startQuiz()"
-        >
-          开始练习
+          {{ item.label }}
         </el-button>
       </div>
-      <p v-if="test.phase === 'loading'" class="chinese-setup__loading">{{ test.loadingMessage }}</p>
-      <p v-else-if="test.questions.length" class="chinese-setup__ready">
-        已备好 {{ test.questions.length }} 题，点击「开始练习」后计时。
-      </p>
+
+      <template v-if="selectedMode">
+        <p class="chinese-reading__mode-ready">
+          当前题型：{{ modeLabel }}
+          <el-button
+            link
+            type="primary"
+            :disabled="test.phase === 'loading'"
+            @click="clearMode"
+          >
+            更换题型
+          </el-button>
+        </p>
+        <div class="chinese-setup">
+          <el-button
+            type="primary"
+            :loading="test.phase === 'loading'"
+            :disabled="!isAiChatConfigured()"
+            @click="test.generatePaper()"
+          >
+            {{ test.questions.length ? '重新生成题目' : '生成题目' }}
+          </el-button>
+          <el-button
+            type="success"
+            :disabled="!test.questions.length || test.phase === 'loading'"
+            @click="test.startQuiz()"
+          >
+            开始练习
+          </el-button>
+        </div>
+        <p v-if="test.phase === 'loading'" class="chinese-setup__loading">{{ test.loadingMessage }}</p>
+        <p v-else-if="test.questions.length" class="chinese-setup__ready">
+          已备好 {{ test.questions.length }} 题，点击「开始练习」后计时。
+        </p>
+      </template>
+      <p v-else class="chinese-setup__ready">请先选择一种阅读题型。</p>
     </template>
 
     <template v-else-if="test.phase === 'running'">
@@ -184,7 +248,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           v-else-if="test.paperSource === 'review'"
           class="chinese-quiz__badge chinese-quiz__badge--review"
         >复习题</span>
-        <span v-if="test.currentQuestion">{{ partyHistoryQuestionTypeLabel(test.currentQuestion.questionType) }}</span>
+        <span v-if="test.currentQuestion">{{
+          readingComprehensionQuestionTypeLabel(test.currentQuestion.questionType)
+        }}</span>
         <span class="chinese-quiz__timer" :class="{ 'is-paused': test.quizTimerPaused }">
           {{ test.quizRunningElapsedText }}
         </span>
@@ -194,6 +260,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           </el-button>
           <el-button size="small" plain @click="test.resetToIdle()">返回</el-button>
         </div>
+      </div>
+
+      <div v-if="test.currentQuestion" class="chinese-quiz__passage">
+        {{ test.currentQuestion.passage }}
       </div>
 
       <div v-if="test.currentQuestion" class="chinese-quiz__stem">
@@ -275,7 +345,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
               v-model="followupInput"
               type="textarea"
               :rows="2"
-              placeholder="继续追问，例如：遵义会议和洛川会议有什么区别？"
+              placeholder="继续追问，例如：干扰项 B 为什么错？"
               @keydown.enter.exact.prevent="onSendFollowup"
             />
             <el-button
@@ -327,6 +397,22 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </template>
 
 <style scoped>
+.chinese-reading__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.chinese-reading__mode-ready {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--app-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .chinese-setup {
   display: flex;
   flex-wrap: wrap;
@@ -378,6 +464,20 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   margin-left: auto;
   display: flex;
   gap: 8px;
+}
+
+.chinese-quiz__passage {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--app-border-soft);
+  border-radius: 12px;
+  background: var(--app-surface-alt);
+  text-align: left;
+  max-height: 280px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.7;
 }
 
 .chinese-quiz__stem {
@@ -536,4 +636,3 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   border-bottom: none;
 }
 </style>
-

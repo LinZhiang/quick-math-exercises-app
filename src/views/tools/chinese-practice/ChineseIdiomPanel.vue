@@ -17,7 +17,7 @@ import {
 import type { IdiomRecognitionQuestion } from '@/utils/idiomRecognitionPractice'
 
 const IDIOM_ASSIST_SYSTEM =
-  '你是事业编与公务员考试言语理解教练，擅长词语、成语辨析与选词填空考点。用简体中文讲解，可结合近义成语/实词对比、适用语境与记忆要点。回答要具体，避免空泛。'
+  '你是事业编与公务员考试言语理解教练，擅长四字成语辨析与选词填空考点。用简体中文讲解，可结合近义成语对比、适用语境与记忆要点。回答要具体，避免空泛。'
 
 const test = useChineseIdiomTest()
 const favorited = ref(false)
@@ -66,7 +66,7 @@ function buildAssistPrompt(q: IdiomRecognitionQuestion): string {
     `正确答案：${correct}`,
     `作答结果：${row?.correct ? '正确' : '错误'}`,
     q.explanation ? `题目解析：${q.explanation}` : '',
-    '请讲解本题涉及的词语/成语辨析、近义区别与记忆方法，并结合选词填空或类比推理常见考法。',
+    '请讲解本题涉及的成语辨析、近义区别与记忆方法，并结合选词填空或类比推理常见考法。',
   ]
     .filter(Boolean)
     .join('\n\n')
@@ -152,7 +152,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   <div class="chinese-idiom-panel">
     <template v-if="test.phase === 'idle' || test.phase === 'loading'">
       <p class="mode-section__hint">
-        针对公务员、事业单位「选词填空」「类比推理」高频词语/成语：DeepSeek 每轮随机混合「选释义」「选词语」题型，
+        针对公务员、事业单位「选词填空」「类比推理」高频**四字成语**：DeepSeek 每轮随机混合「选释义」「选词语」题型，
         每轮 {{ test.questionCount }} 题，四选一。正计时，提交后暂停并公布答案，点「下一题」继续。
       </p>
       <div class="chinese-setup">

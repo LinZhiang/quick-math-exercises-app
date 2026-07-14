@@ -4,6 +4,11 @@ import {
   type FractionEstimateMode,
 } from '@/utils/fractionEstimatePractice'
 import {
+  DIVISIBILITY_MODES,
+  generateDivisibilityQuestion,
+  type DivisibilityMode,
+} from '@/utils/divisibilityPractice'
+import {
   assertNonTrivialPair,
   buildExamStyleNumberWrongs,
   tryBuildHardCompositeQuestion,
@@ -20,8 +25,14 @@ export type MentalMathMode =
   | 'square-cube-easy'
   | 'square-cube-hard'
   | FractionEstimateMode
+  | DivisibilityMode
 
-export type MentalMathModeCategory = 'arithmetic' | 'power' | 'square-cube' | 'fraction'
+export type MentalMathModeCategory =
+  | 'arithmetic'
+  | 'power'
+  | 'square-cube'
+  | 'fraction'
+  | 'divisibility'
 
 export type MentalMathAnswerValue = number | string
 
@@ -145,6 +156,13 @@ export const MENTAL_MATH_FRACTION_MODES: MentalMathModeConfig[] = FRACTION_ESTIM
   }),
 )
 
+export const MENTAL_MATH_DIVISIBILITY_MODES: MentalMathModeConfig[] = DIVISIBILITY_MODES.map(
+  (m) => ({
+    ...m,
+    category: 'divisibility' as const,
+  }),
+)
+
 /** 复杂题次幂：仅考察 2⁻²～2⁻⁶ 与 2¹⁰～2²⁴ */
 const POWER_HARD_EXPONENTS: number[] = [
   -6,
@@ -169,12 +187,13 @@ const POWER_HARD_EXPONENTS: number[] = [
   24,
 ]
 
-/** 四则口算 + 2 的次幂 + 平方/立方 + 估算分数全部模式 */
+/** 四则口算 + 2 的次幂 + 平方/立方 + 估算分数 + 整除及其性质全部模式 */
 export const MENTAL_MATH_MODES: MentalMathModeConfig[] = [
   ...MENTAL_MATH_ARITHMETIC_MODES,
   ...MENTAL_MATH_POWER_MODES,
   ...MENTAL_MATH_SQUARE_CUBE_MODES,
   ...MENTAL_MATH_FRACTION_MODES,
+  ...MENTAL_MATH_DIVISIBILITY_MODES,
 ]
 
 export type MentalMathQuestion = {
@@ -198,6 +217,15 @@ export type MentalMathAnswerRecord = {
 
 export function isFractionEstimateMode(mode: MentalMathMode): mode is FractionEstimateMode {
   return mode === 'fraction-easy' || mode === 'fraction-hard'
+}
+
+export function isDivisibilityPracticeMode(mode: MentalMathMode): mode is DivisibilityMode {
+  return (
+    mode === 'divisibility-easy' ||
+    mode === 'divisibility-distractor' ||
+    mode === 'divisibility-normal' ||
+    mode === 'divisibility-hard'
+  )
 }
 
 function randInt(min: number, max: number): number {
@@ -990,6 +1018,10 @@ function buildMentalMathQuestionOnce(
 ): MentalMathQuestion {
   if (isFractionEstimateMode(mode)) {
     return generateFractionEstimateQuestion(mode, id, optionCount)
+  }
+
+  if (isDivisibilityPracticeMode(mode)) {
+    return generateDivisibilityQuestion(mode, id, optionCount)
   }
 
   if (mode === 'power-easy' || mode === 'power-hard') {

@@ -29,6 +29,7 @@ import {
   MENTAL_MATH_TIME_CORRECT_BONUS_SEC,
   MENTAL_MATH_TIME_WRONG_PENALTY_SEC,
   MENTAL_MATH_ARITHMETIC_MODES,
+  MENTAL_MATH_DIVISIBILITY_MODES,
   MENTAL_MATH_FRACTION_MODES,
   MENTAL_MATH_POWER_MODES,
   MENTAL_MATH_SQUARE_CUBE_MODES,
@@ -162,6 +163,9 @@ const showSquareCubeSection = computed(
 )
 const showFractionSection = computed(
   () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'fraction',
+)
+const showDivisibilitySection = computed(
+  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'divisibility',
 )
 const showTwentyFourSection = computed(
   () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'twentyfour',
@@ -637,6 +641,8 @@ onMounted(() => {
     activeOutlineSection.value = 'install'
   } else if (hash === 'fraction' || route.query.section === 'fraction') {
     activeOutlineSection.value = 'fraction'
+  } else if (hash === 'divisibility' || route.query.section === 'divisibility') {
+    activeOutlineSection.value = 'divisibility'
   }
 })
 
@@ -652,8 +658,8 @@ onBeforeUnmount(() => {
     <header class="page-hero">
       <h2 class="page-title">口算练习</h2>
       <p class="page-subtitle">
-        限时口算、次幂、平方与立方、估算分数、图形推理；左侧「语文练习」含词语识记等子功能。
-        口算/图形结果仅在本页展示；词语识记每轮 15 题、正计时，DeepSeek 随机出题，错题与收藏在「关键题练习」。
+        限时口算、次幂、平方与立方、估算分数、整除及其性质、图形推理；左侧「语文练习」含成语识记、词语识记、阅读理解等子功能。
+        口算/图形结果仅在本页展示；语文练习多子模块四选一、正计时，DeepSeek 随机出题，错题与收藏在「关键题练习」。
       </p>
     </header>
 
@@ -754,6 +760,26 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
+        <section v-if="showDivisibilitySection" class="mode-section" id="practice-divisibility">
+          <h3 class="mode-section__title">整除及其性质</h3>
+          <p class="mode-section__hint">
+            本地出题：整除判定（3、9、7、11、6）、质数与合数及质因数分解、最大公因数与最小公倍数；含「干扰型」选项更易混。限时倒计时，计分与四则口算相同（答对加 1 秒、答错扣 1 秒，分数夹在 0～100）。
+          </p>
+          <div class="mode-grid">
+            <button
+              v-for="m in MENTAL_MATH_DIVISIBILITY_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--divisibility"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">{{ m.label }}</h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+          </div>
+        </section>
+
         <section v-if="showTwentyFourSection" class="mode-section" id="practice-twentyfour">
           <h3 class="mode-section__title">二十四点</h3>
           <p class="mode-section__hint">
@@ -817,7 +843,7 @@ onBeforeUnmount(() => {
         <section v-if="showChineseSection" class="mode-section" id="practice-chinese">
           <h3 class="mode-section__title">语文练习</h3>
           <p class="mode-section__hint">
-            面向公务员、事业单位言语理解；当前开放「词语识记」，后续可扩展更多子功能。
+            面向公务员、事业单位备考；开放成语/词语识记、文言、修辞、阅读理解及公基常识等子功能。
           </p>
           <ChinesePracticeSection ref="chinesePracticeRef" />
         </section>
@@ -1158,6 +1184,15 @@ onBeforeUnmount(() => {
 .mode-card--fraction:hover {
   border-color: color-mix(in srgb, var(--el-color-success) 45%, var(--app-border-soft));
   box-shadow: 0 4px 16px rgba(34, 197, 94, 0.1);
+}
+
+.mode-card--divisibility {
+  border-color: color-mix(in srgb, #0d9488 28%, var(--app-border-soft));
+}
+
+.mode-card--divisibility:hover {
+  border-color: color-mix(in srgb, #0d9488 50%, var(--app-border-soft));
+  box-shadow: 0 4px 16px rgba(13, 148, 136, 0.12);
 }
 
 .mode-card--graphic {

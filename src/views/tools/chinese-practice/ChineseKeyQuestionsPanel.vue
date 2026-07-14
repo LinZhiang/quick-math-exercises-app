@@ -3,7 +3,9 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   CHINESE_KEY_QUESTION_SOURCES,
+  readingSubModeFromKeySource,
   type ChineseKeyQuestionSource,
+  type ChineseReadingKeySource,
 } from '@/constants/chinese-practice-tabs'
 import type { KeyPracticePayload } from '@/types/chinese-practice'
 import type {
@@ -17,6 +19,17 @@ import {
   removeChineseCharLiteracyWrong,
   storedCharLiteracyToQuestion,
 } from '@/utils/chineseCharLiteracyStorage'
+import type {
+  StoredClassicalChineseFavoriteRecord,
+  StoredClassicalChineseRecord,
+} from '@/utils/chineseClassicalChineseStorage'
+import {
+  listChineseClassicalChineseFavoriteRecords,
+  listChineseClassicalChineseWrongRecords,
+  removeChineseClassicalChineseFavorite,
+  removeChineseClassicalChineseWrong,
+  storedClassicalChineseToQuestion,
+} from '@/utils/chineseClassicalChineseStorage'
 import type { StoredCommonSenseFavoriteRecord, StoredCommonSenseRecord } from '@/utils/chineseCommonSenseStorage'
 import {
   listChineseCommonSenseFavoriteRecords,
@@ -25,6 +38,17 @@ import {
   removeChineseCommonSenseWrong,
   storedCommonSenseToQuestion,
 } from '@/utils/chineseCommonSenseStorage'
+import type {
+  StoredEconomyCommonSenseFavoriteRecord,
+  StoredEconomyCommonSenseRecord,
+} from '@/utils/chineseEconomyCommonSenseStorage'
+import {
+  listChineseEconomyCommonSenseFavoriteRecords,
+  listChineseEconomyCommonSenseWrongRecords,
+  removeChineseEconomyCommonSenseFavorite,
+  removeChineseEconomyCommonSenseWrong,
+  storedEconomyCommonSenseToQuestion,
+} from '@/utils/chineseEconomyCommonSenseStorage'
 import type {
   StoredHistoryCommonSenseFavoriteRecord,
   StoredHistoryCommonSenseRecord,
@@ -47,6 +71,17 @@ import {
   type StoredIdiomRecord,
 } from '@/utils/chineseIdiomStorage'
 import type {
+  StoredLegalCommonSenseFavoriteRecord,
+  StoredLegalCommonSenseRecord,
+} from '@/utils/chineseLegalCommonSenseStorage'
+import {
+  listChineseLegalCommonSenseFavoriteRecords,
+  listChineseLegalCommonSenseWrongRecords,
+  removeChineseLegalCommonSenseFavorite,
+  removeChineseLegalCommonSenseWrong,
+  storedLegalCommonSenseToQuestion,
+} from '@/utils/chineseLegalCommonSenseStorage'
+import type {
   StoredPartyHistoryFavoriteRecord,
   StoredPartyHistoryRecord,
 } from '@/utils/chinesePartyHistoryStorage'
@@ -66,28 +101,96 @@ import {
   type StoredPoetryFavoriteRecord,
   type StoredPoetryRecord,
 } from '@/utils/chinesePoetryStorage'
+import type {
+  StoredReadingComprehensionFavoriteRecord,
+  StoredReadingComprehensionRecord,
+} from '@/utils/chineseReadingComprehensionStorage'
+import {
+  listChineseReadingComprehensionFavoriteRecords,
+  listChineseReadingComprehensionWrongRecords,
+  removeChineseReadingComprehensionFavorite,
+  removeChineseReadingComprehensionWrong,
+  storedReadingComprehensionToQuestion,
+} from '@/utils/chineseReadingComprehensionStorage'
+import type {
+  StoredRhetoricUsageFavoriteRecord,
+  StoredRhetoricUsageRecord,
+} from '@/utils/chineseRhetoricUsageStorage'
+import {
+  listChineseRhetoricUsageFavoriteRecords,
+  listChineseRhetoricUsageWrongRecords,
+  removeChineseRhetoricUsageFavorite,
+  removeChineseRhetoricUsageWrong,
+  storedRhetoricUsageToQuestion,
+} from '@/utils/chineseRhetoricUsageStorage'
+import type {
+  StoredTheoryPolicyFavoriteRecord,
+  StoredTheoryPolicyRecord,
+} from '@/utils/chineseTheoryPolicyStorage'
+import {
+  listChineseTheoryPolicyFavoriteRecords,
+  listChineseTheoryPolicyWrongRecords,
+  removeChineseTheoryPolicyFavorite,
+  removeChineseTheoryPolicyWrong,
+  storedTheoryPolicyToQuestion,
+} from '@/utils/chineseTheoryPolicyStorage'
+import type {
+  StoredWordMemorizationFavoriteRecord,
+  StoredWordMemorizationRecord,
+} from '@/utils/chineseWordMemorizationStorage'
+import {
+  listChineseWordMemorizationFavoriteRecords,
+  listChineseWordMemorizationWrongRecords,
+  removeChineseWordMemorizationFavorite,
+  removeChineseWordMemorizationWrong,
+  storedWordMemorizationToQuestion,
+} from '@/utils/chineseWordMemorizationStorage'
 import { charLiteracyQuestionTypeLabel } from '@/utils/charLiteracyPractice'
+import { classicalChineseQuestionTypeLabel } from '@/utils/classicalChinesePractice'
 import { commonSenseQuestionTypeLabel } from '@/utils/commonSensePractice'
+import { economyCommonSenseQuestionTypeLabel } from '@/utils/economyCommonSensePractice'
 import { historyCommonSenseQuestionTypeLabel } from '@/utils/historyCommonSensePractice'
 import { idiomQuestionTypeLabel } from '@/utils/idiomRecognitionPractice'
+import { legalCommonSenseQuestionTypeLabel } from '@/utils/legalCommonSensePractice'
 import { partyHistoryQuestionTypeLabel } from '@/utils/partyHistoryPractice'
 import { poetryQuestionTypeLabel } from '@/utils/poetryRecognitionPractice'
+import {
+  readingComprehensionQuestionTypeLabel,
+  type ChineseReadingQuestionType,
+} from '@/utils/readingComprehensionPractice'
+import { rhetoricUsageQuestionTypeLabel } from '@/utils/rhetoricUsagePractice'
+import { theoryPolicyQuestionTypeLabel } from '@/utils/theoryPolicyPractice'
+import { wordMemorizationQuestionTypeLabel } from '@/utils/wordMemorizationPractice'
 import { getKeyQuestionNote, setKeyQuestionNote } from '@/utils/chineseKeyQuestionNotes'
 import { markdownToDisplaySafeHtml } from '@/utils/markdownToHtml'
 
 type StoredRow =
   | StoredIdiomRecord
   | StoredFavoriteRecord
+  | StoredWordMemorizationRecord
+  | StoredWordMemorizationFavoriteRecord
   | StoredCharLiteracyRecord
   | StoredCharLiteracyFavoriteRecord
   | StoredPoetryRecord
   | StoredPoetryFavoriteRecord
+  | StoredClassicalChineseRecord
+  | StoredClassicalChineseFavoriteRecord
+  | StoredRhetoricUsageRecord
+  | StoredRhetoricUsageFavoriteRecord
+  | StoredReadingComprehensionRecord
+  | StoredReadingComprehensionFavoriteRecord
   | StoredCommonSenseRecord
   | StoredCommonSenseFavoriteRecord
   | StoredHistoryCommonSenseRecord
   | StoredHistoryCommonSenseFavoriteRecord
   | StoredPartyHistoryRecord
   | StoredPartyHistoryFavoriteRecord
+  | StoredTheoryPolicyRecord
+  | StoredTheoryPolicyFavoriteRecord
+  | StoredLegalCommonSenseRecord
+  | StoredLegalCommonSenseFavoriteRecord
+  | StoredEconomyCommonSenseRecord
+  | StoredEconomyCommonSenseFavoriteRecord
 
 const props = withDefaults(
   defineProps<{
@@ -100,7 +203,7 @@ const emit = defineEmits<{
   (e: 'practice', payload: KeyPracticePayload): void
 }>()
 
-const source = ref<ChineseKeyQuestionSource>('word-memorization')
+const source = ref<ChineseKeyQuestionSource>('idiom-memorization')
 const keyTab = ref<'wrong' | 'favorite'>('wrong')
 const loading = ref(false)
 const wrongRows = ref<StoredRow[]>([])
@@ -113,9 +216,20 @@ const noteSaving = ref(false)
 
 const activeRows = computed(() => (keyTab.value === 'wrong' ? wrongRows.value : favoriteRows.value))
 
+function isVocabSource(src: ChineseKeyQuestionSource): boolean {
+  return src === 'idiom-memorization' || src === 'word-memorization'
+}
+
+function isReadingSource(src: ChineseKeyQuestionSource): boolean {
+  return readingSubModeFromKeySource(src) != null
+}
+
 function typeLabel(row: StoredRow): string {
-  if (source.value === 'word-memorization') {
+  if (source.value === 'idiom-memorization') {
     return idiomQuestionTypeLabel(row.questionType as 'word-to-meaning' | 'meaning-to-word')
+  }
+  if (source.value === 'word-memorization') {
+    return wordMemorizationQuestionTypeLabel(row.questionType as 'word-to-meaning' | 'meaning-to-word')
   }
   if (source.value === 'char-literacy') {
     return charLiteracyQuestionTypeLabel(row.questionType as 'pronunciation' | 'typo')
@@ -123,59 +237,105 @@ function typeLabel(row: StoredRow): string {
   if (source.value === 'poetry-practice') {
     return poetryQuestionTypeLabel(row.questionType as 'poem-to-author' | 'poem-to-theme')
   }
+  if (source.value === 'classical-chinese') {
+    return classicalChineseQuestionTypeLabel('general')
+  }
+  if (source.value === 'rhetoric-usage') {
+    return rhetoricUsageQuestionTypeLabel('general')
+  }
+  if (isReadingSource(source.value)) {
+    return readingComprehensionQuestionTypeLabel(row.questionType as ChineseReadingQuestionType)
+  }
   if (source.value === 'history-common-sense') {
     return historyCommonSenseQuestionTypeLabel('general')
   }
   if (source.value === 'party-history') {
     return partyHistoryQuestionTypeLabel('general')
   }
+  if (source.value === 'theory-policy') {
+    return theoryPolicyQuestionTypeLabel('general')
+  }
+  if (source.value === 'legal-common-sense') {
+    return legalCommonSenseQuestionTypeLabel('general')
+  }
+  if (source.value === 'economy-common-sense') {
+    return economyCommonSenseQuestionTypeLabel('general')
+  }
   return commonSenseQuestionTypeLabel('general')
 }
 
 function storedCorrectLabel(row: StoredRow): string {
-  if (source.value === 'word-memorization' && row.questionType === 'meaning-to-word') {
+  if (isVocabSource(source.value) && row.questionType === 'meaning-to-word') {
     return row.term
   }
   return row.options[row.correctIndex] ?? '—'
 }
 
 function storedMeaningHint(row: StoredRow): string {
-  if (source.value === 'word-memorization' && row.questionType === 'meaning-to-word') {
+  if (isVocabSource(source.value) && row.questionType === 'meaning-to-word') {
     return row.stem.replace(/[？?]\s*$/, '').trim() || '—'
   }
   return storedCorrectLabel(row)
 }
 
 function termDetailLabel(): string {
-  if (source.value === 'word-memorization') return '词语'
+  if (isVocabSource(source.value)) return '词语'
   if (source.value === 'char-literacy') return '考点'
   if (source.value === 'poetry-practice') return '篇目'
+  if (isReadingSource(source.value)) return '材料'
   return '知识点'
 }
 
 function hintDetailLabel(): string {
-  if (source.value === 'word-memorization') return '释义'
+  if (isVocabSource(source.value)) return '释义'
   if (source.value === 'char-literacy') return '答案'
   if (source.value === 'poetry-practice') return '要点'
+  if (isReadingSource(source.value)) return '答案'
   return '答案'
 }
 
+function rowPassage(row: StoredRow): string {
+  return 'passage' in row && typeof row.passage === 'string' ? row.passage.trim() : ''
+}
+
 function loadRows() {
-  if (source.value === 'word-memorization') {
+  const readingMode = readingSubModeFromKeySource(source.value)
+  if (source.value === 'idiom-memorization') {
     wrongRows.value = listChineseWrongRecords()
     favoriteRows.value = listChineseFavoriteRecords()
+  } else if (source.value === 'word-memorization') {
+    wrongRows.value = listChineseWordMemorizationWrongRecords()
+    favoriteRows.value = listChineseWordMemorizationFavoriteRecords()
   } else if (source.value === 'char-literacy') {
     wrongRows.value = listChineseCharLiteracyWrongRecords()
     favoriteRows.value = listChineseCharLiteracyFavoriteRecords()
   } else if (source.value === 'poetry-practice') {
     wrongRows.value = listChinesePoetryWrongRecords()
     favoriteRows.value = listChinesePoetryFavoriteRecords()
+  } else if (source.value === 'classical-chinese') {
+    wrongRows.value = listChineseClassicalChineseWrongRecords()
+    favoriteRows.value = listChineseClassicalChineseFavoriteRecords()
+  } else if (source.value === 'rhetoric-usage') {
+    wrongRows.value = listChineseRhetoricUsageWrongRecords()
+    favoriteRows.value = listChineseRhetoricUsageFavoriteRecords()
+  } else if (readingMode) {
+    wrongRows.value = listChineseReadingComprehensionWrongRecords(readingMode)
+    favoriteRows.value = listChineseReadingComprehensionFavoriteRecords(readingMode)
   } else if (source.value === 'history-common-sense') {
     wrongRows.value = listChineseHistoryCommonSenseWrongRecords()
     favoriteRows.value = listChineseHistoryCommonSenseFavoriteRecords()
   } else if (source.value === 'party-history') {
     wrongRows.value = listChinesePartyHistoryWrongRecords()
     favoriteRows.value = listChinesePartyHistoryFavoriteRecords()
+  } else if (source.value === 'theory-policy') {
+    wrongRows.value = listChineseTheoryPolicyWrongRecords()
+    favoriteRows.value = listChineseTheoryPolicyFavoriteRecords()
+  } else if (source.value === 'legal-common-sense') {
+    wrongRows.value = listChineseLegalCommonSenseWrongRecords()
+    favoriteRows.value = listChineseLegalCommonSenseFavoriteRecords()
+  } else if (source.value === 'economy-common-sense') {
+    wrongRows.value = listChineseEconomyCommonSenseWrongRecords()
+    favoriteRows.value = listChineseEconomyCommonSenseFavoriteRecords()
   } else {
     wrongRows.value = listChineseCommonSenseWrongRecords()
     favoriteRows.value = listChineseCommonSenseFavoriteRecords()
@@ -256,10 +416,21 @@ function onPractice() {
     ElMessage.warning('请先勾选题目')
     return
   }
-  if (source.value === 'word-memorization') {
+  const readingMode = readingSubModeFromKeySource(source.value)
+  if (source.value === 'idiom-memorization') {
+    emit('practice', {
+      source: 'idiom-memorization',
+      questions: rows.map((r, i) => storedToQuestion(r as StoredIdiomRecord | StoredFavoriteRecord, i + 1)),
+    })
+  } else if (source.value === 'word-memorization') {
     emit('practice', {
       source: 'word-memorization',
-      questions: rows.map((r, i) => storedToQuestion(r as StoredIdiomRecord | StoredFavoriteRecord, i + 1)),
+      questions: rows.map((r, i) =>
+        storedWordMemorizationToQuestion(
+          r as StoredWordMemorizationRecord | StoredWordMemorizationFavoriteRecord,
+          i + 1,
+        ),
+      ),
     })
   } else if (source.value === 'char-literacy') {
     emit('practice', {
@@ -273,6 +444,36 @@ function onPractice() {
       source: 'poetry-practice',
       questions: rows.map((r, i) =>
         storedPoetryToQuestion(r as StoredPoetryRecord | StoredPoetryFavoriteRecord, i + 1),
+      ),
+    })
+  } else if (source.value === 'classical-chinese') {
+    emit('practice', {
+      source: 'classical-chinese',
+      questions: rows.map((r, i) =>
+        storedClassicalChineseToQuestion(
+          r as StoredClassicalChineseRecord | StoredClassicalChineseFavoriteRecord,
+          i + 1,
+        ),
+      ),
+    })
+  } else if (source.value === 'rhetoric-usage') {
+    emit('practice', {
+      source: 'rhetoric-usage',
+      questions: rows.map((r, i) =>
+        storedRhetoricUsageToQuestion(
+          r as StoredRhetoricUsageRecord | StoredRhetoricUsageFavoriteRecord,
+          i + 1,
+        ),
+      ),
+    })
+  } else if (readingMode) {
+    emit('practice', {
+      source: source.value as ChineseReadingKeySource,
+      questions: rows.map((r, i) =>
+        storedReadingComprehensionToQuestion(
+          r as StoredReadingComprehensionRecord | StoredReadingComprehensionFavoriteRecord,
+          i + 1,
+        ),
       ),
     })
   } else if (source.value === 'history-common-sense') {
@@ -292,6 +493,36 @@ function onPractice() {
         storedPartyHistoryToQuestion(r as StoredPartyHistoryRecord | StoredPartyHistoryFavoriteRecord, i + 1),
       ),
     })
+  } else if (source.value === 'theory-policy') {
+    emit('practice', {
+      source: 'theory-policy',
+      questions: rows.map((r, i) =>
+        storedTheoryPolicyToQuestion(
+          r as StoredTheoryPolicyRecord | StoredTheoryPolicyFavoriteRecord,
+          i + 1,
+        ),
+      ),
+    })
+  } else if (source.value === 'legal-common-sense') {
+    emit('practice', {
+      source: 'legal-common-sense',
+      questions: rows.map((r, i) =>
+        storedLegalCommonSenseToQuestion(
+          r as StoredLegalCommonSenseRecord | StoredLegalCommonSenseFavoriteRecord,
+          i + 1,
+        ),
+      ),
+    })
+  } else if (source.value === 'economy-common-sense') {
+    emit('practice', {
+      source: 'economy-common-sense',
+      questions: rows.map((r, i) =>
+        storedEconomyCommonSenseToQuestion(
+          r as StoredEconomyCommonSenseRecord | StoredEconomyCommonSenseFavoriteRecord,
+          i + 1,
+        ),
+      ),
+    })
   } else {
     emit('practice', {
       source: 'common-sense',
@@ -303,21 +534,43 @@ function onPractice() {
 }
 
 function onRemove(fp: string) {
-  if (source.value === 'word-memorization') {
+  const readingMode = readingSubModeFromKeySource(source.value)
+  if (source.value === 'idiom-memorization') {
     if (keyTab.value === 'wrong') removeChineseWrong(fp)
     else removeChineseFavorite(fp)
+  } else if (source.value === 'word-memorization') {
+    if (keyTab.value === 'wrong') removeChineseWordMemorizationWrong(fp)
+    else removeChineseWordMemorizationFavorite(fp)
   } else if (source.value === 'char-literacy') {
     if (keyTab.value === 'wrong') removeChineseCharLiteracyWrong(fp)
     else removeChineseCharLiteracyFavorite(fp)
   } else if (source.value === 'poetry-practice') {
     if (keyTab.value === 'wrong') removeChinesePoetryWrong(fp)
     else removeChinesePoetryFavorite(fp)
+  } else if (source.value === 'classical-chinese') {
+    if (keyTab.value === 'wrong') removeChineseClassicalChineseWrong(fp)
+    else removeChineseClassicalChineseFavorite(fp)
+  } else if (source.value === 'rhetoric-usage') {
+    if (keyTab.value === 'wrong') removeChineseRhetoricUsageWrong(fp)
+    else removeChineseRhetoricUsageFavorite(fp)
+  } else if (readingMode) {
+    if (keyTab.value === 'wrong') removeChineseReadingComprehensionWrong(fp)
+    else removeChineseReadingComprehensionFavorite(fp)
   } else if (source.value === 'history-common-sense') {
     if (keyTab.value === 'wrong') removeChineseHistoryCommonSenseWrong(fp)
     else removeChineseHistoryCommonSenseFavorite(fp)
   } else if (source.value === 'party-history') {
     if (keyTab.value === 'wrong') removeChinesePartyHistoryWrong(fp)
     else removeChinesePartyHistoryFavorite(fp)
+  } else if (source.value === 'theory-policy') {
+    if (keyTab.value === 'wrong') removeChineseTheoryPolicyWrong(fp)
+    else removeChineseTheoryPolicyFavorite(fp)
+  } else if (source.value === 'legal-common-sense') {
+    if (keyTab.value === 'wrong') removeChineseLegalCommonSenseWrong(fp)
+    else removeChineseLegalCommonSenseFavorite(fp)
+  } else if (source.value === 'economy-common-sense') {
+    if (keyTab.value === 'wrong') removeChineseEconomyCommonSenseWrong(fp)
+    else removeChineseEconomyCommonSenseFavorite(fp)
   } else if (keyTab.value === 'wrong') {
     removeChineseCommonSenseWrong(fp)
   } else {
@@ -442,11 +695,17 @@ defineExpose({ refresh })
             <p class="chinese-key__detail-line">
               <strong>{{ termDetailLabel() }}：</strong>{{ row.term }}
             </p>
+            <p
+              v-if="isReadingSource(source) && rowPassage(row)"
+              class="chinese-key__detail-line chinese-key__detail-passage"
+            >
+              <strong>原文：</strong>{{ rowPassage(row) }}
+            </p>
             <p class="chinese-key__detail-line">
               <strong>{{ hintDetailLabel() }}：</strong>{{ storedMeaningHint(row) }}
             </p>
             <p
-              v-if="source === 'word-memorization' && row.questionType === 'word-to-meaning'"
+              v-if="isVocabSource(source) && row.questionType === 'word-to-meaning'"
               class="chinese-key__detail-line"
             >
               <strong>正确选项：</strong>{{ storedCorrectLabel(row) }}
@@ -652,6 +911,17 @@ defineExpose({ refresh })
 
 .chinese-key__detail-line:last-child {
   margin-bottom: 0;
+}
+
+.chinese-key__detail-passage {
+  max-height: 7.5em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  white-space: pre-line;
+  color: var(--app-text-muted);
 }
 
 .chinese-key__detail-options {

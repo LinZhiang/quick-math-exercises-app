@@ -4,19 +4,41 @@ export const CHINESE_GENERATED_HISTORY_LIMIT = 90
 
 export type ChineseGeneratedHistoryKind =
   | 'idiom'
+  | 'word-memorization'
   | 'poetry'
   | 'common-sense'
   | 'char-literacy'
+  | 'classical-chinese'
+  | 'rhetoric-usage'
+  | 'reading-main-idea'
+  | 'reading-detail'
+  | 'reading-word-sentence'
+  | 'reading-infer-next'
+  | 'reading-title'
   | 'history-common-sense'
   | 'party-history'
+  | 'theory-policy'
+  | 'legal-common-sense'
+  | 'economy-common-sense'
 
 const STORAGE_KEYS: Record<ChineseGeneratedHistoryKind, string> = {
   idiom: 'chinese-generated-history-idiom-v1',
+  'word-memorization': 'chinese-generated-history-word-memorization-v1',
   poetry: 'chinese-generated-history-poetry-v1',
   'common-sense': 'chinese-generated-history-common-sense-v1',
   'char-literacy': 'chinese-generated-history-char-literacy-v1',
+  'classical-chinese': 'chinese-generated-history-classical-chinese-v1',
+  'rhetoric-usage': 'chinese-generated-history-rhetoric-usage-v1',
+  'reading-main-idea': 'chinese-generated-history-reading-main-idea-v1',
+  'reading-detail': 'chinese-generated-history-reading-detail-v1',
+  'reading-word-sentence': 'chinese-generated-history-reading-word-sentence-v1',
+  'reading-infer-next': 'chinese-generated-history-reading-infer-next-v1',
+  'reading-title': 'chinese-generated-history-reading-title-v1',
   'history-common-sense': 'chinese-generated-history-history-common-sense-v1',
   'party-history': 'chinese-generated-history-party-history-v1',
+  'theory-policy': 'chinese-generated-history-theory-policy-v1',
+  'legal-common-sense': 'chinese-generated-history-legal-common-sense-v1',
+  'economy-common-sense': 'chinese-generated-history-economy-common-sense-v1',
 }
 
 function normalizeTerm(term: string): string {

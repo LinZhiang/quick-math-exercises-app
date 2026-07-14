@@ -5,6 +5,7 @@ export type PracticeHubSectionId =
   | 'power'
   | 'square-cube'
   | 'fraction'
+  | 'divisibility'
   | 'twentyfour'
   | 'sudoku'
   | 'graphic'
@@ -23,6 +24,7 @@ export const PRACTICE_HUB_SECTIONS: PracticeHubSection[] = [
   { id: 'power', title: '2 的 n 次幂' },
   { id: 'square-cube', title: '平方与立方' },
   { id: 'fraction', title: '估算分数' },
+  { id: 'divisibility', title: '整除及其性质' },
   { id: 'twentyfour', title: '二十四点' },
   { id: 'sudoku', title: '数独' },
   { id: 'graphic', title: '图形推理' },

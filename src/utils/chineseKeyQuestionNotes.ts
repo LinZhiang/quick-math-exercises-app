@@ -30,11 +30,21 @@ function writeNotes(map: NotesMap) {
   chinesePracticeDataTick.value += 1
 }
 
-/** 默认无备注，返回空字符串 */
+/**
+ * 默认无备注，返回空字符串。
+ * 成语识记旧版来源 id 为 word-memorization，读取时兼容旧 key。
+ */
 export function getKeyQuestionNote(source: ChineseKeyQuestionSource, fingerprint: string): string {
-  return readNotes()[noteKey(source, fingerprint)] ?? ''
+  const map = readNotes()
+  const direct = map[noteKey(source, fingerprint)]
+  if (direct) return direct
+  if (source === 'idiom-memorization') {
+    return map[noteKey('word-memorization', fingerprint)] ?? ''
+  }
+  return ''
 }
 
+/** 按当前 source 写入；成语识记写入 idiom-memorization key（清空时同步删掉旧 word-memorization key） */
 export function setKeyQuestionNote(
   source: ChineseKeyQuestionSource,
   fingerprint: string,
@@ -43,7 +53,14 @@ export function setKeyQuestionNote(
   const map = readNotes()
   const key = noteKey(source, fingerprint)
   const trimmed = note.trim()
-  if (!trimmed) delete map[key]
-  else map[key] = trimmed
+  if (!trimmed) {
+    delete map[key]
+    // 避免 get 时仍从旧 key 回落读出
+    if (source === 'idiom-memorization') {
+      delete map[noteKey('word-memorization', fingerprint)]
+    }
+  } else {
+    map[key] = trimmed
+  }
   writeNotes(map)
 }

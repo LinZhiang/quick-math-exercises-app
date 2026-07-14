@@ -1,21 +1,21 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { useChinesePartyHistoryTest } from '@/composables/useChinesePartyHistoryTest'
+import { useChineseRhetoricUsageTest } from '@/composables/useChineseRhetoricUsageTest'
 import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
 import {
-  isChinesePartyHistoryFavorite,
-  toggleChinesePartyHistoryFavorite,
-} from '@/utils/chinesePartyHistoryStorage'
-import { partyHistoryQuestionTypeLabel } from '@/utils/partyHistoryPractice'
-import type { PartyHistoryQuestion } from '@/utils/partyHistoryPractice'
+  isChineseRhetoricUsageFavorite,
+  toggleChineseRhetoricUsageFavorite,
+} from '@/utils/chineseRhetoricUsageStorage'
+import { rhetoricUsageQuestionTypeLabel } from '@/utils/rhetoricUsagePractice'
+import type { RhetoricUsageQuestion } from '@/utils/rhetoricUsagePractice'
 
-const PARTY_ASSIST_SYSTEM =
-  '你是事业编与公务员考试常识判断「中共党史」教练，擅长重要会议内容与意义、事件、人物贡献、路线方针辨析，时间节点仅作辅助。用简体中文讲解，表述客观准确，回答要具体。'
+const RHETORIC_ASSIST_SYSTEM =
+  '你是事业编与公务员考试「修辞运用」教练，擅长比喻、比拟、借代、夸张、对偶、排比、设问、反问等辨识与表达效果。用简体中文讲解，结合例句与易混辨析，回答要具体。'
 
-const test = useChinesePartyHistoryTest()
+const test = useChineseRhetoricUsageTest()
 const favorited = ref(false)
 const regenerating = ref(false)
 const followupInput = ref('')
@@ -40,20 +40,20 @@ const isRunningOrLoading = computed(
 
 defineExpose({
   isRunningOrLoading,
-  startWith(questions: PartyHistoryQuestion[]) {
+  startWith(questions: RhetoricUsageQuestion[]) {
     test.resetToIdle()
     test.startQuiz(questions)
   },
 })
 
-function buildAssistPrompt(q: PartyHistoryQuestion): string {
+function buildAssistPrompt(q: RhetoricUsageQuestion): string {
   const row = test.results[test.results.length - 1]
   const opts = q.options.map((o, i) => `${i + 1}. ${o}`).join('\n')
   const chosen =
     row?.chosenIndex != null ? String(q.options[row.chosenIndex] ?? '') : '（未选）'
   const correct = q.options[q.correctIndex] ?? ''
   return [
-    `题型：${partyHistoryQuestionTypeLabel(q.questionType)}`,
+    `题型：${rhetoricUsageQuestionTypeLabel(q.questionType)}`,
     `知识点：${q.term}`,
     `题干：${q.stem}`,
     `选项：\n${opts}`,
@@ -61,7 +61,7 @@ function buildAssistPrompt(q: PartyHistoryQuestion): string {
     `正确答案：${correct}`,
     `作答结果：${row?.correct ? '正确' : '错误'}`,
     q.explanation ? `题目解析：${q.explanation}` : '',
-    '请讲解本题党史背景、会议/事件意义或人物贡献、易混考点及记忆方法；若涉及时点再补充年份。',
+    '请讲解本题修辞辨识依据、表达效果及易混修辞对比。',
   ]
     .filter(Boolean)
     .join('\n\n')
@@ -74,11 +74,11 @@ async function runAssistExplain() {
   try {
     await startAssist({
       initialUser: userMsg,
-      displayUser: '请讲解本题中共党史',
-      system: PARTY_ASSIST_SYSTEM,
+      displayUser: '请讲解本题修辞运用',
+      system: RHETORIC_ASSIST_SYSTEM,
       fetch: () =>
         requestAssistantMarkdown({
-          system: PARTY_ASSIST_SYSTEM,
+          system: RHETORIC_ASSIST_SYSTEM,
           userMessage: userMsg,
         }),
     })
@@ -101,7 +101,7 @@ async function onSendFollowup() {
 watch(
   () => test.currentQuestion?.fingerprint,
   (fp) => {
-    favorited.value = fp ? isChinesePartyHistoryFavorite(fp) : false
+    favorited.value = fp ? isChineseRhetoricUsageFavorite(fp) : false
   },
 )
 
@@ -125,7 +125,7 @@ async function onRegenerate() {
 async function onToggleFavorite() {
   const q = test.currentQuestion
   if (!q) return
-  const r = toggleChinesePartyHistoryFavorite(q)
+  const r = toggleChineseRhetoricUsageFavorite(q)
   favorited.value = r === 'added'
   ElMessage.success(r === 'added' ? '已加入关键题收藏' : '已取消收藏')
 }
@@ -147,8 +147,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   <div class="chinese-idiom-panel">
     <template v-if="test.phase === 'idle' || test.phase === 'loading'">
       <p class="mode-section__hint">
-        针对公务员、事业单位「常识判断」高频中共党史考点：以重要会议内容与意义、事件、人物贡献、路线方针为主，时间节点从少，
-        每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停并公布答案，点「下一题」继续。
+        公考/事业编修辞高频：比喻、比拟、借代、夸张、对偶、排比、设问、反问等辨识与表达效果，四选一。
+        每轮 {{ test.questionCount }} 题。正计时，提交后暂停并公布答案，点「下一题」继续。
       </p>
       <div class="chinese-setup">
         <el-button
@@ -184,7 +184,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           v-else-if="test.paperSource === 'review'"
           class="chinese-quiz__badge chinese-quiz__badge--review"
         >复习题</span>
-        <span v-if="test.currentQuestion">{{ partyHistoryQuestionTypeLabel(test.currentQuestion.questionType) }}</span>
+        <span v-if="test.currentQuestion">{{ rhetoricUsageQuestionTypeLabel(test.currentQuestion.questionType) }}</span>
         <span class="chinese-quiz__timer" :class="{ 'is-paused': test.quizTimerPaused }">
           {{ test.quizRunningElapsedText }}
         </span>
@@ -275,7 +275,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
               v-model="followupInput"
               type="textarea"
               :rows="2"
-              placeholder="继续追问，例如：遵义会议和洛川会议有什么区别？"
+              placeholder="继续追问，例如：比喻和比拟怎么区分？"
               @keydown.enter.exact.prevent="onSendFollowup"
             />
             <el-button
@@ -536,4 +536,3 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   border-bottom: none;
 }
 </style>
-

@@ -3,36 +3,60 @@ import { computed, nextTick, ref } from 'vue'
 import {
   CHINESE_PRACTICE_TABS,
   DEFAULT_CHINESE_PRACTICE_TAB,
+  readingSubModeFromKeySource,
   type ChineseKeyQuestionSource,
   type ChinesePracticeTabId,
 } from '@/constants/chinese-practice-tabs'
 import type { KeyPracticePayload } from '@/types/chinese-practice'
 import ChineseCharLiteracyPanel from '@/views/tools/chinese-practice/ChineseCharLiteracyPanel.vue'
+import ChineseClassicalChinesePanel from '@/views/tools/chinese-practice/ChineseClassicalChinesePanel.vue'
 import ChineseCommonSensePanel from '@/views/tools/chinese-practice/ChineseCommonSensePanel.vue'
+import ChineseEconomyCommonSensePanel from '@/views/tools/chinese-practice/ChineseEconomyCommonSensePanel.vue'
 import ChineseHistoryCommonSensePanel from '@/views/tools/chinese-practice/ChineseHistoryCommonSensePanel.vue'
 import ChineseIdiomPanel from '@/views/tools/chinese-practice/ChineseIdiomPanel.vue'
 import ChineseKeyQuestionsPanel from '@/views/tools/chinese-practice/ChineseKeyQuestionsPanel.vue'
+import ChineseLegalCommonSensePanel from '@/views/tools/chinese-practice/ChineseLegalCommonSensePanel.vue'
 import ChinesePartyHistoryPanel from '@/views/tools/chinese-practice/ChinesePartyHistoryPanel.vue'
 import ChinesePoetryPanel from '@/views/tools/chinese-practice/ChinesePoetryPanel.vue'
+import ChineseReadingComprehensionPanel from '@/views/tools/chinese-practice/ChineseReadingComprehensionPanel.vue'
+import ChineseRhetoricUsagePanel from '@/views/tools/chinese-practice/ChineseRhetoricUsagePanel.vue'
+import ChineseTheoryPolicyPanel from '@/views/tools/chinese-practice/ChineseTheoryPolicyPanel.vue'
+import ChineseWordMemorizationPanel from '@/views/tools/chinese-practice/ChineseWordMemorizationPanel.vue'
 
 export type { KeyPracticePayload } from '@/types/chinese-practice'
 
 const activeTab = ref<ChinesePracticeTabId>(DEFAULT_CHINESE_PRACTICE_TAB)
 const idiomRef = ref<InstanceType<typeof ChineseIdiomPanel> | null>(null)
+const wordMemorizationRef = ref<InstanceType<typeof ChineseWordMemorizationPanel> | null>(null)
 const charLiteracyRef = ref<InstanceType<typeof ChineseCharLiteracyPanel> | null>(null)
 const poetryRef = ref<InstanceType<typeof ChinesePoetryPanel> | null>(null)
+const classicalChineseRef = ref<InstanceType<typeof ChineseClassicalChinesePanel> | null>(null)
+const rhetoricUsageRef = ref<InstanceType<typeof ChineseRhetoricUsagePanel> | null>(null)
+const readingComprehensionRef = ref<InstanceType<typeof ChineseReadingComprehensionPanel> | null>(
+  null,
+)
 const commonSenseRef = ref<InstanceType<typeof ChineseCommonSensePanel> | null>(null)
 const historyCommonSenseRef = ref<InstanceType<typeof ChineseHistoryCommonSensePanel> | null>(null)
 const partyHistoryRef = ref<InstanceType<typeof ChinesePartyHistoryPanel> | null>(null)
+const theoryPolicyRef = ref<InstanceType<typeof ChineseTheoryPolicyPanel> | null>(null)
+const legalCommonSenseRef = ref<InstanceType<typeof ChineseLegalCommonSensePanel> | null>(null)
+const economyCommonSenseRef = ref<InstanceType<typeof ChineseEconomyCommonSensePanel> | null>(null)
 
 const isRunningOrLoading = computed(
   () =>
     idiomRef.value?.isRunningOrLoading ||
+    wordMemorizationRef.value?.isRunningOrLoading ||
     charLiteracyRef.value?.isRunningOrLoading ||
     poetryRef.value?.isRunningOrLoading ||
+    classicalChineseRef.value?.isRunningOrLoading ||
+    rhetoricUsageRef.value?.isRunningOrLoading ||
+    readingComprehensionRef.value?.isRunningOrLoading ||
     commonSenseRef.value?.isRunningOrLoading ||
     historyCommonSenseRef.value?.isRunningOrLoading ||
     partyHistoryRef.value?.isRunningOrLoading ||
+    theoryPolicyRef.value?.isRunningOrLoading ||
+    legalCommonSenseRef.value?.isRunningOrLoading ||
+    economyCommonSenseRef.value?.isRunningOrLoading ||
     false,
 )
 
@@ -42,20 +66,42 @@ function selectTab(id: ChinesePracticeTabId) {
 }
 
 function onKeyPractice(payload: KeyPracticePayload) {
-  activeTab.value = payload.source
+  const readingMode = readingSubModeFromKeySource(payload.source)
+  if (readingMode && payload.source.startsWith('reading-')) {
+    activeTab.value = 'reading-comprehension'
+    const questions = payload.questions as import('@/utils/readingComprehensionPractice').ReadingComprehensionQuestion[]
+    void nextTick(() => {
+      readingComprehensionRef.value?.startWith(questions, readingMode)
+    })
+    return
+  }
+
+  activeTab.value = payload.source as ChinesePracticeTabId
   void nextTick(() => {
-    if (payload.source === 'word-memorization') {
+    if (payload.source === 'idiom-memorization') {
       idiomRef.value?.startWith(payload.questions)
+    } else if (payload.source === 'word-memorization') {
+      wordMemorizationRef.value?.startWith(payload.questions)
     } else if (payload.source === 'char-literacy') {
       charLiteracyRef.value?.startWith(payload.questions)
     } else if (payload.source === 'poetry-practice') {
       poetryRef.value?.startWith(payload.questions)
+    } else if (payload.source === 'classical-chinese') {
+      classicalChineseRef.value?.startWith(payload.questions)
+    } else if (payload.source === 'rhetoric-usage') {
+      rhetoricUsageRef.value?.startWith(payload.questions)
     } else if (payload.source === 'common-sense') {
       commonSenseRef.value?.startWith(payload.questions)
     } else if (payload.source === 'history-common-sense') {
       historyCommonSenseRef.value?.startWith(payload.questions)
-    } else {
+    } else if (payload.source === 'party-history') {
       partyHistoryRef.value?.startWith(payload.questions)
+    } else if (payload.source === 'theory-policy') {
+      theoryPolicyRef.value?.startWith(payload.questions)
+    } else if (payload.source === 'legal-common-sense') {
+      legalCommonSenseRef.value?.startWith(payload.questions)
+    } else if (payload.source === 'economy-common-sense') {
+      economyCommonSenseRef.value?.startWith(payload.questions)
     }
   })
 }
@@ -85,8 +131,12 @@ defineExpose({
     </nav>
 
     <ChineseIdiomPanel
-      v-show="activeTab === 'word-memorization'"
+      v-show="activeTab === 'idiom-memorization'"
       ref="idiomRef"
+    />
+    <ChineseWordMemorizationPanel
+      v-show="activeTab === 'word-memorization'"
+      ref="wordMemorizationRef"
     />
     <ChineseCharLiteracyPanel
       v-show="activeTab === 'char-literacy'"
@@ -95,6 +145,18 @@ defineExpose({
     <ChinesePoetryPanel
       v-show="activeTab === 'poetry-practice'"
       ref="poetryRef"
+    />
+    <ChineseClassicalChinesePanel
+      v-show="activeTab === 'classical-chinese'"
+      ref="classicalChineseRef"
+    />
+    <ChineseRhetoricUsagePanel
+      v-show="activeTab === 'rhetoric-usage'"
+      ref="rhetoricUsageRef"
+    />
+    <ChineseReadingComprehensionPanel
+      v-show="activeTab === 'reading-comprehension'"
+      ref="readingComprehensionRef"
     />
     <ChineseCommonSensePanel
       v-show="activeTab === 'common-sense'"
@@ -107,6 +169,18 @@ defineExpose({
     <ChinesePartyHistoryPanel
       v-show="activeTab === 'party-history'"
       ref="partyHistoryRef"
+    />
+    <ChineseTheoryPolicyPanel
+      v-show="activeTab === 'theory-policy'"
+      ref="theoryPolicyRef"
+    />
+    <ChineseLegalCommonSensePanel
+      v-show="activeTab === 'legal-common-sense'"
+      ref="legalCommonSenseRef"
+    />
+    <ChineseEconomyCommonSensePanel
+      v-show="activeTab === 'economy-common-sense'"
+      ref="economyCommonSenseRef"
     />
     <ChineseKeyQuestionsPanel
       v-show="activeTab === 'key-questions'"
