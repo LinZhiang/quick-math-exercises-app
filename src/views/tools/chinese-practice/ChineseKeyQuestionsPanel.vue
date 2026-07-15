@@ -29,14 +29,17 @@ import {
   removeChineseClassicalChineseWrong,
   storedClassicalChineseToQuestion,
 } from '@/utils/chineseClassicalChineseStorage'
-import type { StoredCommonSenseFavoriteRecord, StoredCommonSenseRecord } from '@/utils/chineseCommonSenseStorage'
+import type {
+  StoredGeographyCommonSenseFavoriteRecord,
+  StoredGeographyCommonSenseRecord,
+} from '@/utils/chineseGeographyCommonSenseStorage'
 import {
-  listChineseCommonSenseFavoriteRecords,
-  listChineseCommonSenseWrongRecords,
-  removeChineseCommonSenseFavorite,
-  removeChineseCommonSenseWrong,
-  storedCommonSenseToQuestion,
-} from '@/utils/chineseCommonSenseStorage'
+  listChineseGeographyCommonSenseFavoriteRecords,
+  listChineseGeographyCommonSenseWrongRecords,
+  removeChineseGeographyCommonSenseFavorite,
+  removeChineseGeographyCommonSenseWrong,
+  storedGeographyCommonSenseToQuestion,
+} from '@/utils/chineseGeographyCommonSenseStorage'
 import type {
   StoredEconomyCommonSenseFavoriteRecord,
   StoredEconomyCommonSenseRecord,
@@ -80,6 +83,17 @@ import {
   removeChineseLegalCommonSenseWrong,
   storedLegalCommonSenseToQuestion,
 } from '@/utils/chineseLegalCommonSenseStorage'
+import type {
+  StoredLifeCommonSenseFavoriteRecord,
+  StoredLifeCommonSenseRecord,
+} from '@/utils/chineseLifeCommonSenseStorage'
+import {
+  listChineseLifeCommonSenseFavoriteRecords,
+  listChineseLifeCommonSenseWrongRecords,
+  removeChineseLifeCommonSenseFavorite,
+  removeChineseLifeCommonSenseWrong,
+  storedLifeCommonSenseToQuestion,
+} from '@/utils/chineseLifeCommonSenseStorage'
 import type {
   StoredPartyHistoryFavoriteRecord,
   StoredPartyHistoryRecord,
@@ -146,11 +160,12 @@ import {
 } from '@/utils/chineseWordMemorizationStorage'
 import { charLiteracyQuestionTypeLabel } from '@/utils/charLiteracyPractice'
 import { classicalChineseQuestionTypeLabel } from '@/utils/classicalChinesePractice'
-import { commonSenseQuestionTypeLabel } from '@/utils/commonSensePractice'
 import { economyCommonSenseQuestionTypeLabel } from '@/utils/economyCommonSensePractice'
+import { geographyCommonSenseQuestionTypeLabel } from '@/utils/geographyCommonSensePractice'
 import { historyCommonSenseQuestionTypeLabel } from '@/utils/historyCommonSensePractice'
 import { idiomQuestionTypeLabel } from '@/utils/idiomRecognitionPractice'
 import { legalCommonSenseQuestionTypeLabel } from '@/utils/legalCommonSensePractice'
+import { lifeCommonSenseQuestionTypeLabel } from '@/utils/lifeCommonSensePractice'
 import { partyHistoryQuestionTypeLabel } from '@/utils/partyHistoryPractice'
 import { poetryQuestionTypeLabel } from '@/utils/poetryRecognitionPractice'
 import {
@@ -180,8 +195,6 @@ type StoredRow =
   | StoredRhetoricUsageFavoriteRecord
   | StoredReadingComprehensionRecord
   | StoredReadingComprehensionFavoriteRecord
-  | StoredCommonSenseRecord
-  | StoredCommonSenseFavoriteRecord
   | StoredHistoryCommonSenseRecord
   | StoredHistoryCommonSenseFavoriteRecord
   | StoredPartyHistoryRecord
@@ -192,6 +205,10 @@ type StoredRow =
   | StoredLegalCommonSenseFavoriteRecord
   | StoredEconomyCommonSenseRecord
   | StoredEconomyCommonSenseFavoriteRecord
+  | StoredLifeCommonSenseRecord
+  | StoredLifeCommonSenseFavoriteRecord
+  | StoredGeographyCommonSenseRecord
+  | StoredGeographyCommonSenseFavoriteRecord
 
 const props = withDefaults(
   defineProps<{
@@ -264,7 +281,13 @@ function typeLabel(row: StoredRow): string {
   if (source.value === 'economy-common-sense') {
     return economyCommonSenseQuestionTypeLabel('general')
   }
-  return commonSenseQuestionTypeLabel('general')
+  if (source.value === 'life-common-sense') {
+    return lifeCommonSenseQuestionTypeLabel('general')
+  }
+  if (source.value === 'geography-common-sense') {
+    return geographyCommonSenseQuestionTypeLabel('general')
+  }
+  return '练习'
 }
 
 function storedCorrectLabel(row: StoredRow): string {
@@ -339,9 +362,15 @@ function loadRows() {
   } else if (source.value === 'economy-common-sense') {
     wrongRows.value = listChineseEconomyCommonSenseWrongRecords()
     favoriteRows.value = listChineseEconomyCommonSenseFavoriteRecords()
+  } else if (source.value === 'life-common-sense') {
+    wrongRows.value = listChineseLifeCommonSenseWrongRecords()
+    favoriteRows.value = listChineseLifeCommonSenseFavoriteRecords()
+  } else if (source.value === 'geography-common-sense') {
+    wrongRows.value = listChineseGeographyCommonSenseWrongRecords()
+    favoriteRows.value = listChineseGeographyCommonSenseFavoriteRecords()
   } else {
-    wrongRows.value = listChineseCommonSenseWrongRecords()
-    favoriteRows.value = listChineseCommonSenseFavoriteRecords()
+    wrongRows.value = []
+    favoriteRows.value = []
   }
 }
 
@@ -496,9 +525,23 @@ function buildOriginalQuestions(rows: StoredRow[]): KeyPracticePayload['question
       ),
     )
   }
-  return rows.map((r, i) =>
-    storedCommonSenseToQuestion(r as StoredCommonSenseRecord | StoredCommonSenseFavoriteRecord, i + 1),
-  )
+  if (source.value === 'life-common-sense') {
+    return rows.map((r, i) =>
+      storedLifeCommonSenseToQuestion(
+        r as StoredLifeCommonSenseRecord | StoredLifeCommonSenseFavoriteRecord,
+        i + 1,
+      ),
+    )
+  }
+  if (source.value === 'geography-common-sense') {
+    return rows.map((r, i) =>
+      storedGeographyCommonSenseToQuestion(
+        r as StoredGeographyCommonSenseRecord | StoredGeographyCommonSenseFavoriteRecord,
+        i + 1,
+      ),
+    )
+  }
+  return []
 }
 
 async function onPractice() {
@@ -509,19 +552,22 @@ async function onPractice() {
     return
   }
   const originals = buildOriginalQuestions(rows)
+  const originFingerprints = originals.map((q) => q.fingerprint)
   let questions: KeyPracticePayload['questions'] = originals
   if (isAiChatConfigured()) {
     variantLoading.value = true
     variantProgress.value = '正在准备变式题…'
     try {
-      questions = (await buildKeyPracticeQuestionsWithVariants(
+      const built = await buildKeyPracticeQuestionsWithVariants(
         source.value,
         originals,
         (msg) => {
           variantProgress.value = msg
         },
-      )) as KeyPracticePayload['questions']
-      const variantCount = questions.filter((q, i) => q.fingerprint !== originals[i]?.fingerprint).length
+      )
+      questions = built.questions as KeyPracticePayload['questions']
+      const variantCount = questions.filter((q, i) => q.fingerprint !== originals[i]?.fingerprint)
+        .length
       if (variantCount > 0) {
         ElMessage.success(`已生成 ${variantCount}/${originals.length} 道变式，失败题已用原题`)
       } else {
@@ -535,7 +581,15 @@ async function onPractice() {
       variantProgress.value = ''
     }
   }
-  emit('practice', { source: source.value, questions } as KeyPracticePayload)
+  emit('practice', {
+    source: source.value,
+    questions,
+    keyReview: {
+      source: source.value,
+      bank: keyTab.value,
+      originFingerprints,
+    },
+  } as KeyPracticePayload)
 }
 
 function onRemove(fp: string) {
@@ -576,10 +630,12 @@ function onRemove(fp: string) {
   } else if (source.value === 'economy-common-sense') {
     if (keyTab.value === 'wrong') removeChineseEconomyCommonSenseWrong(fp)
     else removeChineseEconomyCommonSenseFavorite(fp)
-  } else if (keyTab.value === 'wrong') {
-    removeChineseCommonSenseWrong(fp)
-  } else {
-    removeChineseCommonSenseFavorite(fp)
+  } else if (source.value === 'life-common-sense') {
+    if (keyTab.value === 'wrong') removeChineseLifeCommonSenseWrong(fp)
+    else removeChineseLifeCommonSenseFavorite(fp)
+  } else if (source.value === 'geography-common-sense') {
+    if (keyTab.value === 'wrong') removeChineseGeographyCommonSenseWrong(fp)
+    else removeChineseGeographyCommonSenseFavorite(fp)
   }
   selected.value.delete(fp)
   refresh()
@@ -789,6 +845,9 @@ defineExpose({ refresh })
         练习所选（{{ selected.size }} 题）
       </el-button>
       <p v-if="variantProgress" class="chinese-key__variant-progress">{{ variantProgress }}</p>
+      <p class="chinese-key__variant-hint">
+        变式测验：答错不进错题本；答对后可删除对应的错题/收藏原题。
+      </p>
       <el-button plain @click="selectAll">全选</el-button>
     </div>
   </div>
@@ -1001,6 +1060,13 @@ defineExpose({ refresh })
   margin: 0;
   width: 100%;
   font-size: 13px;
+  color: var(--app-text-muted);
+}
+
+.chinese-key__variant-hint {
+  margin: 0;
+  width: 100%;
+  font-size: 12px;
   color: var(--app-text-muted);
 }
 </style>

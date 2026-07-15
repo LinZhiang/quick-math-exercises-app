@@ -3,21 +3,21 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ChineseKeyReviewMeta } from '@/utils/chineseKeyReviewSession'
 import { useChineseKeyReviewQuizUi } from '@/utils/chineseKeyReviewSession'
-import { useChineseCharLiteracyTest } from '@/composables/useChineseCharLiteracyTest'
+import { useChineseGeographyCommonSenseTest } from '@/composables/useChineseGeographyCommonSenseTest'
 import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
 import {
-  isChineseCharLiteracyFavorite,
-  toggleChineseCharLiteracyFavorite,
-} from '@/utils/chineseCharLiteracyStorage'
-import { charLiteracyQuestionTypeLabel } from '@/utils/charLiteracyPractice'
-import type { CharLiteracyQuestion } from '@/utils/charLiteracyPractice'
+  isChineseGeographyCommonSenseFavorite,
+  toggleChineseGeographyCommonSenseFavorite,
+} from '@/utils/chineseGeographyCommonSenseStorage'
+import { geographyCommonSenseQuestionTypeLabel } from '@/utils/geographyCommonSensePractice'
+import type { GeographyCommonSenseQuestion } from '@/utils/geographyCommonSensePractice'
 
-const CHAR_ASSIST_SYSTEM =
-  '你是事业编与公务员考试言语理解「字音字形」教练，擅长多音字、习惯性误读、形近字与音近错别字辨析。用简体中文讲解，点明正确读音/字形及易混原因，可给记忆口诀。回答要具体，避免空泛。'
+const GEOGRAPHY_ASSIST_SYSTEM =
+  '你是事业编联考 C 类「公共基础知识·地理常识」教练，擅长中国自然地理、人文地理、世界地理、地球与地图等高频易考点。讲解通俗浅显，紧扣高频考点，不要出模型推导或过难计算。用简体中文，回答要具体。'
 
-const test = useChineseCharLiteracyTest()
+const test = useChineseGeographyCommonSenseTest()
 
 const keyReviewUi = useChineseKeyReviewQuizUi(() => ({
   submitted: test.submitted,
@@ -48,28 +48,28 @@ const isRunningOrLoading = computed(
 
 defineExpose({
   isRunningOrLoading,
-  startWith(questions: CharLiteracyQuestion[], keyReview?: ChineseKeyReviewMeta) {
+  startWith(questions: GeographyCommonSenseQuestion[], keyReview?: ChineseKeyReviewMeta) {
     test.resetToIdle()
     test.startQuiz(questions, keyReview ? { keyReview } : undefined)
   },
 })
 
-function buildAssistPrompt(q: CharLiteracyQuestion): string {
+function buildAssistPrompt(q: GeographyCommonSenseQuestion): string {
   const row = test.results[test.results.length - 1]
   const opts = q.options.map((o, i) => `${i + 1}. ${o}`).join('\n')
   const chosen =
     row?.chosenIndex != null ? String(q.options[row.chosenIndex] ?? '') : '（未选）'
   const correct = q.options[q.correctIndex] ?? ''
   return [
-    `题型：${charLiteracyQuestionTypeLabel(q.questionType)}`,
-    `考点：${q.term}`,
+    `题型：${geographyCommonSenseQuestionTypeLabel(q.questionType)}`,
+    `知识点：${q.term}`,
     `题干：${q.stem}`,
     `选项：\n${opts}`,
     `学员选择：${chosen}`,
     `正确答案：${correct}`,
     `作答结果：${row?.correct ? '正确' : '错误'}`,
     q.explanation ? `题目解析：${q.explanation}` : '',
-    '请讲解本题正确读音或正确字形，以及干扰项为何易错，并给出记忆要点。',
+    '请讲解本题地理依据、易混概念及记忆方法；难度按事业编公基常见考法即可。',
   ]
     .filter(Boolean)
     .join('\n\n')
@@ -82,11 +82,11 @@ async function runAssistExplain() {
   try {
     await startAssist({
       initialUser: userMsg,
-      displayUser: '请讲解本题字音字形',
-      system: CHAR_ASSIST_SYSTEM,
+      displayUser: '请讲解本题地理常识',
+      system: GEOGRAPHY_ASSIST_SYSTEM,
       fetch: () =>
         requestAssistantMarkdown({
-          system: CHAR_ASSIST_SYSTEM,
+          system: GEOGRAPHY_ASSIST_SYSTEM,
           userMessage: userMsg,
         }),
     })
@@ -109,7 +109,7 @@ async function onSendFollowup() {
 watch(
   () => test.currentQuestion?.fingerprint,
   (fp) => {
-    favorited.value = fp ? isChineseCharLiteracyFavorite(fp) : false
+    favorited.value = fp ? isChineseGeographyCommonSenseFavorite(fp) : false
   },
 )
 
@@ -133,7 +133,7 @@ async function onRegenerate() {
 async function onToggleFavorite() {
   const q = test.currentQuestion
   if (!q) return
-  const r = toggleChineseCharLiteracyFavorite(q)
+  const r = toggleChineseGeographyCommonSenseFavorite(q)
   favorited.value = r === 'added'
   ElMessage.success(r === 'added' ? '已加入关键题收藏' : '已取消收藏')
 }
@@ -155,8 +155,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   <div class="chinese-idiom-panel">
     <template v-if="test.phase === 'idle' || test.phase === 'loading'">
       <p class="mode-section__hint">
-        针对公务员、事业单位「言语理解」高频字音字形：易错读音、多音字、形近字与音近错别字，
-        干扰项偏强。每轮 {{ test.questionCount }} 题四选一，读音/错别字混合。正计时，提交后公布答案。
+        针对事业编联考 C 类「公共基础知识」地理常识高频考点：中国自然/人文地理、世界地理基础、地球与地图等，难度中等偏易，
+        每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停并公布答案，点「下一题」继续。
       </p>
       <div class="chinese-setup">
         <el-button
@@ -192,7 +192,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           v-else-if="test.paperSource === 'review'"
           class="chinese-quiz__badge chinese-quiz__badge--review"
         >复习题</span>
-        <span v-if="test.currentQuestion">{{ charLiteracyQuestionTypeLabel(test.currentQuestion.questionType) }}</span>
+        <span v-if="test.currentQuestion">{{ geographyCommonSenseQuestionTypeLabel(test.currentQuestion.questionType) }}</span>
         <span class="chinese-quiz__timer" :class="{ 'is-paused': test.quizTimerPaused }">
           {{ test.quizRunningElapsedText }}
         </span>
@@ -312,7 +312,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
               v-model="followupInput"
               type="textarea"
               :rows="2"
-              placeholder="继续追问，例如：和「再接再厉」怎么区分？"
+              placeholder="继续追问，例如：和「秦岭—淮河」怎么区分？"
               @keydown.enter.exact.prevent="onSendFollowup"
             />
             <el-button
@@ -588,3 +588,4 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   border-bottom: none;
 }
 </style>
+

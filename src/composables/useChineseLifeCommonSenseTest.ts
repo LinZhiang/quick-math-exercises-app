@@ -1,28 +1,34 @@
 import { ElMessage } from 'element-plus'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { isAiChatConfigured, requestCommonSenseMcqs } from '@/services/deepseek'
+import { isAiChatConfigured, requestLifeCommonSenseMcqs } from '@/services/deepseek'
 import {
   appendGeneratedTerms,
   listRecentGeneratedTerms,
 } from '@/utils/chineseGeneratedHistory'
-import { upsertChineseCommonSenseWrong } from '@/utils/chineseCommonSenseStorage'
+import { upsertChineseLifeCommonSenseWrong } from '@/utils/chineseLifeCommonSenseStorage'
 import { createChineseWrongBookGate } from '@/utils/chineseWrongBookGate'
+import {
+  beginChineseKeyReviewSession,
+  clearChineseKeyReviewSession,
+  isChineseKeyReviewActive,
+  type ChineseKeyReviewMeta,
+} from '@/utils/chineseKeyReviewSession'
 import { playMentalMathStartSound } from '@/utils/mentalMathSounds'
 import {
-  COMMON_SENSE_QUESTION_COUNT,
-  commonSenseQuestionTypeLabel,
-  type CommonSenseQuestion,
-} from '@/utils/commonSensePractice'
+  LIFE_COMMON_SENSE_QUESTION_COUNT,
+  lifeCommonSenseQuestionTypeLabel,
+  type LifeCommonSenseQuestion,
+} from '@/utils/lifeCommonSensePractice'
 import type { ChinesePaperSource } from '@/types/chinese-practice'
 
-export type ChineseCommonSensePhase = 'idle' | 'loading' | 'running' | 'summary'
+export type ChineseLifeCommonSensePhase = 'idle' | 'loading' | 'running' | 'summary'
 
-export type ChineseCommonSenseResultRow = {
+export type ChineseLifeCommonSenseResultRow = {
   unitIndex: number
   typeLabel: string
   title: string
   correct: boolean
-  question: CommonSenseQuestion
+  question: LifeCommonSenseQuestion
   chosenIndex: number | null
 }
 
@@ -34,15 +40,15 @@ function formatDuration(ms: number): string {
   return `${m} 分 ${s} 秒`
 }
 
-export function useChineseCommonSenseTest() {
-  const phase = ref<ChineseCommonSensePhase>('idle')
+export function useChineseLifeCommonSenseTest() {
+  const phase = ref<ChineseLifeCommonSensePhase>('idle')
   const loadingMessage = ref('')
-  const questions = ref<CommonSenseQuestion[]>([])
+  const questions = ref<LifeCommonSenseQuestion[]>([])
   const currentIndex = ref(0)
   const selectedIndex = ref<number | null>(null)
   const submitted = ref(false)
   const paperSource = ref<ChinesePaperSource>(null)
-  const results = ref<ChineseCommonSenseResultRow[]>([])
+  const results = ref<ChineseLifeCommonSenseResultRow[]>([])
   const quizElapsedMs = ref(0)
   const quizRunningDisplayMs = ref(0)
 
@@ -51,13 +57,13 @@ export function useChineseCommonSenseTest() {
   let totalPausedMs = 0
   let pauseStartMs: number | null = null
 
-  const wrongGate = createChineseWrongBookGate(upsertChineseCommonSenseWrong)
+  const wrongGate = createChineseWrongBookGate(upsertChineseLifeCommonSenseWrong)
   const carelessMarked = ref(false)
 
   const currentQuestion = computed(() => questions.value[currentIndex.value] ?? null)
   const correctCount = computed(() => results.value.filter((r) => r.correct).length)
   const questionCount = computed(() =>
-    questions.value.length > 0 ? questions.value.length : COMMON_SENSE_QUESTION_COUNT,
+    questions.value.length > 0 ? questions.value.length : LIFE_COMMON_SENSE_QUESTION_COUNT,
   )
 
   const quizDurationSummaryText = computed(() => {
@@ -121,15 +127,15 @@ export function useChineseCommonSenseTest() {
     phase.value = 'loading'
     loadingMessage.value = '正在生成题目…'
     try {
-      const generated = await requestCommonSenseMcqs({
-        count: COMMON_SENSE_QUESTION_COUNT,
-        avoidTerms: listRecentGeneratedTerms('common-sense'),
+      const generated = await requestLifeCommonSenseMcqs({
+        count: LIFE_COMMON_SENSE_QUESTION_COUNT,
+        avoidTerms: listRecentGeneratedTerms('life-common-sense'),
         onProgress: (msg) => {
           loadingMessage.value = msg
         },
       })
       appendGeneratedTerms(
-        'common-sense',
+        'life-common-sense',
         generated.map((q) => q.term),
       )
       questions.value = generated
@@ -147,7 +153,7 @@ export function useChineseCommonSenseTest() {
     }
   }
 
-  function startQuiz(initialQuestions?: CommonSenseQuestion[]) {
+  function startQuiz(initialQuestions?: LifeCommonSenseQuestion[], opts?: { keyReview?: ChineseKeyReviewMeta }) {
     if (initialQuestions?.length) {
       questions.value = initialQuestions
       paperSource.value = 'review'
@@ -159,6 +165,11 @@ export function useChineseCommonSenseTest() {
     selectedIndex.value = null
     submitted.value = false
     results.value = []
+    if (opts?.keyReview) {
+      beginChineseKeyReviewSession(opts.keyReview)
+    } else {
+      clearChineseKeyReviewSession()
+    }
     wrongGate.clearWrongGate()
     carelessMarked.value = false
     phase.value = 'running'
@@ -186,7 +197,7 @@ export function useChineseCommonSenseTest() {
     const correct = selectedIndex.value === q.correctIndex
     results.value.push({
       unitIndex: currentIndex.value + 1,
-      typeLabel: commonSenseQuestionTypeLabel(q.questionType),
+      typeLabel: lifeCommonSenseQuestionTypeLabel(q.questionType),
       title: q.term,
       correct,
       question: q,
@@ -194,7 +205,7 @@ export function useChineseCommonSenseTest() {
     })
     submitted.value = true
     carelessMarked.value = false
-    if (!correct) {
+    if (!correct && !isChineseKeyReviewActive()) {
       wrongGate.noteWrongAnswer(q)
     }
   }
@@ -232,6 +243,7 @@ export function useChineseCommonSenseTest() {
 
   function resetToIdle() {
     clearQuizElapsedInterval()
+    clearChineseKeyReviewSession()
     quizWallClockStartMs = null
     phase.value = 'idle'
     loadingMessage.value = ''

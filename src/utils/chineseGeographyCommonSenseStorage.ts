@@ -1,16 +1,16 @@
 import { chinesePracticeDataTick } from '@/utils/chineseIdiomStorage'
-import type { CommonSenseQuestion } from '@/utils/commonSensePractice'
+import type { GeographyCommonSenseQuestion } from '@/utils/geographyCommonSensePractice'
 
-const WRONG_KEY = 'chinese-common-sense-wrong-v1'
-const FAVORITE_KEY = 'chinese-common-sense-favorite-v1'
+const WRONG_KEY = 'chinese-geography-common-sense-wrong-v1'
+const FAVORITE_KEY = 'chinese-geography-common-sense-favorite-v1'
 
 function notifyDataChanged() {
   chinesePracticeDataTick.value += 1
 }
 
-export type StoredCommonSenseRecord = {
+export type StoredGeographyCommonSenseRecord = {
   fingerprint: string
-  questionType: CommonSenseQuestion['questionType']
+  questionType: GeographyCommonSenseQuestion['questionType']
   term: string
   stem: string
   options: string[]
@@ -20,9 +20,9 @@ export type StoredCommonSenseRecord = {
   updatedAt: string
 }
 
-export type StoredCommonSenseFavoriteRecord = {
+export type StoredGeographyCommonSenseFavoriteRecord = {
   fingerprint: string
-  questionType: CommonSenseQuestion['questionType']
+  questionType: GeographyCommonSenseQuestion['questionType']
   term: string
   stem: string
   options: string[]
@@ -45,7 +45,7 @@ function writeJson(key: string, value: unknown) {
   localStorage.setItem(key, JSON.stringify(value))
 }
 
-function questionToStoredRecord(q: CommonSenseQuestion): StoredCommonSenseRecord {
+function questionToStoredRecord(q: GeographyCommonSenseQuestion): StoredGeographyCommonSenseRecord {
   return {
     fingerprint: q.fingerprint,
     questionType: q.questionType,
@@ -59,12 +59,12 @@ function questionToStoredRecord(q: CommonSenseQuestion): StoredCommonSenseRecord
   }
 }
 
-export function storedCommonSenseToQuestion(
-  row: StoredCommonSenseRecord | StoredCommonSenseFavoriteRecord,
+export function storedGeographyCommonSenseToQuestion(
+  row: StoredGeographyCommonSenseRecord | StoredGeographyCommonSenseFavoriteRecord,
   seq: number,
-): CommonSenseQuestion {
+): GeographyCommonSenseQuestion {
   return {
-    id: `stored-sense-${seq}-${row.fingerprint.slice(0, 10)}`,
+    id: `stored-geo-sense-${seq}-${row.fingerprint.slice(0, 10)}`,
     questionType: row.questionType,
     term: row.term,
     stem: row.stem,
@@ -75,16 +75,16 @@ export function storedCommonSenseToQuestion(
   }
 }
 
-export function listChineseCommonSenseWrongRecords(): StoredCommonSenseRecord[] {
-  return readJson<StoredCommonSenseRecord[]>(WRONG_KEY, [])
+export function listChineseGeographyCommonSenseWrongRecords(): StoredGeographyCommonSenseRecord[] {
+  return readJson<StoredGeographyCommonSenseRecord[]>(WRONG_KEY, [])
 }
 
-export function listChineseCommonSenseFavoriteRecords(): StoredCommonSenseFavoriteRecord[] {
-  return readJson<StoredCommonSenseFavoriteRecord[]>(FAVORITE_KEY, [])
+export function listChineseGeographyCommonSenseFavoriteRecords(): StoredGeographyCommonSenseFavoriteRecord[] {
+  return readJson<StoredGeographyCommonSenseFavoriteRecord[]>(FAVORITE_KEY, [])
 }
 
-export function upsertChineseCommonSenseWrong(q: CommonSenseQuestion) {
-  const rows = listChineseCommonSenseWrongRecords()
+export function upsertChineseGeographyCommonSenseWrong(q: GeographyCommonSenseQuestion) {
+  const rows = listChineseGeographyCommonSenseWrongRecords()
   const hit = rows.find((r) => r.fingerprint === q.fingerprint)
   const now = new Date().toISOString()
   if (hit) {
@@ -97,12 +97,14 @@ export function upsertChineseCommonSenseWrong(q: CommonSenseQuestion) {
   notifyDataChanged()
 }
 
-export function isChineseCommonSenseFavorite(fingerprint: string): boolean {
-  return listChineseCommonSenseFavoriteRecords().some((r) => r.fingerprint === fingerprint)
+export function isChineseGeographyCommonSenseFavorite(fingerprint: string): boolean {
+  return listChineseGeographyCommonSenseFavoriteRecords().some((r) => r.fingerprint === fingerprint)
 }
 
-export function toggleChineseCommonSenseFavorite(q: CommonSenseQuestion): 'added' | 'removed' {
-  const rows = listChineseCommonSenseFavoriteRecords()
+export function toggleChineseGeographyCommonSenseFavorite(
+  q: GeographyCommonSenseQuestion,
+): 'added' | 'removed' {
+  const rows = listChineseGeographyCommonSenseFavoriteRecords()
   const idx = rows.findIndex((r) => r.fingerprint === q.fingerprint)
   if (idx >= 0) {
     rows.splice(idx, 1)
@@ -126,18 +128,18 @@ export function toggleChineseCommonSenseFavorite(q: CommonSenseQuestion): 'added
   return 'added'
 }
 
-export function removeChineseCommonSenseWrong(fingerprint: string) {
+export function removeChineseGeographyCommonSenseWrong(fingerprint: string) {
   writeJson(
     WRONG_KEY,
-    listChineseCommonSenseWrongRecords().filter((r) => r.fingerprint !== fingerprint),
+    listChineseGeographyCommonSenseWrongRecords().filter((r) => r.fingerprint !== fingerprint),
   )
   notifyDataChanged()
 }
 
-export function removeChineseCommonSenseFavorite(fingerprint: string) {
+export function removeChineseGeographyCommonSenseFavorite(fingerprint: string) {
   writeJson(
     FAVORITE_KEY,
-    listChineseCommonSenseFavoriteRecords().filter((r) => r.fingerprint !== fingerprint),
+    listChineseGeographyCommonSenseFavoriteRecords().filter((r) => r.fingerprint !== fingerprint),
   )
   notifyDataChanged()
 }

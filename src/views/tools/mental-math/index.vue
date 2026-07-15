@@ -31,8 +31,10 @@ import {
   MENTAL_MATH_ARITHMETIC_MODES,
   MENTAL_MATH_DIVISIBILITY_MODES,
   MENTAL_MATH_FRACTION_MODES,
+  MENTAL_MATH_LIFE_SENSE_MODES,
   MENTAL_MATH_POWER_MODES,
   MENTAL_MATH_SQUARE_CUBE_MODES,
+  isLifeSensePracticeMode,
   type MentalMathAnswerRecord,
   type MentalMathMode,
   type MentalMathQuestion,
@@ -125,6 +127,14 @@ const isSudokuSession = computed(
 const isGraphicSession = computed(
   () => activeMode.value != null && isGraphicMode(activeMode.value),
 )
+const isLifeSenseSession = computed(
+  () =>
+    activeMode.value != null &&
+    !isGraphicMode(activeMode.value) &&
+    !isTwentyFourPointMode(activeMode.value) &&
+    !isSudokuMode(activeMode.value) &&
+    isLifeSensePracticeMode(activeMode.value as MentalMathMode),
+)
 
 const modeConfig = computed(() => {
   if (!activeMode.value) return null
@@ -166,6 +176,9 @@ const showFractionSection = computed(
 )
 const showDivisibilitySection = computed(
   () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'divisibility',
+)
+const showLifeSenseSection = computed(
+  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'life-sense',
 )
 const showTwentyFourSection = computed(
   () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'twentyfour',
@@ -525,6 +538,7 @@ function applyAnswer(choiceIndex: number) {
       correct: ok,
       scoreAfter: score.value,
       elapsedMs,
+      explanation: q.explanation,
     })
   }
 
@@ -643,6 +657,8 @@ onMounted(() => {
     activeOutlineSection.value = 'fraction'
   } else if (hash === 'divisibility' || route.query.section === 'divisibility') {
     activeOutlineSection.value = 'divisibility'
+  } else if (hash === 'life-sense' || route.query.section === 'life-sense') {
+    activeOutlineSection.value = 'life-sense'
   }
 })
 
@@ -658,7 +674,7 @@ onBeforeUnmount(() => {
     <header class="page-hero">
       <h2 class="page-title">口算练习</h2>
       <p class="page-subtitle">
-        限时口算、次幂、平方与立方、估算分数、整除及其性质、图形推理；左侧「语文练习」含成语识记、词语识记、阅读理解等子功能。
+        限时口算、次幂、平方与立方、估算分数、整除及其性质、生活常识、图形推理；左侧「语文练习」含成语识记、词语识记、阅读理解等子功能。
         口算/图形结果仅在本页展示；语文练习多子模块四选一、正计时，DeepSeek 随机出题，错题与收藏在「关键题练习」。
       </p>
     </header>
@@ -771,6 +787,26 @@ onBeforeUnmount(() => {
               :key="m.id"
               type="button"
               class="mode-card mode-card--divisibility"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">{{ m.label }}</h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+          </div>
+        </section>
+
+        <section v-if="showLifeSenseSection" class="mode-section" id="practice-life-sense">
+          <h3 class="mode-section__title">生活常识</h3>
+          <p class="mode-section__hint">
+            本地出题：生活日常、物品原材料、工具功能、种属/组成区分、衣食住行常识；题干生活化，选项偏易混半真表述。限时倒计时与计分同整除；作答中只提示对错，错因在本轮结束后查看。
+          </p>
+          <div class="mode-grid">
+            <button
+              v-for="m in MENTAL_MATH_LIFE_SENSE_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--life-sense"
               @click="startMode(m.id)"
             >
               <h3 class="mode-card__title">{{ m.label }}</h3>
@@ -969,6 +1005,7 @@ onBeforeUnmount(() => {
           <p
             class="question-expression"
             :class="{
+              'question-expression--prose': isLifeSenseSession,
               'question-expression--ok': feedback === 'correct',
               'question-expression--bad': feedback === 'wrong',
             }"
@@ -1039,6 +1076,9 @@ onBeforeUnmount(() => {
             <span class="log-detail">
               选 {{ r.chosenAnswer }}（正确 {{ r.correctAnswer }}）· {{ r.correct ? '对' : '错' }}
             </span>
+            <p v-if="!r.correct && r.explanation" class="log-explain">
+              错因：{{ r.explanation }}
+            </p>
           </li>
         </ul>
       </div>
@@ -1193,6 +1233,15 @@ onBeforeUnmount(() => {
 .mode-card--divisibility:hover {
   border-color: color-mix(in srgb, #0d9488 50%, var(--app-border-soft));
   box-shadow: 0 4px 16px rgba(13, 148, 136, 0.12);
+}
+
+.mode-card--life-sense {
+  border-color: color-mix(in srgb, #3d9b7a 28%, var(--app-border-soft));
+}
+
+.mode-card--life-sense:hover {
+  border-color: color-mix(in srgb, #3d9b7a 50%, var(--app-border-soft));
+  box-shadow: 0 4px 16px rgba(61, 155, 122, 0.12);
 }
 
 .mode-card--graphic {
@@ -1429,6 +1478,15 @@ onBeforeUnmount(() => {
   transition: color 0.15s ease;
 }
 
+.question-expression--prose {
+  font-size: clamp(1.05rem, 2.8vw, 1.35rem);
+  font-weight: 650;
+  text-align: left;
+  max-width: 36em;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .question-expression--ok {
   color: var(--el-color-success);
 }
@@ -1611,6 +1669,14 @@ onBeforeUnmount(() => {
 
 .log-detail {
   color: var(--app-text-muted);
+}
+
+.log-explain {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--app-text-muted);
+  font-weight: 400;
 }
 
 .result-actions {

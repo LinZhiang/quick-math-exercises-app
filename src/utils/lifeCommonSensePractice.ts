@@ -4,14 +4,14 @@ import {
   isPlayableFourChoiceMcq,
 } from '@/utils/chineseMcqAiFields'
 
-export type ChineseCommonSenseQuestionType = 'general'
+export type ChineseLifeCommonSenseQuestionType = 'general'
 
-export const COMMON_SENSE_QUESTION_COUNT = 15
+export const LIFE_COMMON_SENSE_QUESTION_COUNT = 15
 
-export type CommonSenseQuestion = {
+export type LifeCommonSenseQuestion = {
   id: string
-  questionType: ChineseCommonSenseQuestionType
-  /** 知识点标签，如「罗汉果」「芦苇」 */
+  questionType: ChineseLifeCommonSenseQuestionType
+  /** 知识点，如「重力加速度」「酸碱中和」「光合作用」「5G」 */
   term: string
   stem: string
   options: string[]
@@ -20,16 +20,14 @@ export type CommonSenseQuestion = {
   fingerprint: string
 }
 
-export function commonSenseQuestionTypeLabel(_type: ChineseCommonSenseQuestionType): string {
-  return '常识'
+export function lifeCommonSenseQuestionTypeLabel(
+  _type: ChineseLifeCommonSenseQuestionType,
+): string {
+  return '生活科学'
 }
 
-export function shouldShowCommonSenseTermBeforeSubmit(_q: CommonSenseQuestion): boolean {
-  return false
-}
-
-export function getCommonSenseQuestionFingerprint(input: {
-  questionType: ChineseCommonSenseQuestionType
+export function getLifeCommonSenseQuestionFingerprint(input: {
+  questionType: ChineseLifeCommonSenseQuestionType
   term: string
   stem: string
   options: string[]
@@ -47,15 +45,15 @@ function shuffleInPlace<T>(arr: T[]): T[] {
   return arr
 }
 
-export function buildCommonSenseQuestionFromMcq(input: {
-  questionType: ChineseCommonSenseQuestionType
+export function buildLifeCommonSenseQuestionFromMcq(input: {
+  questionType: ChineseLifeCommonSenseQuestionType
   term: string
   stem: string
   correct: string
   distractors: string[]
   explanation?: string
   seq: number
-}): CommonSenseQuestion | null {
+}): LifeCommonSenseQuestion | null {
   const term = input.term.trim()
   const stem = input.stem.trim()
   const correct = input.correct.trim()
@@ -64,15 +62,15 @@ export function buildCommonSenseQuestionFromMcq(input: {
   const assembled = assembleFourChoiceMcq(correct, distractors, shuffleInPlace)
   if (!assembled) return null
   const { options, correctIndex } = assembled
-  const fingerprint = getCommonSenseQuestionFingerprint({
+  const fingerprint = getLifeCommonSenseQuestionFingerprint({
     questionType: input.questionType,
     term,
     stem,
     options,
     correctIndex,
   })
-  const q: CommonSenseQuestion = {
-    id: `sense-${input.seq}-${Date.now()}`,
+  const q: LifeCommonSenseQuestion = {
+    id: `life-sense-${input.seq}-${Date.now()}`,
     questionType: input.questionType,
     term,
     stem,
@@ -85,8 +83,8 @@ export function buildCommonSenseQuestionFromMcq(input: {
   return q
 }
 
-export function parseCommonSenseMcqAiObject(item: unknown): {
-  questionType: ChineseCommonSenseQuestionType
+export function parseLifeCommonSenseMcqAiObject(item: unknown): {
+  questionType: ChineseLifeCommonSenseQuestionType
   term: string
   stem: string
   correct: string

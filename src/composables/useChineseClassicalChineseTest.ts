@@ -8,6 +8,12 @@ import {
 } from '@/utils/chineseGeneratedHistory'
 import { upsertChineseClassicalChineseWrong } from '@/utils/chineseClassicalChineseStorage'
 import { createChineseWrongBookGate } from '@/utils/chineseWrongBookGate'
+import {
+  beginChineseKeyReviewSession,
+  clearChineseKeyReviewSession,
+  isChineseKeyReviewActive,
+  type ChineseKeyReviewMeta,
+} from '@/utils/chineseKeyReviewSession'
 import { playMentalMathStartSound } from '@/utils/mentalMathSounds'
 import {
   CLASSICAL_CHINESE_QUESTION_COUNT,
@@ -150,7 +156,7 @@ export function useChineseClassicalChineseTest() {
     }
   }
 
-  function startQuiz(initialQuestions?: ClassicalChineseQuestion[]) {
+  function startQuiz(initialQuestions?: ClassicalChineseQuestion[], opts?: { keyReview?: ChineseKeyReviewMeta }) {
     if (initialQuestions?.length) {
       questions.value = initialQuestions
       paperSource.value = 'review'
@@ -162,6 +168,11 @@ export function useChineseClassicalChineseTest() {
     selectedIndex.value = null
     submitted.value = false
     results.value = []
+    if (opts?.keyReview) {
+      beginChineseKeyReviewSession(opts.keyReview)
+    } else {
+      clearChineseKeyReviewSession()
+    }
     wrongGate.clearWrongGate()
     carelessMarked.value = false
     phase.value = 'running'
@@ -197,7 +208,7 @@ export function useChineseClassicalChineseTest() {
     })
     submitted.value = true
     carelessMarked.value = false
-    if (!correct) {
+    if (!correct && !isChineseKeyReviewActive()) {
       wrongGate.noteWrongAnswer(q)
     }
   }
@@ -235,6 +246,7 @@ export function useChineseClassicalChineseTest() {
 
   function resetToIdle() {
     clearQuizElapsedInterval()
+    clearChineseKeyReviewSession()
     quizWallClockStartMs = null
     phase.value = 'idle'
     loadingMessage.value = ''

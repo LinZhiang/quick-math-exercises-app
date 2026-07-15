@@ -10,12 +10,13 @@ import {
 import type { KeyPracticePayload } from '@/types/chinese-practice'
 import ChineseCharLiteracyPanel from '@/views/tools/chinese-practice/ChineseCharLiteracyPanel.vue'
 import ChineseClassicalChinesePanel from '@/views/tools/chinese-practice/ChineseClassicalChinesePanel.vue'
-import ChineseCommonSensePanel from '@/views/tools/chinese-practice/ChineseCommonSensePanel.vue'
 import ChineseEconomyCommonSensePanel from '@/views/tools/chinese-practice/ChineseEconomyCommonSensePanel.vue'
+import ChineseGeographyCommonSensePanel from '@/views/tools/chinese-practice/ChineseGeographyCommonSensePanel.vue'
 import ChineseHistoryCommonSensePanel from '@/views/tools/chinese-practice/ChineseHistoryCommonSensePanel.vue'
 import ChineseIdiomPanel from '@/views/tools/chinese-practice/ChineseIdiomPanel.vue'
 import ChineseKeyQuestionsPanel from '@/views/tools/chinese-practice/ChineseKeyQuestionsPanel.vue'
 import ChineseLegalCommonSensePanel from '@/views/tools/chinese-practice/ChineseLegalCommonSensePanel.vue'
+import ChineseLifeCommonSensePanel from '@/views/tools/chinese-practice/ChineseLifeCommonSensePanel.vue'
 import ChinesePartyHistoryPanel from '@/views/tools/chinese-practice/ChinesePartyHistoryPanel.vue'
 import ChinesePoetryPanel from '@/views/tools/chinese-practice/ChinesePoetryPanel.vue'
 import ChineseReadingComprehensionPanel from '@/views/tools/chinese-practice/ChineseReadingComprehensionPanel.vue'
@@ -35,12 +36,15 @@ const rhetoricUsageRef = ref<InstanceType<typeof ChineseRhetoricUsagePanel> | nu
 const readingComprehensionRef = ref<InstanceType<typeof ChineseReadingComprehensionPanel> | null>(
   null,
 )
-const commonSenseRef = ref<InstanceType<typeof ChineseCommonSensePanel> | null>(null)
 const historyCommonSenseRef = ref<InstanceType<typeof ChineseHistoryCommonSensePanel> | null>(null)
 const partyHistoryRef = ref<InstanceType<typeof ChinesePartyHistoryPanel> | null>(null)
 const theoryPolicyRef = ref<InstanceType<typeof ChineseTheoryPolicyPanel> | null>(null)
 const legalCommonSenseRef = ref<InstanceType<typeof ChineseLegalCommonSensePanel> | null>(null)
 const economyCommonSenseRef = ref<InstanceType<typeof ChineseEconomyCommonSensePanel> | null>(null)
+const lifeCommonSenseRef = ref<InstanceType<typeof ChineseLifeCommonSensePanel> | null>(null)
+const geographyCommonSenseRef = ref<InstanceType<typeof ChineseGeographyCommonSensePanel> | null>(
+  null,
+)
 
 const isRunningOrLoading = computed(
   () =>
@@ -51,12 +55,13 @@ const isRunningOrLoading = computed(
     classicalChineseRef.value?.isRunningOrLoading ||
     rhetoricUsageRef.value?.isRunningOrLoading ||
     readingComprehensionRef.value?.isRunningOrLoading ||
-    commonSenseRef.value?.isRunningOrLoading ||
     historyCommonSenseRef.value?.isRunningOrLoading ||
     partyHistoryRef.value?.isRunningOrLoading ||
     theoryPolicyRef.value?.isRunningOrLoading ||
     legalCommonSenseRef.value?.isRunningOrLoading ||
     economyCommonSenseRef.value?.isRunningOrLoading ||
+    lifeCommonSenseRef.value?.isRunningOrLoading ||
+    geographyCommonSenseRef.value?.isRunningOrLoading ||
     false,
 )
 
@@ -67,11 +72,12 @@ function selectTab(id: ChinesePracticeTabId) {
 
 function onKeyPractice(payload: KeyPracticePayload) {
   const readingMode = readingSubModeFromKeySource(payload.source)
+  const keyReview = payload.keyReview
   if (readingMode && payload.source.startsWith('reading-')) {
     activeTab.value = 'reading-comprehension'
     const questions = payload.questions as import('@/utils/readingComprehensionPractice').ReadingComprehensionQuestion[]
     void nextTick(() => {
-      readingComprehensionRef.value?.startWith(questions, readingMode)
+      readingComprehensionRef.value?.startWith(questions, readingMode, keyReview)
     })
     return
   }
@@ -79,29 +85,31 @@ function onKeyPractice(payload: KeyPracticePayload) {
   activeTab.value = payload.source as ChinesePracticeTabId
   void nextTick(() => {
     if (payload.source === 'idiom-memorization') {
-      idiomRef.value?.startWith(payload.questions)
+      idiomRef.value?.startWith(payload.questions, keyReview)
     } else if (payload.source === 'word-memorization') {
-      wordMemorizationRef.value?.startWith(payload.questions)
+      wordMemorizationRef.value?.startWith(payload.questions, keyReview)
     } else if (payload.source === 'char-literacy') {
-      charLiteracyRef.value?.startWith(payload.questions)
+      charLiteracyRef.value?.startWith(payload.questions, keyReview)
     } else if (payload.source === 'poetry-practice') {
-      poetryRef.value?.startWith(payload.questions)
+      poetryRef.value?.startWith(payload.questions, keyReview)
     } else if (payload.source === 'classical-chinese') {
-      classicalChineseRef.value?.startWith(payload.questions)
+      classicalChineseRef.value?.startWith(payload.questions, keyReview)
     } else if (payload.source === 'rhetoric-usage') {
-      rhetoricUsageRef.value?.startWith(payload.questions)
-    } else if (payload.source === 'common-sense') {
-      commonSenseRef.value?.startWith(payload.questions)
+      rhetoricUsageRef.value?.startWith(payload.questions, keyReview)
     } else if (payload.source === 'history-common-sense') {
-      historyCommonSenseRef.value?.startWith(payload.questions)
+      historyCommonSenseRef.value?.startWith(payload.questions, keyReview)
     } else if (payload.source === 'party-history') {
-      partyHistoryRef.value?.startWith(payload.questions)
+      partyHistoryRef.value?.startWith(payload.questions, keyReview)
     } else if (payload.source === 'theory-policy') {
-      theoryPolicyRef.value?.startWith(payload.questions)
+      theoryPolicyRef.value?.startWith(payload.questions, keyReview)
     } else if (payload.source === 'legal-common-sense') {
-      legalCommonSenseRef.value?.startWith(payload.questions)
+      legalCommonSenseRef.value?.startWith(payload.questions, keyReview)
     } else if (payload.source === 'economy-common-sense') {
-      economyCommonSenseRef.value?.startWith(payload.questions)
+      economyCommonSenseRef.value?.startWith(payload.questions, keyReview)
+    } else if (payload.source === 'life-common-sense') {
+      lifeCommonSenseRef.value?.startWith(payload.questions, keyReview)
+    } else if (payload.source === 'geography-common-sense') {
+      geographyCommonSenseRef.value?.startWith(payload.questions, keyReview)
     }
   })
 }
@@ -158,10 +166,6 @@ defineExpose({
       v-show="activeTab === 'reading-comprehension'"
       ref="readingComprehensionRef"
     />
-    <ChineseCommonSensePanel
-      v-show="activeTab === 'common-sense'"
-      ref="commonSenseRef"
-    />
     <ChineseHistoryCommonSensePanel
       v-show="activeTab === 'history-common-sense'"
       ref="historyCommonSenseRef"
@@ -181,6 +185,14 @@ defineExpose({
     <ChineseEconomyCommonSensePanel
       v-show="activeTab === 'economy-common-sense'"
       ref="economyCommonSenseRef"
+    />
+    <ChineseLifeCommonSensePanel
+      v-show="activeTab === 'life-common-sense'"
+      ref="lifeCommonSenseRef"
+    />
+    <ChineseGeographyCommonSensePanel
+      v-show="activeTab === 'geography-common-sense'"
+      ref="geographyCommonSenseRef"
     />
     <ChineseKeyQuestionsPanel
       v-show="activeTab === 'key-questions'"

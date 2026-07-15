@@ -1,21 +1,29 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { useChineseCommonSenseTest } from '@/composables/useChineseCommonSenseTest'
+import type { ChineseKeyReviewMeta } from '@/utils/chineseKeyReviewSession'
+import { useChineseKeyReviewQuizUi } from '@/utils/chineseKeyReviewSession'
+import { useChineseLifeCommonSenseTest } from '@/composables/useChineseLifeCommonSenseTest'
 import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
 import {
-  isChineseCommonSenseFavorite,
-  toggleChineseCommonSenseFavorite,
-} from '@/utils/chineseCommonSenseStorage'
-import { commonSenseQuestionTypeLabel } from '@/utils/commonSensePractice'
-import type { CommonSenseQuestion } from '@/utils/commonSensePractice'
+  isChineseLifeCommonSenseFavorite,
+  toggleChineseLifeCommonSenseFavorite,
+} from '@/utils/chineseLifeCommonSenseStorage'
+import { lifeCommonSenseQuestionTypeLabel } from '@/utils/lifeCommonSensePractice'
+import type { LifeCommonSenseQuestion } from '@/utils/lifeCommonSensePractice'
 
-const SENSE_ASSIST_SYSTEM =
-  '你是事业编与公务员考试常识判断教练，擅长自然地理、生活常识、动植物、民俗与科技常识。用简体中文讲解，可结合对比记忆、易混点辨析与公考真题思路。回答要具体，避免空泛。'
+const LIFE_ASSIST_SYSTEM =
+  '你是事业编联考 C 类「公共基础知识·生活科学」教练，擅长物理、化学、生物、科技与生活等高频易考点。讲解通俗浅显，紧扣高频考点，不要公式推导或过深实验细节。用简体中文，回答要具体。'
 
-const test = useChineseCommonSenseTest()
+const test = useChineseLifeCommonSenseTest()
+
+const keyReviewUi = useChineseKeyReviewQuizUi(() => ({
+  submitted: test.submitted,
+  currentIndex: test.currentIndex,
+  results: test.results,
+}))
 const favorited = ref(false)
 const regenerating = ref(false)
 const followupInput = ref('')
@@ -40,20 +48,20 @@ const isRunningOrLoading = computed(
 
 defineExpose({
   isRunningOrLoading,
-  startWith(questions: CommonSenseQuestion[]) {
+  startWith(questions: LifeCommonSenseQuestion[], keyReview?: ChineseKeyReviewMeta) {
     test.resetToIdle()
-    test.startQuiz(questions)
+    test.startQuiz(questions, keyReview ? { keyReview } : undefined)
   },
 })
 
-function buildAssistPrompt(q: CommonSenseQuestion): string {
+function buildAssistPrompt(q: LifeCommonSenseQuestion): string {
   const row = test.results[test.results.length - 1]
   const opts = q.options.map((o, i) => `${i + 1}. ${o}`).join('\n')
   const chosen =
     row?.chosenIndex != null ? String(q.options[row.chosenIndex] ?? '') : '（未选）'
   const correct = q.options[q.correctIndex] ?? ''
   return [
-    `题型：${commonSenseQuestionTypeLabel(q.questionType)}`,
+    `题型：${lifeCommonSenseQuestionTypeLabel(q.questionType)}`,
     `知识点：${q.term}`,
     `题干：${q.stem}`,
     `选项：\n${opts}`,
@@ -61,7 +69,7 @@ function buildAssistPrompt(q: CommonSenseQuestion): string {
     `正确答案：${correct}`,
     `作答结果：${row?.correct ? '正确' : '错误'}`,
     q.explanation ? `题目解析：${q.explanation}` : '',
-    '请讲解本题涉及的常识要点、易混辨析及记忆方法。',
+    '请讲解本题生活科学依据、易混概念及记忆方法；难度按事业编公基常见考法即可。',
   ]
     .filter(Boolean)
     .join('\n\n')
@@ -74,11 +82,11 @@ async function runAssistExplain() {
   try {
     await startAssist({
       initialUser: userMsg,
-      displayUser: '请讲解本题常识',
-      system: SENSE_ASSIST_SYSTEM,
+      displayUser: '请讲解本题生活科学',
+      system: LIFE_ASSIST_SYSTEM,
       fetch: () =>
         requestAssistantMarkdown({
-          system: SENSE_ASSIST_SYSTEM,
+          system: LIFE_ASSIST_SYSTEM,
           userMessage: userMsg,
         }),
     })
@@ -101,7 +109,7 @@ async function onSendFollowup() {
 watch(
   () => test.currentQuestion?.fingerprint,
   (fp) => {
-    favorited.value = fp ? isChineseCommonSenseFavorite(fp) : false
+    favorited.value = fp ? isChineseLifeCommonSenseFavorite(fp) : false
   },
 )
 
@@ -125,7 +133,7 @@ async function onRegenerate() {
 async function onToggleFavorite() {
   const q = test.currentQuestion
   if (!q) return
-  const r = toggleChineseCommonSenseFavorite(q)
+  const r = toggleChineseLifeCommonSenseFavorite(q)
   favorited.value = r === 'added'
   ElMessage.success(r === 'added' ? '已加入关键题收藏' : '已取消收藏')
 }
@@ -147,7 +155,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   <div class="chinese-idiom-panel">
     <template v-if="test.phase === 'idle' || test.phase === 'loading'">
       <p class="mode-section__hint">
-        针对公务员、事业单位「常识判断」高频考点：动植物习性、特产功效、地理气候、生活常识等，
+        针对事业编联考 C 类「公共基础知识」生活科学高频考点：物理、化学、生物、科技与生活基础概念与常考现象，难度中等偏易，
         每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停并公布答案，点「下一题」继续。
       </p>
       <div class="chinese-setup">
@@ -184,7 +192,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           v-else-if="test.paperSource === 'review'"
           class="chinese-quiz__badge chinese-quiz__badge--review"
         >复习题</span>
-        <span v-if="test.currentQuestion">{{ commonSenseQuestionTypeLabel(test.currentQuestion.questionType) }}</span>
+        <span v-if="test.currentQuestion">{{ lifeCommonSenseQuestionTypeLabel(test.currentQuestion.questionType) }}</span>
         <span class="chinese-quiz__timer" :class="{ 'is-paused': test.quizTimerPaused }">
           {{ test.quizRunningElapsedText }}
         </span>
@@ -240,7 +248,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           {{ test.currentQuestion.explanation }}
         </p>
         <div
-          v-if="!test.results[test.results.length - 1]?.correct"
+          v-if="!keyReviewUi.isKeyReview && !test.results[test.results.length - 1]?.correct"
           class="chinese-quiz__careless"
         >
           <el-button
@@ -255,6 +263,21 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         </div>
       </div>
 
+      <div
+        v-if="test.submitted && test.currentQuestion && (keyReviewUi.canRemoveRelated || keyReviewUi.relatedRemoved)"
+        class="chinese-quiz__key-remove"
+      >
+        <el-button
+          v-if="keyReviewUi.canRemoveRelated"
+          size="small"
+          type="warning"
+          plain
+          @click="keyReviewUi.onRemoveRelatedOrigin"
+        >
+          删除相关{{ keyReviewUi.bankLabel }}原题
+        </el-button>
+        <span v-else class="chinese-quiz__key-remove-done">已从{{ keyReviewUi.bankLabel }}删除相关原题</span>
+      </div>
       <div v-if="test.submitted && test.currentQuestion" class="chinese-quiz__assist">
         <div class="chinese-quiz__assist-head">
           <h5 class="chinese-quiz__assist-title">DeepSeek 本题讲解</h5>
@@ -289,7 +312,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
               v-model="followupInput"
               type="textarea"
               :rows="2"
-              placeholder="继续追问，例如：芦苇和菖蒲有什么区别？"
+              placeholder="继续追问，例如：和「化学变化」怎么区分？"
               @keydown.enter.exact.prevent="onSendFollowup"
             />
             <el-button
@@ -468,6 +491,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .chinese-quiz__feedback {
   margin-bottom: 12px;
 }
+.chinese-quiz__key-remove {
+  margin: 8px 0 12px;
+}
+.chinese-quiz__key-remove-done {
+  font-size: 13px;
+  color: var(--app-text-muted);
+}
 .chinese-quiz__careless {
   margin-top: 8px;
 }
@@ -558,3 +588,4 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   border-bottom: none;
 }
 </style>
+

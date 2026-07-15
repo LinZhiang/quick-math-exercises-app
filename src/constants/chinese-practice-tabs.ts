@@ -7,12 +7,13 @@ export type ChinesePracticeTabId =
   | 'classical-chinese'
   | 'rhetoric-usage'
   | 'reading-comprehension'
-  | 'common-sense'
   | 'history-common-sense'
   | 'party-history'
   | 'theory-policy'
   | 'legal-common-sense'
   | 'economy-common-sense'
+  | 'life-common-sense'
+  | 'geography-common-sense'
   | 'key-questions'
 
 /** 阅读理解子模块（面板内选择；关键题来源也按此区分） */
@@ -51,12 +52,13 @@ export const CHINESE_PRACTICE_TABS: ChinesePracticeTab[] = [
   { id: 'classical-chinese', title: '文言知识' },
   { id: 'rhetoric-usage', title: '修辞运用' },
   { id: 'reading-comprehension', title: '阅读理解' },
-  { id: 'common-sense', title: '常识练习' },
   { id: 'history-common-sense', title: '历史常识' },
   { id: 'party-history', title: '中共党史' },
   { id: 'theory-policy', title: '理论政策' },
   { id: 'legal-common-sense', title: '法律常识' },
   { id: 'economy-common-sense', title: '经济常识' },
+  { id: 'life-common-sense', title: '生活科学' },
+  { id: 'geography-common-sense', title: '地理常识' },
   { id: 'key-questions', title: '关键题练习' },
 ]
 
@@ -93,10 +95,11 @@ export const CHINESE_KEY_QUESTION_SOURCES: { id: ChineseKeyQuestionSource; title
     id: readingKeySource(m.id) as ChineseKeyQuestionSource,
     title: `阅读·${m.title}`,
   })),
-  { id: 'common-sense', title: '常识练习' },
   { id: 'history-common-sense', title: '历史常识' },
   { id: 'party-history', title: '中共党史' },
   { id: 'theory-policy', title: '理论政策' },
   { id: 'legal-common-sense', title: '法律常识' },
   { id: 'economy-common-sense', title: '经济常识' },
+  { id: 'life-common-sense', title: '生活科学' },
+  { id: 'geography-common-sense', title: '地理常识' },
 ]

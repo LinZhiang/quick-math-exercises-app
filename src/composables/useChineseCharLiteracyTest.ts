@@ -7,6 +7,12 @@ import {
 } from '@/utils/chineseGeneratedHistory'
 import { upsertChineseCharLiteracyWrong } from '@/utils/chineseCharLiteracyStorage'
 import { createChineseWrongBookGate } from '@/utils/chineseWrongBookGate'
+import {
+  beginChineseKeyReviewSession,
+  clearChineseKeyReviewSession,
+  isChineseKeyReviewActive,
+  type ChineseKeyReviewMeta,
+} from '@/utils/chineseKeyReviewSession'
 import { playMentalMathStartSound } from '@/utils/mentalMathSounds'
 import {
   CHAR_LITERACY_QUESTION_COUNT,
@@ -147,7 +153,7 @@ export function useChineseCharLiteracyTest() {
     }
   }
 
-  function startQuiz(initialQuestions?: CharLiteracyQuestion[]) {
+  function startQuiz(initialQuestions?: CharLiteracyQuestion[], opts?: { keyReview?: ChineseKeyReviewMeta }) {
     if (initialQuestions?.length) {
       questions.value = initialQuestions
       paperSource.value = 'review'
@@ -159,6 +165,11 @@ export function useChineseCharLiteracyTest() {
     selectedIndex.value = null
     submitted.value = false
     results.value = []
+    if (opts?.keyReview) {
+      beginChineseKeyReviewSession(opts.keyReview)
+    } else {
+      clearChineseKeyReviewSession()
+    }
     wrongGate.clearWrongGate()
     carelessMarked.value = false
     phase.value = 'running'
@@ -194,7 +205,7 @@ export function useChineseCharLiteracyTest() {
     })
     submitted.value = true
     carelessMarked.value = false
-    if (!correct) {
+    if (!correct && !isChineseKeyReviewActive()) {
       wrongGate.noteWrongAnswer(q)
     }
   }
@@ -232,6 +243,7 @@ export function useChineseCharLiteracyTest() {
 
   function resetToIdle() {
     clearQuizElapsedInterval()
+    clearChineseKeyReviewSession()
     quizWallClockStartMs = null
     phase.value = 'idle'
     loadingMessage.value = ''

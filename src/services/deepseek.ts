@@ -10,17 +10,23 @@ import {
   type CharLiteracyQuestion,
 } from '@/utils/charLiteracyPractice'
 import {
-  buildCommonSenseQuestionFromMcq,
-  COMMON_SENSE_QUESTION_COUNT,
-  parseCommonSenseMcqAiObject,
-  type CommonSenseQuestion,
-} from '@/utils/commonSensePractice'
+  buildGeographyCommonSenseQuestionFromMcq,
+  GEOGRAPHY_COMMON_SENSE_QUESTION_COUNT,
+  parseGeographyCommonSenseMcqAiObject,
+  type GeographyCommonSenseQuestion,
+} from '@/utils/geographyCommonSensePractice'
 import {
   buildHistoryCommonSenseQuestionFromMcq,
   HISTORY_COMMON_SENSE_QUESTION_COUNT,
   parseHistoryCommonSenseMcqAiObject,
   type HistoryCommonSenseQuestion,
 } from '@/utils/historyCommonSensePractice'
+import {
+  buildLifeCommonSenseQuestionFromMcq,
+  LIFE_COMMON_SENSE_QUESTION_COUNT,
+  parseLifeCommonSenseMcqAiObject,
+  type LifeCommonSenseQuestion,
+} from '@/utils/lifeCommonSensePractice'
 import {
   buildIdiomQuestionFromMcq,
   IDIOM_RECOGNITION_QUESTION_COUNT,
@@ -482,33 +488,40 @@ export async function requestPoetryRecognitionMcqs(input: {
   return deduped.slice(0, count)
 }
 
-const COMMON_SENSE_SYSTEM = [
-  '你是公务员考试与事业单位考试「常识判断·综合常识」命题专家，熟悉自然地理、生活常识、动植物、民俗、科技与生活等公考高频考点。',
+const LIFE_COMMON_SENSE_SYSTEM = [
+  '你是事业编联考 C 类「公共基础知识·生活科学」命题专家，熟悉物理、化学、生物、科技与生活等高频易考点。',
+  '题目以识记与辨析为主，难度中等偏易；不要出公式推导、复杂计算或专业实验压轴题。',
   '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
 ].join('\n')
 
-const COMMON_SENSE_FORMAT = `
-【题型】questionType 固定为 general（常识四选一）
+const LIFE_COMMON_SENSE_FORMAT = `
+【题型】questionType 固定为 general
+
+【难度】事业编联考 C 类公基常见难度：基础概念、生活现象解释、易混提法辨析；忌过深理论。
+
+【命题比例·必须遵守】（15 题一轮）
+- **物理**：约 **25%～30%**（力、热、光、声、电与生活应用，如惯性、沸腾、凸透镜、导体绝缘体等高频点）
+- **化学**：约 **25%～30%**（物质变化、酸碱、燃烧条件、常见材料与食品安全常识等高频点）
+- **生物**：约 **20%～25%**（人体系统、植物生理、遗传基础、生态与传染病防疫常识等高频点）
+- **科技与生活**：约 **20%～25%**（互联网/通信基础、新能源、航天航空常考常识、日常数字技术概念，忌过深专业细节）
 
 【命题要求】
-- 优先公考、事业编常考：动植物习性、特产功效、地理气候、生活常识、节日民俗、基础科技等
-- 示例方向：罗汉果的功效/产地、芦苇的生长环境、四大名著、二十四节气、常见元素与现象等
-- term 填知识点关键词（如「罗汉果」「芦苇」）
-- stem 写完整问句，如「罗汉果的主要功效是？」「芦苇主要生长在？」
-- 选项 4 个互斥，长度 6～28 字；干扰项须 plausible 但错误
+- term 填知识点关键词（如「惯性」「酸碱中和」「光合作用」「5G」）
+- stem 写完整问句；选项互斥；干扰项为易混概念
 - explanation 用 1～2 句简体中文说明
+- 依据现行常用表述，表述准确但通俗
 
 【JSON 示例】
-{"questionType":"general","term":"罗汉果","stem":"罗汉果的主要功效是？","correct":"润肺止咳、生津利咽","distractors":["温中散寒、活血通络","清热解毒、利尿消肿","补气养血、安神益智"],"explanation":"……"}
+{"questionType":"general","term":"惯性","stem":"物体保持原有运动状态的性质称为？","correct":"惯性","distractors":["重力","摩擦力","弹力"],"explanation":"……"}
 `.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
-function dedupeCommonSenseQuestions(
-  items: CommonSenseQuestion[],
+function dedupeLifeCommonSenseQuestions(
+  items: LifeCommonSenseQuestion[],
   blockedTerms?: Set<string>,
-): CommonSenseQuestion[] {
+): LifeCommonSenseQuestion[] {
   const seenFp = new Set<string>()
   const seenTerm = new Set<string>(blockedTerms ?? [])
-  const out: CommonSenseQuestion[] = []
+  const out: LifeCommonSenseQuestion[] = []
   for (const q of items) {
     const termKey = normalizeAvoidTerm(q.term)
     if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
@@ -519,57 +532,173 @@ function dedupeCommonSenseQuestions(
   return out
 }
 
-export async function requestCommonSenseMcqs(input: {
+export async function requestLifeCommonSenseMcqs(input: {
   count?: number
   avoidTerms?: string[]
   onProgress?: (message: string) => void
-}): Promise<CommonSenseQuestion[]> {
-  const count = input.count ?? COMMON_SENSE_QUESTION_COUNT
+}): Promise<LifeCommonSenseQuestion[]> {
+  const count = input.count ?? LIFE_COMMON_SENSE_QUESTION_COUNT
   const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.('正在向 DeepSeek 请求常识题目…')
+  input.onProgress?.('正在向 DeepSeek 请求生活科学题目…')
 
-  const historyHint = buildAvoidTermsHint('知识点', [...blocked])
+  const historyHint = buildAvoidTermsHint('生活科学知识点', [...blocked])
   const user = [
-    `请生成 **${count} 道** 常识判断四选一练习题，用于公务员与事业单位备考。`,
-    COMMON_SENSE_FORMAT,
+    `请生成 **${count} 道** 事业编联考 C 类公基「生活科学」四选一练习题（物理/化学/生物/科技与生活，**难度中等偏易、高频考点**）。`,
+    LIFE_COMMON_SENSE_FORMAT,
     historyHint,
-    `本批 ${count} 道的 term（知识点）必须互不相同。`,
+    `本批 ${count} 道的 term 必须互不相同；按【命题比例】覆盖四类。`,
     `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
   ]
     .filter(Boolean)
     .join('\n\n')
 
   const raw = await deepseekChatRaw(user, {
-    system: COMMON_SENSE_SYSTEM,
+    system: LIFE_COMMON_SENSE_SYSTEM,
     temperature: 0.72,
     maxTokens: 8192,
   })
 
   const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
-  const questions: CommonSenseQuestion[] = []
+  const questions: LifeCommonSenseQuestion[] = []
   parsed.forEach((item, idx) => {
-    const fields = parseCommonSenseMcqAiObject(item)
+    const fields = parseLifeCommonSenseMcqAiObject(item)
     if (!fields) return
-    const q = buildCommonSenseQuestionFromMcq({ ...fields, seq: idx + 1 })
+    const q = buildLifeCommonSenseQuestionFromMcq({ ...fields, seq: idx + 1 })
     if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
   })
 
-  const deduped = dedupeCommonSenseQuestions(questions, blocked)
+  const deduped = dedupeLifeCommonSenseQuestions(questions, blocked)
   input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
 
   const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
   for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
     input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
-    const avoidHint = buildAvoidTermsHint('知识点', avoidTerms)
+    const avoidHint = buildAvoidTermsHint('生活科学知识点', avoidTerms)
     try {
       const oneRaw = await deepseekChatRaw(
-        `请生成第 ${slot} 道常识判断四选一题。\n${COMMON_SENSE_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
-        { system: COMMON_SENSE_SYSTEM, temperature: 0.7, maxTokens: 900 },
+        `请生成第 ${slot} 道生活科学四选一题（C 类公基难度，物理/化学/生物/科技与生活高频点，勿出难题）。\n${LIFE_COMMON_SENSE_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
+        { system: LIFE_COMMON_SENSE_SYSTEM, temperature: 0.7, maxTokens: 900 },
       )
       const oneObj = parseAiJsonObjectLenient(oneRaw)
-      const fields = parseCommonSenseMcqAiObject(oneObj)
+      const fields = parseLifeCommonSenseMcqAiObject(oneObj)
       if (!fields) continue
-      const q = buildCommonSenseQuestionFromMcq({ ...fields, seq: slot })
+      const q = buildLifeCommonSenseQuestionFromMcq({ ...fields, seq: slot })
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const GEOGRAPHY_COMMON_SENSE_SYSTEM = [
+  '你是事业编联考 C 类「公共基础知识·地理常识」命题专家，熟悉中国自然地理、人文地理、世界地理、地球与地图等高频易考点。',
+  '题目以识记与辨析为主，难度中等偏易；不要出复杂计算、等高线压轴分析或过难区域综合题。',
+  '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
+].join('\n')
+
+const GEOGRAPHY_COMMON_SENSE_FORMAT = `
+【题型】questionType 固定为 general
+
+【难度】事业编联考 C 类公基常见难度：基础概念、常考地理事实、易混区位辨析；忌偏难怪。
+
+【命题比例·必须遵守】（15 题一轮）
+- **中国自然地理**：约 **30%～35%**（山川河湖、气候类型、地形阶梯、资源分布、自然灾害等高频点）
+- **中国人文地理**：约 **25%～30%**（行政区划与省会、人口与城市、农业工业布局、交通线等高频点）
+- **世界地理**：约 **15%～20%**（大洲大洋、主要国家首都/气候/资源、重要海峡运河等高频基础点）
+- **地球与地图**：约 **15%～20%**（经纬网、时区日界线、地球运动与四季昼夜、比例尺方向等高频基础点）
+
+【命题要求】
+- term 填知识点关键词（如「秦岭—淮河」「长江」「时区」「板块构造」）
+- stem 写完整问句；选项互斥；干扰项为易混概念或易混地名
+- explanation 用 1～2 句简体中文说明
+- 表述准确但通俗，贴近公基真题风格
+
+【JSON 示例】
+{"questionType":"general","term":"秦岭—淮河","stem":"我国冬季平均气温 0℃等温线大体经过的地理分界线是？","correct":"秦岭—淮河一线","distractors":["黄河流域","长江流域","南岭一线"],"explanation":"……"}
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
+
+function dedupeGeographyCommonSenseQuestions(
+  items: GeographyCommonSenseQuestion[],
+  blockedTerms?: Set<string>,
+): GeographyCommonSenseQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: GeographyCommonSenseQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestGeographyCommonSenseMcqs(input: {
+  count?: number
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<GeographyCommonSenseQuestion[]> {
+  const count = input.count ?? GEOGRAPHY_COMMON_SENSE_QUESTION_COUNT
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.('正在向 DeepSeek 请求地理常识题目…')
+
+  const historyHint = buildAvoidTermsHint('地理知识点', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 事业编联考 C 类公基「地理常识」四选一练习题（中国自然/人文、世界地理、地球与地图，**难度中等偏易、高频考点**）。`,
+    GEOGRAPHY_COMMON_SENSE_FORMAT,
+    historyHint,
+    `本批 ${count} 道的 term 必须互不相同；按【命题比例】覆盖四类。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: GEOGRAPHY_COMMON_SENSE_SYSTEM,
+    temperature: 0.72,
+    maxTokens: 8192,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: GeographyCommonSenseQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseGeographyCommonSenseMcqAiObject(item)
+    if (!fields) return
+    const q = buildGeographyCommonSenseQuestionFromMcq({ ...fields, seq: idx + 1 })
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
+  })
+
+  const deduped = dedupeGeographyCommonSenseQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('地理知识点', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        `请生成第 ${slot} 道地理常识四选一题（C 类公基难度，中国地理/世界地理/地球与地图高频点，勿出难题）。\n${GEOGRAPHY_COMMON_SENSE_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
+        { system: GEOGRAPHY_COMMON_SENSE_SYSTEM, temperature: 0.7, maxTokens: 900 },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseGeographyCommonSenseMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildGeographyCommonSenseQuestionFromMcq({ ...fields, seq: slot })
       if (!q || !isPlayableFourChoiceMcq(q)) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (

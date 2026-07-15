@@ -14,15 +14,15 @@ import {
   type ClassicalChineseQuestion,
 } from '@/utils/classicalChinesePractice'
 import {
-  buildCommonSenseQuestionFromMcq,
-  parseCommonSenseMcqAiObject,
-  type CommonSenseQuestion,
-} from '@/utils/commonSensePractice'
-import {
   buildEconomyCommonSenseQuestionFromMcq,
   parseEconomyCommonSenseMcqAiObject,
   type EconomyCommonSenseQuestion,
 } from '@/utils/economyCommonSensePractice'
+import {
+  buildGeographyCommonSenseQuestionFromMcq,
+  parseGeographyCommonSenseMcqAiObject,
+  type GeographyCommonSenseQuestion,
+} from '@/utils/geographyCommonSensePractice'
 import {
   buildHistoryCommonSenseQuestionFromMcq,
   parseHistoryCommonSenseMcqAiObject,
@@ -38,6 +38,11 @@ import {
   parseLegalCommonSenseMcqAiObject,
   type LegalCommonSenseQuestion,
 } from '@/utils/legalCommonSensePractice'
+import {
+  buildLifeCommonSenseQuestionFromMcq,
+  parseLifeCommonSenseMcqAiObject,
+  type LifeCommonSenseQuestion,
+} from '@/utils/lifeCommonSensePractice'
 import {
   buildPartyHistoryQuestionFromMcq,
   parsePartyHistoryMcqAiObject,
@@ -113,12 +118,13 @@ function sourceTitle(source: ChineseKeyQuestionSource): string {
     'poetry-practice': '诗词练习',
     'classical-chinese': '文言知识',
     'rhetoric-usage': '修辞运用',
-    'common-sense': '常识练习',
     'history-common-sense': '历史常识',
     'party-history': '中共党史',
     'theory-policy': '理论政策',
     'legal-common-sense': '法律常识',
     'economy-common-sense': '经济常识',
+    'life-common-sense': '生活科学',
+    'geography-common-sense': '地理常识',
   }
   const readingMode = readingSubModeFromKeySource(source)
   if (readingMode) return `阅读理解·${readingMode}`
@@ -196,10 +202,15 @@ function buildVariantFromAi(
     if (!fields) return null
     return buildEconomyCommonSenseQuestionFromMcq({ ...fields, seq })
   }
-  if (source === 'common-sense') {
-    const fields = parseCommonSenseMcqAiObject(raw)
+  if (source === 'life-common-sense') {
+    const fields = parseLifeCommonSenseMcqAiObject(raw)
     if (!fields) return null
-    return buildCommonSenseQuestionFromMcq({ ...fields, seq })
+    return buildLifeCommonSenseQuestionFromMcq({ ...fields, seq })
+  }
+  if (source === 'geography-common-sense') {
+    const fields = parseGeographyCommonSenseMcqAiObject(raw)
+    if (!fields) return null
+    return buildGeographyCommonSenseQuestionFromMcq({ ...fields, seq })
   }
   void original
   return null
@@ -229,20 +240,22 @@ export async function tryGenerateChineseKeyVariant(
   }
 }
 
-/** 批量：逐题尝试变式，失败则用原题 */
+/** 批量：逐题尝试变式，失败则用原题；同时返回对应原题指纹 */
 export async function buildKeyPracticeQuestionsWithVariants(
   source: ChineseKeyQuestionSource,
   originals: AnyChineseQuestion[],
   onProgress?: (msg: string) => void,
-): Promise<AnyChineseQuestion[]> {
-  const out: AnyChineseQuestion[] = []
+): Promise<{ questions: AnyChineseQuestion[]; originFingerprints: string[] }> {
+  const questions: AnyChineseQuestion[] = []
+  const originFingerprints: string[] = []
   for (let i = 0; i < originals.length; i++) {
     const original = originals[i]!
     onProgress?.(`正在生成变式 ${i + 1}/${originals.length}…`)
     const variant = await tryGenerateChineseKeyVariant(source, original, i + 1)
-    out.push(variant ?? original)
+    questions.push(variant ?? original)
+    originFingerprints.push(original.fingerprint)
   }
-  return out
+  return { questions, originFingerprints }
 }
 
 export type {
@@ -253,10 +266,11 @@ export type {
   ClassicalChineseQuestion,
   RhetoricUsageQuestion,
   ReadingComprehensionQuestion,
-  CommonSenseQuestion,
   HistoryCommonSenseQuestion,
   PartyHistoryQuestion,
   TheoryPolicyQuestion,
   LegalCommonSenseQuestion,
   EconomyCommonSenseQuestion,
+  LifeCommonSenseQuestion,
+  GeographyCommonSenseQuestion,
 }

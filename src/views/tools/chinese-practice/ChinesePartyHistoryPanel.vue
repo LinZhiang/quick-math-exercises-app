@@ -1,6 +1,8 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { ChineseKeyReviewMeta } from '@/utils/chineseKeyReviewSession'
+import { useChineseKeyReviewQuizUi } from '@/utils/chineseKeyReviewSession'
 import { useChinesePartyHistoryTest } from '@/composables/useChinesePartyHistoryTest'
 import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
@@ -16,6 +18,12 @@ const PARTY_ASSIST_SYSTEM =
   '你是事业编与公务员考试常识判断「中共党史」教练，擅长重要会议内容与意义、事件、人物贡献、路线方针辨析，时间节点仅作辅助。用简体中文讲解，表述客观准确，回答要具体。'
 
 const test = useChinesePartyHistoryTest()
+
+const keyReviewUi = useChineseKeyReviewQuizUi(() => ({
+  submitted: test.submitted,
+  currentIndex: test.currentIndex,
+  results: test.results,
+}))
 const favorited = ref(false)
 const regenerating = ref(false)
 const followupInput = ref('')
@@ -40,9 +48,9 @@ const isRunningOrLoading = computed(
 
 defineExpose({
   isRunningOrLoading,
-  startWith(questions: PartyHistoryQuestion[]) {
+  startWith(questions: PartyHistoryQuestion[], keyReview?: ChineseKeyReviewMeta) {
     test.resetToIdle()
-    test.startQuiz(questions)
+    test.startQuiz(questions, keyReview ? { keyReview } : undefined)
   },
 })
 
@@ -240,7 +248,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           {{ test.currentQuestion.explanation }}
         </p>
         <div
-          v-if="!test.results[test.results.length - 1]?.correct"
+          v-if="!keyReviewUi.isKeyReview && !test.results[test.results.length - 1]?.correct"
           class="chinese-quiz__careless"
         >
           <el-button
@@ -255,6 +263,21 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         </div>
       </div>
 
+      <div
+        v-if="test.submitted && test.currentQuestion && (keyReviewUi.canRemoveRelated || keyReviewUi.relatedRemoved)"
+        class="chinese-quiz__key-remove"
+      >
+        <el-button
+          v-if="keyReviewUi.canRemoveRelated"
+          size="small"
+          type="warning"
+          plain
+          @click="keyReviewUi.onRemoveRelatedOrigin"
+        >
+          删除相关{{ keyReviewUi.bankLabel }}原题
+        </el-button>
+        <span v-else class="chinese-quiz__key-remove-done">已从{{ keyReviewUi.bankLabel }}删除相关原题</span>
+      </div>
       <div v-if="test.submitted && test.currentQuestion" class="chinese-quiz__assist">
         <div class="chinese-quiz__assist-head">
           <h5 class="chinese-quiz__assist-title">DeepSeek 本题讲解</h5>
@@ -467,6 +490,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 .chinese-quiz__feedback {
   margin-bottom: 12px;
+}
+.chinese-quiz__key-remove {
+  margin: 8px 0 12px;
+}
+.chinese-quiz__key-remove-done {
+  font-size: 13px;
+  color: var(--app-text-muted);
 }
 .chinese-quiz__careless {
   margin-top: 8px;

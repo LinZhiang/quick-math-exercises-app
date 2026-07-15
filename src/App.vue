@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
-import PwaInstallBanner from '@/components/PwaInstallBanner.vue'
 </script>
 
 <template>
   <div class="app-root">
-    <PwaInstallBanner />
     <RouterView />
   </div>
 </template>

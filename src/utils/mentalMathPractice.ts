@@ -9,6 +9,11 @@ import {
   type DivisibilityMode,
 } from '@/utils/divisibilityPractice'
 import {
+  LIFE_SENSE_MODES,
+  generateLifeSenseQuestion,
+  type LifeSenseMode,
+} from '@/utils/lifeSensePractice'
+import {
   assertNonTrivialPair,
   buildExamStyleNumberWrongs,
   tryBuildHardCompositeQuestion,
@@ -26,6 +31,7 @@ export type MentalMathMode =
   | 'square-cube-hard'
   | FractionEstimateMode
   | DivisibilityMode
+  | LifeSenseMode
 
 export type MentalMathModeCategory =
   | 'arithmetic'
@@ -33,6 +39,7 @@ export type MentalMathModeCategory =
   | 'square-cube'
   | 'fraction'
   | 'divisibility'
+  | 'life-sense'
 
 export type MentalMathAnswerValue = number | string
 
@@ -163,6 +170,11 @@ export const MENTAL_MATH_DIVISIBILITY_MODES: MentalMathModeConfig[] = DIVISIBILI
   }),
 )
 
+export const MENTAL_MATH_LIFE_SENSE_MODES: MentalMathModeConfig[] = LIFE_SENSE_MODES.map((m) => ({
+  ...m,
+  category: 'life-sense' as const,
+}))
+
 /** 复杂题次幂：仅考察 2⁻²～2⁻⁶ 与 2¹⁰～2²⁴ */
 const POWER_HARD_EXPONENTS: number[] = [
   -6,
@@ -187,13 +199,14 @@ const POWER_HARD_EXPONENTS: number[] = [
   24,
 ]
 
-/** 四则口算 + 2 的次幂 + 平方/立方 + 估算分数 + 整除及其性质全部模式 */
+/** 四则口算 + 2 的次幂 + 平方/立方 + 估算分数 + 整除及其性质 + 生活常识全部模式 */
 export const MENTAL_MATH_MODES: MentalMathModeConfig[] = [
   ...MENTAL_MATH_ARITHMETIC_MODES,
   ...MENTAL_MATH_POWER_MODES,
   ...MENTAL_MATH_SQUARE_CUBE_MODES,
   ...MENTAL_MATH_FRACTION_MODES,
   ...MENTAL_MATH_DIVISIBILITY_MODES,
+  ...MENTAL_MATH_LIFE_SENSE_MODES,
 ]
 
 export type MentalMathQuestion = {
@@ -202,6 +215,8 @@ export type MentalMathQuestion = {
   correctAnswer: MentalMathAnswerValue
   options: MentalMathAnswerValue[]
   correctIndex: number
+  /** 可选错因：结算页展示，作答过程中不展示 */
+  explanation?: string
 }
 
 export type MentalMathAnswerRecord = {
@@ -213,6 +228,7 @@ export type MentalMathAnswerRecord = {
   correct: boolean
   scoreAfter: number
   elapsedMs: number
+  explanation?: string
 }
 
 export function isFractionEstimateMode(mode: MentalMathMode): mode is FractionEstimateMode {
@@ -226,6 +242,10 @@ export function isDivisibilityPracticeMode(mode: MentalMathMode): mode is Divisi
     mode === 'divisibility-normal' ||
     mode === 'divisibility-hard'
   )
+}
+
+export function isLifeSensePracticeMode(mode: MentalMathMode): mode is LifeSenseMode {
+  return mode === 'life-sense-easy' || mode === 'life-sense-normal' || mode === 'life-sense-hard'
 }
 
 function randInt(min: number, max: number): number {
@@ -1022,6 +1042,10 @@ function buildMentalMathQuestionOnce(
 
   if (isDivisibilityPracticeMode(mode)) {
     return generateDivisibilityQuestion(mode, id, optionCount)
+  }
+
+  if (isLifeSensePracticeMode(mode)) {
+    return generateLifeSenseQuestion(mode, id, optionCount, avoidFingerprints)
   }
 
   if (mode === 'power-easy' || mode === 'power-hard') {

@@ -7,6 +7,12 @@ import {
 } from '@/utils/chineseGeneratedHistory'
 import { upsertChineseWordMemorizationWrong } from '@/utils/chineseWordMemorizationStorage'
 import { createChineseWrongBookGate } from '@/utils/chineseWrongBookGate'
+import {
+  beginChineseKeyReviewSession,
+  clearChineseKeyReviewSession,
+  isChineseKeyReviewActive,
+  type ChineseKeyReviewMeta,
+} from '@/utils/chineseKeyReviewSession'
 import { playMentalMathStartSound } from '@/utils/mentalMathSounds'
 import {
   WORD_MEMORIZATION_QUESTION_COUNT,
@@ -149,7 +155,7 @@ export function useChineseWordMemorizationTest() {
     }
   }
 
-  function startQuiz(initialQuestions?: WordMemorizationQuestion[]) {
+  function startQuiz(initialQuestions?: WordMemorizationQuestion[], opts?: { keyReview?: ChineseKeyReviewMeta }) {
     if (initialQuestions?.length) {
       questions.value = initialQuestions
       paperSource.value = 'review'
@@ -161,6 +167,11 @@ export function useChineseWordMemorizationTest() {
     selectedIndex.value = null
     submitted.value = false
     results.value = []
+    if (opts?.keyReview) {
+      beginChineseKeyReviewSession(opts.keyReview)
+    } else {
+      clearChineseKeyReviewSession()
+    }
     wrongGate.clearWrongGate()
     carelessMarked.value = false
     phase.value = 'running'
@@ -196,7 +207,7 @@ export function useChineseWordMemorizationTest() {
     })
     submitted.value = true
     carelessMarked.value = false
-    if (!correct) {
+    if (!correct && !isChineseKeyReviewActive()) {
       wrongGate.noteWrongAnswer(q)
     }
   }
@@ -234,6 +245,7 @@ export function useChineseWordMemorizationTest() {
 
   function resetToIdle() {
     clearQuizElapsedInterval()
+    clearChineseKeyReviewSession()
     quizWallClockStartMs = null
     phase.value = 'idle'
     loadingMessage.value = ''

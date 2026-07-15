@@ -7,6 +7,12 @@ import {
 } from '@/utils/chineseGeneratedHistory'
 import { upsertChineseHistoryCommonSenseWrong } from '@/utils/chineseHistoryCommonSenseStorage'
 import { createChineseWrongBookGate } from '@/utils/chineseWrongBookGate'
+import {
+  beginChineseKeyReviewSession,
+  clearChineseKeyReviewSession,
+  isChineseKeyReviewActive,
+  type ChineseKeyReviewMeta,
+} from '@/utils/chineseKeyReviewSession'
 import { playMentalMathStartSound } from '@/utils/mentalMathSounds'
 import {
   HISTORY_COMMON_SENSE_QUESTION_COUNT,
@@ -147,7 +153,7 @@ export function useChineseHistoryCommonSenseTest() {
     }
   }
 
-  function startQuiz(initialQuestions?: HistoryCommonSenseQuestion[]) {
+  function startQuiz(initialQuestions?: HistoryCommonSenseQuestion[], opts?: { keyReview?: ChineseKeyReviewMeta }) {
     if (initialQuestions?.length) {
       questions.value = initialQuestions
       paperSource.value = 'review'
@@ -159,6 +165,11 @@ export function useChineseHistoryCommonSenseTest() {
     selectedIndex.value = null
     submitted.value = false
     results.value = []
+    if (opts?.keyReview) {
+      beginChineseKeyReviewSession(opts.keyReview)
+    } else {
+      clearChineseKeyReviewSession()
+    }
     wrongGate.clearWrongGate()
     carelessMarked.value = false
     phase.value = 'running'
@@ -194,7 +205,7 @@ export function useChineseHistoryCommonSenseTest() {
     })
     submitted.value = true
     carelessMarked.value = false
-    if (!correct) {
+    if (!correct && !isChineseKeyReviewActive()) {
       wrongGate.noteWrongAnswer(q)
     }
   }
@@ -232,6 +243,7 @@ export function useChineseHistoryCommonSenseTest() {
 
   function resetToIdle() {
     clearQuizElapsedInterval()
+    clearChineseKeyReviewSession()
     quizWallClockStartMs = null
     phase.value = 'idle'
     loadingMessage.value = ''

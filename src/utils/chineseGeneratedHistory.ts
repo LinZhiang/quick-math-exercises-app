@@ -6,7 +6,6 @@ export type ChineseGeneratedHistoryKind =
   | 'idiom'
   | 'word-memorization'
   | 'poetry'
-  | 'common-sense'
   | 'char-literacy'
   | 'classical-chinese'
   | 'rhetoric-usage'
@@ -20,12 +19,13 @@ export type ChineseGeneratedHistoryKind =
   | 'theory-policy'
   | 'legal-common-sense'
   | 'economy-common-sense'
+  | 'life-common-sense'
+  | 'geography-common-sense'
 
 const STORAGE_KEYS: Record<ChineseGeneratedHistoryKind, string> = {
   idiom: 'chinese-generated-history-idiom-v1',
   'word-memorization': 'chinese-generated-history-word-memorization-v1',
   poetry: 'chinese-generated-history-poetry-v1',
-  'common-sense': 'chinese-generated-history-common-sense-v1',
   'char-literacy': 'chinese-generated-history-char-literacy-v1',
   'classical-chinese': 'chinese-generated-history-classical-chinese-v1',
   'rhetoric-usage': 'chinese-generated-history-rhetoric-usage-v1',
@@ -39,6 +39,8 @@ const STORAGE_KEYS: Record<ChineseGeneratedHistoryKind, string> = {
   'theory-policy': 'chinese-generated-history-theory-policy-v1',
   'legal-common-sense': 'chinese-generated-history-legal-common-sense-v1',
   'economy-common-sense': 'chinese-generated-history-economy-common-sense-v1',
+  'life-common-sense': 'chinese-generated-history-life-common-sense-v1',
+  'geography-common-sense': 'chinese-generated-history-geography-common-sense-v1',
 }
 
 function normalizeTerm(term: string): string {

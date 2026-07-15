@@ -1,11 +1,11 @@
 import { ElMessage } from 'element-plus'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { isAiChatConfigured, requestLegalCommonSenseMcqs } from '@/services/deepseek'
+import { isAiChatConfigured, requestGeographyCommonSenseMcqs } from '@/services/deepseek'
 import {
   appendGeneratedTerms,
   listRecentGeneratedTerms,
 } from '@/utils/chineseGeneratedHistory'
-import { upsertChineseLegalCommonSenseWrong } from '@/utils/chineseLegalCommonSenseStorage'
+import { upsertChineseGeographyCommonSenseWrong } from '@/utils/chineseGeographyCommonSenseStorage'
 import { createChineseWrongBookGate } from '@/utils/chineseWrongBookGate'
 import {
   beginChineseKeyReviewSession,
@@ -15,20 +15,20 @@ import {
 } from '@/utils/chineseKeyReviewSession'
 import { playMentalMathStartSound } from '@/utils/mentalMathSounds'
 import {
-  LEGAL_COMMON_SENSE_QUESTION_COUNT,
-  legalCommonSenseQuestionTypeLabel,
-  type LegalCommonSenseQuestion,
-} from '@/utils/legalCommonSensePractice'
+  GEOGRAPHY_COMMON_SENSE_QUESTION_COUNT,
+  geographyCommonSenseQuestionTypeLabel,
+  type GeographyCommonSenseQuestion,
+} from '@/utils/geographyCommonSensePractice'
 import type { ChinesePaperSource } from '@/types/chinese-practice'
 
-export type ChineseLegalCommonSensePhase = 'idle' | 'loading' | 'running' | 'summary'
+export type ChineseGeographyCommonSensePhase = 'idle' | 'loading' | 'running' | 'summary'
 
-export type ChineseLegalCommonSenseResultRow = {
+export type ChineseGeographyCommonSenseResultRow = {
   unitIndex: number
   typeLabel: string
   title: string
   correct: boolean
-  question: LegalCommonSenseQuestion
+  question: GeographyCommonSenseQuestion
   chosenIndex: number | null
 }
 
@@ -40,15 +40,15 @@ function formatDuration(ms: number): string {
   return `${m} 分 ${s} 秒`
 }
 
-export function useChineseLegalCommonSenseTest() {
-  const phase = ref<ChineseLegalCommonSensePhase>('idle')
+export function useChineseGeographyCommonSenseTest() {
+  const phase = ref<ChineseGeographyCommonSensePhase>('idle')
   const loadingMessage = ref('')
-  const questions = ref<LegalCommonSenseQuestion[]>([])
+  const questions = ref<GeographyCommonSenseQuestion[]>([])
   const currentIndex = ref(0)
   const selectedIndex = ref<number | null>(null)
   const submitted = ref(false)
   const paperSource = ref<ChinesePaperSource>(null)
-  const results = ref<ChineseLegalCommonSenseResultRow[]>([])
+  const results = ref<ChineseGeographyCommonSenseResultRow[]>([])
   const quizElapsedMs = ref(0)
   const quizRunningDisplayMs = ref(0)
 
@@ -57,13 +57,13 @@ export function useChineseLegalCommonSenseTest() {
   let totalPausedMs = 0
   let pauseStartMs: number | null = null
 
-  const wrongGate = createChineseWrongBookGate(upsertChineseLegalCommonSenseWrong)
+  const wrongGate = createChineseWrongBookGate(upsertChineseGeographyCommonSenseWrong)
   const carelessMarked = ref(false)
 
   const currentQuestion = computed(() => questions.value[currentIndex.value] ?? null)
   const correctCount = computed(() => results.value.filter((r) => r.correct).length)
   const questionCount = computed(() =>
-    questions.value.length > 0 ? questions.value.length : LEGAL_COMMON_SENSE_QUESTION_COUNT,
+    questions.value.length > 0 ? questions.value.length : GEOGRAPHY_COMMON_SENSE_QUESTION_COUNT,
   )
 
   const quizDurationSummaryText = computed(() => {
@@ -127,15 +127,15 @@ export function useChineseLegalCommonSenseTest() {
     phase.value = 'loading'
     loadingMessage.value = '正在生成题目…'
     try {
-      const generated = await requestLegalCommonSenseMcqs({
-        count: LEGAL_COMMON_SENSE_QUESTION_COUNT,
-        avoidTerms: listRecentGeneratedTerms('legal-common-sense'),
+      const generated = await requestGeographyCommonSenseMcqs({
+        count: GEOGRAPHY_COMMON_SENSE_QUESTION_COUNT,
+        avoidTerms: listRecentGeneratedTerms('geography-common-sense'),
         onProgress: (msg) => {
           loadingMessage.value = msg
         },
       })
       appendGeneratedTerms(
-        'legal-common-sense',
+        'geography-common-sense',
         generated.map((q) => q.term),
       )
       questions.value = generated
@@ -153,7 +153,7 @@ export function useChineseLegalCommonSenseTest() {
     }
   }
 
-  function startQuiz(initialQuestions?: LegalCommonSenseQuestion[], opts?: { keyReview?: ChineseKeyReviewMeta }) {
+  function startQuiz(initialQuestions?: GeographyCommonSenseQuestion[], opts?: { keyReview?: ChineseKeyReviewMeta }) {
     if (initialQuestions?.length) {
       questions.value = initialQuestions
       paperSource.value = 'review'
@@ -197,7 +197,7 @@ export function useChineseLegalCommonSenseTest() {
     const correct = selectedIndex.value === q.correctIndex
     results.value.push({
       unitIndex: currentIndex.value + 1,
-      typeLabel: legalCommonSenseQuestionTypeLabel(q.questionType),
+      typeLabel: geographyCommonSenseQuestionTypeLabel(q.questionType),
       title: q.term,
       correct,
       question: q,

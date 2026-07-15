@@ -6,6 +6,7 @@ export type PracticeHubSectionId =
   | 'square-cube'
   | 'fraction'
   | 'divisibility'
+  | 'life-sense'
   | 'twentyfour'
   | 'sudoku'
   | 'graphic'
@@ -25,6 +26,7 @@ export const PRACTICE_HUB_SECTIONS: PracticeHubSection[] = [
   { id: 'square-cube', title: '平方与立方' },
   { id: 'fraction', title: '估算分数' },
   { id: 'divisibility', title: '整除及其性质' },
+  { id: 'life-sense', title: '生活常识' },
   { id: 'twentyfour', title: '二十四点' },
   { id: 'sudoku', title: '数独' },
   { id: 'graphic', title: '图形推理' },
