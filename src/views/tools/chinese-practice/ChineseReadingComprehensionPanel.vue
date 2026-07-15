@@ -184,8 +184,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
     <template v-if="test.phase === 'idle' || test.phase === 'loading'">
       <p class="mode-section__hint">
         针对公考言语理解阅读类高频题：主旨观点、细节判断、词句理解、推断下文、标题添加。
-        请先选择题型，再生成短篇材料题，每轮 {{ test.questionCount }} 题四选一。
-        正计时，提交后暂停并公布答案，点「下一题」继续。
+        命题要求选项长短接近、干扰「半真半假」，避免正确项明显最长或错项过于低级。
+        请先选择题型，再生成短篇材料题，每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停并公布答案。
       </p>
 
       <div class="chinese-reading__modes">
@@ -309,6 +309,20 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         <p v-if="test.currentQuestion.explanation" class="chinese-quiz__explain">
           {{ test.currentQuestion.explanation }}
         </p>
+        <div
+          v-if="!test.results[test.results.length - 1]?.correct"
+          class="chinese-quiz__careless"
+        >
+          <el-button
+            v-if="!test.carelessMarked"
+            size="small"
+            plain
+            @click="test.markCarelessWrong()"
+          >
+            粗心答错
+          </el-button>
+          <span v-else class="chinese-quiz__careless-done">已标记粗心，不入错题本</span>
+        </div>
       </div>
 
       <div v-if="test.submitted && test.currentQuestion" class="chinese-quiz__assist">
@@ -554,6 +568,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .chinese-quiz__feedback {
   margin-bottom: 12px;
 }
+.chinese-quiz__careless {
+  margin-top: 8px;
+}
+.chinese-quiz__careless-done {
+  font-size: 13px;
+  color: var(--app-text-muted);
+}
+
 
 .chinese-quiz__explain {
   margin: 6px 0 0;

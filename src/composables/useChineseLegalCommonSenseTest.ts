@@ -6,6 +6,7 @@ import {
   listRecentGeneratedTerms,
 } from '@/utils/chineseGeneratedHistory'
 import { upsertChineseLegalCommonSenseWrong } from '@/utils/chineseLegalCommonSenseStorage'
+import { createChineseWrongBookGate } from '@/utils/chineseWrongBookGate'
 import { playMentalMathStartSound } from '@/utils/mentalMathSounds'
 import {
   LEGAL_COMMON_SENSE_QUESTION_COUNT,
@@ -49,6 +50,9 @@ export function useChineseLegalCommonSenseTest() {
   let quizElapsedIntervalId: number | null = null
   let totalPausedMs = 0
   let pauseStartMs: number | null = null
+
+  const wrongGate = createChineseWrongBookGate(upsertChineseLegalCommonSenseWrong)
+  const carelessMarked = ref(false)
 
   const currentQuestion = computed(() => questions.value[currentIndex.value] ?? null)
   const correctCount = computed(() => results.value.filter((r) => r.correct).length)
@@ -133,6 +137,8 @@ export function useChineseLegalCommonSenseTest() {
       selectedIndex.value = null
       submitted.value = false
       results.value = []
+      wrongGate.clearWrongGate()
+      carelessMarked.value = false
       phase.value = 'idle'
       ElMessage.success(`已生成 ${questions.value.length} 道题`)
     } catch (e) {
@@ -153,6 +159,8 @@ export function useChineseLegalCommonSenseTest() {
     selectedIndex.value = null
     submitted.value = false
     results.value = []
+    wrongGate.clearWrongGate()
+    carelessMarked.value = false
     phase.value = 'running'
     playMentalMathStartSound()
   }
@@ -185,16 +193,19 @@ export function useChineseLegalCommonSenseTest() {
       chosenIndex: selectedIndex.value,
     })
     submitted.value = true
+    carelessMarked.value = false
     if (!correct) {
-      try {
-        upsertChineseLegalCommonSenseWrong(q)
-      } catch {
-        ElMessage.error('错题保存失败')
-      }
+      wrongGate.noteWrongAnswer(q)
     }
   }
 
   function nextQuestion() {
+    try {
+      wrongGate.flushWrongIfNeeded()
+    } catch {
+      ElMessage.error('错题保存失败')
+    }
+    carelessMarked.value = false
     resumeQuizTimer()
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
@@ -206,6 +217,19 @@ export function useChineseLegalCommonSenseTest() {
     submitted.value = false
   }
 
+
+  function markCarelessWrong() {
+    if (phase.value !== 'running' || !submitted.value) return
+    const row = results.value[results.value.length - 1]
+    if (!row || row.correct) return
+    if (!wrongGate.markCarelessWrong()) {
+      // already flushed or none
+      return
+    }
+    carelessMarked.value = true
+    ElMessage.success('已标记为粗心答错，本题不入错题本')
+  }
+
   function resetToIdle() {
     clearQuizElapsedInterval()
     quizWallClockStartMs = null
@@ -215,6 +239,8 @@ export function useChineseLegalCommonSenseTest() {
     currentIndex.value = 0
     selectedIndex.value = null
     submitted.value = false
+    wrongGate.clearWrongGate()
+    carelessMarked.value = false
     paperSource.value = null
     results.value = []
     quizElapsedMs.value = 0
@@ -269,6 +295,8 @@ export function useChineseLegalCommonSenseTest() {
     selectOption,
     submitCurrent,
     nextQuestion,
+    markCarelessWrong,
+    carelessMarked,
     resetToIdle,
   })
 }

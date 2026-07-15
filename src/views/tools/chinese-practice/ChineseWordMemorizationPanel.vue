@@ -255,6 +255,20 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         <p v-if="test.currentQuestion.explanation" class="chinese-quiz__explain">
           {{ test.currentQuestion.explanation }}
         </p>
+        <div
+          v-if="!test.results[test.results.length - 1]?.correct"
+          class="chinese-quiz__careless"
+        >
+          <el-button
+            v-if="!test.carelessMarked"
+            size="small"
+            plain
+            @click="test.markCarelessWrong()"
+          >
+            粗心答错
+          </el-button>
+          <span v-else class="chinese-quiz__careless-done">已标记粗心，不入错题本</span>
+        </div>
       </div>
 
       <div v-if="test.submitted && test.currentQuestion" class="chinese-quiz__assist">
@@ -476,6 +490,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .chinese-quiz__feedback {
   margin-bottom: 12px;
 }
+.chinese-quiz__careless {
+  margin-top: 8px;
+}
+.chinese-quiz__careless-done {
+  font-size: 13px;
+  color: var(--app-text-muted);
+}
+
 
 .chinese-quiz__explain {
   margin: 6px 0 0;

@@ -1,3 +1,9 @@
+import {
+  assembleFourChoiceMcq,
+  extractMcqCorrectAndDistractors,
+  isPlayableFourChoiceMcq,
+} from '@/utils/chineseMcqAiFields'
+
 export type ChineseReadingQuestionType =
   | 'main-idea'
   | 'detail'
@@ -88,11 +94,9 @@ export function buildReadingComprehensionQuestionFromMcq(input: {
   const correct = input.correct.trim()
   const distractors = input.distractors.map((d) => d.trim()).filter(Boolean)
   if (!term || !passage || !stem || !correct || distractors.length !== 3) return null
-  const all = [correct, ...distractors]
-  if (new Set(all).size !== 4) return null
-  const options = shuffleInPlace([...all])
-  const correctIndex = options.indexOf(correct)
-  if (correctIndex < 0) return null
+  const assembled = assembleFourChoiceMcq(correct, distractors, shuffleInPlace)
+  if (!assembled) return null
+  const { options, correctIndex } = assembled
   const fingerprint = getReadingComprehensionQuestionFingerprint({
     questionType: input.questionType,
     term,
@@ -101,7 +105,7 @@ export function buildReadingComprehensionQuestionFromMcq(input: {
     options,
     correctIndex,
   })
-  return {
+  const q: ReadingComprehensionQuestion = {
     id: `reading-${input.seq}-${Date.now()}`,
     questionType: input.questionType,
     term,
@@ -112,6 +116,8 @@ export function buildReadingComprehensionQuestionFromMcq(input: {
     explanation: (input.explanation ?? '').trim(),
     fingerprint,
   }
+  if (!isPlayableFourChoiceMcq(q)) return null
+  return q
 }
 
 export function readingComprehensionPayloadToQuestion(
@@ -159,12 +165,11 @@ export function parseReadingComprehensionMcqAiObject(item: unknown): {
   const term = String(o.term ?? o.topic ?? o.keyword ?? '').trim()
   const passage = String(o.passage ?? o.material ?? o.text ?? '').trim()
   const stem = String(o.stem ?? o.question ?? '').trim()
-  const correct = String(o.correct ?? o.answer ?? '').trim()
-  const distractors = Array.isArray(o.distractors)
-    ? o.distractors.map((x) => String(x).trim()).filter(Boolean)
-    : []
+  const picked = extractMcqCorrectAndDistractors(o)
+  if (!picked) return null
+  const { correct, distractors } = picked
   const explanation = String(o.explanation ?? o.analysis ?? '').trim()
-  if (!term || !passage || !stem || !correct || distractors.length !== 3) return null
+  if (!term || !passage || !stem) return null
   return {
     questionType,
     term,

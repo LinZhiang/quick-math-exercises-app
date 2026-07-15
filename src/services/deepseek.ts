@@ -1,5 +1,9 @@
 import { parseAiJsonArrayLenient, parseAiJsonObjectLenient, stripAiJsonFence } from '@/utils/aiJsonParse'
 import {
+  CHINESE_MCQ_CORRECTNESS_RULES,
+  isPlayableFourChoiceMcq,
+} from '@/utils/chineseMcqAiFields'
+import {
   buildCharLiteracyQuestionFromMcq,
   CHAR_LITERACY_QUESTION_COUNT,
   parseCharLiteracyMcqAiObject,
@@ -170,6 +174,42 @@ export async function requestAssistantMarkdown(input: {
   })
 }
 
+/** 关键题变式：根据原题 JSON 生成一道新四选一（仅返回 JSON 对象） */
+export async function requestChinesePracticeVariantJson(input: {
+  sourceTitle: string
+  schemaHint: string
+  originalQuestionJson: string
+}): Promise<unknown> {
+  const system = [
+    `你是公考/事业编「${input.sourceTitle}」命题专家，专门根据错题本原题生成**变式题**。`,
+    '只输出合法 JSON 对象，不要 markdown 代码围栏，不要其它说明。',
+    '',
+    CHINESE_MCQ_CORRECTNESS_RULES,
+  ].join('\n')
+  const user = [
+    '请依据下列【原题】生成 1 道四选一变式题。',
+    '变式要求：',
+    '1. 可换提问方式（换题干/换角度），但仍考查同一知识要点或材料理解能力；',
+    '2. 可继续以原正确选项为答案，也可在保证科学性的前提下，改为考查原干扰项中某一知识点（此时新 correct 必须对应该新问法的真正正确答案）；',
+    '3. 选项可改写，干扰仍要有迷惑性；不要几乎原样照抄；',
+    '4. 阅读类须保留或微调 passage，不得丢掉材料胡编。',
+    '',
+    `【输出字段】\n${input.schemaHint}`,
+    '',
+    `【原题】\n${input.originalQuestionJson}`,
+    '',
+    '仅返回一个 JSON 对象。',
+    '',
+    CHINESE_MCQ_CORRECTNESS_RULES,
+  ].join('\n')
+  const raw = await deepseekChatRaw(user, {
+    system,
+    temperature: 0.75,
+    maxTokens: 2000,
+  })
+  return parseAiJsonObjectLenient(raw)
+}
+
 /** 多轮追问 */
 export async function deepseekChatConversation(input: {
   system: string
@@ -214,7 +254,7 @@ const IDIOM_FORMAT = `
 【JSON 示例】
 选释义：{"questionType":"word-to-meaning","term":"潜移默化","stem":"「潜移默化」的正确释义是？","correct":"……","distractors":["……","……","……"],"explanation":"……"}
 选词语：{"questionType":"meaning-to-word","term":"脱颖而出","stem":"比喻人的才能全部显露出来的是？","correct":"脱颖而出","distractors":["出类拔萃","崭露头角","锋芒毕露"],"explanation":"……"}
-`.trim()
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 function normalizeAvoidTerm(term: string): string {
   return term.trim().replace(/\s+/g, '')
@@ -283,7 +323,7 @@ export async function requestIdiomRecognitionMcqs(input: {
     const fields = parseIdiomMcqAiObject(item)
     if (!fields) return
     const q = buildIdiomQuestionFromMcq({ ...fields, seq: idx + 1 })
-    if (q) questions.push(q)
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
   })
 
   const deduped = dedupeQuestions(questions, blocked)
@@ -302,7 +342,7 @@ export async function requestIdiomRecognitionMcqs(input: {
       const fields = parseIdiomMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildIdiomQuestionFromMcq({ ...fields, seq: slot })
-      if (!q) continue
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (
         deduped.some((x) => x.fingerprint === q.fingerprint) ||
@@ -344,7 +384,7 @@ const POETRY_FORMAT = `
 【JSON 示例】
 选作者：{"questionType":"poem-to-author","term":"静夜思","stem":"床前明月光，疑是地上霜。举头望明月，低头思故乡。","correct":"李白","distractors":["杜甫","白居易","王维"],"explanation":"……"}
 选描写：{"questionType":"poem-to-theme","term":"江雪","stem":"千山鸟飞绝，万径人踪灭。孤舟蓑笠翁，独钓寒江雪。","correct":"严冬江雪、孤寂寒境","distractors":["春日江南烟雨","秋夜洞庭月色","夏日荷塘清趣"],"explanation":"……"}
-`.trim()
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 function dedupePoetryQuestions(
   items: PoetryRecognitionQuestion[],
@@ -402,7 +442,7 @@ export async function requestPoetryRecognitionMcqs(input: {
     const fields = parsePoetryMcqAiObject(item)
     if (!fields) return
     const q = buildPoetryQuestionFromMcq({ ...fields, seq: idx + 1 })
-    if (q) questions.push(q)
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
   })
 
   const deduped = dedupePoetryQuestions(questions, blocked)
@@ -421,7 +461,7 @@ export async function requestPoetryRecognitionMcqs(input: {
       const fields = parsePoetryMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildPoetryQuestionFromMcq({ ...fields, seq: slot })
-      if (!q) continue
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (
         deduped.some((x) => x.fingerprint === q.fingerprint) ||
@@ -460,7 +500,7 @@ const COMMON_SENSE_FORMAT = `
 
 【JSON 示例】
 {"questionType":"general","term":"罗汉果","stem":"罗汉果的主要功效是？","correct":"润肺止咳、生津利咽","distractors":["温中散寒、活血通络","清热解毒、利尿消肿","补气养血、安神益智"],"explanation":"……"}
-`.trim()
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 function dedupeCommonSenseQuestions(
   items: CommonSenseQuestion[],
@@ -511,7 +551,7 @@ export async function requestCommonSenseMcqs(input: {
     const fields = parseCommonSenseMcqAiObject(item)
     if (!fields) return
     const q = buildCommonSenseQuestionFromMcq({ ...fields, seq: idx + 1 })
-    if (q) questions.push(q)
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
   })
 
   const deduped = dedupeCommonSenseQuestions(questions, blocked)
@@ -530,7 +570,7 @@ export async function requestCommonSenseMcqs(input: {
       const fields = parseCommonSenseMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildCommonSenseQuestionFromMcq({ ...fields, seq: slot })
-      if (!q) continue
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (
         deduped.some((x) => x.fingerprint === q.fingerprint) ||
@@ -573,7 +613,7 @@ const CHAR_LITERACY_FORMAT = `
 【JSON 示例】
 读音：{"questionType":"pronunciation","term":"纨绔","stem":"下列加点字读音正确的是？","correct":"纨绔子弟（kù）","distractors":["纨绔子弟（kuā）","纨绔子弟（guā）","纨绔子弟（huà）"],"explanation":"……"}
 错别字：{"questionType":"typo","term":"一筹莫展","stem":"下列词语没有错别字的是？","correct":"一筹莫展","distractors":["一愁莫展","一绸莫展","一酬莫展"],"explanation":"……"}
-`.trim()
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 function dedupeCharLiteracyQuestions(
   items: CharLiteracyQuestion[],
@@ -631,7 +671,7 @@ export async function requestCharLiteracyMcqs(input: {
     const fields = parseCharLiteracyMcqAiObject(item)
     if (!fields) return
     const q = buildCharLiteracyQuestionFromMcq({ ...fields, seq: idx + 1 })
-    if (q) questions.push(q)
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
   })
 
   const deduped = dedupeCharLiteracyQuestions(questions, blocked)
@@ -650,7 +690,7 @@ export async function requestCharLiteracyMcqs(input: {
       const fields = parseCharLiteracyMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildCharLiteracyQuestionFromMcq({ ...fields, seq: slot })
-      if (!q) continue
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (
         deduped.some((x) => x.fingerprint === q.fingerprint) ||
@@ -694,7 +734,7 @@ const HISTORY_COMMON_SENSE_FORMAT = `
 
 【JSON 示例】
 {"questionType":"general","term":"辛亥革命","stem":"辛亥革命爆发于哪一年？","correct":"1911年","distractors":["1919年","1921年","1949年"],"explanation":"……"}
-`.trim()
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 function dedupeHistoryCommonSenseQuestions(
   items: HistoryCommonSenseQuestion[],
@@ -745,7 +785,7 @@ export async function requestHistoryCommonSenseMcqs(input: {
     const fields = parseHistoryCommonSenseMcqAiObject(item)
     if (!fields) return
     const q = buildHistoryCommonSenseQuestionFromMcq({ ...fields, seq: idx + 1 })
-    if (q) questions.push(q)
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
   })
 
   const deduped = dedupeHistoryCommonSenseQuestions(questions, blocked)
@@ -764,7 +804,7 @@ export async function requestHistoryCommonSenseMcqs(input: {
       const fields = parseHistoryCommonSenseMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildHistoryCommonSenseQuestionFromMcq({ ...fields, seq: slot })
-      if (!q) continue
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (
         deduped.some((x) => x.fingerprint === q.fingerprint) ||
@@ -814,7 +854,7 @@ const PARTY_HISTORY_FORMAT = `
 
 【JSON 示例】（示例为会议内容题，勿模仿成时间题）
 {"questionType":"general","term":"遵义会议","stem":"遵义会议的重大历史意义是？","correct":"事实上确立了毛泽东在党中央和红军的领导地位","distractors":["通过了《关于建国以来党的若干历史问题的决议》","确立了社会主义市场经济体制的改革目标","提出了社会主义初级阶段的基本路线"],"explanation":"……"}
-`.trim()
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 function dedupePartyHistoryQuestions(
   items: PartyHistoryQuestion[],
@@ -865,7 +905,7 @@ export async function requestPartyHistoryMcqs(input: {
     const fields = parsePartyHistoryMcqAiObject(item)
     if (!fields) return
     const q = buildPartyHistoryQuestionFromMcq({ ...fields, seq: idx + 1 })
-    if (q) questions.push(q)
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
   })
 
   const deduped = dedupePartyHistoryQuestions(questions, blocked)
@@ -884,7 +924,7 @@ export async function requestPartyHistoryMcqs(input: {
       const fields = parsePartyHistoryMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildPartyHistoryQuestionFromMcq({ ...fields, seq: slot })
-      if (!q) continue
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (
         deduped.some((x) => x.fingerprint === q.fingerprint) ||
@@ -929,7 +969,7 @@ const THEORY_POLICY_FORMAT = `
 
 【JSON 示例】
 {"questionType":"general","term":"中国式现代化","stem":"党的二十大报告指出，中国式现代化是人口规模巨大的现代化，是全体人民共同富裕的现代化，是物质文明和精神文明相协调的现代化，是人与自然和谐共生的现代化，还是？","correct":"走和平发展道路的现代化","distractors":["对外扩张发展的现代化","依附外部市场的现代化","以资本为中心的现代化"],"explanation":"……"}
-`.trim()
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 function dedupeTheoryPolicyQuestions(
   items: TheoryPolicyQuestion[],
@@ -980,7 +1020,7 @@ export async function requestTheoryPolicyMcqs(input: {
     const fields = parseTheoryPolicyMcqAiObject(item)
     if (!fields) return
     const q = buildTheoryPolicyQuestionFromMcq({ ...fields, seq: idx + 1 })
-    if (q) questions.push(q)
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
   })
 
   const deduped = dedupeTheoryPolicyQuestions(questions, blocked)
@@ -999,7 +1039,7 @@ export async function requestTheoryPolicyMcqs(input: {
       const fields = parseTheoryPolicyMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildTheoryPolicyQuestionFromMcq({ ...fields, seq: slot })
-      if (!q) continue
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (
         deduped.some((x) => x.fingerprint === q.fingerprint) ||
@@ -1045,7 +1085,7 @@ const LEGAL_COMMON_SENSE_FORMAT = `
 
 【JSON 示例】
 {"questionType":"general","term":"正当防卫","stem":"为了使国家、公共利益、本人或者他人的人身、财产和其他权利免受正在进行的不法侵害，而采取的制止不法侵害的行为，对不法侵害人造成损害的，属于？","correct":"正当防卫","distractors":["紧急避险","过失犯罪","意外事件"],"explanation":"……"}
-`.trim()
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 function dedupeLegalCommonSenseQuestions(
   items: LegalCommonSenseQuestion[],
@@ -1096,7 +1136,7 @@ export async function requestLegalCommonSenseMcqs(input: {
     const fields = parseLegalCommonSenseMcqAiObject(item)
     if (!fields) return
     const q = buildLegalCommonSenseQuestionFromMcq({ ...fields, seq: idx + 1 })
-    if (q) questions.push(q)
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
   })
 
   const deduped = dedupeLegalCommonSenseQuestions(questions, blocked)
@@ -1115,7 +1155,7 @@ export async function requestLegalCommonSenseMcqs(input: {
       const fields = parseLegalCommonSenseMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildLegalCommonSenseQuestionFromMcq({ ...fields, seq: slot })
-      if (!q) continue
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (
         deduped.some((x) => x.fingerprint === q.fingerprint) ||
@@ -1160,7 +1200,7 @@ const ECONOMY_COMMON_SENSE_FORMAT = `
 
 【JSON 示例】
 {"questionType":"general","term":"通货膨胀","stem":"一般物价水平持续上涨、货币购买力下降的经济现象称为？","correct":"通货膨胀","distractors":["通货紧缩","滞胀","流动性陷阱"],"explanation":"……"}
-`.trim()
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 function dedupeEconomyCommonSenseQuestions(
   items: EconomyCommonSenseQuestion[],
@@ -1211,7 +1251,7 @@ export async function requestEconomyCommonSenseMcqs(input: {
     const fields = parseEconomyCommonSenseMcqAiObject(item)
     if (!fields) return
     const q = buildEconomyCommonSenseQuestionFromMcq({ ...fields, seq: idx + 1 })
-    if (q) questions.push(q)
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
   })
 
   const deduped = dedupeEconomyCommonSenseQuestions(questions, blocked)
@@ -1230,7 +1270,7 @@ export async function requestEconomyCommonSenseMcqs(input: {
       const fields = parseEconomyCommonSenseMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildEconomyCommonSenseQuestionFromMcq({ ...fields, seq: slot })
-      if (!q) continue
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (
         deduped.some((x) => x.fingerprint === q.fingerprint) ||
@@ -1274,7 +1314,7 @@ const WORD_MEMORIZATION_FORMAT = `
 【JSON 示例】
 选释义：{"questionType":"word-to-meaning","term":"砥砺","stem":"「砥砺」的正确释义是？","correct":"磨炼；激励","distractors":["指责批评","敷衍应付","故意拖延"],"explanation":"……"}
 选词语：{"questionType":"meaning-to-word","term":"贻误","stem":"因拖延或差错而造成不利影响，可用哪个词语？","correct":"贻误","distractors":["延误","耽误","辜负"],"explanation":"……"}
-`.trim()
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 function dedupeWordMemorizationQuestions(
   items: WordMemorizationQuestion[],
@@ -1332,7 +1372,7 @@ export async function requestWordMemorizationMcqs(input: {
     const fields = parseWordMemorizationMcqAiObject(item)
     if (!fields) return
     const q = buildWordMemorizationQuestionFromMcq({ ...fields, seq: idx + 1 })
-    if (q) questions.push(q)
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
   })
 
   const deduped = dedupeWordMemorizationQuestions(questions, blocked)
@@ -1351,7 +1391,7 @@ export async function requestWordMemorizationMcqs(input: {
       const fields = parseWordMemorizationMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildWordMemorizationQuestionFromMcq({ ...fields, seq: slot })
-      if (!q) continue
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (
         deduped.some((x) => x.fingerprint === q.fingerprint) ||
@@ -1390,7 +1430,7 @@ const CLASSICAL_CHINESE_FORMAT = `
 
 【JSON 示例】
 {"questionType":"general","term":"之","stem":"「攻而破之」中「之」的用法是？","correct":"代词，指代敌人","distractors":["助词，取消句子独立性","结构助词，的","动词，往、到"],"explanation":"……"}
-`.trim()
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 function dedupeClassicalChineseQuestions(
   items: ClassicalChineseQuestion[],
@@ -1441,7 +1481,7 @@ export async function requestClassicalChineseMcqs(input: {
     const fields = parseClassicalChineseMcqAiObject(item)
     if (!fields) return
     const q = buildClassicalChineseQuestionFromMcq({ ...fields, seq: idx + 1 })
-    if (q) questions.push(q)
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
   })
 
   const deduped = dedupeClassicalChineseQuestions(questions, blocked)
@@ -1460,7 +1500,7 @@ export async function requestClassicalChineseMcqs(input: {
       const fields = parseClassicalChineseMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildClassicalChineseQuestionFromMcq({ ...fields, seq: slot })
-      if (!q) continue
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (
         deduped.some((x) => x.fingerprint === q.fingerprint) ||
@@ -1500,7 +1540,7 @@ const RHETORIC_USAGE_FORMAT = `
 
 【JSON 示例】
 {"questionType":"general","term":"比喻","stem":"「人生如逆旅，我亦是行人」主要运用的修辞是？","correct":"比喻","distractors":["夸张","借代","拟人"],"explanation":"……"}
-`.trim()
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 function dedupeRhetoricUsageQuestions(
   items: RhetoricUsageQuestion[],
@@ -1551,7 +1591,7 @@ export async function requestRhetoricUsageMcqs(input: {
     const fields = parseRhetoricUsageMcqAiObject(item)
     if (!fields) return
     const q = buildRhetoricUsageQuestionFromMcq({ ...fields, seq: idx + 1 })
-    if (q) questions.push(q)
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
   })
 
   const deduped = dedupeRhetoricUsageQuestions(questions, blocked)
@@ -1570,7 +1610,7 @@ export async function requestRhetoricUsageMcqs(input: {
       const fields = parseRhetoricUsageMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildRhetoricUsageQuestionFromMcq({ ...fields, seq: slot })
-      if (!q) continue
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (
         deduped.some((x) => x.fingerprint === q.fingerprint) ||
@@ -1593,22 +1633,39 @@ export async function requestRhetoricUsageMcqs(input: {
 
 const READING_COMPREHENSION_SYSTEM = [
   '你是公务员考试与事业单位考试「言语理解·阅读理解」命题专家，熟悉主旨观点、细节判断、词句理解、推断下文、标题添加等高频题型。',
-  '材料风格贴近公考议论文/说明文片段；难度适中。',
+  '命题必须对标国考/联考真题难度：正确项不可一眼可辨，干扰项须「真假参半」、有迷惑力。',
+  '严禁靠「选项最长=正确」「只需/唯一/全部」等绝对化错项糊弄；正确项与干扰项字数、句式应接近。',
   '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
 ].join('\n')
 
 function readingComprehensionModeGuidance(mode: ChineseReadingQuestionType): string {
   switch (mode) {
     case 'main-idea':
-      return '【本题型专属】考主旨/意图/观点：问这段文字主要说明什么、意在强调什么、核心观点是？选项为概括性表述。'
+      return [
+        '【本题型专属】考主旨/意图/观点：问这段文字主要说明什么、意在强调什么、核心观点是？',
+        '正确项：全面准确概括文意重点（可含侧重+统筹），语气克制，避免堆砌材料原句。',
+        '干扰项优先：①以偏概全（只抓次要信息当主旨）；②程度/侧重偷换（把「重点」改成「更重要/取代」）；③范围扩大或缩小；④对策类偷换（文中未说的绝对方案）。四类都应读来「像那么回事」。',
+      ].join('\n')
     case 'detail':
-      return '【本题型专属】考细节判断：根据材料判断哪项正确/错误或哪项能从文中推出；干扰项含无中生有、偷换概念。'
+      return [
+        '【本题型专属】考细节判断：哪项正确/错误或能从文中推出。',
+        '干扰项优先：偷换概念、无中生有但表述像材料语气、混淆充分/必要、张冠李戴；忌一眼假的绝对句。',
+      ].join('\n')
     case 'word-sentence':
-      return '【本题型专属】考画线词句含义：stem 标出需理解的词句，选项解释其在文中的含义；须结合语境。'
+      return [
+        '【本题型专属】考词句理解：stem 标出需理解的词句。',
+        '干扰项优先：字面义、超语境引申、邻句意思串位；正确项结合语境，勿比其它项明显更「正确腔」。',
+      ].join('\n')
     case 'infer-next':
-      return '【本题型专属】考推断下文：问下文最可能写什么；选项为接下来可能展开的内容方向。'
+      return [
+        '【本题型专属】考推断下文：下文最可能写什么。',
+        '干扰项优先：上文已写完的内容、无关新话题、跳跃过大但措辞正式的续写；正确项紧扣末句衔接。',
+      ].join('\n')
     case 'title':
-      return '【本题型专属】考标题添加：选出最适合的标题；须涵盖主旨且不过宽过窄。'
+      return [
+        '【本题型专属】考标题添加。',
+        '干扰项优先：过宽、过窄、只抓细节、标题党式夸张；四标题字数接近，忌正确项明显更长更全。',
+      ].join('\n')
   }
 }
 
@@ -1619,16 +1676,23 @@ function readingComprehensionFormat(mode: ChineseReadingQuestionType): string {
 
 ${readingComprehensionModeGuidance(mode)}
 
+【干扰项质量·必须遵守】（针对你过往易犯的「一眼假」问题）
+1. **长度均衡**：correct 与 3 个 distractors 的汉字数应接近（建议彼此相差不超过约 6 字）；**禁止**正确项明显最长、信息堆满，错项短且糙。
+2. **半真半假**：每个错项都要包含材料中出现过的关键词或半对信息，再在「侧重、范围、程度、逻辑关系」上出错；读起来像合理概括，细辨才错。
+3. **禁止低级错项**：不要用「只需」「仅仅」「唯一」「全部」「一定」「绝对」等极端词把选项做死；不要写与材料明文直接相反、小学生也能排除的句子。
+4. **禁止形式泄题**：不要让正确项独用「统筹/既要又要/重点是…同时…」这类最周全句式，而错项全是片面短句。四个选项句式风格应同类。
+5. **自检**：出完后自问「不看材料、只看选项长短会不会直接锁定正确项？」若会，必须改写至无法靠长短判断。
+
 【命题要求】
-- 每题必须有 passage：短材料约 150～350 字，公考风格议论文/说明文片段
+- 每题必须有 passage：短材料约 150～350 字，公考风格议论文/说明文片段，信息有轻重主次（便于出半真干扰）
 - term：短主题标签（如「基层治理」「科技创新」）
-- stem：针对材料的设问；correct + 3 个 distractors，共 4 个互斥选项
-- explanation：1～2 句简体中文说明解题要点
+- stem：针对材料的设问；correct + distractors[3]，共 4 个互斥选项
+- explanation：1～2 句点明正确项对应文意何处，以及典型干扰错在哪（偏片面/偷换等）
 - 材料与设问须匹配题型 ${label}（${mode}）
 
-【JSON 示例】
-{"questionType":"${mode}","term":"基层治理","passage":"……约150～350字材料……","stem":"……设问……","correct":"……","distractors":["……","……","……"],"explanation":"……"}
-`.trim()
+【JSON 示例】（示意长度接近、半真干扰；实际内容勿照抄）
+{"questionType":"${mode}","term":"乡村振兴","passage":"……","stem":"这段文字旨在强调：","correct":"产业振兴是乡村振兴重点，并需协同推进多项振兴","distractors":["完善乡村基础设施是当前工作的首要着力点","吸引人才回流能够自然带动乡村产业升级","组织建设滞后是乡村振兴面临的核心制约"],"explanation":"……"}
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 }
 
 function dedupeReadingComprehensionQuestions(
@@ -1667,6 +1731,7 @@ export async function requestReadingComprehensionMcqs(input: {
     format,
     historyHint,
     `本批 ${count} 道的 term 必须互不相同；每题须含独立 passage。`,
+    `**务必做到**：选项长度接近、干扰半真半假、禁止绝对化低级错项、禁止正确项明显最长。`,
     `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
   ]
     .filter(Boolean)
@@ -1674,7 +1739,7 @@ export async function requestReadingComprehensionMcqs(input: {
 
   const raw = await deepseekChatRaw(user, {
     system: READING_COMPREHENSION_SYSTEM,
-    temperature: 0.72,
+    temperature: 0.62,
     maxTokens: 8192,
   })
 
@@ -1688,7 +1753,7 @@ export async function requestReadingComprehensionMcqs(input: {
       questionType: mode,
       seq: idx + 1,
     })
-    if (q) questions.push(q)
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
   })
 
   const deduped = dedupeReadingComprehensionQuestions(questions, blocked)
@@ -1700,8 +1765,8 @@ export async function requestReadingComprehensionMcqs(input: {
     const avoidHint = buildAvoidTermsHint('阅读材料主题', avoidTerms)
     try {
       const oneRaw = await deepseekChatRaw(
-        `请生成第 ${slot} 道阅读理解四选一题，题型固定为 **${modeLabel}**（questionType=\`${mode}\`）。\n${format}${avoidHint}\n仅返回一个 JSON 对象。`,
-        { system: READING_COMPREHENSION_SYSTEM, temperature: 0.7, maxTokens: 1500 },
+        `请生成第 ${slot} 道阅读理解四选一题，题型固定为 **${modeLabel}**（questionType=\`${mode}\`）。要求选项等长、干扰半真半假，禁止「只需/唯一」类低级错项与正确项明显最长。\n${format}${avoidHint}\n仅返回一个 JSON 对象。`,
+        { system: READING_COMPREHENSION_SYSTEM, temperature: 0.6, maxTokens: 1500 },
       )
       const oneObj = parseAiJsonObjectLenient(oneRaw)
       const fields = parseReadingComprehensionMcqAiObject(oneObj)
@@ -1711,7 +1776,7 @@ export async function requestReadingComprehensionMcqs(input: {
         questionType: mode,
         seq: slot,
       })
-      if (!q) continue
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (
         deduped.some((x) => x.fingerprint === q.fingerprint) ||

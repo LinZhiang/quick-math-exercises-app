@@ -5,7 +5,6 @@ import {
   CHINESE_KEY_QUESTION_SOURCES,
   readingSubModeFromKeySource,
   type ChineseKeyQuestionSource,
-  type ChineseReadingKeySource,
 } from '@/constants/chinese-practice-tabs'
 import type { KeyPracticePayload } from '@/types/chinese-practice'
 import type {
@@ -161,6 +160,8 @@ import {
 import { rhetoricUsageQuestionTypeLabel } from '@/utils/rhetoricUsagePractice'
 import { theoryPolicyQuestionTypeLabel } from '@/utils/theoryPolicyPractice'
 import { wordMemorizationQuestionTypeLabel } from '@/utils/wordMemorizationPractice'
+import { buildKeyPracticeQuestionsWithVariants } from '@/utils/chineseKeyQuestionVariants'
+import { isAiChatConfigured } from '@/services/deepseek'
 import { getKeyQuestionNote, setKeyQuestionNote } from '@/utils/chineseKeyQuestionNotes'
 import { markdownToDisplaySafeHtml } from '@/utils/markdownToHtml'
 
@@ -206,6 +207,8 @@ const emit = defineEmits<{
 const source = ref<ChineseKeyQuestionSource>('idiom-memorization')
 const keyTab = ref<'wrong' | 'favorite'>('wrong')
 const loading = ref(false)
+const variantLoading = ref(false)
+const variantProgress = ref('')
 const wrongRows = ref<StoredRow[]>([])
 const favoriteRows = ref<StoredRow[]>([])
 const selected = ref<Set<string>>(new Set())
@@ -409,128 +412,130 @@ function selectAll() {
   selected.value = new Set(activeRows.value.map((r) => r.fingerprint))
 }
 
-function onPractice() {
+function buildOriginalQuestions(rows: StoredRow[]): KeyPracticePayload['questions'] {
+  const readingMode = readingSubModeFromKeySource(source.value)
+  if (source.value === 'idiom-memorization') {
+    return rows.map((r, i) => storedToQuestion(r as StoredIdiomRecord | StoredFavoriteRecord, i + 1))
+  }
+  if (source.value === 'word-memorization') {
+    return rows.map((r, i) =>
+      storedWordMemorizationToQuestion(
+        r as StoredWordMemorizationRecord | StoredWordMemorizationFavoriteRecord,
+        i + 1,
+      ),
+    )
+  }
+  if (source.value === 'char-literacy') {
+    return rows.map((r, i) =>
+      storedCharLiteracyToQuestion(r as StoredCharLiteracyRecord | StoredCharLiteracyFavoriteRecord, i + 1),
+    )
+  }
+  if (source.value === 'poetry-practice') {
+    return rows.map((r, i) =>
+      storedPoetryToQuestion(r as StoredPoetryRecord | StoredPoetryFavoriteRecord, i + 1),
+    )
+  }
+  if (source.value === 'classical-chinese') {
+    return rows.map((r, i) =>
+      storedClassicalChineseToQuestion(
+        r as StoredClassicalChineseRecord | StoredClassicalChineseFavoriteRecord,
+        i + 1,
+      ),
+    )
+  }
+  if (source.value === 'rhetoric-usage') {
+    return rows.map((r, i) =>
+      storedRhetoricUsageToQuestion(
+        r as StoredRhetoricUsageRecord | StoredRhetoricUsageFavoriteRecord,
+        i + 1,
+      ),
+    )
+  }
+  if (readingMode) {
+    return rows.map((r, i) =>
+      storedReadingComprehensionToQuestion(
+        r as StoredReadingComprehensionRecord | StoredReadingComprehensionFavoriteRecord,
+        i + 1,
+      ),
+    )
+  }
+  if (source.value === 'history-common-sense') {
+    return rows.map((r, i) =>
+      storedHistoryCommonSenseToQuestion(
+        r as StoredHistoryCommonSenseRecord | StoredHistoryCommonSenseFavoriteRecord,
+        i + 1,
+      ),
+    )
+  }
+  if (source.value === 'party-history') {
+    return rows.map((r, i) =>
+      storedPartyHistoryToQuestion(r as StoredPartyHistoryRecord | StoredPartyHistoryFavoriteRecord, i + 1),
+    )
+  }
+  if (source.value === 'theory-policy') {
+    return rows.map((r, i) =>
+      storedTheoryPolicyToQuestion(
+        r as StoredTheoryPolicyRecord | StoredTheoryPolicyFavoriteRecord,
+        i + 1,
+      ),
+    )
+  }
+  if (source.value === 'legal-common-sense') {
+    return rows.map((r, i) =>
+      storedLegalCommonSenseToQuestion(
+        r as StoredLegalCommonSenseRecord | StoredLegalCommonSenseFavoriteRecord,
+        i + 1,
+      ),
+    )
+  }
+  if (source.value === 'economy-common-sense') {
+    return rows.map((r, i) =>
+      storedEconomyCommonSenseToQuestion(
+        r as StoredEconomyCommonSenseRecord | StoredEconomyCommonSenseFavoriteRecord,
+        i + 1,
+      ),
+    )
+  }
+  return rows.map((r, i) =>
+    storedCommonSenseToQuestion(r as StoredCommonSenseRecord | StoredCommonSenseFavoriteRecord, i + 1),
+  )
+}
+
+async function onPractice() {
   const fps = selected.value
   const rows = activeRows.value.filter((r) => fps.has(r.fingerprint))
   if (!rows.length) {
     ElMessage.warning('请先勾选题目')
     return
   }
-  const readingMode = readingSubModeFromKeySource(source.value)
-  if (source.value === 'idiom-memorization') {
-    emit('practice', {
-      source: 'idiom-memorization',
-      questions: rows.map((r, i) => storedToQuestion(r as StoredIdiomRecord | StoredFavoriteRecord, i + 1)),
-    })
-  } else if (source.value === 'word-memorization') {
-    emit('practice', {
-      source: 'word-memorization',
-      questions: rows.map((r, i) =>
-        storedWordMemorizationToQuestion(
-          r as StoredWordMemorizationRecord | StoredWordMemorizationFavoriteRecord,
-          i + 1,
-        ),
-      ),
-    })
-  } else if (source.value === 'char-literacy') {
-    emit('practice', {
-      source: 'char-literacy',
-      questions: rows.map((r, i) =>
-        storedCharLiteracyToQuestion(r as StoredCharLiteracyRecord | StoredCharLiteracyFavoriteRecord, i + 1),
-      ),
-    })
-  } else if (source.value === 'poetry-practice') {
-    emit('practice', {
-      source: 'poetry-practice',
-      questions: rows.map((r, i) =>
-        storedPoetryToQuestion(r as StoredPoetryRecord | StoredPoetryFavoriteRecord, i + 1),
-      ),
-    })
-  } else if (source.value === 'classical-chinese') {
-    emit('practice', {
-      source: 'classical-chinese',
-      questions: rows.map((r, i) =>
-        storedClassicalChineseToQuestion(
-          r as StoredClassicalChineseRecord | StoredClassicalChineseFavoriteRecord,
-          i + 1,
-        ),
-      ),
-    })
-  } else if (source.value === 'rhetoric-usage') {
-    emit('practice', {
-      source: 'rhetoric-usage',
-      questions: rows.map((r, i) =>
-        storedRhetoricUsageToQuestion(
-          r as StoredRhetoricUsageRecord | StoredRhetoricUsageFavoriteRecord,
-          i + 1,
-        ),
-      ),
-    })
-  } else if (readingMode) {
-    emit('practice', {
-      source: source.value as ChineseReadingKeySource,
-      questions: rows.map((r, i) =>
-        storedReadingComprehensionToQuestion(
-          r as StoredReadingComprehensionRecord | StoredReadingComprehensionFavoriteRecord,
-          i + 1,
-        ),
-      ),
-    })
-  } else if (source.value === 'history-common-sense') {
-    emit('practice', {
-      source: 'history-common-sense',
-      questions: rows.map((r, i) =>
-        storedHistoryCommonSenseToQuestion(
-          r as StoredHistoryCommonSenseRecord | StoredHistoryCommonSenseFavoriteRecord,
-          i + 1,
-        ),
-      ),
-    })
-  } else if (source.value === 'party-history') {
-    emit('practice', {
-      source: 'party-history',
-      questions: rows.map((r, i) =>
-        storedPartyHistoryToQuestion(r as StoredPartyHistoryRecord | StoredPartyHistoryFavoriteRecord, i + 1),
-      ),
-    })
-  } else if (source.value === 'theory-policy') {
-    emit('practice', {
-      source: 'theory-policy',
-      questions: rows.map((r, i) =>
-        storedTheoryPolicyToQuestion(
-          r as StoredTheoryPolicyRecord | StoredTheoryPolicyFavoriteRecord,
-          i + 1,
-        ),
-      ),
-    })
-  } else if (source.value === 'legal-common-sense') {
-    emit('practice', {
-      source: 'legal-common-sense',
-      questions: rows.map((r, i) =>
-        storedLegalCommonSenseToQuestion(
-          r as StoredLegalCommonSenseRecord | StoredLegalCommonSenseFavoriteRecord,
-          i + 1,
-        ),
-      ),
-    })
-  } else if (source.value === 'economy-common-sense') {
-    emit('practice', {
-      source: 'economy-common-sense',
-      questions: rows.map((r, i) =>
-        storedEconomyCommonSenseToQuestion(
-          r as StoredEconomyCommonSenseRecord | StoredEconomyCommonSenseFavoriteRecord,
-          i + 1,
-        ),
-      ),
-    })
-  } else {
-    emit('practice', {
-      source: 'common-sense',
-      questions: rows.map((r, i) =>
-        storedCommonSenseToQuestion(r as StoredCommonSenseRecord | StoredCommonSenseFavoriteRecord, i + 1),
-      ),
-    })
+  const originals = buildOriginalQuestions(rows)
+  let questions: KeyPracticePayload['questions'] = originals
+  if (isAiChatConfigured()) {
+    variantLoading.value = true
+    variantProgress.value = '正在准备变式题…'
+    try {
+      questions = (await buildKeyPracticeQuestionsWithVariants(
+        source.value,
+        originals,
+        (msg) => {
+          variantProgress.value = msg
+        },
+      )) as KeyPracticePayload['questions']
+      const variantCount = questions.filter((q, i) => q.fingerprint !== originals[i]?.fingerprint).length
+      if (variantCount > 0) {
+        ElMessage.success(`已生成 ${variantCount}/${originals.length} 道变式，失败题已用原题`)
+      } else {
+        ElMessage.info('变式生成未成功，已使用原题练习')
+      }
+    } catch {
+      questions = originals
+      ElMessage.warning('变式生成失败，已切换为原题')
+    } finally {
+      variantLoading.value = false
+      variantProgress.value = ''
+    }
   }
+  emit('practice', { source: source.value, questions } as KeyPracticePayload)
 }
 
 function onRemove(fp: string) {
@@ -775,9 +780,15 @@ defineExpose({ refresh })
     </ul>
 
     <div v-if="activeRows.length" class="chinese-key__actions">
-      <el-button type="primary" :disabled="selected.size === 0" @click="onPractice">
+      <el-button
+        type="primary"
+        :disabled="selected.size === 0 || variantLoading"
+        :loading="variantLoading"
+        @click="onPractice"
+      >
         练习所选（{{ selected.size }} 题）
       </el-button>
+      <p v-if="variantProgress" class="chinese-key__variant-progress">{{ variantProgress }}</p>
       <el-button plain @click="selectAll">全选</el-button>
     </div>
   </div>
@@ -983,5 +994,13 @@ defineExpose({ refresh })
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  align-items: center;
+}
+
+.chinese-key__variant-progress {
+  margin: 0;
+  width: 100%;
+  font-size: 13px;
+  color: var(--app-text-muted);
 }
 </style>

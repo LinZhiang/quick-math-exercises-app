@@ -1,5 +1,11 @@
 /** 考察四字成语以外的词语（实词、虚词、关联词、近义辨析等） */
 
+import {
+  assembleFourChoiceMcq,
+  extractMcqCorrectAndDistractors,
+  isPlayableFourChoiceMcq,
+} from '@/utils/chineseMcqAiFields'
+
 export type ChineseWordMemorizationQuestionType = 'word-to-meaning' | 'meaning-to-word'
 
 export const WORD_MEMORIZATION_QUESTION_COUNT = 15
@@ -73,11 +79,9 @@ export function buildWordMemorizationQuestionFromMcq(input: {
   const correct = input.correct.trim()
   const distractors = input.distractors.map((d) => d.trim()).filter(Boolean)
   if (!term || !stem || !correct || distractors.length !== 3) return null
-  const all = [correct, ...distractors]
-  if (new Set(all).size !== 4) return null
-  const options = shuffleInPlace([...all])
-  const correctIndex = options.indexOf(correct)
-  if (correctIndex < 0) return null
+  const assembled = assembleFourChoiceMcq(correct, distractors, shuffleInPlace)
+  if (!assembled) return null
+  const { options, correctIndex } = assembled
   const fingerprint = getWordMemorizationQuestionFingerprint({
     questionType: input.questionType,
     term,
@@ -85,7 +89,7 @@ export function buildWordMemorizationQuestionFromMcq(input: {
     options,
     correctIndex,
   })
-  return {
+  const q: WordMemorizationQuestion = {
     id: `word-mem-${input.seq}-${Date.now()}`,
     questionType: input.questionType,
     term,
@@ -95,6 +99,8 @@ export function buildWordMemorizationQuestionFromMcq(input: {
     explanation: (input.explanation ?? '').trim(),
     fingerprint,
   }
+  if (!isPlayableFourChoiceMcq(q)) return null
+  return q
 }
 
 export function wordMemorizationPayloadToQuestion(
@@ -130,15 +136,11 @@ export function parseWordMemorizationMcqAiObject(item: unknown): {
   if (!questionType) return null
   const term = String(o.term ?? o.word ?? o.idiom ?? '').trim()
   const stem = String(o.stem ?? o.question ?? '').trim()
-  const correctArr = Array.isArray(o.correct)
-    ? o.correct.map((x) => String(x).trim()).filter(Boolean)
-    : [String(o.correct ?? o.answer ?? '').trim()].filter(Boolean)
-  const correct = correctArr[0] ?? ''
-  const distractors = Array.isArray(o.distractors)
-    ? o.distractors.map((x) => String(x).trim()).filter(Boolean)
-    : []
+  const picked = extractMcqCorrectAndDistractors(o)
+  if (!picked) return null
+  const { correct, distractors } = picked
   const explanation = String(o.explanation ?? o.analysis ?? '').trim()
-  if (!term || !stem || !correct || distractors.length !== 3) return null
+  if (!term || !stem) return null
   if (questionType === 'meaning-to-word' && wordMemorizationStemLeaksTerm(stem, term)) return null
   if (questionType === 'meaning-to-word' && distractors.some((d) => d === term)) return null
   if (questionType === 'meaning-to-word' && correct !== term) return null
