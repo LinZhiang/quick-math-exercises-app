@@ -27,7 +27,7 @@ export const LIFE_SENSE_MODES: LifeSenseModeConfig[] = [
     correctDelta: 5,
     wrongDelta: -10,
     maxScore: 100,
-    desc: '30 秒 · 题库 500 道常见快判 · 短题干短选项 · 近 90 题不重复 · 对 +5 / 错 -10',
+    desc: '30 秒 · 校对题库快判 · 短题干短选项 · 近 90 题不重复 · 对 +5 / 错 -10',
   },
   {
     id: 'life-sense-normal',
@@ -37,7 +37,7 @@ export const LIFE_SENSE_MODES: LifeSenseModeConfig[] = [
     correctDelta: 8,
     wrongDelta: -15,
     maxScore: 100,
-    desc: '40 秒 · 题库 500 道易混快判 · 短题干短选项 · 近 90 题不重复 · 对 +8 / 错 -15',
+    desc: '40 秒 · 校对题库易混快判 · 短题干短选项 · 近 90 题不重复 · 对 +8 / 错 -15',
   },
   {
     id: 'life-sense-hard',
@@ -47,7 +47,7 @@ export const LIFE_SENSE_MODES: LifeSenseModeConfig[] = [
     correctDelta: 10,
     wrongDelta: -20,
     maxScore: 100,
-    desc: '50 秒 · 题库 500 道高频易混 · 短题干短选项 · 近 90 题不重复 · 对 +10 / 错 -20',
+    desc: '50 秒 · 校对题库高频易混 · 短题干短选项 · 近 90 题不重复 · 对 +10 / 错 -20',
   },
 ]
 

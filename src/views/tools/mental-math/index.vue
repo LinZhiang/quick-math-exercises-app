@@ -799,7 +799,7 @@ onBeforeUnmount(() => {
         <section v-if="showLifeSenseSection" class="mode-section" id="practice-life-sense">
           <h3 class="mode-section__title">生活常识</h3>
           <p class="mode-section__hint">
-            本地题库：简单/普通/复杂各 500 道短题干快判（材料·种属·组成·用途）。近 90 题知识点不重复；计分同整除。作答中只提示对错，错因本轮结束后查看。不同于语文「生活科学」。
+            本地校对题库：材料/种属/组成/用途短题快判（禁止乱配对）。同档近 90 题知识点不重复；计分同整除。作答中只提示对错，错因结束后查看。不同于语文「生活科学」。
           </p>
           <div class="mode-grid">
             <button
