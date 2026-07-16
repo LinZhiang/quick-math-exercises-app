@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
+  PRACTICE_HUB_NAV_ITEMS,
   PRACTICE_HUB_SECTIONS,
+  practiceHubGroupHasMultiple,
+  practiceHubGroupIdForSection,
+  practiceHubSectionsInGroup,
+  type PracticeHubGroupId,
   type PracticeHubSectionId,
 } from '@/constants/practice-hub-sections'
 import MentalMathPracticeGuide from '@/views/tools/mental-math/components/MentalMathPracticeGuide.vue'
@@ -32,9 +37,11 @@ import {
   MENTAL_MATH_DIVISIBILITY_MODES,
   MENTAL_MATH_FRACTION_MODES,
   MENTAL_MATH_LIFE_SENSE_MODES,
+  MENTAL_MATH_GRAMMAR_JUDGMENT_MODES,
   MENTAL_MATH_POWER_MODES,
   MENTAL_MATH_SQUARE_CUBE_MODES,
   isLifeSensePracticeMode,
+  isGrammarJudgmentPracticeMode,
   type MentalMathAnswerRecord,
   type MentalMathMode,
   type MentalMathQuestion,
@@ -137,6 +144,14 @@ const isLifeSenseSession = computed(
     !isSudokuMode(activeMode.value) &&
     isLifeSensePracticeMode(activeMode.value as MentalMathMode),
 )
+const isGrammarJudgmentSession = computed(
+  () =>
+    activeMode.value != null &&
+    !isGraphicMode(activeMode.value) &&
+    !isTwentyFourPointMode(activeMode.value) &&
+    !isSudokuMode(activeMode.value) &&
+    isGrammarJudgmentPracticeMode(activeMode.value as MentalMathMode),
+)
 
 const modeConfig = computed(() => {
   if (!activeMode.value) return null
@@ -182,6 +197,10 @@ const showDivisibilitySection = computed(
 const showLifeSenseSection = computed(
   () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'life-sense',
 )
+const showGrammarJudgmentSection = computed(
+  () =>
+    activeOutlineSection.value === 'all' || activeOutlineSection.value === 'grammar-judgment',
+)
 const showTwentyFourSection = computed(
   () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'twentyfour',
 )
@@ -208,10 +227,45 @@ const mcqOptionCount = computed(() => {
 
 const practiceMainRef = ref<HTMLElement | null>(null)
 const practiceSidebarRef = ref<HTMLElement | null>(null)
+const activeHubGroupId = ref<PracticeHubGroupId>(
+  practiceHubGroupIdForSection(activeOutlineSection.value),
+)
+
+const hubChildSections = computed(() => practiceHubSectionsInGroup(activeHubGroupId.value))
+const showHubLevel2 = computed(() => practiceHubGroupHasMultiple(activeHubGroupId.value))
+
+watch(activeOutlineSection, (id) => {
+  activeHubGroupId.value = practiceHubGroupIdForSection(id)
+})
+
+function selectHubGroup(groupId: PracticeHubGroupId) {
+  if (chineseSessionActive.value) return
+  activeHubGroupId.value = groupId
+  const children = practiceHubSectionsInGroup(groupId)
+  if (!children.some((s) => s.id === activeOutlineSection.value)) {
+    const first = children[0]
+    if (first) selectOutlineSection(first.id)
+  } else {
+    void nextTick(() => {
+      const active = practiceSidebarRef.value?.querySelector<HTMLElement>(
+        '.practice-sidebar__item--active',
+      )
+      active?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
+    })
+  }
+}
+
+function isHubLevel1Active(item: (typeof PRACTICE_HUB_NAV_ITEMS)[number]): boolean {
+  if (item.kind === 'group') {
+    return activeHubGroupId.value === item.group.id && showHubLevel2.value
+  }
+  return activeOutlineSection.value === item.section.id
+}
 
 function selectOutlineSection(id: PracticeHubSectionId) {
   if (chineseSessionActive.value) return
   activeOutlineSection.value = id
+  activeHubGroupId.value = practiceHubGroupIdForSection(id)
   void nextTick(() => {
     practiceMainRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
     const active = practiceSidebarRef.value?.querySelector<HTMLElement>(
@@ -697,6 +751,8 @@ onMounted(() => {
     activeOutlineSection.value = 'divisibility'
   } else if (hash === 'life-sense' || route.query.section === 'life-sense') {
     activeOutlineSection.value = 'life-sense'
+  } else if (hash === 'grammar-judgment' || route.query.section === 'grammar-judgment') {
+    activeOutlineSection.value = 'grammar-judgment'
   }
 })
 
@@ -716,7 +772,7 @@ onBeforeUnmount(() => {
         口算/图形结果仅在本页展示；语文练习多子模块四选一、正计时，DeepSeek 随机出题，错题与收藏在「关键题练习」。
       </p>
       <p class="page-subtitle page-subtitle--compact">
-        点上方分类切换，点卡片开始练习。
+        点上方分类找模式，点卡片开始练习。
       </p>
     </header>
 
@@ -726,17 +782,60 @@ onBeforeUnmount(() => {
         class="practice-sidebar"
         aria-label="练习大纲"
       >
-        <button
-          v-for="section in PRACTICE_HUB_SECTIONS"
-          :key="section.id"
-          type="button"
-          class="practice-sidebar__item"
-          :class="{ 'practice-sidebar__item--active': activeOutlineSection === section.id }"
-          :disabled="chineseSessionActive && section.id !== activeOutlineSection"
-          @click="selectOutlineSection(section.id)"
+        <div class="practice-sidebar__level1" aria-label="一级分类">
+          <template v-for="item in PRACTICE_HUB_NAV_ITEMS" :key="item.kind === 'group' ? item.group.id : item.section.id">
+            <button
+              v-if="item.kind === 'group'"
+              type="button"
+              class="practice-sidebar__group"
+              :class="{ 'practice-sidebar__group--active': isHubLevel1Active(item) }"
+              :disabled="chineseSessionActive && activeHubGroupId !== item.group.id"
+              @click="selectHubGroup(item.group.id)"
+            >
+              {{ item.group.title }}
+            </button>
+            <button
+              v-else
+              type="button"
+              class="practice-sidebar__group practice-sidebar__group--leaf"
+              :class="{ 'practice-sidebar__group--active': isHubLevel1Active(item) }"
+              :disabled="chineseSessionActive && item.section.id !== activeOutlineSection"
+              @click="selectOutlineSection(item.section.id)"
+            >
+              {{ item.section.title }}
+            </button>
+          </template>
+        </div>
+        <div
+          v-show="showHubLevel2"
+          class="practice-sidebar__level2"
+          aria-label="二级入口"
         >
-          {{ section.title }}
-        </button>
+          <button
+            v-for="section in hubChildSections"
+            :key="section.id"
+            type="button"
+            class="practice-sidebar__item"
+            :class="{ 'practice-sidebar__item--active': activeOutlineSection === section.id }"
+            :disabled="chineseSessionActive && section.id !== activeOutlineSection"
+            @click="selectOutlineSection(section.id)"
+          >
+            {{ section.title }}
+          </button>
+        </div>
+        <div class="practice-sidebar__flat" aria-label="全部入口">
+          <button
+            v-for="section in PRACTICE_HUB_SECTIONS"
+            :key="section.id"
+            type="button"
+            class="practice-sidebar__item"
+            :class="{ 'practice-sidebar__item--active': activeOutlineSection === section.id }"
+            :disabled="chineseSessionActive && section.id !== activeOutlineSection"
+            @click="selectOutlineSection(section.id)"
+          >
+            {{ section.title }}
+          </button>
+        </div>
       </aside>
 
       <div ref="practiceMainRef" class="practice-main mode-select">
@@ -865,6 +964,31 @@ onBeforeUnmount(() => {
             </button>
           </div>
           <MentalMathWrongBookPanel section="life-sense" />
+        </section>
+
+        <section
+          v-if="showGrammarJudgmentSection"
+          class="mode-section"
+          id="practice-grammar-judgment"
+        >
+          <h3 class="mode-section__title">语法判断</h3>
+          <p class="mode-section__hint">
+            给出句子，随机考察主/谓/宾/定/状/补（找成分或判成分）。题库 150 句按序出题；简单题均衡覆盖六种成分，复杂题为加长单句。答错记入错题集。计分：简单 +5/−10，普通 +8/−15，复杂 +13/−26。
+          </p>
+          <div class="mode-grid">
+            <button
+              v-for="m in MENTAL_MATH_GRAMMAR_JUDGMENT_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--grammar-judgment"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">{{ m.label }}</h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+          </div>
+          <MentalMathWrongBookPanel section="grammar-judgment" />
         </section>
 
         <section v-if="showTwentyFourSection" class="mode-section" id="practice-twentyfour">
@@ -1057,7 +1181,7 @@ onBeforeUnmount(() => {
           <p
             class="question-expression"
             :class="{
-              'question-expression--prose': isLifeSenseSession,
+              'question-expression--prose': isLifeSenseSession || isGrammarJudgmentSession,
               'question-expression--ok': feedback === 'correct',
               'question-expression--bad': feedback === 'wrong',
             }"
@@ -1186,6 +1310,21 @@ onBeforeUnmount(() => {
   overflow-y: auto;
 }
 
+.practice-sidebar__level1,
+.practice-sidebar__level2 {
+  display: none;
+}
+
+.practice-sidebar__flat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.practice-sidebar__group {
+  display: none;
+}
+
 .practice-sidebar__item {
   display: block;
   width: 100%;
@@ -1294,6 +1433,15 @@ onBeforeUnmount(() => {
 .mode-card--life-sense:hover {
   border-color: color-mix(in srgb, #3d9b7a 50%, var(--app-border-soft));
   box-shadow: 0 4px 16px rgba(61, 155, 122, 0.12);
+}
+
+.mode-card--grammar-judgment {
+  border-color: color-mix(in srgb, #7c5cbf 28%, var(--app-border-soft));
+}
+
+.mode-card--grammar-judgment:hover {
+  border-color: color-mix(in srgb, #7c5cbf 50%, var(--app-border-soft));
+  box-shadow: 0 4px 16px rgba(124, 92, 191, 0.12);
 }
 
 .mode-card--graphic {
@@ -1860,17 +2008,14 @@ onBeforeUnmount(() => {
   }
 
   .practice-sidebar {
-    flex-direction: row;
+    flex-direction: column;
     flex-wrap: nowrap;
-    gap: 6px;
-    padding: 8px 10px;
+    gap: 0;
+    padding: 0;
     border-right: none;
     border-bottom: 1px solid var(--app-border-soft);
-    overflow-x: auto;
-    overflow-y: hidden;
-    overscroll-behavior-x: contain;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    overflow-x: hidden;
+    overflow-y: visible;
     flex-shrink: 0;
     position: sticky;
     top: 0;
@@ -1879,23 +2024,83 @@ onBeforeUnmount(() => {
     backdrop-filter: blur(8px);
   }
 
-  .practice-sidebar::-webkit-scrollbar {
+  .practice-sidebar__flat {
     display: none;
   }
 
-  .practice-sidebar__item {
-    flex: 0 0 auto;
-    width: auto;
-    text-align: center;
-    padding: 7px 12px;
-    border-radius: 999px;
+  .practice-sidebar__level1,
+  .practice-sidebar__level2 {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    overflow: visible;
+  }
+
+  .practice-sidebar__level1 {
+    padding: 8px 10px 8px;
+    background: color-mix(in srgb, var(--app-border-soft) 35%, var(--app-surface-alt));
+    border-bottom: 1px solid var(--app-border);
+  }
+
+  .practice-sidebar__level2 {
+    padding: 8px 10px 10px;
+    background: var(--app-surface);
+  }
+
+  .practice-sidebar__group {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 8px 4px;
     border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--app-text-muted);
+    font: inherit;
     font-size: 12px;
-    white-space: nowrap;
+    font-weight: 700;
+    line-height: 1.25;
+    text-align: center;
+    white-space: normal;
+    word-break: break-all;
+    cursor: pointer;
+  }
+
+  .practice-sidebar__group--active {
+    border-color: color-mix(in srgb, var(--el-color-primary) 45%, transparent);
+    background: var(--app-surface);
+    color: var(--el-color-primary);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  }
+
+  .practice-sidebar__group:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .practice-sidebar__item {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    text-align: center;
+    padding: 7px 4px;
+    border-radius: 999px;
+    border: 1px solid var(--app-border-soft);
+    background: var(--app-surface-alt);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.25;
+    white-space: normal;
+    word-break: break-all;
   }
 
   .practice-sidebar__item--active {
-    border-color: color-mix(in srgb, var(--el-color-primary) 35%, transparent);
+    border-color: color-mix(in srgb, var(--el-color-primary) 40%, transparent);
+    background: color-mix(in srgb, var(--el-color-primary-light-9) 75%, transparent);
+    color: var(--el-color-primary);
   }
 
   .practice-main {

@@ -14,6 +14,11 @@ import {
   type LifeSenseMode,
 } from '@/utils/lifeSensePractice'
 import {
+  GRAMMAR_JUDGMENT_MODES,
+  generateGrammarJudgmentQuestion,
+  type GrammarJudgmentMode,
+} from '@/utils/grammarJudgmentPractice'
+import {
   assertNonTrivialPair,
   buildExamStyleNumberWrongs,
   tryBuildHardCompositeQuestion,
@@ -32,6 +37,7 @@ export type MentalMathMode =
   | FractionEstimateMode
   | DivisibilityMode
   | LifeSenseMode
+  | GrammarJudgmentMode
 
 export type MentalMathModeCategory =
   | 'arithmetic'
@@ -40,6 +46,7 @@ export type MentalMathModeCategory =
   | 'fraction'
   | 'divisibility'
   | 'life-sense'
+  | 'grammar-judgment'
 
 export type MentalMathAnswerValue = number | string
 
@@ -175,6 +182,13 @@ export const MENTAL_MATH_LIFE_SENSE_MODES: MentalMathModeConfig[] = LIFE_SENSE_M
   category: 'life-sense' as const,
 }))
 
+export const MENTAL_MATH_GRAMMAR_JUDGMENT_MODES: MentalMathModeConfig[] = GRAMMAR_JUDGMENT_MODES.map(
+  (m) => ({
+    ...m,
+    category: 'grammar-judgment' as const,
+  }),
+)
+
 /** 复杂题次幂：仅考察 2⁻²～2⁻⁶ 与 2¹⁰～2²⁴ */
 const POWER_HARD_EXPONENTS: number[] = [
   -6,
@@ -199,7 +213,7 @@ const POWER_HARD_EXPONENTS: number[] = [
   24,
 ]
 
-/** 四则口算 + 2 的次幂 + 平方/立方 + 估算分数 + 整除及其性质 + 生活常识全部模式 */
+/** 四则口算 + 2 的次幂 + 平方/立方 + 估算分数 + 整除及其性质 + 生活常识 + 语法判断全部模式 */
 export const MENTAL_MATH_MODES: MentalMathModeConfig[] = [
   ...MENTAL_MATH_ARITHMETIC_MODES,
   ...MENTAL_MATH_POWER_MODES,
@@ -207,6 +221,7 @@ export const MENTAL_MATH_MODES: MentalMathModeConfig[] = [
   ...MENTAL_MATH_FRACTION_MODES,
   ...MENTAL_MATH_DIVISIBILITY_MODES,
   ...MENTAL_MATH_LIFE_SENSE_MODES,
+  ...MENTAL_MATH_GRAMMAR_JUDGMENT_MODES,
 ]
 
 export type MentalMathQuestion = {
@@ -246,6 +261,14 @@ export function isDivisibilityPracticeMode(mode: MentalMathMode): mode is Divisi
 
 export function isLifeSensePracticeMode(mode: MentalMathMode): mode is LifeSenseMode {
   return mode === 'life-sense-easy' || mode === 'life-sense-normal' || mode === 'life-sense-hard'
+}
+
+export function isGrammarJudgmentPracticeMode(mode: MentalMathMode): mode is GrammarJudgmentMode {
+  return (
+    mode === 'grammar-judgment-easy' ||
+    mode === 'grammar-judgment-normal' ||
+    mode === 'grammar-judgment-hard'
+  )
 }
 
 function randInt(min: number, max: number): number {
@@ -1046,6 +1069,10 @@ function buildMentalMathQuestionOnce(
 
   if (isLifeSensePracticeMode(mode)) {
     return generateLifeSenseQuestion(mode, id, optionCount, avoidFingerprints)
+  }
+
+  if (isGrammarJudgmentPracticeMode(mode)) {
+    return generateGrammarJudgmentQuestion(mode, id, optionCount, avoidFingerprints)
   }
 
   if (mode === 'power-easy' || mode === 'power-hard') {

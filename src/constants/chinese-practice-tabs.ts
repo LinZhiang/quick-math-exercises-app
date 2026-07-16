@@ -16,7 +16,7 @@ export type ChinesePracticeTabId =
   | 'geography-common-sense'
   | 'key-questions'
 
-/** 阅读理解子模块（面板内选择；关键题来源也按此区分） */
+/** 阅读理解子模块（面板内选择；重点题来源也按此区分） */
 export type ChineseReadingSubMode =
   | 'main-idea'
   | 'detail'
@@ -59,13 +59,87 @@ export const CHINESE_PRACTICE_TABS: ChinesePracticeTab[] = [
   { id: 'economy-common-sense', title: '经济常识' },
   { id: 'life-common-sense', title: '生活科学' },
   { id: 'geography-common-sense', title: '地理常识' },
-  { id: 'key-questions', title: '关键题练习' },
+  { id: 'key-questions', title: '重点题练习' },
 ]
+
+/** 手机端二级菜单：一级分类 */
+export type ChinesePracticeTabGroupId = 'language' | 'common-sense' | 'review'
+
+export type ChinesePracticeTabGroup = {
+  id: ChinesePracticeTabGroupId
+  title: string
+  tabIds: ChinesePracticeTabId[]
+}
+
+export const CHINESE_PRACTICE_TAB_GROUPS: ChinesePracticeTabGroup[] = [
+  {
+    id: 'language',
+    title: '语文基础',
+    tabIds: [
+      'idiom-memorization',
+      'word-memorization',
+      'char-literacy',
+      'poetry-practice',
+      'classical-chinese',
+      'rhetoric-usage',
+      'reading-comprehension',
+    ],
+  },
+  {
+    id: 'common-sense',
+    title: '公基常识',
+    tabIds: [
+      'history-common-sense',
+      'party-history',
+      'theory-policy',
+      'legal-common-sense',
+      'economy-common-sense',
+      'life-common-sense',
+      'geography-common-sense',
+    ],
+  },
+  { id: 'review', title: '专项', tabIds: ['key-questions'] },
+]
+
+export function chineseTabGroupIdForTab(tabId: ChinesePracticeTabId): ChinesePracticeTabGroupId {
+  for (const g of CHINESE_PRACTICE_TAB_GROUPS) {
+    if (g.tabIds.includes(tabId)) return g.id
+  }
+  return 'language'
+}
+
+export function chineseTabsInGroup(groupId: ChinesePracticeTabGroupId): ChinesePracticeTab[] {
+  const g = CHINESE_PRACTICE_TAB_GROUPS.find((x) => x.id === groupId)
+  if (!g) return []
+  return g.tabIds
+    .map((id) => CHINESE_PRACTICE_TABS.find((t) => t.id === id))
+    .filter((t): t is ChinesePracticeTab => !!t)
+}
+
+/** 手机一级导航：多子项保留分组；仅 1 项的合并为直接入口 */
+export type ChinesePracticeNavItem =
+  | { kind: 'group'; group: ChinesePracticeTabGroup }
+  | { kind: 'tab'; tab: ChinesePracticeTab; groupId: ChinesePracticeTabGroupId }
+
+export const CHINESE_PRACTICE_NAV_ITEMS: ChinesePracticeNavItem[] = CHINESE_PRACTICE_TAB_GROUPS.map(
+  (group) => {
+    if (group.tabIds.length === 1) {
+      const tab = CHINESE_PRACTICE_TABS.find((t) => t.id === group.tabIds[0])!
+      return { kind: 'tab' as const, tab, groupId: group.id }
+    }
+    return { kind: 'group' as const, group }
+  },
+)
+
+export function chineseTabGroupHasMultiple(groupId: ChinesePracticeTabGroupId): boolean {
+  const g = CHINESE_PRACTICE_TAB_GROUPS.find((x) => x.id === groupId)
+  return (g?.tabIds.length ?? 0) > 1
+}
 
 export const DEFAULT_CHINESE_PRACTICE_TAB: ChinesePracticeTabId = 'idiom-memorization'
 
 /**
- * 关键题来源：主 Tab（不含 key-questions / 阅读理解父级）+ 阅读理解五个子模块。
+ * 重点题来源：主 Tab（不含 key-questions / 阅读理解父级）+ 阅读理解五个子模块。
  * 旧版成语来源 id 曾为 word-memorization，备注读取时会兼容迁移。
  */
 export type ChineseKeyQuestionSource =
