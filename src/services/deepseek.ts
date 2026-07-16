@@ -198,7 +198,7 @@ export async function requestChinesePracticeVariantJson(input: {
     '1. 可换提问方式（换题干/换角度），但仍考查同一知识要点或材料理解能力；',
     '2. 可继续以原正确选项为答案，也可在保证科学性的前提下，改为考查原干扰项中某一知识点（此时新 correct 必须对应该新问法的真正正确答案）；',
     '3. 选项可改写，干扰仍要有迷惑性；不要几乎原样照抄；',
-    '4. 阅读类须保留或微调 passage，不得丢掉材料胡编。',
+    '4. 阅读类须保留或微调 passage，不得丢掉材料胡编；阅读类还须保证至少 1 个干扰项字数严格长于正确项（禁止正确项独最长）。',
     '',
     `【输出字段】\n${input.schemaHint}`,
     '',
@@ -1763,7 +1763,8 @@ export async function requestRhetoricUsageMcqs(input: {
 const READING_COMPREHENSION_SYSTEM = [
   '你是公务员考试与事业单位考试「言语理解·阅读理解」命题专家，熟悉主旨观点、细节判断、词句理解、推断下文、标题添加等高频题型。',
   '命题必须对标国考/联考真题难度：正确项不可一眼可辨，干扰项须「真假参半」、有迷惑力。',
-  '严禁靠「选项最长=正确」「只需/唯一/全部」等绝对化错项糊弄；正确项与干扰项字数、句式应接近。',
+  '硬性禁令：不得让正确项成为四个选项里最长的一项；必须至少有 1 个干扰项字数严格多于正确项。',
+  '严禁「只需/唯一/全部」等绝对化低级错项；干扰项要信息密度高、读来像正确答案。',
   '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
 ].join('\n')
 
@@ -1805,12 +1806,15 @@ function readingComprehensionFormat(mode: ChineseReadingQuestionType): string {
 
 ${readingComprehensionModeGuidance(mode)}
 
-【干扰项质量·必须遵守】（针对你过往易犯的「一眼假」问题）
-1. **长度均衡**：correct 与 3 个 distractors 的汉字数应接近（建议彼此相差不超过约 6 字）；**禁止**正确项明显最长、信息堆满，错项短且糙。
-2. **半真半假**：每个错项都要包含材料中出现过的关键词或半对信息，再在「侧重、范围、程度、逻辑关系」上出错；读起来像合理概括，细辨才错。
+【干扰项质量·必须遵守】（系统会拒收「正确项独最长」的题）
+1. **长度反套路（硬性）**：
+   - **至少 1 个 distractor 的字数必须严格多于 correct**（去空格后比较）；正确项宁可偏短或居中，绝不可独最长。
+   - 建议再有 1 个 distractor 与 correct 字数接近或略长；禁止三个错项都明显短于正确项。
+   - 四项字数跨度不宜过大（约 16 字内），但**优先保证「有更长干扰项」**，而不是四项完全等长。
+2. **半真半假**：每个错项都要包含材料中出现过的关键词或半对信息，再在「侧重、范围、程度、逻辑关系」上出错；读起来像合理概括，细辨才错。错项可以写得信息更满、句子更长，但结论偏了。
 3. **禁止低级错项**：不要用「只需」「仅仅」「唯一」「全部」「一定」「绝对」等极端词把选项做死；不要写与材料明文直接相反、小学生也能排除的句子。
-4. **禁止形式泄题**：不要让正确项独用「统筹/既要又要/重点是…同时…」这类最周全句式，而错项全是片面短句。四个选项句式风格应同类。
-5. **自检**：出完后自问「不看材料、只看选项长短会不会直接锁定正确项？」若会，必须改写至无法靠长短判断。
+4. **禁止形式泄题**：不要让正确项独用「统筹/既要又要/重点是…同时…」这类最周全句式，而错项全是片面短句。四个选项句式风格应同类；更长的错项往往是「多写了一层错误引申/夸大」。
+5. **自检**：出完后数四项字数。若 correct 字数 ≥ 三个 distractors，必须把某个错项加长（补半真细节）或把正确项收束，直到至少一错项更长。再问「只看长短会不会选最长？」——若会，继续改。
 
 【命题要求】
 - 每题必须有 passage：短材料约 150～350 字，公考风格议论文/说明文片段，信息有轻重主次（便于出半真干扰）
@@ -1819,8 +1823,8 @@ ${readingComprehensionModeGuidance(mode)}
 - explanation：1～2 句点明正确项对应文意何处，以及典型干扰错在哪（偏片面/偷换等）
 - 材料与设问须匹配题型 ${label}（${mode}）
 
-【JSON 示例】（示意长度接近、半真干扰；实际内容勿照抄）
-{"questionType":"${mode}","term":"乡村振兴","passage":"……","stem":"这段文字旨在强调：","correct":"产业振兴是乡村振兴重点，并需协同推进多项振兴","distractors":["完善乡村基础设施是当前工作的首要着力点","吸引人才回流能够自然带动乡村产业升级","组织建设滞后是乡村振兴面临的核心制约"],"explanation":"……"}
+【JSON 示例】（注意第 3 个 distractor 比 correct 更长；实际内容勿照抄）
+{"questionType":"${mode}","term":"乡村振兴","passage":"……","stem":"这段文字旨在强调：","correct":"产业振兴是乡村振兴的重点任务","distractors":["完善乡村基础设施应作为当前首要着力点","吸引人才回流即可自然带动乡村产业全面升级","应以组织建设为统领并据此重新排定产业与人才工作的优先次序"],"explanation":"……"}
 `.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 }
 
@@ -1860,7 +1864,7 @@ export async function requestReadingComprehensionMcqs(input: {
     format,
     historyHint,
     `本批 ${count} 道的 term 必须互不相同；每题须含独立 passage。`,
-    `**务必做到**：选项长度接近、干扰半真半假、禁止绝对化低级错项、禁止正确项明显最长。`,
+    `**务必做到**：至少 1 个干扰项字数严格长于正确项；干扰半真半假、信息密度高；禁止绝对化低级错项；禁止靠「选最长」蒙对。`,
     `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
   ]
     .filter(Boolean)
@@ -1886,7 +1890,7 @@ export async function requestReadingComprehensionMcqs(input: {
   })
 
   const deduped = dedupeReadingComprehensionQuestions(questions, blocked)
-  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题（已拒收正确项独最长等不合格项）…`)
 
   const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
   for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
@@ -1894,8 +1898,17 @@ export async function requestReadingComprehensionMcqs(input: {
     const avoidHint = buildAvoidTermsHint('阅读材料主题', avoidTerms)
     try {
       const oneRaw = await deepseekChatRaw(
-        `请生成第 ${slot} 道阅读理解四选一题，题型固定为 **${modeLabel}**（questionType=\`${mode}\`）。要求选项等长、干扰半真半假，禁止「只需/唯一」类低级错项与正确项明显最长。\n${format}${avoidHint}\n仅返回一个 JSON 对象。`,
-        { system: READING_COMPREHENSION_SYSTEM, temperature: 0.6, maxTokens: 1500 },
+        [
+          `请生成第 ${slot} 道阅读理解四选一题，题型固定为 **${modeLabel}**（questionType=\`${mode}\`）。`,
+          `硬性：至少 1 个 distractor 字数严格多于 correct；正确项不得独最长；干扰半真半假、可写长但结论偏了。`,
+          `禁止「只需/唯一」类低级错项。`,
+          format,
+          avoidHint,
+          `仅返回一个 JSON 对象。`,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+        { system: READING_COMPREHENSION_SYSTEM, temperature: 0.65, maxTokens: 1600 },
       )
       const oneObj = parseAiJsonObjectLenient(oneRaw)
       const fields = parseReadingComprehensionMcqAiObject(oneObj)

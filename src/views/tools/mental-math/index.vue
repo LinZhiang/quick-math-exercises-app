@@ -75,6 +75,8 @@ import {
 } from '@/utils/sudokuPractice'
 import ChinesePracticeSection from '@/views/tools/chinese-practice/ChinesePracticeSection.vue'
 import PwaInstallPanel from '@/components/PwaInstallPanel.vue'
+import MentalMathWrongBookPanel from '@/views/tools/mental-math/components/MentalMathWrongBookPanel.vue'
+import { upsertMentalMathWrong } from '@/utils/mentalMathWrongBook'
 
 type Phase = 'select' | 'countdown' | 'playing' | 'finished'
 type CountdownStep = 3 | 2 | 1 | 'GO'
@@ -412,6 +414,15 @@ function finishTwentyFourAnswer(expression: string) {
     scoreAfter: score.value,
     elapsedMs,
   })
+  if (!ok && activeMode.value) {
+    upsertMentalMathWrong({
+      modeId: activeMode.value,
+      expression: q.prompt,
+      correctAnswer: q.sampleSolution,
+      chosenAnswer: expression || '（空）',
+      explanation: `参考解法：${q.sampleSolution}`,
+    })
+  }
 
   applyTimeDeltaForAnswer(ok)
   feedback.value = ok ? 'correct' : 'wrong'
@@ -540,6 +551,16 @@ function applyAnswer(choiceIndex: number) {
       elapsedMs,
       explanation: q.explanation,
     })
+    if (!ok && activeMode.value) {
+      upsertMentalMathWrong({
+        modeId: activeMode.value,
+        expression: q.expression,
+        correctAnswer: q.correctAnswer,
+        chosenAnswer,
+        options: q.options,
+        explanation: q.explanation,
+      })
+    }
   }
 
   applyTimeDeltaForAnswer(ok)
@@ -719,7 +740,7 @@ onBeforeUnmount(() => {
         <section v-if="showPowerSection" class="mode-section" id="practice-power">
           <h3 class="mode-section__title">2 的 n 次幂</h3>
           <p class="mode-section__hint">
-            题目形如 2ⁿ（简单含 2⁻¹～2⁻³ 与 2⁰～2¹²；复杂含 2⁻²～2⁻⁶ 与 2¹⁰～2²⁴），干扰项为相邻次幂。
+            题目形如 2ⁿ（简单含 2⁻¹～2⁻³ 与 2⁰～2¹²；复杂含 2⁻²～2⁻⁶ 与 2¹⁰～2²⁴），干扰项为相邻次幂。答错会记入下方错题集。
           </p>
           <div class="mode-grid">
             <button
@@ -734,12 +755,13 @@ onBeforeUnmount(() => {
               <span class="mode-card__cta">开始练习</span>
             </button>
           </div>
+          <MentalMathWrongBookPanel section="power" />
         </section>
 
         <section v-if="showSquareCubeSection" class="mode-section" id="practice-square-cube">
           <h3 class="mode-section__title">平方与立方</h3>
           <p class="mode-section__hint">
-            题目随机为 n² 或 n³（不含 10²、10³；简单：平方 n≤11、立方 n≤6；复杂：平方 7～20、立方 3～9），干扰项为相邻底数的同次幂且选项数值互不重复。
+            题目随机为 n² 或 n³（不含 10²、10³；简单：平方 n≤11、立方 n≤6；复杂：平方 7～20、立方 3～9）。答错会记入下方错题集。
           </p>
           <div class="mode-grid">
             <button
@@ -754,12 +776,13 @@ onBeforeUnmount(() => {
               <span class="mode-card__cta">开始练习</span>
             </button>
           </div>
+          <MentalMathWrongBookPanel section="square-cube" />
         </section>
 
         <section v-if="showFractionSection" class="mode-section" id="practice-fraction">
           <h3 class="mode-section__title">估算分数</h3>
           <p class="mode-section__hint">
-            百分数转最简分数，或比较两个分数的大小；简单题为常见百分数与同分母比较，高难题含 12.5%、33% 等及异分母接近分数。
+            百分数转最简分数，或比较两个分数的大小。答错会记入下方错题集。
           </p>
           <div class="mode-grid">
             <button
@@ -774,12 +797,13 @@ onBeforeUnmount(() => {
               <span class="mode-card__cta">开始练习</span>
             </button>
           </div>
+          <MentalMathWrongBookPanel section="fraction" />
         </section>
 
         <section v-if="showDivisibilitySection" class="mode-section" id="practice-divisibility">
           <h3 class="mode-section__title">整除及其性质</h3>
           <p class="mode-section__hint">
-            本地出题：整除判定（3、9、7、11、6）、质数与合数及质因数分解、最大公因数与最小公倍数；含「干扰型」选项更易混。限时倒计时，计分与四则口算相同（答对加 1 秒、答错扣 1 秒，分数夹在 0～100）。
+            整除判定、质数合数、公因数公倍数等。答错会记入下方错题集。计分同四则（对 +1 秒 / 错 −1 秒，分 0～100）。
           </p>
           <div class="mode-grid">
             <button
@@ -794,12 +818,13 @@ onBeforeUnmount(() => {
               <span class="mode-card__cta">开始练习</span>
             </button>
           </div>
+          <MentalMathWrongBookPanel section="divisibility" />
         </section>
 
         <section v-if="showLifeSenseSection" class="mode-section" id="practice-life-sense">
           <h3 class="mode-section__title">生活常识</h3>
           <p class="mode-section__hint">
-            本地校对题库：材料/种属/组成/用途短题快判（禁止乱配对）。同档近 90 题知识点不重复；计分同整除。作答中只提示对错，错因结束后查看。不同于语文「生活科学」。
+            本地校对题库短题快判（材料/种属/组成/用途等）。答错会记入下方错题集；作答中只提示对错，详解可结束后或在错题集查看。
           </p>
           <div class="mode-grid">
             <button
@@ -814,12 +839,13 @@ onBeforeUnmount(() => {
               <span class="mode-card__cta">开始练习</span>
             </button>
           </div>
+          <MentalMathWrongBookPanel section="life-sense" />
         </section>
 
         <section v-if="showTwentyFourSection" class="mode-section" id="practice-twentyfour">
           <h3 class="mode-section__title">二十四点</h3>
           <p class="mode-section__hint">
-            用给出的四个数，通过加、减、乘、除（可加括号）自行拼出等于 24 的算式；四数各用一次。
+            用四个数加减乘除（可加括号）算出 24，每数用一次。答错会记入下方错题集（含参考解法）。
           </p>
           <div class="mode-grid">
             <button
@@ -834,6 +860,7 @@ onBeforeUnmount(() => {
               <span class="mode-card__cta">开始练习</span>
             </button>
           </div>
+          <MentalMathWrongBookPanel section="twentyfour" />
         </section>
 
         <section v-if="showSudokuSection" class="mode-section" id="practice-sudoku">

@@ -105,7 +105,7 @@ function schemaHint(source: ChineseKeyQuestionSource): string {
     return 'questionType: poem-to-author|poem-to-theme；term；stem；correct；distractors[3]；explanation'
   }
   if (readingMode) {
-    return `questionType 固定 ${readingMode}；term；passage；stem；correct；distractors[3]；explanation`
+    return `questionType 固定 ${readingMode}；term；passage；stem；correct；distractors[3]；explanation。硬性：至少 1 个 distractor 字数严格长于 correct，禁止正确项独最长；干扰半真半假。`
   }
   return 'questionType: general；term；stem；correct；distractors[3]；explanation'
 }

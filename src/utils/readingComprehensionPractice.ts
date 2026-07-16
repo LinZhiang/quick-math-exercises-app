@@ -78,6 +78,31 @@ function shuffleInPlace<T>(arr: T[]): T[] {
   return arr
 }
 
+/** 选项可见长度（去空白），用于防「选最长=正确」 */
+export function readingOptionTextLength(s: string): number {
+  return String(s ?? '')
+    .trim()
+    .replace(/\s+/g, '')
+    .length
+}
+
+/**
+ * 阅读理解选项长度质量：
+ * - 至少 1 个干扰项严格长于正确项（禁止「正确项独最长」）
+ * - 四项跨度不宜过大（避免一个巨长、其余极短）
+ */
+export function readingMcqLengthQualityOk(correct: string, distractors: string[]): boolean {
+  const c = readingOptionTextLength(correct)
+  const ds = distractors.map(readingOptionTextLength).filter((n) => n > 0)
+  if (!c || ds.length !== 3) return false
+  if (!ds.some((n) => n > c)) return false
+  const all = [c, ...ds]
+  const max = Math.max(...all)
+  const min = Math.min(...all)
+  if (max - min > 16) return false
+  return true
+}
+
 export function buildReadingComprehensionQuestionFromMcq(input: {
   questionType: ChineseReadingQuestionType
   term: string
@@ -94,6 +119,7 @@ export function buildReadingComprehensionQuestionFromMcq(input: {
   const correct = input.correct.trim()
   const distractors = input.distractors.map((d) => d.trim()).filter(Boolean)
   if (!term || !passage || !stem || !correct || distractors.length !== 3) return null
+  if (!readingMcqLengthQualityOk(correct, distractors)) return null
   const assembled = assembleFourChoiceMcq(correct, distractors, shuffleInPlace)
   if (!assembled) return null
   const { options, correctIndex } = assembled

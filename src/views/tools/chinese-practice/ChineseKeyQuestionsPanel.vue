@@ -230,11 +230,16 @@ const wrongRows = ref<StoredRow[]>([])
 const favoriteRows = ref<StoredRow[]>([])
 const selected = ref<Set<string>>(new Set())
 const expandedFingerprint = ref<string | null>(null)
+const detailDialogVisible = ref(false)
 const noteDraft = ref('')
 const noteEditing = ref(false)
 const noteSaving = ref(false)
 
 const activeRows = computed(() => (keyTab.value === 'wrong' ? wrongRows.value : favoriteRows.value))
+
+const detailRow = computed(
+  () => activeRows.value.find((r) => r.fingerprint === expandedFingerprint.value) ?? null,
+)
 
 function isVocabSource(src: ChineseKeyQuestionSource): boolean {
   return src === 'idiom-memorization' || src === 'word-memorization'
@@ -395,7 +400,28 @@ function toggleSelect(fp: string) {
   selected.value = next
 }
 
+function closeDetailDialog() {
+  detailDialogVisible.value = false
+}
+
+function onDetailDialogClosed() {
+  expandedFingerprint.value = null
+  noteDraft.value = ''
+  noteEditing.value = false
+}
+
 function toggleRowDetail(fp: string) {
+  if (isReadingSource(source.value)) {
+    if (detailDialogVisible.value && expandedFingerprint.value === fp) {
+      closeDetailDialog()
+      return
+    }
+    expandedFingerprint.value = fp
+    noteDraft.value = getKeyQuestionNote(source.value, fp)
+    noteEditing.value = false
+    detailDialogVisible.value = true
+    return
+  }
   if (expandedFingerprint.value === fp) {
     expandedFingerprint.value = null
     noteDraft.value = ''
@@ -649,6 +675,7 @@ watch(chinesePracticeDataTick, () => {
 })
 
 watch(source, () => {
+  detailDialogVisible.value = false
   expandedFingerprint.value = null
   noteDraft.value = ''
   noteEditing.value = false
@@ -657,6 +684,7 @@ watch(source, () => {
 })
 
 watch(keyTab, () => {
+  detailDialogVisible.value = false
   expandedFingerprint.value = null
   noteDraft.value = ''
   noteEditing.value = false
@@ -676,7 +704,7 @@ defineExpose({ refresh })
 <template>
   <div class="chinese-key-panel">
     <p class="mode-section__hint">
-      汇总各练习模块的错题与收藏；默认全选，点击词条可展开详情。数据保存在本浏览器本地。
+      汇总各练习模块的错题与收藏；默认全选，点击词条可查看详情。阅读理解题目会在大弹窗中展示原文与解析。数据保存在本浏览器本地。
     </p>
 
     <div class="chinese-key__sources">
@@ -739,28 +767,29 @@ defineExpose({ refresh })
             <template v-if="source === 'poetry-practice'">《{{ row.term }}》</template>
             <template v-else>{{ row.term }}</template>
           </p>
-          <p class="chinese-key__stem">{{ row.stem }}</p>
+          <p
+            class="chinese-key__stem"
+            :class="{ 'chinese-key__stem--clamp': isReadingSource(source) }"
+          >
+            {{ row.stem }}
+          </p>
           <p class="chinese-key__meta">
             {{ typeLabel(row) }}
             <template v-if="keyTab === 'wrong' && 'wrongCount' in row">
               · 错 {{ row.wrongCount }} 次
             </template>
             <template v-if="rowNote(row.fingerprint)"> · 有备注</template>
-            <span class="chinese-key__hint"> · 点击查看详情</span>
+            <span class="chinese-key__hint">
+              · {{ isReadingSource(source) ? '点击打开详情' : '点击查看详情' }}
+            </span>
           </p>
           <div
-            v-if="expandedFingerprint === row.fingerprint"
+            v-if="!isReadingSource(source) && expandedFingerprint === row.fingerprint"
             class="chinese-key__detail"
             @click.stop
           >
             <p class="chinese-key__detail-line">
               <strong>{{ termDetailLabel() }}：</strong>{{ row.term }}
-            </p>
-            <p
-              v-if="isReadingSource(source) && rowPassage(row)"
-              class="chinese-key__detail-line chinese-key__detail-passage"
-            >
-              <strong>原文：</strong>{{ rowPassage(row) }}
             </p>
             <p class="chinese-key__detail-line">
               <strong>{{ hintDetailLabel() }}：</strong>{{ storedMeaningHint(row) }}
@@ -834,6 +863,100 @@ defineExpose({ refresh })
         </el-button>
       </li>
     </ul>
+
+    <el-dialog
+      v-model="detailDialogVisible"
+      class="chinese-key-detail-dialog"
+      :title="detailRow ? `${typeLabel(detailRow)} · ${detailRow.term}` : '题目详情'"
+      width="860px"
+      top="4vh"
+      align-center
+      destroy-on-close
+      append-to-body
+      @closed="onDetailDialogClosed"
+    >
+      <div v-if="detailRow" class="chinese-key-dialog">
+        <section class="chinese-key-dialog__block">
+          <h4 class="chinese-key-dialog__label">设问</h4>
+          <p class="chinese-key-dialog__text">{{ detailRow.stem }}</p>
+        </section>
+        <section v-if="rowPassage(detailRow)" class="chinese-key-dialog__block">
+          <h4 class="chinese-key-dialog__label">阅读原文</h4>
+          <div class="chinese-key-dialog__passage">{{ rowPassage(detailRow) }}</div>
+        </section>
+        <section class="chinese-key-dialog__block">
+          <h4 class="chinese-key-dialog__label">选项</h4>
+          <ul class="chinese-key-dialog__options">
+            <li
+              v-for="(opt, idx) in detailRow.options"
+              :key="idx"
+              class="chinese-key-dialog__option"
+              :class="{ 'is-correct': idx === detailRow.correctIndex }"
+            >
+              <span class="chinese-key-dialog__opt-key">{{
+                String.fromCharCode(65 + idx)
+              }}</span>
+              <span>{{ opt }}</span>
+              <span v-if="idx === detailRow.correctIndex" class="chinese-key-dialog__badge"
+                >正确</span
+              >
+            </li>
+          </ul>
+        </section>
+        <section v-if="detailRow.explanation" class="chinese-key-dialog__block">
+          <h4 class="chinese-key-dialog__label">解析</h4>
+          <p class="chinese-key-dialog__text">{{ detailRow.explanation }}</p>
+        </section>
+        <section class="chinese-key-dialog__block chinese-key-dialog__note">
+          <div class="chinese-key__note-head">
+            <h4 class="chinese-key-dialog__label">备注</h4>
+            <el-button
+              v-if="!noteEditing"
+              size="small"
+              text
+              type="primary"
+              @click="onEditNote(detailRow.fingerprint)"
+            >
+              {{ rowNote(detailRow.fingerprint) ? '编辑' : '添加备注' }}
+            </el-button>
+          </div>
+          <template v-if="noteEditing">
+            <el-input
+              v-model="noteDraft"
+              type="textarea"
+              :rows="4"
+              maxlength="500"
+              show-word-limit
+              placeholder="支持 Markdown，如标题、列表、加粗等"
+            />
+            <div class="chinese-key__note-actions">
+              <el-button
+                size="small"
+                type="primary"
+                :loading="noteSaving"
+                @click="onSaveNote(detailRow.fingerprint)"
+              >
+                保存
+              </el-button>
+              <el-button size="small" plain @click="onCancelNoteEdit(detailRow.fingerprint)">
+                取消
+              </el-button>
+            </div>
+          </template>
+          <template v-else-if="rowNote(detailRow.fingerprint)">
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <div
+              class="chinese-key__note-md deepseek-md"
+              v-html="noteHtml(detailRow.fingerprint)"
+            />
+          </template>
+          <p v-else class="chinese-key__note-empty">暂无备注</p>
+        </section>
+      </div>
+      <template #footer>
+        <el-button @click="closeDetailDialog">关闭</el-button>
+      </template>
+    </el-dialog>
 
     <div v-if="activeRows.length" class="chinese-key__actions">
       <el-button
@@ -944,6 +1067,15 @@ defineExpose({ refresh })
   white-space: pre-line;
 }
 
+.chinese-key__stem--clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+}
+
 .chinese-key__meta {
   margin: 0;
   font-size: 12px;
@@ -981,17 +1113,6 @@ defineExpose({ refresh })
 
 .chinese-key__detail-line:last-child {
   margin-bottom: 0;
-}
-
-.chinese-key__detail-passage {
-  max-height: 7.5em;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 5;
-  line-clamp: 5;
-  white-space: pre-line;
-  color: var(--app-text-muted);
 }
 
 .chinese-key__detail-options {
@@ -1068,5 +1189,102 @@ defineExpose({ refresh })
   width: 100%;
   font-size: 12px;
   color: var(--app-text-muted);
+}
+
+.chinese-key-dialog {
+  display: grid;
+  gap: 16px;
+  max-height: min(72vh, 760px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.chinese-key-dialog__block {
+  margin: 0;
+}
+
+.chinese-key-dialog__label {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--app-text-muted);
+}
+
+.chinese-key-dialog__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+.chinese-key-dialog__passage {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--app-border-soft);
+  background: var(--app-surface-alt);
+  font-size: 14px;
+  line-height: 1.8;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+.chinese-key-dialog__options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.chinese-key-dialog__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--app-border-soft);
+  font-size: 14px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.chinese-key-dialog__option.is-correct {
+  border-color: var(--el-color-success);
+  background: color-mix(in srgb, var(--el-color-success-light-9) 55%, transparent);
+}
+
+.chinese-key-dialog__opt-key {
+  flex: 0 0 auto;
+  width: 1.4em;
+  font-weight: 700;
+  color: var(--app-text-muted);
+}
+
+.chinese-key-dialog__badge {
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--el-color-success);
+  border: 1px solid var(--el-color-success);
+}
+
+.chinese-key-dialog__note {
+  padding-top: 4px;
+  border-top: 1px dashed var(--app-border-soft);
+}
+</style>
+
+<style>
+/* append-to-body 弹窗，需非 scoped */
+.chinese-key-detail-dialog.el-dialog {
+  max-width: 96vw;
+}
+
+.chinese-key-detail-dialog .el-dialog__body {
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 </style>
