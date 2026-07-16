@@ -198,7 +198,17 @@ export async function requestChinesePracticeVariantJson(input: {
     '1. 可换提问方式（换题干/换角度），但仍考查同一知识要点或材料理解能力；',
     '2. 可继续以原正确选项为答案，也可在保证科学性的前提下，改为考查原干扰项中某一知识点（此时新 correct 必须对应该新问法的真正正确答案）；',
     '3. 选项可改写，干扰仍要有迷惑性；不要几乎原样照抄；',
-    '4. 阅读类须保留或微调 passage，不得丢掉材料胡编；阅读类还须保证至少 1 个干扰项字数严格长于正确项（禁止正确项独最长）。',
+    '4. 阅读类须保留或微调 passage，不得丢掉材料胡编；选项字数适度齐长即可（正确项或干扰项均可略长），禁止正确项明显独最长到靠长短蒙对。',
+    '',
+    '【硬性质量·违反则整题作废】',
+    '5. questionType 必须与题干/选项形态一致：',
+    '   - word-to-meaning（选释义）：展示目标词，选项必须是四条释义（不是词语本身）；禁止填空题干 + 词语选项却标成选释义；',
+    '   - meaning-to-word（选词语）：题干不得出现正确答案/term；选项为词语；correct 必须等于 term；',
+    '6. 错别字题（typo）优先出「下列词语没有错别字的是」：correct=规范写法=term，三个干扰项为同一词的形近/音近错写；',
+    '   若出「有错别字的是」：correct 必须是错写且 ≠ term，选项中规范写法 term 恰好出现一次且为干扰项，其余两项不得再是同一词的错写（禁止多解）；',
+    '   严禁把规范写法标成「有错别字」的答案，也严禁解析写「正确写法是 X」却把 X 标成有错别字答案；',
+    '7. 题干只允许唯一最优答案；禁止两个近义项都合理（如步履维艰/举步维艰同列且题干无法区分）；解析不得写「也是…之意/两者均可」。',
+    '8. 任何字段不得提前泄露答案（题干、term 展示字段与选项形态错配即泄题）。',
     '',
     `【输出字段】\n${input.schemaHint}`,
     '',
@@ -210,7 +220,7 @@ export async function requestChinesePracticeVariantJson(input: {
   ].join('\n')
   const raw = await deepseekChatRaw(user, {
     system,
-    temperature: 0.75,
+    temperature: 0.55,
     maxTokens: 2000,
   })
   return parseAiJsonObjectLenient(raw)
@@ -732,16 +742,21 @@ const CHAR_LITERACY_FORMAT = `
 
 【命题要求·干扰要强且不能一眼露馅】
 - 优先事业编/国考言语理解高频易错点：多音字、习惯性误读、形近字、音近别字
-- term 填考点关键词（如「纨绔」「暴殄天物」「一筹莫展」）
+- term 填考点关键词的**规范写法**（如「纨绔」「暴殄天物」「一筹莫展」「和盘托出」）
 - 读音题：四个选项外观一致，均为「词语 + 拼音」或同格式注音；干扰项只改拼音（常见误读），**不要**写（误）、错、×、引号点错等任何对错提示
-- 错别字题：四个选项均为完整词语/成语，外观一致；干扰项把正确字换成形近/音近错字，但**不要**用引号、括号、（误）等标出哪个字错了
+- 错别字题：四个选项均为完整词语/成语，外观一致；**不要**用引号、括号、（误）等标出哪个字错了
+- **错别字极性（极重要）**：
+  - 「没有错别字的是」：correct 必须 = term（规范写法）；三个 distractors 均为该词的形近/音近错写
+  - 「有错别字的是」：correct 必须是错写且 ≠ term；distractors 中恰好含 term（规范写法）一次，另外两项须是**其它正确词语**（不得再是同一词的其它错写，否则多解）
+  - 严禁把规范写法标成「有错别字」题的答案；解析若写「正确写法是 X」，则「有错别字」题的 correct 绝不能是 X
 - **严禁**选项中出现：（误）、(误)、【误】、误读、错误、有误、×、✗，以及用 '' "" 「」 『』 包住某个字来暗示它是错字
 - 四个选项必须「看起来都像正确答案」，只能靠知识判断，不能靠排版/标注判断
 - explanation 用 1～2 句点明正确读音/正确字形及易混原因（解析里可以说哪里错，选项正文里不能说）
 
 【JSON 示例】
 读音：{"questionType":"pronunciation","term":"纨绔","stem":"下列加点字读音正确的是？","correct":"纨绔子弟（kù）","distractors":["纨绔子弟（kuā）","纨绔子弟（guā）","纨绔子弟（huà）"],"explanation":"……"}
-错别字：{"questionType":"typo","term":"一筹莫展","stem":"下列词语没有错别字的是？","correct":"一筹莫展","distractors":["一愁莫展","一绸莫展","一酬莫展"],"explanation":"……"}
+没有错别字：{"questionType":"typo","term":"一筹莫展","stem":"下列词语没有错别字的是？","correct":"一筹莫展","distractors":["一愁莫展","一绸莫展","一酬莫展"],"explanation":"……"}
+有错别字：{"questionType":"typo","term":"和盘托出","stem":"下列词语有错别字的是？","correct":"合盘托出","distractors":["和盘托出","淋漓尽致","司空见惯"],"explanation":"「合盘托出」中的「合」应为「和」，正确写法是「和盘托出」。"}
 `.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 function dedupeCharLiteracyQuestions(
@@ -1544,6 +1559,8 @@ export async function requestWordMemorizationMcqs(input: {
 const CLASSICAL_CHINESE_SYSTEM = [
   '你是公务员考试与事业单位考试「言语理解·文言文」命题专家，熟悉文言实词虚词、古今异义、通假字、文言句式、一词多义等公考/事业编高频考点。',
   '难度适中，贴近真题识记与辨析风格；不要出过长文言翻译压轴题。',
+  '硬性：题干所引文言必须是原文中连续完整的语句；严禁把不同段落、不相邻的句子用省略号拼接出题。',
+  '硬性：引文须带足语境，禁止只截三四个字的碎片（如仅「信而见疑」）；至少用对句/整句，使没读过原文的人也能大致看懂。',
   '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
 ].join('\n')
 
@@ -1553,12 +1570,19 @@ const CLASSICAL_CHINESE_FORMAT = `
 【命题要求】
 - 聚焦：文言实词虚词、古今异义、通假字、文言句式、一词多义
 - 优先公考、事业编常考字词与句式，难度适中
-- term 填短知识点标签，如「之」「以为」「通假字·女」「宾语前置」
-- stem 写完整问句（可附短文言例句）；选项互斥；干扰项为易混义项或相近句式
-- explanation 用 1～2 句简体中文说明
+- term 填短知识点标签，如「之」「以为」「通假字·女」「宾语前置」「被动句·见」
+- stem 写完整问句；若引用课文/名篇例句，**必须截取原文连续完整语句**（可含标点的整句或紧邻数句），**禁止**拆分、拼接不同位置的句子，**禁止**「前半句……后半句」跨段硬拼
+- **引文长度与语境（硬性）**：
+  - 禁止过短碎片。反例：只写「信而见疑」——没读原文很难懂。
+  - 正例：至少写成「信而见疑，忠而被谤」；更好如「臣诚恐见欺于王而负赵」（一眼能感到被动与担忧）。
+  - 引文汉字一般不少于约 8～10 字，或含「，」等句读的对句/整句；考点词可加点，但上下文必须够读。
+- 反例（严禁）：把《愚公移山》「以君之力……且焉置土石？」与后文「以为神」拼进同一题干
+- 正例：考「以为」时只引连续原句「操蛇之神闻之，惧其不已也，告之于帝。帝感其诚，命夸娥氏二子负二山，一厝朔东，一厝雍南，众人以为神。」
+- 选项互斥；干扰项为易混义项或相近句式
+- explanation 用完整通顺的简体中文说明；考「以为」等古今异义时须点明古义/今义差别（如「以为」为「以（之）为」，古义把……当作，今义认为）
 
 【JSON 示例】
-{"questionType":"general","term":"之","stem":"「攻而破之」中「之」的用法是？","correct":"代词，指代敌人","distractors":["助词，取消句子独立性","结构助词，的","动词，往、到"],"explanation":"……"}
+{"questionType":"general","term":"被动句·见","stem":"下列句中「见」表被动的一项所在语境是？「信而见疑，忠而被谤」","correct":"被","distractors":["看见","出现","会见"],"explanation":"「见疑」即被怀疑；与「被谤」对举，是被动用法。"}
 `.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 function dedupeClassicalChineseQuestions(
@@ -1622,7 +1646,7 @@ export async function requestClassicalChineseMcqs(input: {
     const avoidHint = buildAvoidTermsHint('文言知识点', avoidTerms)
     try {
       const oneRaw = await deepseekChatRaw(
-        `请生成第 ${slot} 道文言文四选一题（实词虚词/古今异义/通假字/句式/一词多义等高频点）。\n${CLASSICAL_CHINESE_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
+        `请生成第 ${slot} 道文言文四选一题（实词虚词/古今异义/通假字/句式/一词多义等高频点）。题干引文必须是原文连续完整语句，禁止跨段拼接；引文须带足语境（勿只截「信而见疑」这类过短碎片，宜用「信而见疑，忠而被谤」或更完整句）。\n${CLASSICAL_CHINESE_FORMAT}${avoidHint}\n仅返回一个 JSON 对象。`,
         { system: CLASSICAL_CHINESE_SYSTEM, temperature: 0.7, maxTokens: 900 },
       )
       const oneObj = parseAiJsonObjectLenient(oneRaw)
@@ -1763,8 +1787,10 @@ export async function requestRhetoricUsageMcqs(input: {
 const READING_COMPREHENSION_SYSTEM = [
   '你是公务员考试与事业单位考试「言语理解·阅读理解」命题专家，熟悉主旨观点、细节判断、词句理解、推断下文、标题添加等高频题型。',
   '命题必须对标国考/联考真题难度：正确项不可一眼可辨，干扰项须「真假参半」、有迷惑力。',
-  '硬性禁令：不得让正确项成为四个选项里最长的一项；必须至少有 1 个干扰项字数严格多于正确项。',
+  '选项字数采适度原则：四项大致齐长；正确项可以最长，干扰项也可以最长，不要刻意把正确项写短或把错项灌水凑长。',
+  '仅当正确项明显比所有干扰项都长、靠「选最长」可蒙对时才不合格。',
   '严禁「只需/唯一/全部」等绝对化低级错项；干扰项要信息密度高、读来像正确答案。',
+  '解析必须结构化：explanationFocus + explanationCorrect + explanationDistractors[3]（与 distractors 同序）；禁止用 A/B/C 指代选项；语句完整，禁止残缺断句。',
   '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
 ].join('\n')
 
@@ -1794,7 +1820,7 @@ function readingComprehensionModeGuidance(mode: ChineseReadingQuestionType): str
     case 'title':
       return [
         '【本题型专属】考标题添加。',
-        '干扰项优先：过宽、过窄、只抓细节、标题党式夸张；四标题字数接近，忌正确项明显更长更全。',
+        '干扰项优先：过宽、过窄、只抓细节、标题党式夸张；四标题字数接近，勿靠长短泄题。',
       ].join('\n')
   }
 }
@@ -1806,25 +1832,31 @@ function readingComprehensionFormat(mode: ChineseReadingQuestionType): string {
 
 ${readingComprehensionModeGuidance(mode)}
 
-【干扰项质量·必须遵守】（系统会拒收「正确项独最长」的题）
-1. **长度反套路（硬性）**：
-   - **至少 1 个 distractor 的字数必须严格多于 correct**（去空格后比较）；正确项宁可偏短或居中，绝不可独最长。
-   - 建议再有 1 个 distractor 与 correct 字数接近或略长；禁止三个错项都明显短于正确项。
-   - 四项字数跨度不宜过大（约 16 字内），但**优先保证「有更长干扰项」**，而不是四项完全等长。
-2. **半真半假**：每个错项都要包含材料中出现过的关键词或半对信息，再在「侧重、范围、程度、逻辑关系」上出错；读起来像合理概括，细辨才错。错项可以写得信息更满、句子更长，但结论偏了。
+【干扰项质量·必须遵守】
+1. **长度适度（平衡，非控死）**：
+   - 四个选项字数应大致接近（跨度建议约 18 字内）。
+   - **允许**正确项略长或最长，也**允许**某个干扰项更长——不要为了反套路硬把正确项写短、或给错项灌水凑字数。
+   - **禁止**的只有极端情形：正确项比每一个干扰项都明显更长（甩开约 8 字以上），以至于「选最长」就能蒙对。
+2. **半真半假**：每个错项都要包含材料中出现过的关键词或半对信息，再在「侧重、范围、程度、逻辑关系」上出错；读起来像合理概括，细辨才错。
 3. **禁止低级错项**：不要用「只需」「仅仅」「唯一」「全部」「一定」「绝对」等极端词把选项做死；不要写与材料明文直接相反、小学生也能排除的句子。
-4. **禁止形式泄题**：不要让正确项独用「统筹/既要又要/重点是…同时…」这类最周全句式，而错项全是片面短句。四个选项句式风格应同类；更长的错项往往是「多写了一层错误引申/夸大」。
-5. **自检**：出完后数四项字数。若 correct 字数 ≥ 三个 distractors，必须把某个错项加长（补半真细节）或把正确项收束，直到至少一错项更长。再问「只看长短会不会选最长？」——若会，继续改。
+4. **禁止形式泄题**：不要让正确项独用「统筹/既要又要/重点是…同时…」这类最周全句式，而错项全是片面短句。四个选项句式风格应同类。
+5. **自检**：数四项字数——谁最长都可以，只要不是正确项明显独最长到靠长短蒙；再问「只看长短会不会稳选某一项？」——若会，微调使长短接近。
 
 【命题要求】
 - 每题必须有 passage：短材料约 150～350 字，公考风格议论文/说明文片段，信息有轻重主次（便于出半真干扰）
 - term：短主题标签（如「基层治理」「科技创新」）
 - stem：针对材料的设问；correct + distractors[3]，共 4 个互斥选项
-- explanation：1～2 句点明正确项对应文意何处，以及典型干扰错在哪（偏片面/偷换等）
 - 材料与设问须匹配题型 ${label}（${mode}）
 
-【JSON 示例】（注意第 3 个 distractor 比 correct 更长；实际内容勿照抄）
-{"questionType":"${mode}","term":"乡村振兴","passage":"……","stem":"这段文字旨在强调：","correct":"产业振兴是乡村振兴的重点任务","distractors":["完善乡村基础设施应作为当前首要着力点","吸引人才回流即可自然带动乡村产业全面升级","应以组织建设为统领并据此重新排定产业与人才工作的优先次序"],"explanation":"……"}
+【解析字段·硬性·禁止混乱】
+系统会打乱选项顺序，界面显示为「选项1～4」。你**不要**在解析里写 A/B/C 或「干扰项A」。必须输出结构化字段，由系统按最终题面序号拼接：
+- explanationFocus：主旨/解题依据在文中的位置（完整短句，如「文末结论句强调通过制度创新推动内部一体化」）
+- explanationCorrect：正确项为何正确（完整短句，不要写「选项几」，不要残缺）
+- explanationDistractors：字符串数组，长度必须为 3，且与 distractors 数组**一一对应**（第 i 条解释第 i 个干扰项为何错）
+- 可选再给 explanation 作备份长文，但仍禁止使用 A/B/C；语句须完整收尾（以句号结束），禁止半截话如「且字数比…」
+
+【JSON 示例】（实际内容勿照抄；注意 explanationDistractors 与 distractors 同序）
+{"questionType":"${mode}","term":"乡村振兴","passage":"……","stem":"这段文字旨在强调：","correct":"产业振兴是乡村振兴的重点任务","distractors":["完善乡村基础设施应作为当前首要着力点","吸引人才回流即可自然带动乡村产业全面升级","组织建设应重新排定产业与人才工作次序"],"explanationFocus":"文末收束句点明产业振兴是乡村振兴的重点","explanationCorrect":"准确概括文意重点，与结尾结论一致","explanationDistractors":["把基础设施写成首要着力点，主次颠倒","夸大人才回流作用，属于过度推断","把组织建设抬到统领一切，偏离文意重心"],"explanation":"主旨在文末。正确项概括产业振兴重点；三个干扰项分别主次颠倒、过度推断、重心偏移。"}
 `.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 }
 
@@ -1864,7 +1896,7 @@ export async function requestReadingComprehensionMcqs(input: {
     format,
     historyHint,
     `本批 ${count} 道的 term 必须互不相同；每题须含独立 passage。`,
-    `**务必做到**：至少 1 个干扰项字数严格长于正确项；干扰半真半假、信息密度高；禁止绝对化低级错项；禁止靠「选最长」蒙对。`,
+    `**务必做到**：选项字数适度齐长；干扰半真半假；禁止绝对化低级错项；解析必须含 explanationFocus、explanationCorrect、explanationDistractors[3]（与 distractors 同序），禁止 A/B/C，语句完整。`,
     `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
   ]
     .filter(Boolean)
@@ -1890,7 +1922,7 @@ export async function requestReadingComprehensionMcqs(input: {
   })
 
   const deduped = dedupeReadingComprehensionQuestions(questions, blocked)
-  input.onProgress?.(`已解析 ${deduped.length}/${count} 题（已拒收正确项独最长等不合格项）…`)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题（已拒收字数极端失衡等不合格项）…`)
 
   const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
   for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
@@ -1900,7 +1932,8 @@ export async function requestReadingComprehensionMcqs(input: {
       const oneRaw = await deepseekChatRaw(
         [
           `请生成第 ${slot} 道阅读理解四选一题，题型固定为 **${modeLabel}**（questionType=\`${mode}\`）。`,
-          `硬性：至少 1 个 distractor 字数严格多于 correct；正确项不得独最长；干扰半真半假、可写长但结论偏了。`,
+          `字数适度齐长即可。干扰半真半假。`,
+          `解析硬性：explanationFocus、explanationCorrect、explanationDistractors[3]（与 distractors 一一对应）；禁止 A/B/C；语句完整收尾。`,
           `禁止「只需/唯一」类低级错项。`,
           format,
           avoidHint,

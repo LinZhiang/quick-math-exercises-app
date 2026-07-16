@@ -5,6 +5,11 @@ import {
   extractMcqCorrectAndDistractors,
   isPlayableFourChoiceMcq,
 } from '@/utils/chineseMcqAiFields'
+import {
+  coerceVocabQuestionType,
+  explanationImpliesNonUniqueAnswer,
+  stemHasFillBlank,
+} from '@/utils/chineseVariantQuality'
 
 export type ChineseWordMemorizationQuestionType = 'word-to-meaning' | 'meaning-to-word'
 
@@ -43,7 +48,10 @@ export function buildWordMemorizationDisplayStem(q: WordMemorizationQuestion): s
 }
 
 export function shouldShowWordMemorizationTermBeforeSubmit(q: WordMemorizationQuestion): boolean {
-  return q.questionType === 'word-to-meaning'
+  if (q.questionType !== 'word-to-meaning') return false
+  if (stemHasFillBlank(q.stem)) return false
+  if (q.options.some((o) => o.trim() === q.term.trim())) return false
+  return true
 }
 
 export function getWordMemorizationQuestionFingerprint(input: {
@@ -125,7 +133,7 @@ export function parseWordMemorizationMcqAiObject(item: unknown): {
   if (!item || typeof item !== 'object') return null
   const o = item as Record<string, unknown>
   const typeRaw = String(o.questionType ?? o.type ?? '').trim()
-  const questionType: ChineseWordMemorizationQuestionType | null =
+  let questionType: ChineseWordMemorizationQuestionType | null =
     typeRaw === 'word-to-meaning' || typeRaw === 'meaning-to-word'
       ? typeRaw
       : typeRaw === '选释义'
@@ -141,8 +149,23 @@ export function parseWordMemorizationMcqAiObject(item: unknown): {
   const { correct, distractors } = picked
   const explanation = String(o.explanation ?? o.analysis ?? '').trim()
   if (!term || !stem) return null
+
+  const coerced = coerceVocabQuestionType({
+    questionType,
+    term,
+    stem,
+    correct,
+    distractors,
+  })
+  if (!coerced) return null
+  questionType = coerced
+
   if (questionType === 'meaning-to-word' && wordMemorizationStemLeaksTerm(stem, term)) return null
   if (questionType === 'meaning-to-word' && distractors.some((d) => d === term)) return null
   if (questionType === 'meaning-to-word' && correct !== term) return null
+  if (questionType === 'word-to-meaning' && [correct, ...distractors].some((x) => x === term)) {
+    return null
+  }
+  if (explanationImpliesNonUniqueAnswer(explanation, [correct, ...distractors])) return null
   return { questionType, term, stem, correct, distractors, explanation }
 }

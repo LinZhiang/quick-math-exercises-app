@@ -3,6 +3,11 @@ import {
   extractMcqCorrectAndDistractors,
   isPlayableFourChoiceMcq,
 } from '@/utils/chineseMcqAiFields'
+import {
+  coerceVocabQuestionType,
+  explanationImpliesNonUniqueAnswer,
+  stemHasFillBlank,
+} from '@/utils/chineseVariantQuality'
 
 export type ChineseIdiomQuestionType = 'word-to-meaning' | 'meaning-to-word'
 
@@ -39,7 +44,11 @@ export function buildIdiomDisplayStem(q: IdiomRecognitionQuestion): string {
 }
 
 export function shouldShowIdiomTermBeforeSubmit(q: IdiomRecognitionQuestion): boolean {
-  return q.questionType === 'word-to-meaning'
+  if (q.questionType !== 'word-to-meaning') return false
+  // 填空/选词语形态，或选项里已含 term：展示 term 会直接泄题
+  if (stemHasFillBlank(q.stem)) return false
+  if (q.options.some((o) => o.trim() === q.term.trim())) return false
+  return true
 }
 
 export function getIdiomQuestionFingerprint(input: {
@@ -121,7 +130,7 @@ export function parseIdiomMcqAiObject(item: unknown): {
   if (!item || typeof item !== 'object') return null
   const o = item as Record<string, unknown>
   const typeRaw = String(o.questionType ?? o.type ?? '').trim()
-  const questionType: ChineseIdiomQuestionType | null =
+  let questionType: ChineseIdiomQuestionType | null =
     typeRaw === 'word-to-meaning' || typeRaw === 'meaning-to-word'
       ? typeRaw
       : typeRaw === '选释义'
@@ -137,8 +146,24 @@ export function parseIdiomMcqAiObject(item: unknown): {
   const { correct, distractors } = picked
   const explanation = String(o.explanation ?? o.analysis ?? '').trim()
   if (!term || !stem) return null
+
+  const coerced = coerceVocabQuestionType({
+    questionType,
+    term,
+    stem,
+    correct,
+    distractors,
+  })
+  if (!coerced) return null
+  questionType = coerced
+
   if (questionType === 'meaning-to-word' && idiomStemLeaksTerm(stem, term)) return null
   if (questionType === 'meaning-to-word' && distractors.some((d) => d === term)) return null
   if (questionType === 'meaning-to-word' && correct !== term) return null
+  // 选释义：选项不得是目标成语本身
+  if (questionType === 'word-to-meaning' && [correct, ...distractors].some((x) => x === term)) {
+    return null
+  }
+  if (explanationImpliesNonUniqueAnswer(explanation, [correct, ...distractors])) return null
   return { questionType, term, stem, correct, distractors, explanation }
 }

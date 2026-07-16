@@ -27,6 +27,7 @@ import ChineseWordMemorizationPanel from '@/views/tools/chinese-practice/Chinese
 export type { KeyPracticePayload } from '@/types/chinese-practice'
 
 const activeTab = ref<ChinesePracticeTabId>(DEFAULT_CHINESE_PRACTICE_TAB)
+const tabsRef = ref<HTMLElement | null>(null)
 const idiomRef = ref<InstanceType<typeof ChineseIdiomPanel> | null>(null)
 const wordMemorizationRef = ref<InstanceType<typeof ChineseWordMemorizationPanel> | null>(null)
 const charLiteracyRef = ref<InstanceType<typeof ChineseCharLiteracyPanel> | null>(null)
@@ -68,6 +69,10 @@ const isRunningOrLoading = computed(
 function selectTab(id: ChinesePracticeTabId) {
   if (isRunningOrLoading.value) return
   activeTab.value = id
+  void nextTick(() => {
+    const active = tabsRef.value?.querySelector<HTMLElement>('.chinese-practice-section__tab.is-active')
+    active?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
+  })
 }
 
 function onKeyPractice(payload: KeyPracticePayload) {
@@ -116,6 +121,7 @@ function onKeyPractice(payload: KeyPracticePayload) {
 
 defineExpose({
   isRunningOrLoading,
+  selectTab,
   startKeyPractice(source: ChineseKeyQuestionSource, questions: KeyPracticePayload['questions']) {
     onKeyPractice({ source, questions } as KeyPracticePayload)
   },
@@ -124,7 +130,11 @@ defineExpose({
 
 <template>
   <div class="chinese-practice-section">
-    <nav class="chinese-practice-section__tabs" aria-label="语文练习子功能">
+    <nav
+      ref="tabsRef"
+      class="chinese-practice-section__tabs"
+      aria-label="语文练习子功能"
+    >
       <button
         v-for="tab in CHINESE_PRACTICE_TABS"
         :key="tab.id"
@@ -234,5 +244,36 @@ defineExpose({
 .chinese-practice-section__tab:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .chinese-practice-section__tabs {
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin: 0 -12px 12px;
+    padding: 0 12px 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    position: sticky;
+    top: 0;
+    z-index: 12;
+    background: color-mix(in srgb, var(--app-surface) 94%, white);
+    backdrop-filter: blur(8px);
+  }
+
+  .chinese-practice-section__tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chinese-practice-section__tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 7px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+  }
 }
 </style>

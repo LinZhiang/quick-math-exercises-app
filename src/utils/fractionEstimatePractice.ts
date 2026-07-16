@@ -145,8 +145,16 @@ function buildOptions(
   while (wrong.length < optionCount - 1) {
     const bump = wrong.length + 1
     const filler = `${bump}/${bump + 2}`
-    if (!wrong.includes(filler) && filler !== correct) wrong.push(filler)
+    if (!wrong.includes(filler) && filler !== correct) {
+      wrong.push(filler)
+    } else {
+      // 避免 filler 恰好等于正确答案时死循环（例如 correct 为 1/3）
+      const alt = formatFraction({ n: bump, d: bump + 3 + wrong.length })
+      if (!wrong.includes(alt) && alt !== correct) wrong.push(alt)
+      else wrong.push(formatFraction({ n: 1, d: 10 + wrong.length + bump }))
+    }
     if (wrong.length >= optionCount - 1) break
+    if (bump > optionCount + 8) break
   }
   const options = shuffle([...wrong.slice(0, optionCount - 1), correct])
   const correctIndex = options.findIndex((o) => o === correct)
@@ -218,17 +226,27 @@ function pickNearWrongFractions(correct: Fraction, count: number): string[] {
   return wrong
 }
 
-/** 比较题：选项必含两个候选分数，题干只问「哪个更大」（分数在选项里） */
+/** 比较题：题干必须写明比较哪两个分数；正确项为二者中较大者（干扰项不得当「全局最大」送分） */
 function buildFractionCompareQuestion(
   f1: Fraction,
   f2: Fraction,
   optionCount: number,
   extraDistractors: string[] = [],
-): FractionEstimateQuestion {
+): FractionEstimateQuestion | null {
   const s1 = formatFraction(f1)
   const s2 = formatFraction(f2)
-  const larger = fracValue(f1) >= fracValue(f2) ? s1 : s2
-  const smaller = larger === s1 ? s2 : s1
+  if (s1 === s2) return null
+
+  const v1 = fracValue(f1)
+  const v2 = fracValue(f2)
+  if (Math.abs(v1 - v2) < 1e-12) return null
+
+  const larger = v1 > v2 ? s1 : s2
+  const smaller = v1 > v2 ? s2 : s1
+  // 交叉验证：正确项必须是两数中较大的那个
+  if (fracValue(parseFractionLabel(larger)!) < fracValue(parseFractionLabel(smaller)!)) {
+    return null
+  }
 
   const wrongCount = optionCount - 1
   const wrong: string[] = []
@@ -236,33 +254,70 @@ function buildFractionCompareQuestion(
   wrong.push(smaller)
   used.add(smaller)
 
+  /** 干扰项：其它分数；避免等于 larger，且最好不要比 larger 还大（防扫一眼选最大） */
   const pool = shuffle([
-    ...extraDistractors.filter((d) => d !== larger && d !== smaller),
+    ...extraDistractors,
     formatFraction({ n: Math.max(1, f1.n), d: f1.d + 2 }),
     formatFraction({ n: Math.max(1, f2.n + 1), d: f2.d }),
-  ])
+    formatFraction({ n: Math.max(1, f1.n + 1), d: f1.d + 1 }),
+    formatFraction({ n: 1, d: Math.max(f1.d, f2.d) + 1 }),
+  ]).filter((d) => d !== larger && d !== smaller)
+
   for (const d of pool) {
     if (wrong.length >= wrongCount) break
     if (used.has(d)) continue
+    const parsed = parseFractionLabel(d)
+    // 若干扰项数值 ≥ 较大者，扫选项会误选它；宁可丢掉
+    if (parsed && fracValue(parsed) >= Math.max(v1, v2) - 1e-12) continue
     used.add(d)
     wrong.push(d)
   }
-  while (wrong.length < wrongCount) {
-    const filler = formatFraction({ n: randInt(1, 5), d: randInt(4, 11) })
+  const maxPair = Math.max(v1, v2)
+  // 干扰项必须严格小于较大者；分母取大一点，避免卡死在「填不满」
+  let fillerGuard = 0
+  while (wrong.length < wrongCount && fillerGuard < 80) {
+    fillerGuard++
+    const d = randInt(Math.max(6, Math.ceil(1 / Math.max(maxPair * 0.5, 0.05))), 30)
+    const n = randInt(1, Math.max(1, d - 1))
+    const fillerFrac = simplify({ n, d })
+    if (fracValue(fillerFrac) >= maxPair - 1e-12) continue
+    const filler = formatFraction(fillerFrac)
     if (used.has(filler)) continue
     used.add(filler)
     wrong.push(filler)
   }
+  if (wrong.length < wrongCount) return null
 
   const options = shuffle([larger, ...wrong.slice(0, wrongCount)])
   const correctIndex = options.findIndex((o) => o === larger)
+  if (correctIndex < 0) return null
+
+  // 最终自检：选项中「两数比较的正确答案」必须是 larger；且 larger 确为题干两数之较大
+  const amongPair = [s1, s2]
+  const maxAmongPair = amongPair.reduce((a, b) =>
+    fracValue(parseFractionLabel(a)!) >= fracValue(parseFractionLabel(b)!) ? a : b,
+  )
+  if (maxAmongPair !== larger) return null
+
   return {
     id: 0,
-    expression: '哪个更大？',
+    expression: `${s1} 和 ${s2}，哪个更大？`,
     correctAnswer: larger,
     options,
-    correctIndex: correctIndex >= 0 ? correctIndex : 0,
+    correctIndex,
   }
+}
+
+/** 解析选项里的分数标签，如 2/3、1 */
+function parseFractionLabel(label: string): Fraction | null {
+  const t = label.trim()
+  if (/^\d+$/.test(t)) return { n: Number(t), d: 1 }
+  const m = /^(\d+)\s*\/\s*(\d+)$/.exec(t)
+  if (!m) return null
+  const n = Number(m[1])
+  const d = Number(m[2])
+  if (!Number.isFinite(n) || !Number.isFinite(d) || d <= 0) return null
+  return { n, d }
 }
 
 function buildPercentToFraction(mode: FractionEstimateMode, optionCount: number): FractionEstimateQuestion {
@@ -294,35 +349,60 @@ function buildPercentToFraction(mode: FractionEstimateMode, optionCount: number)
 }
 
 function buildFractionCompareEasy(optionCount: number): FractionEstimateQuestion {
-  if (Math.random() < 0.55) {
-    const d = [2, 3, 4, 5, 6, 8, 10][randInt(0, 6)]!
-    let n1 = randInt(1, d - 1)
-    let n2 = randInt(1, d - 1)
-    while (n2 === n1) n2 = randInt(1, d - 1)
-    const f1 = simplify({ n: n1, d })
-    const f2 = simplify({ n: n2, d })
-    return buildFractionCompareQuestion(f1, f2, optionCount, [
-      formatFraction({ n: 1, d: d + 1 }),
-      formatFraction({ n: d - 1, d }),
-    ])
+  for (let attempt = 0; attempt < 48; attempt++) {
+    let q: FractionEstimateQuestion | null = null
+    if (Math.random() < 0.55) {
+      // 同分母比大小：分母至少 3，否则分子只有一种取法会卡死
+      const d = [3, 4, 5, 6, 8, 10][randInt(0, 5)]!
+      let n1 = randInt(1, d - 1)
+      let n2 = randInt(1, d - 1)
+      let guard = 0
+      while (n2 === n1 && guard++ < 20) n2 = randInt(1, d - 1)
+      if (n2 === n1) continue
+      const f1 = simplify({ n: n1, d })
+      const f2 = simplify({ n: n2, d })
+      q = buildFractionCompareQuestion(f1, f2, optionCount, [
+        formatFraction({ n: 1, d: d + 1 }),
+        formatFraction({ n: Math.max(1, d - 2), d: d + 1 }),
+      ])
+    } else {
+      const easyPairs: [Fraction, Fraction][] = [
+        [{ n: 1, d: 2 }, { n: 1, d: 3 }],
+        [{ n: 1, d: 2 }, { n: 2, d: 5 }],
+        [{ n: 2, d: 3 }, { n: 3, d: 5 }],
+        [{ n: 3, d: 4 }, { n: 2, d: 3 }],
+        [{ n: 1, d: 4 }, { n: 1, d: 5 }],
+        [{ n: 1, d: 3 }, { n: 1, d: 6 }],
+        [{ n: 2, d: 5 }, { n: 1, d: 3 }],
+        [{ n: 3, d: 5 }, { n: 1, d: 2 }],
+      ]
+      const [a, b] = easyPairs[randInt(0, easyPairs.length - 1)]!
+      q = buildFractionCompareQuestion(a, b, optionCount, [
+        formatFraction({ n: 1, d: a.d + b.d }),
+        formatFraction({ n: 1, d: Math.max(a.d, b.d) + 2 }),
+      ])
+    }
+    if (q) return q
   }
-
-  const easyPairs: [Fraction, Fraction][] = [
-    [{ n: 1, d: 2 }, { n: 1, d: 3 }],
-    [{ n: 1, d: 2 }, { n: 2, d: 5 }],
-    [{ n: 2, d: 3 }, { n: 3, d: 5 }],
-    [{ n: 3, d: 4 }, { n: 2, d: 3 }],
-    [{ n: 1, d: 4 }, { n: 1, d: 5 }],
-    [{ n: 1, d: 3 }, { n: 1, d: 6 }],
-  ]
-  const [a, b] = easyPairs[randInt(0, easyPairs.length - 1)]!
-  return buildFractionCompareQuestion(a, b, optionCount, [
-    formatFraction({ n: a.n + b.n, d: a.d + b.d }),
+  // 兜底：固定一对无歧义题（buildFractionCompareQuestion 几乎必成功）
+  const fallback = buildFractionCompareQuestion({ n: 2, d: 3 }, { n: 1, d: 2 }, optionCount, [
+    formatFraction({ n: 1, d: 4 }),
+    formatFraction({ n: 1, d: 5 }),
   ])
+  if (fallback) return fallback
+
+  const options = shuffle(['2/3', '1/2', '1/4'].slice(0, optionCount))
+  return {
+    id: 0,
+    expression: '2/3 和 1/2，哪个更大？',
+    correctAnswer: '2/3',
+    options,
+    correctIndex: Math.max(0, options.findIndex((o) => o === '2/3')),
+  }
 }
 
 function buildFractionCompareHard(optionCount: number): FractionEstimateQuestion {
-  for (let attempt = 0; attempt < 40; attempt++) {
+  for (let attempt = 0; attempt < 60; attempt++) {
     const d1 = [5, 6, 7, 8, 9, 11, 12][randInt(0, 6)]!
     const d2 = [5, 6, 7, 8, 9, 11, 12][randInt(0, 6)]!
     const n1 = randInt(2, d1 - 1)
@@ -334,12 +414,13 @@ function buildFractionCompareHard(optionCount: number): FractionEstimateQuestion
     const diff = Math.abs(v1 - v2)
     if (diff < 0.03 || diff > 0.22) continue
 
-    return buildFractionCompareQuestion(f1, f2, optionCount, [
-      formatFraction({ n: n1, d: n2 }),
-      formatFraction({ n: n2, d: n1 }),
-      formatFraction({ n: n1 + 1, d: d1 }),
-      formatFraction({ n: n2 + 1, d: d2 }),
+    const q = buildFractionCompareQuestion(f1, f2, optionCount, [
+      formatFraction({ n: Math.max(1, n1 - 1), d: d1 }),
+      formatFraction({ n: Math.max(1, n2 - 1), d: d2 }),
+      formatFraction({ n: 1, d: d1 + 1 }),
+      formatFraction({ n: 1, d: d2 + 1 }),
     ])
+    if (q) return q
   }
 
   return buildFractionCompareEasy(optionCount)
@@ -362,7 +443,8 @@ export function generateFractionEstimateQuestion(
 }
 
 export function getFractionEstimateQuestionFingerprint(q: FractionEstimateQuestion): string {
-  return q.expression
+  // 比较题题干含具体分数；百分数题含百分号。需带上正确项，避免同题干不同答案碰撞
+  return `${q.expression}\u001f${q.correctAnswer}\u001f${[...q.options].sort().join('|')}`
 }
 
 export function getFractionEstimateModeConfig(

@@ -14,6 +14,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'start-practice', modeId: string): void
+  (e: 'go-chinese-tab', tabId: string): void
 }>()
 
 const activeArticleId = ref(DEFAULT_MENTAL_MATH_GUIDE_ARTICLE_ID)
@@ -33,10 +34,28 @@ function selectArticle(article: MentalMathGuideArticle) {
 }
 
 function startLinkedPractice() {
-  const modeId = activeArticle.value?.practiceModeId
-  if (!modeId || props.disabled) return
+  const article = activeArticle.value
+  if (!article || props.disabled) return
+  if (article.chineseTabId) {
+    emit('go-chinese-tab', article.chineseTabId)
+    return
+  }
+  const modeId = article.practiceModeId
+  if (!modeId) return
   emit('start-practice', modeId)
 }
+
+const hasPracticeLink = computed(
+  () => Boolean(activeArticle.value?.practiceModeId || activeArticle.value?.chineseTabId),
+)
+
+const practiceLinkLabel = computed(() => {
+  const article = activeArticle.value
+  if (!article) return '去练习'
+  if (article.chineseTabId === 'classical-chinese') return '去练习：文言知识'
+  if (article.chineseTabId) return `去练习：${article.title}`
+  return `去练习：${article.title}`
+})
 
 watch(
   () => props.disabled,
@@ -77,6 +96,7 @@ watch(
         <template v-for="(block, idx) in activeArticle.blocks" :key="idx">
           <p v-if="block.type === 'p'" class="mm-block mm-block--p">{{ block.text }}</p>
           <h4 v-else-if="block.type === 'h3'" class="mm-block mm-block--h3">{{ block.text }}</h4>
+          <h5 v-else-if="block.type === 'h4'" class="mm-block mm-block--h4">{{ block.text }}</h5>
           <ul v-else-if="block.type === 'ul'" class="mm-block mm-block--ul">
             <li v-for="(line, j) in block.items" :key="j">{{ line }}</li>
           </ul>
@@ -86,12 +106,15 @@ watch(
           <p v-else-if="block.type === 'tip'" class="mm-block mm-block--tip">
             <strong>提示：</strong>{{ block.text }}
           </p>
+          <blockquote v-else-if="block.type === 'quote'" class="mm-block mm-block--quote">
+            {{ block.text }}
+          </blockquote>
         </template>
       </div>
 
-      <footer v-if="activeArticle.practiceModeId" class="mm-guide-main__foot">
+      <footer v-if="hasPracticeLink" class="mm-guide-main__foot">
         <el-button type="primary" :disabled="disabled" @click="startLinkedPractice">
-          去练习：{{ activeArticle.title }}
+          {{ practiceLinkLabel }}
         </el-button>
       </footer>
     </article>
@@ -201,6 +224,13 @@ watch(
   font-weight: 600;
 }
 
+.mm-block--h4 {
+  margin: 6px 0 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
 .mm-block--ul,
 .mm-block--ol {
   margin: 0;
@@ -219,6 +249,17 @@ watch(
   line-height: 1.55;
 }
 
+.mm-block--quote {
+  margin: 4px 0 0;
+  padding: 10px 12px 10px 14px;
+  border-left: 3px solid var(--el-color-primary);
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--el-color-primary-light-9, #eff6ff) 70%, transparent);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--app-text);
+}
+
 .mm-guide-main__foot {
   margin-top: 20px;
   padding-top: 16px;
@@ -228,12 +269,76 @@ watch(
 @media (max-width: 720px) {
   .mm-guide {
     grid-template-columns: 1fr;
+    min-height: 0;
   }
 
   .mm-guide-nav {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 10px;
     border-right: none;
     border-bottom: 1px solid var(--app-border-soft);
-    max-height: 200px;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 10px 12px;
+  }
+
+  .mm-guide-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mm-guide-nav__group {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+
+  .mm-guide-nav__group + .mm-guide-nav__group {
+    margin-top: 0;
+    padding-left: 10px;
+    border-left: 1px solid var(--app-border-soft);
+  }
+
+  .mm-guide-nav__group-title {
+    margin: 0;
+    padding: 0;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .mm-guide-nav__list {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+  }
+
+  .mm-guide-nav__item {
+    width: auto;
+    white-space: nowrap;
+    padding: 7px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--app-border-soft);
+    background: var(--app-surface);
+    font-size: 12px;
+  }
+
+  .mm-guide-nav__item--active {
+    border-color: color-mix(in srgb, var(--el-color-primary) 40%, transparent);
+  }
+
+  .mm-guide-main {
+    padding: 14px 12px 18px;
+  }
+
+  .mm-guide-main__title {
+    font-size: 1.05rem;
   }
 }
 </style>

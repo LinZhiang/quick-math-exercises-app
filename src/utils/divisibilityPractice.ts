@@ -21,22 +21,22 @@ export const DIVISIBILITY_MODES: DivisibilityModeConfig[] = [
   {
     id: 'divisibility-easy',
     label: '简单题',
-    durationSec: 30,
+    durationSec: 35,
     optionCount: 3,
     correctDelta: 5,
     wrongDelta: -10,
     maxScore: 100,
-    desc: '30 秒 · 整除判定（3/9/6）· 质合数入门 · 小公因数 · 3 选项 · 对 +5 / 错 -10 · 对 +1 秒 / 错 -1 秒',
+    desc: '35 秒 · 整除入门（2/3/5/6/9）· 小数内质合数 · GCD/分解数字≤20 · 3 选项 · 对 +5 / 错 -10 · 对 +1 秒 / 错 -1 秒',
   },
   {
     id: 'divisibility-distractor',
     label: '简单题（干扰型）',
-    durationSec: 30,
+    durationSec: 35,
     optionCount: 3,
     correctDelta: 7,
     wrongDelta: -14,
     maxScore: 100,
-    desc: '30 秒 · 与简单题同考点 · 干扰更强（易混整除陷阱、GCD/LCM 对调、错指数分解等）· 3 选项 · 对 +7 / 错 -14 · 对 +1 秒 / 错 -1 秒',
+    desc: '35 秒 · 与简单题同量级 · 干扰更强（易混陷阱、GCD/LCM 对调等）· 数字仍偏小 · 3 选项 · 对 +7 / 错 -14 · 对 +1 秒 / 错 -1 秒',
   },
   {
     id: 'divisibility-normal',
@@ -46,7 +46,7 @@ export const DIVISIBILITY_MODES: DivisibilityModeConfig[] = [
     correctDelta: 8,
     wrongDelta: -15,
     maxScore: 100,
-    desc: '40 秒 · 整除判定（含 7/11）· 质因数分解 · 公倍数 · 4 选项 · 对 +8 / 错 -15 · 对 +1 秒 / 错 -1 秒',
+    desc: '40 秒 · 中等整除（含少量 7）· 中等质因数/公倍 · 4 选项 · 对 +8 / 错 -15 · 对 +1 秒 / 错 -1 秒',
   },
   {
     id: 'divisibility-hard',
@@ -56,7 +56,7 @@ export const DIVISIBILITY_MODES: DivisibilityModeConfig[] = [
     correctDelta: 10,
     wrongDelta: -20,
     maxScore: 100,
-    desc: '50 秒 · 较大数整除/质因数 · GCD/LCM 综合 · 5 选项 · 对 +10 / 错 -20 · 对 +1 秒 / 错 -1 秒',
+    desc: '50 秒 · 稍大数整除（含 11）· 质因数与 GCD/LCM · 仍控制在速算可及 · 5 选项 · 对 +10 / 错 -20 · 对 +1 秒 / 错 -1 秒',
   },
 ]
 
@@ -148,11 +148,13 @@ function pickFrom<T>(arr: T[]): T {
 }
 
 const SMALL_PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31]
-const EASY_COMPOSITES = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 22, 24, 25, 27, 28]
-const NORMAL_FACTOR_NS = [12, 18, 20, 24, 28, 30, 36, 40, 42, 45, 48, 54, 56, 60, 63, 72, 75, 84, 90]
-const HARD_FACTOR_NS = [
-  96, 108, 120, 126, 132, 140, 144, 150, 168, 180, 196, 210, 216, 240, 252, 280, 315, 336, 360,
-]
+/** 简单题合数/分解用：不超过 20 */
+const EASY_COMPOSITES = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20]
+const EASY_FACTOR_NS = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20]
+/** 普通题分解：中等偏易，便于口算 */
+const NORMAL_FACTOR_NS = [12, 16, 18, 20, 24, 28, 30, 32, 36, 40, 42, 45, 48]
+/** 高难分解：仍控制在速算可及，避免三位数大积 */
+const HARD_FACTOR_NS = [36, 40, 42, 48, 54, 56, 60, 63, 72, 75, 80, 84, 90, 96, 108, 120]
 
 function buildMcq(input: {
   id: number
@@ -255,16 +257,19 @@ function genDivisibilityCheck(
 ): DivisibilityQuestion {
   const strong = isStrongDistract(mode)
   const band = modeBand(mode)
+  // 简单/干扰：先练 2/3/5/6/9；普通才加 7；高难才加 11
   const divisors =
-    band === 'easy' && !strong
-      ? ([3, 9, 6] as const)
-      : ([3, 9, 6, 7, 11] as const)
+    band === 'easy'
+      ? ([2, 3, 5, 6, 9] as const)
+      : band === 'normal'
+        ? ([2, 3, 5, 6, 7, 9] as const)
+        : ([3, 6, 7, 9, 11] as const)
   const d = pickFrom([...divisors])
   const range =
-    band === 'easy' ? [12, 99] : band === 'normal' ? [40, 399] : [100, 999]
+    band === 'easy' ? [10, 60] : band === 'normal' ? [20, 120] : [40, 200]
 
   const style = Math.random()
-  if (style < 0.5) {
+  if (style < 0.55) {
     const correct = makeNumberDivisibleBy(d, range[0]!, range[1]!, true)
     const wrongs: number[] = []
     while (wrongs.length < optionCount - 1) {
@@ -281,7 +286,7 @@ function genDivisibilityCheck(
     })
   }
 
-  if (style < 0.78) {
+  if (style < 0.82) {
     const yes = Math.random() < 0.5
     const n = strong && !yes
       ? makeNearMissNotDivisibleBy(d, range[0]!, range[1]!)
@@ -323,7 +328,7 @@ function genDivisibilityCheck(
     })
   }
 
-  if (d === 11) {
+  if (d === 11 && band === 'hard') {
     const n = makeNumberDivisibleBy(11, Math.max(100, range[0]!), range[1]!, Math.random() < 0.55)
     const correct = n % 11 === 0 ? '能' : '不能'
     return buildMcq({
@@ -373,13 +378,67 @@ function genPrimeComposite(id: number, optionCount: number, mode: DivisibilityMo
   const strong = isStrongDistract(mode)
   const band = modeBand(mode)
   const style = Math.random()
+
+  // 简单题：多练质合数判断，少出分解；分解数字严格 ≤20
+  if (band === 'easy') {
+    if (style < 0.42) {
+      const correct = pickFrom(SMALL_PRIMES.filter((p) => p <= 19))
+      const wrongPool = strong
+        ? [1, 9, 15, 21, 25, 27]
+        : EASY_COMPOSITES
+      return buildMcq({
+        id,
+        expression: '下列哪个数是质数？',
+        correct,
+        distractors: fillDistractors(correct, optionCount - 1, wrongPool),
+      })
+    }
+    if (style < 0.78) {
+      const correct = pickFrom(EASY_COMPOSITES)
+      const wrongPool = strong ? [...SMALL_PRIMES.filter((p) => p <= 19), 1] : SMALL_PRIMES.filter((p) => p <= 19).concat([1])
+      return buildMcq({
+        id,
+        expression: '下列哪个数是合数？',
+        correct,
+        distractors: fillDistractors(correct, optionCount - 1, wrongPool),
+      })
+    }
+    if (style < 0.9) {
+      return buildMcq({
+        id,
+        expression: '关于数字 1，下列说法正确的是？',
+        correct: '既不是质数也不是合数',
+        distractors: fillDistractors('既不是质数也不是合数', optionCount - 1, [
+          '是质数',
+          '是合数',
+          '既是质数又是合数',
+          '是偶数质数',
+        ]),
+      })
+    }
+    const n = pickFrom(EASY_FACTOR_NS)
+    const correct = formatPrimeFactorization(n)
+    const wrongForms = strong
+      ? strongFactorizationWrongs(n, correct)
+      : [
+          formatPrimeFactorization(Math.max(4, n - 2 <= 20 ? n - 2 : 4)),
+          formatPrimeFactorization(n + 2 <= 20 ? n + 2 : Math.max(4, n - 4)),
+          String(n),
+          correct.replace(/\^(\d+)/, (_, e) => `^${Number(e) + 1}`),
+        ]
+    return buildMcq({
+      id,
+      expression: `${n} 的质因数分解是？`,
+      correct,
+      distractors: fillDistractors(correct, optionCount - 1, wrongForms),
+    })
+  }
+
   if (style < 0.4) {
-    const correct = pickFrom(SMALL_PRIMES.filter((p) => (band === 'easy' ? p <= 19 : p <= 31)))
+    const correct = pickFrom(SMALL_PRIMES.filter((p) => (band === 'normal' ? p <= 23 : p <= 31)))
     const wrongPool = strong
-      ? [1, 9, 15, 21, 25, 27, 33, 35, 39, 45, 49, 51, 55, 57, 77, 87, 91]
-      : band === 'easy'
-        ? EASY_COMPOSITES
-        : [...EASY_COMPOSITES, 32, 33, 34, 35, 38, 39, 44, 45, 49, 51]
+      ? [1, 9, 15, 21, 25, 27, 33, 35, 39, 45, 49]
+      : [...EASY_COMPOSITES, 21, 22, 24, 25, 27, 28, 32, 33, 35]
     return buildMcq({
       id,
       expression: '下列哪个数是质数？',
@@ -391,12 +450,12 @@ function genPrimeComposite(id: number, optionCount: number, mode: DivisibilityMo
   if (style < 0.7) {
     const correct = pickFrom(
       band === 'hard'
-        ? [...EASY_COMPOSITES, 33, 34, 35, 38, 39, 44, 45, 49, 51, 55, 57]
-        : EASY_COMPOSITES,
+        ? [...EASY_COMPOSITES, 21, 22, 24, 25, 27, 28, 32, 33, 35, 39, 45, 49]
+        : [...EASY_COMPOSITES, 21, 22, 24, 25, 27, 28],
     )
     const wrongPool = strong
       ? [...SMALL_PRIMES, 1]
-      : SMALL_PRIMES.concat(band === 'easy' ? [1] : [1, 91])
+      : SMALL_PRIMES.concat([1])
     return buildMcq({
       id,
       expression: '下列哪个数是合数？',
@@ -405,7 +464,7 @@ function genPrimeComposite(id: number, optionCount: number, mode: DivisibilityMo
     })
   }
 
-  if (Math.random() < 0.35 && band !== 'hard') {
+  if (Math.random() < 0.3 && band !== 'hard') {
     return buildMcq({
       id,
       expression: '关于数字 1，下列说法正确的是？',
@@ -419,12 +478,7 @@ function genPrimeComposite(id: number, optionCount: number, mode: DivisibilityMo
     })
   }
 
-  const pool =
-    band === 'easy'
-      ? NORMAL_FACTOR_NS.filter((n) => n <= 36)
-      : band === 'normal'
-        ? NORMAL_FACTOR_NS
-        : HARD_FACTOR_NS
+  const pool = band === 'normal' ? NORMAL_FACTOR_NS : HARD_FACTOR_NS
   const n = pickFrom(pool)
   const correct = formatPrimeFactorization(n)
   const wrongForms = strong
@@ -432,9 +486,8 @@ function genPrimeComposite(id: number, optionCount: number, mode: DivisibilityMo
     : [
         formatPrimeFactorization(n + 2),
         formatPrimeFactorization(Math.max(4, n - 2)),
-        formatPrimeFactorization(n * 2 > 400 ? Math.floor(n / 2) || 4 : n * 2),
+        formatPrimeFactorization(n * 2 > 160 ? Math.floor(n / 2) || 4 : n * 2),
         String(n),
-        `${n}=${n}`,
         correct.replace(/\^(\d+)/, (_, e) => `^${Number(e) + 1}`),
       ]
   return buildMcq({
@@ -448,28 +501,46 @@ function genPrimeComposite(id: number, optionCount: number, mode: DivisibilityMo
 function genGcdLcm(id: number, optionCount: number, mode: DivisibilityMode): DivisibilityQuestion {
   const strong = isStrongDistract(mode)
   const band = modeBand(mode)
-  const ranges =
-    band === 'easy'
-      ? { a: [4, 24], b: [4, 24] }
-      : band === 'normal'
-        ? { a: [6, 48], b: [6, 48] }
-        : { a: [12, 90], b: [12, 90] }
 
-  let a = randInt(ranges.a[0]!, ranges.a[1]!)
-  let b = randInt(ranges.b[0]!, ranges.b[1]!)
-  if (a === b) b += 2
-  if (Math.random() < 0.55) {
-    const g =
-      band === 'easy' ? pickFrom([2, 3, 4, 5, 6]) : pickFrom([2, 3, 4, 5, 6, 7, 8, 9])
-    a = g * randInt(2, band === 'hard' ? 12 : 8)
-    b = g * randInt(2, band === 'hard' ? 12 : 8)
+  let a: number
+  let b: number
+  if (band === 'easy') {
+    // 简单题：参与运算的两数都不超过 20
+    const g = pickFrom([2, 3, 4, 5])
+    const maxK = Math.floor(20 / g)
+    a = g * randInt(1, maxK)
+    b = g * randInt(1, maxK)
+    let guard = 0
+    while ((a === b || a > 20 || b > 20) && guard++ < 30) {
+      a = g * randInt(1, maxK)
+      b = g * randInt(1, maxK)
+      if (a === b && maxK >= 2) b = g * (a / g === maxK ? maxK - 1 : a / g + 1)
+    }
+    if (a === b) {
+      a = 12
+      b = 18
+    }
+  } else if (band === 'normal') {
+    const g = pickFrom([2, 3, 4, 5, 6])
+    a = g * randInt(2, 6)
+    b = g * randInt(2, 6)
     if (a === b) b += g
+    // 普通题大致控制在 36 以内
+    if (a > 36) a = g * 5
+    if (b > 36) b = g * 4
+  } else {
+    const g = pickFrom([2, 3, 4, 5, 6, 7, 8])
+    a = g * randInt(2, 8)
+    b = g * randInt(2, 8)
+    if (a === b) b += g
+    // 高难题仍控制在约 60 内，避免 LCM 过大难口算
+    if (a > 60) a = g * 7
+    if (b > 60) b = g * 6
   }
 
   const askGcd = Math.random() < 0.55
   const g = gcd(a, b)
   const l = lcm(a, b)
-  // 非最大的公因数，用于强干扰
   const properFactors: number[] = []
   for (let i = 1; i < g; i++) {
     if (a % i === 0 && b % i === 0) properFactors.push(i)
@@ -513,10 +584,16 @@ export function generateDivisibilityQuestion(
   id: number,
   optionCount: number,
 ): DivisibilityQuestion {
+  const band = modeBand(mode)
   const roll = Math.random()
-  // 题型比重：整除判定约 40%，质合数/分解约 30%，GCD/LCM 约 30%
-  if (roll < 0.4) return genDivisibilityCheck(id, optionCount, mode)
-  if (roll < 0.7) return genPrimeComposite(id, optionCount, mode)
+  // 简单题：整除判定为主，少上分解/GCD；进阶再增加综合题
+  if (band === 'easy') {
+    if (roll < 0.55) return genDivisibilityCheck(id, optionCount, mode)
+    if (roll < 0.8) return genPrimeComposite(id, optionCount, mode)
+    return genGcdLcm(id, optionCount, mode)
+  }
+  if (roll < 0.42) return genDivisibilityCheck(id, optionCount, mode)
+  if (roll < 0.72) return genPrimeComposite(id, optionCount, mode)
   return genGcdLcm(id, optionCount, mode)
 }
 

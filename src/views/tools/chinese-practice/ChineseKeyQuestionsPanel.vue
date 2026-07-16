@@ -1275,6 +1275,34 @@ defineExpose({ refresh })
   padding-top: 4px;
   border-top: 1px dashed var(--app-border-soft);
 }
+
+@media (max-width: 640px) {
+  .chinese-key__sources,
+  .chinese-key__tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 6px;
+  }
+
+  .chinese-key__sources::-webkit-scrollbar,
+  .chinese-key__tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chinese-key__source,
+  .chinese-key__tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .chinese-key__list {
+    max-height: min(52vh, 420px);
+  }
+}
 </style>
 
 <style>

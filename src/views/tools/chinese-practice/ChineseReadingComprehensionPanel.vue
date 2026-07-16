@@ -192,7 +192,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
     <template v-if="test.phase === 'idle' || test.phase === 'loading'">
       <p class="mode-section__hint">
         针对公考言语理解阅读类高频题：主旨观点、细节判断、词句理解、推断下文、标题添加。
-        命题要求干扰「半真半假」、信息密度高；系统会拒收「正确项独最长」的题，并要求至少有干扰项比正确项更长。
+        命题要求干扰「半真半假」、信息密度高；选项字数适度齐长；解析会按题面「选项1～4」逐项对应，先点明主旨位置再分析对错。
         请先选择题型，再生成短篇材料题，每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停并公布答案。
       </p>
 
@@ -686,5 +686,28 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 .chinese-summary__list li:last-child {
   border-bottom: none;
+}
+
+@media (max-width: 640px) {
+  .chinese-reading__modes {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 6px;
+    margin: 10px -4px 0;
+    padding: 0 4px 2px;
+  }
+
+  .chinese-reading__modes::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chinese-reading__modes > * {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
 }
 </style>

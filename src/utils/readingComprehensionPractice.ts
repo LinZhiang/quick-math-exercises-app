@@ -2,6 +2,7 @@ import {
   assembleFourChoiceMcq,
   extractMcqCorrectAndDistractors,
   isPlayableFourChoiceMcq,
+  normalizeMcqOptionText,
 } from '@/utils/chineseMcqAiFields'
 
 export type ChineseReadingQuestionType =
@@ -25,6 +26,16 @@ export type ReadingComprehensionQuestion = {
   correctIndex: number
   explanation: string
   fingerprint: string
+}
+
+/** AI 解析的结构化片段（打乱选项后再拼成带「选项1～4」的完整解析） */
+export type ReadingExplanationParts = {
+  /** 主旨/依据在文中的位置，如「文末结论句」「第二句」 */
+  focus: string
+  /** 正确项为何对（不含「选项N」前缀） */
+  correctNote: string
+  /** 与 distractors 一一对应的错因（长度须为 3） */
+  distractorNotes: string[]
 }
 
 export function readingComprehensionQuestionTypeLabel(
@@ -87,20 +98,142 @@ export function readingOptionTextLength(s: string): number {
 }
 
 /**
- * 阅读理解选项长度质量：
- * - 至少 1 个干扰项严格长于正确项（禁止「正确项独最长」）
- * - 四项跨度不宜过大（避免一个巨长、其余极短）
+ * 阅读理解选项长度质量（适度原则）：
+ * - 允许正确项最长，也允许干扰项最长，不强行规定谁更长
+ * - 四项大致齐长；仅拒收「正确项明显独最长、靠选最长可蒙」的极端题
  */
 export function readingMcqLengthQualityOk(correct: string, distractors: string[]): boolean {
   const c = readingOptionTextLength(correct)
   const ds = distractors.map(readingOptionTextLength).filter((n) => n > 0)
   if (!c || ds.length !== 3) return false
-  if (!ds.some((n) => n > c)) return false
+
   const all = [c, ...ds]
   const max = Math.max(...all)
   const min = Math.min(...all)
-  if (max - min > 16) return false
+  // 跨度过大不自然（不论谁最长）
+  if (max - min > 18) return false
+
+  const maxDistractor = Math.max(...ds)
+  // 正确项比每一个干扰项都长，且明显甩开次长 → 易「选最长」蒙对，才拒收
+  if (c > maxDistractor && c - maxDistractor >= 8) return false
+
   return true
+}
+
+function trimExplanationClause(s: string): string {
+  return s
+    .trim()
+    .replace(/^[：:\s]+/, '')
+    .replace(/[。；;]+$/g, '')
+}
+
+/**
+ * 打乱后按题面序号拼完整解析：先点明主旨位置，再逐项 选项1～4。
+ */
+export function composeReadingExplanationForDisplay(input: {
+  parts: ReadingExplanationParts
+  options: string[]
+  correctIndex: number
+  correct: string
+  distractors: string[]
+}): string | null {
+  const { parts, options, correctIndex, correct, distractors } = input
+  if (options.length !== 4 || correctIndex < 0 || correctIndex > 3) return null
+  if (parts.distractorNotes.length !== 3) return null
+  const focus = trimExplanationClause(parts.focus)
+  const correctNote = trimExplanationClause(parts.correctNote)
+  if (!focus || !correctNote) return null
+
+  const noteByOptionText = new Map<string, string>()
+  noteByOptionText.set(normalizeMcqOptionText(correct), correctNote)
+  for (let i = 0; i < 3; i++) {
+    const d = distractors[i]!
+    const note = trimExplanationClause(parts.distractorNotes[i] ?? '')
+    if (!note) return null
+    noteByOptionText.set(normalizeMcqOptionText(d), note)
+  }
+
+  const lines: string[] = []
+  lines.push(`主旨依据：${focus}。`)
+  for (let i = 0; i < 4; i++) {
+    const opt = options[i]!
+    const note = noteByOptionText.get(normalizeMcqOptionText(opt))
+    if (!note) return null
+    const verdict = i === correctIndex ? '正确' : '错误'
+    lines.push(`选项${i + 1}${verdict}：${note}。`)
+  }
+  const text = lines.join('')
+  return readingExplanationQualityOk(text) ? text : null
+}
+
+/**
+ * 把旧式「正确项/干扰项A/B/C」映射到打乱后的「选项1～4」。
+ * 无法可靠映射时返回 null。
+ */
+export function remapReadingExplanationLettersToOptionNumbers(input: {
+  explanation: string
+  correct: string
+  distractors: string[]
+  options: string[]
+  correctIndex: number
+}): string | null {
+  let e = input.explanation.trim()
+  if (!e) return null
+  // 去掉明显残缺尾巴（如「且字数比正确项…」）
+  e = e.replace(/[，、；]?\s*且字数比[^。！？]*$/u, '')
+  e = e.replace(/[，、；：…]+$/u, '')
+
+  const idxOf = (text: string): number =>
+    input.options.findIndex((o) => normalizeMcqOptionText(o) === normalizeMcqOptionText(text))
+
+  const correctOpt = input.correctIndex + 1
+  const dIdx = input.distractors.map((d) => idxOf(d) + 1)
+  if (dIdx.some((n) => n <= 0)) return null
+
+  e = e
+    .replace(/正确项(?![0-9])/g, `选项${correctOpt}`)
+    .replace(/正确选项(?![0-9])/g, `选项${correctOpt}`)
+    .replace(/干扰项\s*A|干扰\s*A|选项\s*A/gi, `选项${dIdx[0]}`)
+    .replace(/干扰项\s*B|干扰\s*B|选项\s*B/gi, `选项${dIdx[1]}`)
+    .replace(/干扰项\s*C|干扰\s*C|选项\s*C/gi, `选项${dIdx[2]}`)
+    .replace(/(?<![选项第0-9])A项/g, `选项${dIdx[0]}`)
+    .replace(/(?<![选项第0-9])B项/g, `选项${dIdx[1]}`)
+    .replace(/(?<![选项第0-9])C项/g, `选项${dIdx[2]}`)
+
+  if (!/[。！？]\s*$/.test(e)) e = `${e}。`
+  return readingExplanationQualityOk(e) ? e : null
+}
+
+/** 解析须完整通顺，且用选项序号而非 A/B/C */
+export function readingExplanationQualityOk(explanation: string): boolean {
+  const e = explanation.trim()
+  if (e.length < 36) return false
+  if (/干扰项\s*[ABC]|选项\s*[ABCD](?![0-9])|(?<![选项第0-9])[ABC]项/i.test(e)) return false
+  if (/[、，；：…]\s*$/.test(e)) return false
+  if (!/[。！？]\s*$/.test(e)) return false
+  // 结构化解析须覆盖选项1～4；旧文本至少覆盖多数序号
+  const hits = [1, 2, 3, 4].filter((n) => e.includes(`选项${n}`) || e.includes(`第${n}项`)).length
+  if (e.includes('主旨依据') && hits < 4) return false
+  if (!e.includes('主旨依据') && hits < 3) return false
+  return true
+}
+
+function extractReadingExplanationParts(o: Record<string, unknown>): ReadingExplanationParts | null {
+  const focus = String(
+    o.explanationFocus ?? o.focus ?? o.mainIdeaLoc ?? o.passageFocus ?? '',
+  ).trim()
+  const correctNote = String(
+    o.explanationCorrect ?? o.correctExplanation ?? o.correctNote ?? '',
+  ).trim()
+  let distractorNotes: string[] = []
+  const rawNotes = o.explanationDistractors ?? o.distractorExplanations ?? o.wrongNotes
+  if (Array.isArray(rawNotes)) {
+    distractorNotes = rawNotes.map((x) => String(x ?? '').trim()).filter(Boolean)
+  }
+  if (focus && correctNote && distractorNotes.length === 3) {
+    return { focus, correctNote, distractorNotes }
+  }
+  return null
 }
 
 export function buildReadingComprehensionQuestionFromMcq(input: {
@@ -111,6 +244,7 @@ export function buildReadingComprehensionQuestionFromMcq(input: {
   correct: string
   distractors: string[]
   explanation?: string
+  explanationParts?: ReadingExplanationParts | null
   seq: number
 }): ReadingComprehensionQuestion | null {
   const term = input.term.trim()
@@ -123,6 +257,36 @@ export function buildReadingComprehensionQuestionFromMcq(input: {
   const assembled = assembleFourChoiceMcq(correct, distractors, shuffleInPlace)
   if (!assembled) return null
   const { options, correctIndex } = assembled
+
+  let explanation = ''
+  if (input.explanationParts) {
+    explanation =
+      composeReadingExplanationForDisplay({
+        parts: input.explanationParts,
+        options,
+        correctIndex,
+        correct,
+        distractors,
+      }) ?? ''
+  }
+  if (!explanation && input.explanation?.trim()) {
+    const raw = input.explanation.trim()
+    // 已写死「选项1～4」但未随打乱重排 → 不可信，拒收
+    const hasFixedNumbers = /选项\s*[1-4]|第[1-4]项/.test(raw)
+    const hasLetters = /正确项|干扰项\s*[ABC]|干扰\s*[ABC]|(?<![选项第0-9])[ABC]项/i.test(raw)
+    if (!(hasFixedNumbers && !hasLetters)) {
+      explanation =
+        remapReadingExplanationLettersToOptionNumbers({
+          explanation: raw,
+          correct,
+          distractors,
+          options,
+          correctIndex,
+        }) ?? ''
+    }
+  }
+  if (!explanation || !readingExplanationQualityOk(explanation)) return null
+
   const fingerprint = getReadingComprehensionQuestionFingerprint({
     questionType: input.questionType,
     term,
@@ -139,7 +303,7 @@ export function buildReadingComprehensionQuestionFromMcq(input: {
     stem,
     options,
     correctIndex,
-    explanation: (input.explanation ?? '').trim(),
+    explanation,
     fingerprint,
   }
   if (!isPlayableFourChoiceMcq(q)) return null
@@ -165,6 +329,7 @@ export function parseReadingComprehensionMcqAiObject(item: unknown): {
   correct: string
   distractors: string[]
   explanation: string
+  explanationParts: ReadingExplanationParts | null
 } | null {
   if (!item || typeof item !== 'object') return null
   const o = item as Record<string, unknown>
@@ -195,7 +360,10 @@ export function parseReadingComprehensionMcqAiObject(item: unknown): {
   if (!picked) return null
   const { correct, distractors } = picked
   const explanation = String(o.explanation ?? o.analysis ?? '').trim()
+  const explanationParts = extractReadingExplanationParts(o)
   if (!term || !passage || !stem) return null
+  // 结构化解析优先；若无结构则至少要有可重写的 explanation 文本
+  if (!explanationParts && !explanation) return null
   return {
     questionType,
     term,
@@ -204,5 +372,6 @@ export function parseReadingComprehensionMcqAiObject(item: unknown): {
     correct,
     distractors,
     explanation,
+    explanationParts,
   }
 }

@@ -1,5 +1,9 @@
 import { chinesePracticeDataTick } from '@/utils/chineseIdiomStorage'
-import type { ClassicalChineseQuestion } from '@/utils/classicalChinesePractice'
+import {
+  getClassicalChineseQuestionFingerprint,
+  normalizeClassicalChineseMcqFields,
+  type ClassicalChineseQuestion,
+} from '@/utils/classicalChinesePractice'
 
 const WRONG_KEY = 'chinese-classical-chinese-wrong-v1'
 const FAVORITE_KEY = 'chinese-classical-chinese-favorite-v1'
@@ -63,15 +67,35 @@ export function storedClassicalChineseToQuestion(
   row: StoredClassicalChineseRecord | StoredClassicalChineseFavoriteRecord,
   seq: number,
 ): ClassicalChineseQuestion {
-  return {
-    id: `stored-classical-${seq}-${row.fingerprint.slice(0, 10)}`,
-    questionType: row.questionType,
+  const correct = row.options[row.correctIndex] ?? ''
+  const distractors = row.options.filter((_, i) => i !== row.correctIndex)
+  const normalized = normalizeClassicalChineseMcqFields({
     term: row.term,
     stem: row.stem,
-    options: [...row.options],
-    correctIndex: row.correctIndex,
+    correct,
+    distractors,
     explanation: row.explanation,
-    fingerprint: row.fingerprint,
+  })
+  // 保留原选项顺序与标答下标；仅修复题干/解析（选项答案不变）
+  const stem = normalized?.stem ?? row.stem
+  const explanation = normalized?.explanation ?? row.explanation
+  const options = [...row.options]
+  const fingerprint = getClassicalChineseQuestionFingerprint({
+    questionType: row.questionType,
+    term: row.term,
+    stem,
+    options,
+    correctIndex: row.correctIndex,
+  })
+  return {
+    id: `stored-classical-${seq}-${fingerprint.slice(0, 10)}`,
+    questionType: row.questionType,
+    term: row.term,
+    stem,
+    options,
+    correctIndex: row.correctIndex,
+    explanation,
+    fingerprint,
   }
 }
 

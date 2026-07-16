@@ -3,6 +3,7 @@ import {
   extractMcqCorrectAndDistractors,
   isPlayableFourChoiceMcq,
 } from '@/utils/chineseMcqAiFields'
+import { typoMcqQualityFailure } from '@/utils/chineseVariantQuality'
 
 export type ChineseCharLiteracyQuestionType = 'pronunciation' | 'typo'
 
@@ -129,5 +130,15 @@ export function parseCharLiteracyMcqAiObject(item: unknown): {
   const explanation = String(o.explanation ?? o.analysis ?? '').trim()
   if (!term || !stem) return null
   if ([correct, ...distractors].some(optionHasObviousErrorMark)) return null
+  if (questionType === 'typo') {
+    const fail = typoMcqQualityFailure({
+      stem,
+      term,
+      correct,
+      distractors,
+      explanation,
+    })
+    if (fail) return null
+  }
   return { questionType, term, stem, correct, distractors, explanation }
 }

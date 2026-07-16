@@ -30,6 +30,7 @@ import {
 } from '@/utils/historyCommonSensePractice'
 import {
   buildIdiomQuestionFromMcq,
+  idiomStemLeaksTerm,
   parseIdiomMcqAiObject,
   type IdiomRecognitionQuestion,
 } from '@/utils/idiomRecognitionPractice'
@@ -71,8 +72,14 @@ import {
 import {
   buildWordMemorizationQuestionFromMcq,
   parseWordMemorizationMcqAiObject,
+  wordMemorizationStemLeaksTerm,
   type WordMemorizationQuestion,
 } from '@/utils/wordMemorizationPractice'
+import {
+  explanationImpliesNonUniqueAnswer,
+  stemHasFillBlank,
+  typoMcqQualityFailure,
+} from '@/utils/chineseVariantQuality'
 
 type AnyChineseQuestion = KeyPracticePayload['questions'][number]
 
@@ -96,16 +103,35 @@ function toOriginalJson(q: AnyChineseQuestion): string {
 function schemaHint(source: ChineseKeyQuestionSource): string {
   const readingMode = readingSubModeFromKeySource(source)
   if (source === 'idiom-memorization' || source === 'word-memorization') {
-    return 'questionType: word-to-meaning|meaning-to-word；term；stem；correct；distractors[3]；explanation'
+    return [
+      'questionType: word-to-meaning|meaning-to-word；term；stem；correct；distractors[3]；explanation',
+      '选释义：选项=释义，禁止填空题干+词语选项，禁止选项含 term',
+      '选词语：correct=term，stem 不得出现 term/答案',
+      '题干须唯一最优答案，禁止近义双解',
+    ].join('。')
   }
   if (source === 'char-literacy') {
-    return 'questionType: pronunciation|typo；term；stem；correct；distractors[3]；explanation'
+    return [
+      'questionType: pronunciation|typo；term；stem；correct；distractors[3]；explanation',
+      'typo 优先「没有错别字的是」：correct=term=规范写法，干扰=该词错写',
+      '若「有错别字的是」：correct=错写≠term，干扰恰含 term 一次，另两项为其它正确词（禁止同一词多个错写并存）',
+      '禁止把规范写法标成有错别字答案',
+    ].join('。')
   }
   if (source === 'poetry-practice') {
     return 'questionType: poem-to-author|poem-to-theme；term；stem；correct；distractors[3]；explanation'
   }
   if (readingMode) {
-    return `questionType 固定 ${readingMode}；term；passage；stem；correct；distractors[3]；explanation。硬性：至少 1 个 distractor 字数严格长于 correct，禁止正确项独最长；干扰半真半假。`
+    return `questionType 固定 ${readingMode}；term；passage；stem；correct；distractors[3]；explanationFocus；explanationCorrect；explanationDistractors[3]（与 distractors 同序）；explanation 可选。解析禁止 A/B/C，须完整通顺；选项字数适度齐长；干扰半真半假。`
+  }
+  if (source === 'classical-chinese') {
+    return [
+      'questionType: general；term；stem；correct；distractors[3]；explanation',
+      '题干引文必须是原文连续完整语句，禁止用省略号跨段拼接',
+      '引文须带足语境：禁止仅「信而见疑」；至少「信而见疑，忠而被谤」或如「臣诚恐见欺于王而负赵」',
+      '考「以为」须引《愚公移山》连续句「操蛇之神闻之……众人以为神」',
+      '解析须完整；「以为」须点明以（之）为与古今义',
+    ].join('。')
   }
   return 'questionType: general；term；stem；correct；distractors[3]；explanation'
 }
@@ -216,6 +242,57 @@ function buildVariantFromAi(
   return null
 }
 
+/** 变式题入库前复检：结构合法之外再拦泄题/极性/近义多解 */
+function variantPassesPostCheck(
+  source: ChineseKeyQuestionSource,
+  q: AnyChineseQuestion,
+): boolean {
+  if (!isPlayableFourChoiceMcq(q)) return false
+  const correct = q.options[q.correctIndex]
+  if (!correct) return false
+  const distractors = q.options.filter((_, i) => i !== q.correctIndex)
+
+  if (source === 'idiom-memorization' || source === 'word-memorization') {
+    const iq = q as IdiomRecognitionQuestion | WordMemorizationQuestion
+    if (iq.questionType === 'word-to-meaning') {
+      if (stemHasFillBlank(iq.stem)) return false
+      if (iq.options.some((o) => o.trim() === iq.term.trim())) return false
+    }
+    if (iq.questionType === 'meaning-to-word') {
+      if (correct !== iq.term) return false
+      if (idiomOrWordStemLeaks(source, iq.stem, iq.term)) return false
+    }
+    if (explanationImpliesNonUniqueAnswer(iq.explanation, iq.options)) return false
+  }
+
+  if (source === 'char-literacy') {
+    const cq = q as CharLiteracyQuestion
+    if (cq.questionType === 'typo') {
+      const fail = typoMcqQualityFailure({
+        stem: cq.stem,
+        term: cq.term,
+        correct,
+        distractors,
+        explanation: cq.explanation,
+      })
+      if (fail) return false
+    }
+  }
+
+  return true
+}
+
+function idiomOrWordStemLeaks(
+  source: ChineseKeyQuestionSource,
+  stem: string,
+  term: string,
+): boolean {
+  if (source === 'idiom-memorization') {
+    return idiomStemLeaksTerm(stem, term)
+  }
+  return wordMemorizationStemLeaksTerm(stem, term)
+}
+
 /** 单题变式；失败返回 null（调用方应回退原题） */
 export async function tryGenerateChineseKeyVariant(
   source: ChineseKeyQuestionSource,
@@ -223,21 +300,29 @@ export async function tryGenerateChineseKeyVariant(
   seq: number,
 ): Promise<AnyChineseQuestion | null> {
   if (!isAiChatConfigured()) return null
-  try {
-    const raw = await requestChinesePracticeVariantJson({
-      sourceTitle: sourceTitle(source),
-      schemaHint: schemaHint(source),
-      originalQuestionJson: toOriginalJson(original),
-    })
-    const built = buildVariantFromAi(source, raw, seq, original)
-    if (!built) return null
-    if (!isPlayableFourChoiceMcq(built)) return null
-    // 与原题完全同指纹视为失败，回退原题
-    if (built.fingerprint === original.fingerprint) return null
-    return built
-  } catch {
-    return null
+
+  const attemptOnce = async (): Promise<AnyChineseQuestion | null> => {
+    try {
+      const raw = await requestChinesePracticeVariantJson({
+        sourceTitle: sourceTitle(source),
+        schemaHint: schemaHint(source),
+        originalQuestionJson: toOriginalJson(original),
+      })
+      const built = buildVariantFromAi(source, raw, seq, original)
+      if (!built) return null
+      if (!variantPassesPostCheck(source, built)) return null
+      // 与原题完全同指纹视为失败，回退原题
+      if (built.fingerprint === original.fingerprint) return null
+      return built
+    } catch {
+      return null
+    }
   }
+
+  // 不合格则降随机性再试一次，仍失败则回退原题（宁可不换，不出错题）
+  const first = await attemptOnce()
+  if (first) return first
+  return attemptOnce()
 }
 
 /** 批量：逐题尝试变式，失败则用原题；同时返回对应原题指纹 */

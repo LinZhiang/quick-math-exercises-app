@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   PRACTICE_HUB_SECTIONS,
@@ -206,13 +206,30 @@ const mcqOptionCount = computed(() => {
   return getMentalMathModeConfig(mode as MentalMathMode).optionCount
 })
 
+const practiceMainRef = ref<HTMLElement | null>(null)
+const practiceSidebarRef = ref<HTMLElement | null>(null)
+
 function selectOutlineSection(id: PracticeHubSectionId) {
   if (chineseSessionActive.value) return
   activeOutlineSection.value = id
+  void nextTick(() => {
+    practiceMainRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
+    const active = practiceSidebarRef.value?.querySelector<HTMLElement>(
+      '.practice-sidebar__item--active',
+    )
+    active?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
+  })
 }
 
 function onGuideStartPractice(modeId: string) {
   startMode(modeId as PracticeMode)
+}
+
+function onGuideGoChineseTab(tabId: string) {
+  activeOutlineSection.value = 'chinese'
+  void nextTick(() => {
+    chinesePracticeRef.value?.selectTab?.(tabId as import('@/constants/chinese-practice-tabs').ChinesePracticeTabId)
+  })
 }
 
 function clearTimers() {
@@ -692,16 +709,23 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="mental-math-page">
-    <header class="page-hero">
+    <header v-if="phase === 'select'" class="page-hero">
       <h2 class="page-title">口算练习</h2>
-      <p class="page-subtitle">
+      <p class="page-subtitle page-subtitle--full">
         限时口算、次幂、平方与立方、估算分数、整除及其性质、生活常识、图形推理；左侧「语文练习」含成语识记、词语识记、阅读理解等子功能。
         口算/图形结果仅在本页展示；语文练习多子模块四选一、正计时，DeepSeek 随机出题，错题与收藏在「关键题练习」。
+      </p>
+      <p class="page-subtitle page-subtitle--compact">
+        点上方分类切换，点卡片开始练习。
       </p>
     </header>
 
     <div v-if="phase === 'select'" class="practice-shell">
-      <aside class="practice-sidebar" aria-label="练习大纲">
+      <aside
+        ref="practiceSidebarRef"
+        class="practice-sidebar"
+        aria-label="练习大纲"
+      >
         <button
           v-for="section in PRACTICE_HUB_SECTIONS"
           :key="section.id"
@@ -715,10 +739,11 @@ onBeforeUnmount(() => {
         </button>
       </aside>
 
-      <div class="practice-main mode-select">
+      <div ref="practiceMainRef" class="practice-main mode-select">
         <MentalMathPracticeGuide
           v-if="showGuideSection"
           @start-practice="onGuideStartPractice"
+          @go-chinese-tab="onGuideGoChineseTab"
         />
         <section v-if="showArithmeticSection" class="mode-section" id="practice-arithmetic">
           <h3 class="mode-section__title">四则口算</h3>
@@ -803,7 +828,7 @@ onBeforeUnmount(() => {
         <section v-if="showDivisibilitySection" class="mode-section" id="practice-divisibility">
           <h3 class="mode-section__title">整除及其性质</h3>
           <p class="mode-section__hint">
-            整除判定、质数合数、公因数公倍数等。答错会记入下方错题集。计分同四则（对 +1 秒 / 错 −1 秒，分 0～100）。
+            整除判定、质数合数、公因数公倍数等（由浅入深，适合口算速练）。答错会记入下方错题集。计分同四则（对 +1 秒 / 错 −1 秒，分 0～100）。
           </p>
           <div class="mode-grid">
             <button
@@ -1790,25 +1815,165 @@ onBeforeUnmount(() => {
   justify-content: flex-start;
 }
 
+.page-subtitle--compact {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .mode-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+}
+
 @media (max-width: 640px) {
+  .mental-math-page:has(.practice-shell) {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .page-hero {
+    padding: 8px 12px 6px;
+  }
+
+  .page-title {
+    margin: 0 0 4px;
+    font-size: 1.2rem;
+  }
+
+  .page-subtitle--full {
+    display: none;
+  }
+
+  .page-subtitle--compact {
+    display: block;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
   .practice-shell {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
+    border-top: none;
+    min-height: 0;
   }
 
   .practice-sidebar {
     flex-direction: row;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 8px 10px;
     border-right: none;
     border-bottom: 1px solid var(--app-border-soft);
-    overflow-y: visible;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
     flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: color-mix(in srgb, var(--app-surface-alt) 92%, white);
+    backdrop-filter: blur(8px);
+  }
+
+  .practice-sidebar::-webkit-scrollbar {
+    display: none;
   }
 
   .practice-sidebar__item {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
+    width: auto;
     text-align: center;
-    padding: 8px 10px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .practice-sidebar__item--active {
+    border-color: color-mix(in srgb, var(--el-color-primary) 35%, transparent);
+  }
+
+  .practice-main {
+    padding: 12px 12px 24px;
+  }
+
+  .mode-select {
+    gap: 18px;
+  }
+
+  .mode-section__title {
+    margin: 0 0 8px;
+    font-size: 0.95rem;
+  }
+
+  .mode-section__hint {
+    margin: -2px 0 10px;
+    font-size: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .mode-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .mode-card {
+    padding: 12px 12px 14px;
+    border-radius: 12px;
+  }
+
+  .mode-card__title {
+    margin: 0 0 6px;
+    font-size: 0.95rem;
+  }
+
+  .mode-card__desc {
+    margin: 0 0 8px;
+    font-size: 12px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .mode-card__cta {
+    font-size: 12px;
+  }
+
+  .countdown-panel,
+  .play-panel,
+  .result-panel {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    padding: 14px 12px 20px;
+  }
+
+  .play-top {
+    margin-bottom: 16px;
+  }
+
+  .option-btn {
+    padding: 12px 14px;
+    min-height: 48px;
+    font-size: 1.05rem;
+  }
+
+  .option-btn__key {
+    display: none;
+  }
+
+  .hint {
+    display: none;
   }
 
   .option-list--4 {
@@ -1818,6 +1983,12 @@ onBeforeUnmount(() => {
   .sequence-slot {
     width: 72px;
     height: 72px;
+  }
+}
+
+@media (max-width: 380px) {
+  .mode-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

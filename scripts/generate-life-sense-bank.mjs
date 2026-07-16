@@ -1,11 +1,23 @@
 /**
- * 生成口算·生活常识题库（每难度尽量逼近 500）
+ * 生成口算·生活常识题库（每难度尽量逼近 900：原约 500 + 关系类约 400）
  * 硬性规则：只使用人工校对的「名称→答案」配对，禁止按索引乱搭。
  * 运行：node scripts/generate-life-sense-bank.mjs
  */
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import {
+  ANCIENT_APPELLATIONS,
+  ANCIENT_MEANING_DISTRACTORS,
+  AUTHOR_DISTRACTORS,
+  CAPITALS,
+  COUNTRY_DISTRACTORS,
+  GEO_CITY_PROVINCE,
+  GEO_FOREIGN,
+  GEO_PROVINCE_COUNTRY,
+  LITERARY_WORKS,
+  PROVINCE_DISTRACTORS,
+} from './life-sense-relations-data.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const outJson = path.join(__dirname, '../src/utils/lifeSenseBank.generated.json')
@@ -1115,6 +1127,175 @@ function addAliasHard() {
   }
 }
 
+/** 关系类：地理从属 / 首都 / 古代称呼 / 作品作者 */
+function addRelations(diff) {
+  // —— 省区市属于中国 ——
+  if (diff === 'easy') {
+    for (const [place, country] of GEO_PROVINCE_COUNTRY) {
+      if (pairNameLeaks(place, country, 'subjectHasAnswer')) continue
+      push(
+        'easy',
+        `${place}属于？`,
+        country,
+        distractorPool(country, COUNTRY_DISTRACTORS, () => '国家'),
+        `「${place}」是中国的省级行政区（或特别行政区），属于中国。`,
+      )
+    }
+    for (const [work, author] of LITERARY_WORKS.easy) {
+      if (pairNameLeaks(work, author, 'subjectHasAnswer')) continue
+      push(
+        'easy',
+        `《${work}》的作者是？`,
+        author,
+        distractorPool(author, AUTHOR_DISTRACTORS, () => '作者'),
+        `《${work}》的作者是「${author}」。`,
+      )
+    }
+    for (const [term, meaning] of ANCIENT_APPELLATIONS.easy) {
+      if (pairNameLeaks(term, meaning, 'subjectHasAnswer')) continue
+      push(
+        'easy',
+        `古代「${term}」常指？`,
+        meaning,
+        distractorPool(meaning, ANCIENT_MEANING_DISTRACTORS, () => '古称'),
+        `文言/旧称里，「${term}」常指「${meaning}」。如秦时称百姓为黔首。`,
+      )
+    }
+    // 少量首都题（简单）
+    for (const [nation, capital] of CAPITALS.slice(0, 8)) {
+      if (pairNameLeaks(nation, capital, 'subjectHasAnswer')) continue
+      push(
+        'easy',
+        `${nation}的首都是？`,
+        capital,
+        distractorPool(
+          capital,
+          CAPITALS.map(([, c]) => c).concat(['大阪', '上海', '纽约', '悉尼', '多伦多', '伊斯坦布尔']),
+          () => '首都',
+        ),
+        `「${nation}」的首都是「${capital}」。`,
+      )
+    }
+  }
+
+  if (diff === 'normal') {
+    for (const [city, province] of GEO_CITY_PROVINCE) {
+      if (pairNameLeaks(city, province, 'subjectHasAnswer')) continue
+      push(
+        'normal',
+        `${city}属于？`,
+        province,
+        distractorPool(province, PROVINCE_DISTRACTORS, () => '省级'),
+        `「${city}」行政上属于「${province}」。`,
+      )
+    }
+    for (const [work, author] of LITERARY_WORKS.normal) {
+      if (pairNameLeaks(work, author, 'subjectHasAnswer')) continue
+      push(
+        'normal',
+        `《${work}》的作者是？`,
+        author,
+        distractorPool(author, AUTHOR_DISTRACTORS, () => '作者'),
+        `《${work}》的作者是「${author}」。`,
+      )
+    }
+    for (const [term, meaning] of ANCIENT_APPELLATIONS.normal) {
+      if (pairNameLeaks(term, meaning, 'subjectHasAnswer')) continue
+      push(
+        'normal',
+        `古代「${term}」常指？`,
+        meaning,
+        distractorPool(meaning, ANCIENT_MEANING_DISTRACTORS, () => '古称'),
+        `旧时说法里，「${term}」常指「${meaning}」。`,
+      )
+    }
+    for (const [nation, capital] of CAPITALS.slice(8, 16)) {
+      if (pairNameLeaks(nation, capital, 'subjectHasAnswer')) continue
+      push(
+        'normal',
+        `${nation}的首都是？`,
+        capital,
+        distractorPool(
+          capital,
+          CAPITALS.map(([, c]) => c).concat(['大阪', '上海', '纽约', '悉尼', '多伦多', '伊斯坦布尔', '里约热内卢']),
+          () => '首都',
+        ),
+        `「${nation}」的首都是「${capital}」。`,
+      )
+    }
+    for (const [city, country] of GEO_FOREIGN.slice(0, 14)) {
+      if (pairNameLeaks(city, country, 'subjectHasAnswer')) continue
+      push(
+        'normal',
+        `${city}属于？`,
+        country,
+        distractorPool(country, COUNTRY_DISTRACTORS, () => '国家'),
+        `「${city}」是「${country}」的城市。`,
+      )
+    }
+  }
+
+  if (diff === 'hard') {
+    for (const [city, country] of GEO_FOREIGN) {
+      if (pairNameLeaks(city, country, 'subjectHasAnswer')) continue
+      push(
+        'hard',
+        `${city}属于？`,
+        country,
+        distractorPool(country, COUNTRY_DISTRACTORS, () => '国家'),
+        `「${city}」是「${country}」境内的重要城市，行政上属于该国。`,
+      )
+    }
+    for (const [work, author] of LITERARY_WORKS.hard) {
+      if (pairNameLeaks(work, author, 'subjectHasAnswer')) continue
+      push(
+        'hard',
+        `《${work}》的作者是？`,
+        author,
+        distractorPool(author, AUTHOR_DISTRACTORS, () => '作者'),
+        `《${work}》的作者是「${author}」。干扰项多为同时期或同领域其它作家，勿张冠李戴。`,
+      )
+    }
+    for (const [term, meaning] of ANCIENT_APPELLATIONS.hard) {
+      if (pairNameLeaks(term, meaning, 'subjectHasAnswer')) continue
+      push(
+        'hard',
+        `古代「${term}」常指？`,
+        meaning,
+        distractorPool(meaning, ANCIENT_MEANING_DISTRACTORS, () => '古称'),
+        `较文言的说法里，「${term}」常指「${meaning}」。干扰项多为其它年龄称谓或称谓义项。`,
+      )
+    }
+    for (const [nation, capital] of CAPITALS.slice(12)) {
+      if (pairNameLeaks(nation, capital, 'subjectHasAnswer')) continue
+      push(
+        'hard',
+        `${nation}的首都是？`,
+        capital,
+        distractorPool(
+          capital,
+          CAPITALS.map(([, c]) => c).concat(['大阪', '上海', '纽约', '悉尼', '开普敦', '伊斯坦布尔', '里约热内卢']),
+          () => '首都',
+        ),
+        `「${nation}」的首都是「${capital}」。注意勿与该国其它知名大城市（如港口、金融中心）混淆。`,
+      )
+    }
+    // 反向：首都 → 国家（困难）
+    // 注意：不可用「主语包含答案」粗判，否则「巴西利亚」会误伤「巴西」
+    for (const [nation, capital] of CAPITALS) {
+      if (!capital || !nation || capital === nation) continue
+      if (nation.includes(capital)) continue
+      push(
+        'hard',
+        `${capital}是哪国首都？`,
+        nation,
+        distractorPool(nation, COUNTRY_DISTRACTORS, () => '国家'),
+        `「${capital}」是「${nation}」的首都。干扰项为其它国家，勿被同名或邻近国家迷惑。`,
+      )
+    }
+  }
+}
+
 for (const d of ['easy', 'normal', 'hard']) {
   addMaterials(d)
   addMaterialReverse(d)
@@ -1122,6 +1303,7 @@ for (const d of ['easy', 'normal', 'hard']) {
   addParts(d)
   addTools(d)
   addNicknames(d)
+  addRelations(d)
 }
 addAliasHard()
 
@@ -1163,6 +1345,10 @@ function validateAll() {
     '扇叶通常属于？': '电风扇',
     '火花塞通常属于？': '发动机',
     '三元催化器通常属于？': '汽车尾气系统',
+    '河北属于？': '中国',
+    '古代「黔首」常指？': '百姓',
+    '《沁园春·雪》的作者是？': '毛泽东',
+    '中国的首都是？': '北京',
   }
   for (const [stem, ans] of Object.entries(must)) {
     const hit = items.find((q) => q.stem === stem)
@@ -1172,7 +1358,7 @@ function validateAll() {
 
   // 组成：题干不得含答案整件名；主语与答案不得互相包含
   for (const q of items) {
-    if (q.stem.includes('上的') && q.stem.endsWith('是？')) {
+    if (/上的.+是？$/.test(q.stem) && !q.stem.startsWith('《')) {
       throw new Error(`组成题干泄题句式: ${q.stem}`)
     }
     if (q.stem.endsWith('通常属于？')) {
@@ -1215,12 +1401,33 @@ function validateAll() {
     if (q.stem.endsWith('通常属于？')) {
       subject = q.stem.slice(0, -5)
       mode = 'both'
+    } else if (q.stem.endsWith('属于？')) {
+      subject = q.stem.slice(0, -3)
+      mode = 'subjectHasAnswer'
     } else if (q.stem.endsWith('的别称是？')) subject = q.stem.slice(0, -5)
     else if (q.stem.endsWith('的主要原材料是？')) subject = q.stem.slice(0, -8)
     else if (q.stem.endsWith('是一种？')) subject = q.stem.slice(0, -4)
     else if (q.stem.endsWith('用来？')) subject = q.stem.slice(0, -3)
-    if (subject && pairNameLeaks(subject, q.correct, mode)) {
-      throw new Error(`题干主语与答案泄题(${mode}): ${q.stem} => ${q.correct}`)
+    else if (q.stem.endsWith('的作者是？')) {
+      subject = q.stem.replace(/^《/, '').replace(/》的作者是？$/, '')
+      mode = 'subjectHasAnswer'
+    } else if (q.stem.endsWith('的首都是？')) {
+      subject = q.stem.slice(0, -5)
+      mode = 'subjectHasAnswer'
+    } else if (q.stem.endsWith('是哪国首都？')) {
+      subject = q.stem.slice(0, -6)
+      // 反向首都题：允许「巴西利亚→巴西」这类答案是主语子串的情况
+      mode = 'exact-only'
+    } else if (/^古代「.+」常指？$/.test(q.stem)) {
+      subject = q.stem.replace(/^古代「/, '').replace(/」常指？$/, '')
+      mode = 'subjectHasAnswer'
+    }
+    if (subject) {
+      if (mode === 'exact-only') {
+        if (subject === q.correct) throw new Error(`题干主语与答案相同: ${q.stem}`)
+      } else if (pairNameLeaks(subject, q.correct, mode)) {
+        throw new Error(`题干主语与答案泄题(${mode}): ${q.stem} => ${q.correct}`)
+      }
     }
   }
 
@@ -1281,8 +1488,8 @@ function take(diff, target) {
   return out.slice(0, Math.max(out.length, 0) >= target ? target : out.length)
 }
 
-// 宁可不足 500，也不生成假配对
-const TARGET = 500
+// 每难度目标：原校对题库约 500 + 关系类补充约 400
+const TARGET = 900
 const easy = take('easy', TARGET)
 const normal = take('normal', TARGET)
 const hard = take('hard', TARGET)

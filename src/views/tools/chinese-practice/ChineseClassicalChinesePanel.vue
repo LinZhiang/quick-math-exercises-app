@@ -156,6 +156,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
     <template v-if="test.phase === 'idle' || test.phase === 'loading'">
       <p class="mode-section__hint">
         公考/事业编文言常识高频：实词虚词意义、古今异义、文言句式、通假字、一词多义等，四选一，难度适中。
+        题干引文须为原文连续完整语句，禁止跨段落拼接；引文要带足语境（如「信而见疑，忠而被谤」），避免过短碎片。
         每轮 {{ test.questionCount }} 题。正计时，提交后暂停并公布答案，点「下一题」继续。
       </p>
       <div class="chinese-setup">
