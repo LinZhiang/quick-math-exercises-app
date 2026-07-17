@@ -12,6 +12,8 @@ export default defineConfig(() => {
       : undefined
 
   const aiProxyTarget = process.env.VITE_AI_PROXY_TARGET || 'http://127.0.0.1:8790'
+  /** Cloudflare Pages：去掉 10MB+ 满分音效，避免部署 internal error */
+  const lightAssets = Boolean(process.env.CF_PAGES || process.env.CLOUDFLARE_PAGES || process.env.VITE_LIGHT_ASSETS)
 
   const serverCommon = {
     port: 5174,
@@ -34,9 +36,22 @@ export default defineConfig(() => {
     server: serverCommon,
     preview: serverCommon,
     resolve: {
-      alias: {
-        '@': fileURLToPath(new URL('./src', import.meta.url)),
-      },
+      alias: [
+        ...(lightAssets
+          ? [
+              {
+                find: '@/utils/qb-perfect-sound',
+                replacement: fileURLToPath(
+                  new URL('./src/utils/qb-perfect-sound.lite.ts', import.meta.url),
+                ),
+              },
+            ]
+          : []),
+        {
+          find: '@',
+          replacement: fileURLToPath(new URL('./src', import.meta.url)),
+        },
+      ],
     },
     build: {
       chunkSizeWarningLimit: 3500,
