@@ -10,7 +10,8 @@
     "dev": "vite",
     "dev:ai": "npm --prefix server run dev",
     "dev:full": "concurrently -n web,ai -c blue,green \"npm run dev\" \"npm run dev:ai\"",
-    "build": "vue-tsc -b && vite build",
+    "build": "node scripts/cf-build.mjs",
+    "build:check": "vue-tsc -b && vite build",
     "sync:env": "node scripts/sync-server-env.mjs",
     "serve:install": "node scripts/family-start.mjs",
     "serve:public": "node scripts/family-public.mjs",
@@ -27,10 +28,10 @@
   },
   "devDependencies": {
     "@types/dompurify": "^3.0.5",
-    "@vitejs/plugin-vue": "^6.0.6",
+    "@vitejs/plugin-vue": "^5.2.4",
     "concurrently": "^9.2.4",
     "typescript": "~6.0.2",
-    "vite": "^8.0.10",
+    "vite": "^6.3.5",
     "vue-tsc": "^3.2.7"
   }
 }

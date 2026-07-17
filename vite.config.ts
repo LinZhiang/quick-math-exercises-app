@@ -38,5 +38,16 @@ export default defineConfig(() => {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
+    build: {
+      chunkSizeWarningLimit: 3500,
+      rollupOptions: {
+        onwarn(warning, warn) {
+          const msg = String(warning?.message ?? '')
+          if (msg.includes('annotation that Rollup cannot interpret')) return
+          if (warning?.code === 'INVALID_ANNOTATION') return
+          warn(warning)
+        },
+      },
+    },
   }
 })
