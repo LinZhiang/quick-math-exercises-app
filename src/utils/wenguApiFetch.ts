@@ -85,7 +85,8 @@ export async function probeWenguAuthServer(): Promise<WenguServerProbe> {
     if (!data.authEnabled) {
       return {
         ok: false,
-        message: '未配置管理员密码：请在 Cloudflare Secrets / server/.env 设置 WENGU_ADMIN_PASSWORD',
+        message:
+          '云端尚未配置管理员密码。本地 server/.env 不会自动同步到 Cloudflare；请执行 npm run sync:cf-secrets，或在 Pages → Settings → Secrets 添加 WENGU_ADMIN_PASSWORD 与 DEEPSEEK_API_KEY 后重新部署。',
         authEnabled: false,
         apiTarget,
         hosting: data.hosting,
