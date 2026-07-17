@@ -1,5 +1,7 @@
 /** 口算·语法判断：句子成分题库（主/谓/宾/定/状/补） */
 
+import { HARD } from './grammarJudgmentBankHard.ts'
+
 export type GrammarRole =
   | 'subject'
   | 'predicate'
@@ -37,6 +39,70 @@ export const ALL_GRAMMAR_ROLES: GrammarRole[] = [
   'adverbial',
   'complement',
 ]
+
+/** 标点等不计入覆盖率 */
+const COVERAGE_SKIP = new Set(
+  '，。！？、；： \t,.!?;:()（）【】《》…—""\'\'“”‘’'.split(''),
+)
+
+/**
+ * 成分对原句的字符覆盖率（忽略标点）。
+ * parts 中找不到的文本记入 missingTexts。
+ */
+export function grammarSentenceCoverage(sentence: GrammarSentence): {
+  ratio: number
+  uncovered: string
+  missingTexts: string[]
+} {
+  const raw = sentence.sentence
+  const covered = new Array(raw.length).fill(false)
+  const missingTexts: string[] = []
+  for (const p of sentence.parts) {
+    const t = String(p.text || '').trim()
+    if (!t) continue
+    let idx = raw.indexOf(t)
+    let placed = false
+    while (idx >= 0) {
+      let overlap = false
+      for (let i = idx; i < idx + t.length; i++) {
+        if (covered[i]) {
+          overlap = true
+          break
+        }
+      }
+      if (!overlap) {
+        for (let i = idx; i < idx + t.length; i++) covered[i] = true
+        placed = true
+        break
+      }
+      idx = raw.indexOf(t, idx + 1)
+    }
+    if (!placed) missingTexts.push(t)
+  }
+  let content = 0
+  let hit = 0
+  const uncoveredChars: string[] = []
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i]!
+    if (COVERAGE_SKIP.has(ch)) continue
+    content += 1
+    if (covered[i]) hit += 1
+    else uncoveredChars.push(ch)
+  }
+  return {
+    ratio: content ? hit / content : 1,
+    uncovered: uncoveredChars.join(''),
+    missingTexts,
+  }
+}
+
+/** 「圈出所有语法」题库最低覆盖率：过低视为漏标，不得出题 */
+export const CIRCLE_GRAMMAR_MIN_COVERAGE = 0.92
+
+export function isCircleGrammarBankReady(sentence: GrammarSentence): boolean {
+  const c = grammarSentenceCoverage(sentence)
+  return c.missingTexts.length === 0 && c.ratio >= CIRCLE_GRAMMAR_MIN_COVERAGE
+}
 
 function S(
   id: string,
@@ -735,462 +801,6 @@ const NORMAL: GrammarSentence[] = [
   ]),
 ]
 
-/** 复杂：超长单句（逗号延展），多层定状补与把被兼语交织 */
-const HARD: GrammarSentence[] = [
-  S('h01', 'hard', '被风雨打湿的旧衣服还挂在阳台上晾着，细心的妈妈昨晚才把它们一一收回了柜子里。', [
-    { text: '被风雨打湿的', role: 'attributive' },
-    { text: '旧衣服', role: 'subject' },
-    { text: '还', role: 'adverbial' },
-    { text: '挂', role: 'predicate' },
-    { text: '在阳台上', role: 'complement' },
-    { text: '一一', role: 'adverbial' },
-  ]),
-  S('h02', 'hard', '那位戴眼镜的年轻老师把这道难题讲解得十分清楚，同学们听完后都恍然大悟地点了点头。', [
-    { text: '那位戴眼镜的', role: 'attributive' },
-    { text: '年轻老师', role: 'subject' },
-    { text: '把这道难题', role: 'adverbial' },
-    { text: '讲解', role: 'predicate' },
-    { text: '十分清楚', role: 'complement' },
-    { text: '恍然大悟地', role: 'adverbial' },
-  ]),
-  S('h03', 'hard', '经过反复练习，他终于把这首难唱的歌唱得非常动听，台下顿时响起了经久不息的掌声。', [
-    { text: '经过反复练习', role: 'adverbial' },
-    { text: '他', role: 'subject' },
-    { text: '终于', role: 'adverbial' },
-    { text: '把这首难唱的歌', role: 'adverbial' },
-    { text: '唱', role: 'predicate' },
-    { text: '非常动听', role: 'complement' },
-  ]),
-  S('h04', 'hard', '在图书馆安静的角落里，她把那本厚厚的词典几乎查了个遍，窗外的蝉鸣却一刻也不肯停歇。', [
-    { text: '在图书馆安静的角落里', role: 'adverbial' },
-    { text: '她', role: 'subject' },
-    { text: '把那本厚厚的词典', role: 'adverbial' },
-    { text: '几乎', role: 'adverbial' },
-    { text: '查', role: 'predicate' },
-    { text: '个遍', role: 'complement' },
-  ]),
-  S('h05', 'hard', '被夕阳染红的云彩把整片天空装点得绚丽多彩，归巢的鸟群在天边缓缓画下一道道弧线。', [
-    { text: '被夕阳染红的', role: 'attributive' },
-    { text: '云彩', role: 'subject' },
-    { text: '把整片天空', role: 'adverbial' },
-    { text: '装点', role: 'predicate' },
-    { text: '绚丽多彩', role: 'complement' },
-    { text: '缓缓', role: 'adverbial' },
-  ]),
-  S('h06', 'hard', '妈妈昨天在灯火通明的厨房里做了一桌丰盛的家常菜，全家人围坐在桌边吃得津津有味。', [
-    { text: '妈妈', role: 'subject' },
-    { text: '昨天', role: 'adverbial' },
-    { text: '在灯火通明的厨房里', role: 'adverbial' },
-    { text: '做', role: 'predicate' },
-    { text: '一桌丰盛的家常菜', role: 'object' },
-    { text: '津津有味', role: 'complement' },
-  ]),
-  S('h07', 'hard', '他把被雨水淋湿的书包小心翼翼地挂到通风处晾晒，生怕里面的课本再受一点点潮。', [
-    { text: '他', role: 'subject' },
-    { text: '把被雨水淋湿的书包', role: 'adverbial' },
-    { text: '小心翼翼地', role: 'adverbial' },
-    { text: '挂', role: 'predicate' },
-    { text: '到通风处', role: 'complement' },
-    { text: '生怕', role: 'adverbial' },
-  ]),
-  S('h08', 'hard', '那位从外地赶来的专家把实验数据核对得一丝不苟，连最细微的误差也不肯轻易放过。', [
-    { text: '那位从外地赶来的', role: 'attributive' },
-    { text: '专家', role: 'subject' },
-    { text: '把实验数据', role: 'adverbial' },
-    { text: '核对', role: 'predicate' },
-    { text: '一丝不苟', role: 'complement' },
-    { text: '轻易', role: 'adverbial' },
-  ]),
-  S('h09', 'hard', '在暴雨倾盆的夜晚，救援队员仍旧把被困村民一个个转移到了安全的高地。', [
-    { text: '在暴雨倾盆的夜晚', role: 'adverbial' },
-    { text: '救援队员', role: 'subject' },
-    { text: '仍旧', role: 'adverbial' },
-    { text: '把被困村民', role: 'adverbial' },
-    { text: '转移', role: 'predicate' },
-    { text: '到了安全的高地', role: 'complement' },
-  ]),
-  S('h10', 'hard', '小明把老师布置的那道复杂应用题演算得清清楚楚，步骤工整得让人忍不住点头称赞。', [
-    { text: '小明', role: 'subject' },
-    { text: '把老师布置的那道复杂应用题', role: 'adverbial' },
-    { text: '演算', role: 'predicate' },
-    { text: '清清楚楚', role: 'complement' },
-    { text: '工整得', role: 'adverbial' },
-    { text: '让人忍不住点头称赞', role: 'complement' },
-  ]),
-  S('h11', 'hard', '被霜打蔫的菜苗经园丁细心浇灌后又重新挺起了腰杆，绿得让人眼前一亮。', [
-    { text: '被霜打蔫的', role: 'attributive' },
-    { text: '菜苗', role: 'subject' },
-    { text: '经园丁细心浇灌后', role: 'adverbial' },
-    { text: '又', role: 'adverbial' },
-    { text: '重新', role: 'adverbial' },
-    { text: '挺', role: 'predicate' },
-    { text: '起了', role: 'complement' },
-    { text: '腰杆', role: 'object' },
-  ]),
-  S('h12', 'hard', '他请那位经验丰富的师傅把坏掉的机器修得跟新的一样，车间里顿时又响起了轰鸣。', [
-    { text: '他', role: 'subject' },
-    { text: '请', role: 'predicate' },
-    { text: '那位经验丰富的师傅', role: 'object' },
-    { text: '把坏掉的机器', role: 'adverbial' },
-    { text: '修', role: 'predicate' },
-    { text: '跟新的一样', role: 'complement' },
-  ]),
-  S('h13', 'hard', '在伸手不见五指的山洞里，探险队员仍把地图摸索着摊开，借着微弱的手电光辨认方向。', [
-    { text: '在伸手不见五指的山洞里', role: 'adverbial' },
-    { text: '探险队员', role: 'subject' },
-    { text: '仍', role: 'adverbial' },
-    { text: '把地图', role: 'adverbial' },
-    { text: '摸索着', role: 'adverbial' },
-    { text: '摊开', role: 'predicate' },
-    { text: '借着微弱的手电光', role: 'adverbial' },
-  ]),
-  S('h14', 'hard', '被同学们推选出来的班长把这次活动安排得井井有条，连最挑剔的老师也连连称赞。', [
-    { text: '被同学们推选出来的', role: 'attributive' },
-    { text: '班长', role: 'subject' },
-    { text: '把这次活动', role: 'adverbial' },
-    { text: '安排', role: 'predicate' },
-    { text: '井井有条', role: 'complement' },
-    { text: '连连', role: 'adverbial' },
-  ]),
-  S('h15', 'hard', '爷爷把那本泛黄的旧相册翻了又翻，一张张泛黄的照片把往事拉得又近又远。', [
-    { text: '爷爷', role: 'subject' },
-    { text: '把那本泛黄的旧相册', role: 'adverbial' },
-    { text: '翻', role: 'predicate' },
-    { text: '又翻', role: 'complement' },
-    { text: '一张张泛黄的', role: 'attributive' },
-    { text: '往事', role: 'object' },
-  ]),
-  S('h16', 'hard', '她让弟弟把客厅里堆得乱七八糟的玩具一件件收进了箱子，地板总算露出了原来的颜色。', [
-    { text: '她', role: 'subject' },
-    { text: '让', role: 'predicate' },
-    { text: '弟弟', role: 'object' },
-    { text: '把客厅里堆得乱七八糟的玩具', role: 'adverbial' },
-    { text: '一件件', role: 'adverbial' },
-    { text: '收', role: 'predicate' },
-    { text: '进了', role: 'complement' },
-    { text: '箱子', role: 'object' },
-  ]),
-  S('h17', 'hard', '在寒风刺骨的清晨，环卫工人早已把整条街道清扫得干干净净，连一片落叶也不肯留下。', [
-    { text: '在寒风刺骨的清晨', role: 'adverbial' },
-    { text: '环卫工人', role: 'subject' },
-    { text: '早已', role: 'adverbial' },
-    { text: '把整条街道', role: 'adverbial' },
-    { text: '清扫', role: 'predicate' },
-    { text: '干干净净', role: 'complement' },
-  ]),
-  S('h18', 'hard', '那位沉默寡言的老船长把航线讲得明明白白，年轻水手听得连大气都不敢出。', [
-    { text: '那位沉默寡言的', role: 'attributive' },
-    { text: '老船长', role: 'subject' },
-    { text: '把航线', role: 'adverbial' },
-    { text: '讲', role: 'predicate' },
-    { text: '明明白白', role: 'complement' },
-    { text: '大气都不敢出', role: 'complement' },
-  ]),
-  S('h19', 'hard', '他把刚写完的作文又从头到尾改了三遍，每一个错别字都被他圈得清清楚楚。', [
-    { text: '他', role: 'subject' },
-    { text: '把刚写完的作文', role: 'adverbial' },
-    { text: '又', role: 'adverbial' },
-    { text: '从头到尾', role: 'adverbial' },
-    { text: '改', role: 'predicate' },
-    { text: '三遍', role: 'complement' },
-    { text: '清清楚楚', role: 'complement' },
-  ]),
-  S('h20', 'hard', '被大雪封住的山路让送货的司机焦急得直跺脚，电台里却迟迟没有传来开通的消息。', [
-    { text: '被大雪封住的', role: 'attributive' },
-    { text: '山路', role: 'subject' },
-    { text: '让', role: 'predicate' },
-    { text: '送货的司机', role: 'object' },
-    { text: '焦急得', role: 'adverbial' },
-    { text: '直跺脚', role: 'complement' },
-  ]),
-  S('h21', 'hard', '在热闹非凡的庙会上，艺人把糖人吹得栩栩如生，孩子们围得里三层外三层不肯离去。', [
-    { text: '在热闹非凡的庙会上', role: 'adverbial' },
-    { text: '艺人', role: 'subject' },
-    { text: '把糖人', role: 'adverbial' },
-    { text: '吹', role: 'predicate' },
-    { text: '栩栩如生', role: 'complement' },
-    { text: '里三层外三层', role: 'complement' },
-  ]),
-  S('h22', 'hard', '老师叫我把黑板上那道容易混淆的题再给同学们讲一遍，务必讲得人人都能听懂。', [
-    { text: '老师', role: 'subject' },
-    { text: '叫', role: 'predicate' },
-    { text: '我', role: 'object' },
-    { text: '把黑板上那道容易混淆的题', role: 'adverbial' },
-    { text: '再', role: 'adverbial' },
-    { text: '讲', role: 'predicate' },
-    { text: '一遍', role: 'complement' },
-  ]),
-  S('h23', 'hard', '被月光镀成银色的湖面把岸边的柳树映得影影绰绰，晚风一吹，倒影便碎成了千万片银鳞。', [
-    { text: '被月光镀成银色的', role: 'attributive' },
-    { text: '湖面', role: 'subject' },
-    { text: '把岸边的柳树', role: 'adverbial' },
-    { text: '映', role: 'predicate' },
-    { text: '影影绰绰', role: 'complement' },
-    { text: '晚风一吹', role: 'adverbial' },
-  ]),
-  S('h24', 'hard', '他把父亲留下的那把生了锈的锄头打磨得锃亮，又重新装上了坚实的木柄。', [
-    { text: '他', role: 'subject' },
-    { text: '把父亲留下的那把生了锈的锄头', role: 'adverbial' },
-    { text: '打磨', role: 'predicate' },
-    { text: '锃亮', role: 'complement' },
-    { text: '又', role: 'adverbial' },
-    { text: '重新', role: 'adverbial' },
-    { text: '装', role: 'predicate' },
-    { text: '上了', role: 'complement' },
-  ]),
-  S('h25', 'hard', '在伸手可及的书架最高一层，她踮着脚尖把那本尘封已久的小说轻轻抽了出来。', [
-    { text: '在伸手可及的书架最高一层', role: 'adverbial' },
-    { text: '她', role: 'subject' },
-    { text: '踮着脚尖', role: 'adverbial' },
-    { text: '把那本尘封已久的小说', role: 'adverbial' },
-    { text: '轻轻', role: 'adverbial' },
-    { text: '抽', role: 'predicate' },
-    { text: '出来', role: 'complement' },
-  ]),
-  S('h26', 'hard', '教练把队员们练得精疲力尽，却仍不放过每一个细小的动作失误，要求必须做到位。', [
-    { text: '教练', role: 'subject' },
-    { text: '把队员们', role: 'adverbial' },
-    { text: '练', role: 'predicate' },
-    { text: '精疲力尽', role: 'complement' },
-    { text: '仍', role: 'adverbial' },
-    { text: '不放过', role: 'predicate' },
-    { text: '每一个细小的动作失误', role: 'object' },
-  ]),
-  S('h27', 'hard', '被烈日晒得发烫的柏油路把鞋底烫得发软，行人只好贴着树荫一步一步往前挪。', [
-    { text: '被烈日晒得发烫的', role: 'attributive' },
-    { text: '柏油路', role: 'subject' },
-    { text: '把鞋底', role: 'adverbial' },
-    { text: '烫', role: 'predicate' },
-    { text: '发软', role: 'complement' },
-    { text: '一步一步', role: 'adverbial' },
-  ]),
-  S('h28', 'hard', '他请邻居帮忙把钢琴从三楼小心翼翼地抬到了一楼，生怕磕碰了任何一个琴键。', [
-    { text: '他', role: 'subject' },
-    { text: '请', role: 'predicate' },
-    { text: '邻居', role: 'object' },
-    { text: '把钢琴', role: 'adverbial' },
-    { text: '从三楼', role: 'adverbial' },
-    { text: '小心翼翼地', role: 'adverbial' },
-    { text: '抬', role: 'predicate' },
-    { text: '到了一楼', role: 'complement' },
-  ]),
-  S('h29', 'hard', '在灯火阑珊的江边，诗人把那首未完成的诗句改了又改，直到晨光把纸页染成淡金色。', [
-    { text: '在灯火阑珊的江边', role: 'adverbial' },
-    { text: '诗人', role: 'subject' },
-    { text: '把那首未完成的诗句', role: 'adverbial' },
-    { text: '改', role: 'predicate' },
-    { text: '又改', role: 'complement' },
-    { text: '直到晨光把纸页染成淡金色', role: 'adverbial' },
-  ]),
-  S('h30', 'hard', '管理员把归还得皱巴巴的图书一本本抚平、分类、上架，忙得连喝口水的工夫都没有。', [
-    { text: '管理员', role: 'subject' },
-    { text: '把归还得皱巴巴的图书', role: 'adverbial' },
-    { text: '一本本', role: 'adverbial' },
-    { text: '抚平', role: 'predicate' },
-    { text: '忙得', role: 'adverbial' },
-    { text: '连喝口水的工夫都没有', role: 'complement' },
-  ]),
-  S('h31', 'hard', '被雷雨惊醒的孩子紧紧抓住妈妈的衣角，把小脸埋进她怀里哭得上气不接下气。', [
-    { text: '被雷雨惊醒的', role: 'attributive' },
-    { text: '孩子', role: 'subject' },
-    { text: '紧紧', role: 'adverbial' },
-    { text: '抓', role: 'predicate' },
-    { text: '住', role: 'complement' },
-    { text: '妈妈的衣角', role: 'object' },
-    { text: '把小脸', role: 'adverbial' },
-    { text: '埋', role: 'predicate' },
-    { text: '进她怀里', role: 'complement' },
-  ]),
-  S('h32', 'hard', '导演让演员把这段对白再演得更自然一点，情感层次必须递进得让观众感同身受。', [
-    { text: '导演', role: 'subject' },
-    { text: '让', role: 'predicate' },
-    { text: '演员', role: 'object' },
-    { text: '把这段对白', role: 'adverbial' },
-    { text: '再', role: 'adverbial' },
-    { text: '演', role: 'predicate' },
-    { text: '更自然一点', role: 'complement' },
-  ]),
-  S('h33', 'hard', '在人山人海的车站广场上，志愿者把迷路的老人搀扶到问询处，问询处早已被求助者围得水泄不通。', [
-    { text: '在人山人海的车站广场上', role: 'adverbial' },
-    { text: '志愿者', role: 'subject' },
-    { text: '把迷路的老人', role: 'adverbial' },
-    { text: '搀扶', role: 'predicate' },
-    { text: '到问询处', role: 'complement' },
-    { text: '水泄不通', role: 'complement' },
-  ]),
-  S('h34', 'hard', '他把整箱沉甸甸的苹果扛上肩，一步一步挪上了陡峭的山坡，汗水把后背的衣服湿透了。', [
-    { text: '他', role: 'subject' },
-    { text: '把整箱沉甸甸的苹果', role: 'adverbial' },
-    { text: '扛', role: 'predicate' },
-    { text: '上肩', role: 'complement' },
-    { text: '一步一步', role: 'adverbial' },
-    { text: '挪', role: 'predicate' },
-    { text: '上了', role: 'complement' },
-    { text: '陡峭的山坡', role: 'object' },
-  ]),
-  S('h35', 'hard', '被岁月磨得发亮的石阶把行人的脚步声衬托得格外清晰，寺院里静得只剩风穿过松林。', [
-    { text: '被岁月磨得发亮的', role: 'attributive' },
-    { text: '石阶', role: 'subject' },
-    { text: '把行人的脚步声', role: 'adverbial' },
-    { text: '衬托', role: 'predicate' },
-    { text: '格外清晰', role: 'complement' },
-    { text: '静得', role: 'adverbial' },
-  ]),
-  S('h36', 'hard', '她把妈妈织的那件红毛衣叠得整整齐齐，又轻轻放进了即将寄出的包裹里。', [
-    { text: '她', role: 'subject' },
-    { text: '把妈妈织的那件红毛衣', role: 'adverbial' },
-    { text: '叠', role: 'predicate' },
-    { text: '整整齐齐', role: 'complement' },
-    { text: '又', role: 'adverbial' },
-    { text: '轻轻', role: 'adverbial' },
-    { text: '放', role: 'predicate' },
-    { text: '进了', role: 'complement' },
-    { text: '即将寄出的包裹里', role: 'object' },
-  ]),
-  S('h37', 'hard', '在雾气弥漫的清晨，渔民把渔网撒得又远又开，希望能捕到足够养活全家的鱼获。', [
-    { text: '在雾气弥漫的清晨', role: 'adverbial' },
-    { text: '渔民', role: 'subject' },
-    { text: '把渔网', role: 'adverbial' },
-    { text: '撒', role: 'predicate' },
-    { text: '又远又开', role: 'complement' },
-    { text: '足够养活全家的', role: 'attributive' },
-    { text: '鱼获', role: 'object' },
-  ]),
-  S('h38', 'hard', '裁判把双方争执不下的判罚解释得条理分明，赛场上紧绷的气氛才渐渐缓和下来。', [
-    { text: '裁判', role: 'subject' },
-    { text: '把双方争执不下的判罚', role: 'adverbial' },
-    { text: '解释', role: 'predicate' },
-    { text: '条理分明', role: 'complement' },
-    { text: '渐渐', role: 'adverbial' },
-    { text: '缓和', role: 'predicate' },
-    { text: '下来', role: 'complement' },
-  ]),
-  S('h39', 'hard', '被洪水冲塌的小桥让两岸村民急得团团转，工人们连夜把临时便桥架了起来。', [
-    { text: '被洪水冲塌的', role: 'attributive' },
-    { text: '小桥', role: 'subject' },
-    { text: '让', role: 'predicate' },
-    { text: '两岸村民', role: 'object' },
-    { text: '急得', role: 'adverbial' },
-    { text: '团团转', role: 'complement' },
-    { text: '连夜', role: 'adverbial' },
-    { text: '把临时便桥', role: 'adverbial' },
-    { text: '架', role: 'predicate' },
-    { text: '起来', role: 'complement' },
-  ]),
-  S('h40', 'hard', '他把桌上摊开的图纸一张张卷好塞进筒里，生怕风再把它们吹得满屋乱飞。', [
-    { text: '他', role: 'subject' },
-    { text: '把桌上摊开的图纸', role: 'adverbial' },
-    { text: '一张张', role: 'adverbial' },
-    { text: '卷', role: 'predicate' },
-    { text: '好', role: 'complement' },
-    { text: '塞', role: 'predicate' },
-    { text: '进筒里', role: 'complement' },
-    { text: '满屋乱飞', role: 'complement' },
-  ]),
-  S('h41', 'hard', '在星光稀少的野外营地，向导把帐篷固定得结结实实，又叮嘱大家千万别离开视线范围。', [
-    { text: '在星光稀少的野外营地', role: 'adverbial' },
-    { text: '向导', role: 'subject' },
-    { text: '把帐篷', role: 'adverbial' },
-    { text: '固定', role: 'predicate' },
-    { text: '结结实实', role: 'complement' },
-    { text: '叮嘱', role: 'predicate' },
-    { text: '大家', role: 'object' },
-  ]),
-  S('h42', 'hard', '主编把这篇漏洞百出的稿子改得面目全非，作者读完后竟觉得比原稿更像自己想说的话。', [
-    { text: '主编', role: 'subject' },
-    { text: '把这篇漏洞百出的稿子', role: 'adverbial' },
-    { text: '改', role: 'predicate' },
-    { text: '面目全非', role: 'complement' },
-    { text: '读完后', role: 'adverbial' },
-    { text: '竟', role: 'adverbial' },
-    { text: '觉得', role: 'predicate' },
-  ]),
-  S('h43', 'hard', '被掌声淹没的获奖者把奖杯举过头顶，泪水把她脸上的妆都冲花了，却笑得比谁都灿烂。', [
-    { text: '被掌声淹没的', role: 'attributive' },
-    { text: '获奖者', role: 'subject' },
-    { text: '把奖杯', role: 'adverbial' },
-    { text: '举', role: 'predicate' },
-    { text: '过头顶', role: 'complement' },
-    { text: '冲花了', role: 'complement' },
-    { text: '笑', role: 'predicate' },
-    { text: '比谁都灿烂', role: 'complement' },
-  ]),
-  S('h44', 'hard', '父亲叫儿子把后院那棵快枯死的桃树再救一救，儿子便整天围着它松土、浇水、治虫。', [
-    { text: '父亲', role: 'subject' },
-    { text: '叫', role: 'predicate' },
-    { text: '儿子', role: 'object' },
-    { text: '把后院那棵快枯死的桃树', role: 'adverbial' },
-    { text: '再', role: 'adverbial' },
-    { text: '救', role: 'predicate' },
-    { text: '一救', role: 'complement' },
-    { text: '整天', role: 'adverbial' },
-  ]),
-  S('h45', 'hard', '在雷声滚滚的午后，管理员匆忙把窗户关得严严实实，又把怕潮的仪器盖上了防尘布。', [
-    { text: '在雷声滚滚的午后', role: 'adverbial' },
-    { text: '管理员', role: 'subject' },
-    { text: '匆忙', role: 'adverbial' },
-    { text: '把窗户', role: 'adverbial' },
-    { text: '关', role: 'predicate' },
-    { text: '严严实实', role: 'complement' },
-    { text: '把怕潮的仪器', role: 'adverbial' },
-    { text: '盖', role: 'predicate' },
-    { text: '上了', role: 'complement' },
-  ]),
-  S('h46', 'hard', '他把刚从地里挖出的土豆冲洗得干干净净，又按大小分成了三堆准备明天拿去集市。', [
-    { text: '他', role: 'subject' },
-    { text: '把刚从地里挖出的土豆', role: 'adverbial' },
-    { text: '冲洗', role: 'predicate' },
-    { text: '干干净净', role: 'complement' },
-    { text: '又', role: 'adverbial' },
-    { text: '按大小', role: 'adverbial' },
-    { text: '分', role: 'predicate' },
-    { text: '成了', role: 'complement' },
-    { text: '三堆', role: 'object' },
-  ]),
-  S('h47', 'hard', '被掌声和鲜花包围的钢琴家把最后一个音符弹得余音绕梁，全场观众起立鼓掌久久不肯坐下。', [
-    { text: '被掌声和鲜花包围的', role: 'attributive' },
-    { text: '钢琴家', role: 'subject' },
-    { text: '把最后一个音符', role: 'adverbial' },
-    { text: '弹', role: 'predicate' },
-    { text: '余音绕梁', role: 'complement' },
-    { text: '久久', role: 'adverbial' },
-    { text: '不肯', role: 'adverbial' },
-    { text: '坐下', role: 'predicate' },
-  ]),
-  S('h48', 'hard', '她让助理把会议纪要整理得一目了然，关键决议必须标得醒目，方便领导快速批阅。', [
-    { text: '她', role: 'subject' },
-    { text: '让', role: 'predicate' },
-    { text: '助理', role: 'object' },
-    { text: '把会议纪要', role: 'adverbial' },
-    { text: '整理', role: 'predicate' },
-    { text: '一目了然', role: 'complement' },
-    { text: '标', role: 'predicate' },
-    { text: '醒目', role: 'complement' },
-  ]),
-  S('h49', 'hard', '在秋风萧瑟的田野上，收割机把金黄的稻谷收割得干干净净，谷粒在阳光下闪得刺眼。', [
-    { text: '在秋风萧瑟的田野上', role: 'adverbial' },
-    { text: '收割机', role: 'subject' },
-    { text: '把金黄的稻谷', role: 'adverbial' },
-    { text: '收割', role: 'predicate' },
-    { text: '干干净净', role: 'complement' },
-    { text: '闪', role: 'predicate' },
-    { text: '刺眼', role: 'complement' },
-  ]),
-  S('h50', 'hard', '他把那封写了又改、改了又写的家书小心折好塞进信封，又在封口处郑重地贴上了一枚邮票。', [
-    { text: '他', role: 'subject' },
-    { text: '把那封写了又改、改了又写的家书', role: 'adverbial' },
-    { text: '小心', role: 'adverbial' },
-    { text: '折', role: 'predicate' },
-    { text: '好', role: 'complement' },
-    { text: '塞', role: 'predicate' },
-    { text: '进信封', role: 'complement' },
-    { text: '郑重地', role: 'adverbial' },
-    { text: '贴', role: 'predicate' },
-    { text: '上了', role: 'complement' },
-    { text: '一枚', role: 'attributive' },
-    { text: '邮票', role: 'object' },
-  ]),
-]
 
 export const GRAMMAR_JUDGMENT_BANK: GrammarSentence[] = [...EASY, ...NORMAL, ...HARD]
 

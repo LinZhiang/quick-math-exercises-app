@@ -18,6 +18,7 @@ import {
   LITERARY_WORKS,
   PROVINCE_DISTRACTORS,
 } from './life-sense-relations-data.mjs'
+import { getNatureQaByDifficulty } from './life-sense-nature-data.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const outJson = path.join(__dirname, '../src/utils/lifeSenseBank.generated.json')
@@ -94,10 +95,79 @@ function push(difficulty, stem, correct, distractorsIn, explanation, keyExtra = 
   return true
 }
 
+/** 单包推入（用于专题题：每题干只保留 1 条，便于精确凑满 120） */
+function pushOnce(difficulty, stem, correct, distractorsIn, explanation, keyExtra = 'nature') {
+  const c = String(correct).trim()
+  const st = String(stem).trim()
+  if (!st || !c) return false
+  registerTruth(st, c)
+
+  let structured
+  if (distractorsIn && typeof distractorsIn === 'object' && !Array.isArray(distractorsIn)) {
+    structured = {
+      same: uniq(distractorsIn.same).filter((d) => d !== c),
+      other: uniq(distractorsIn.other).filter((d) => d !== c),
+    }
+  } else {
+    structured = { same: uniq(distractorsIn).filter((d) => d !== c), other: [] }
+  }
+  if (structured.same.length + structured.other.length < 2) {
+    throw new Error(`干扰项不足: ${st} / ${c}`)
+  }
+  const key = `${st}|${c}|${difficulty}|p0|${keyExtra}`
+  if (seenKey.has(key)) return false
+  const distractors = pickDistractors(st.length * 97 + c.length * 13 + 17, structured, 8)
+  if (distractors.length < 2) throw new Error(`干扰挑选失败: ${st}`)
+  seenKey.add(key)
+  items.push({
+    difficulty,
+    stem: st,
+    correct: c,
+    distractors,
+    explanation,
+    key,
+  })
+  return true
+}
+
+function addNatureKnowledge(diff) {
+  const bag = getNatureQaByDifficulty(diff)
+  const topicLabel = {
+    weather: '天气节气',
+    festival: '节日纪念日',
+    astronomy: '天文',
+    landform: '山川河流',
+  }
+  let n = 0
+  for (const [topic, rows] of Object.entries(bag)) {
+    for (const [stem, correct, distractors] of rows) {
+      if (pairNameLeaks(stem.replace(/[？?].*$/, ''), correct, 'subjectHasAnswer')) {
+        // 题干是整句，多数不触发；仍做轻量保护
+      }
+      const ok = pushOnce(
+        diff,
+        stem,
+        correct,
+        distractors,
+        `【${topicLabel[topic] || topic}】正确答案是「${correct}」。`,
+        `nature-${topic}`,
+      )
+      if (ok) n += 1
+    }
+  }
+  if (n !== 120) {
+    throw new Error(`自然地理专题 ${diff} 应为 120 题，实际 ${n}`)
+  }
+}
+
 // ========== 校对词库：只写确定关系 ==========
 
 /**
  * 材料：产品 → 主要原材料
+ * 难度约定：
+ * - easy：日常可见的天然/简单构成（棉、粮、木竹、玻璃、砖纸、乳品豆麦等）
+ * - normal：略需生活经验（钢材零件、软木藤、石膏、硅胶厨具等）
+ * - hard：工业加工/合成/合金/石化聚合物（化纤、工程塑料、合金牌号、高分子俗称对应）
  * 硬性：产品名不得直接泄露出原材料（禁「铁锅→铁」「棉布→棉花」这类）。
  */
 const MATERIALS = {
@@ -111,6 +181,7 @@ const MATERIALS = {
     ['蜡烛主要成分', '石蜡'],
     ['自行车内胎', '橡胶'],
     ['汽车雨刮胶条', '橡胶'],
+    ['汽车轮胎胎面', '橡胶'],
     ['真皮沙发面料常见', '皮革'],
     ['腰带常见真皮款材质', '皮革'],
     ['奶酪', '牛奶'],
@@ -134,50 +205,53 @@ const MATERIALS = {
     ['快递外箱常见', '纸板'],
     ['田间遮阳帽常见编制材', '草'],
     ['传统绳结常见天然材', '草'],
-  ],
-  normal: [
-    ['冲锋衣化纤面常见', '涤纶'],
-    ['雨伞伞面化纤常见', '尼龙'],
-    ['膨体毛线常见', '腈纶'],
-    ['松紧腰带弹力纤维常见', '氨纶'],
-    ['毛巾型植物纤维替代棉', '竹纤维'],
-    ['轻质窗框金属常见', '铝合金'],
     ['电源线芯常见', '铜'],
     ['常见导电金属线芯', '铜'],
+    ['橄榄油主要来自', '油橄榄'],
+    ['葵花油主要来自', '葵花籽'],
+    ['豆油主要来自', '大豆'],
+  ],
+  normal: [
     ['镀锌水管基材', '钢'],
     ['自行车链条基材', '钢'],
-    ['汽车轮胎胎面', '橡胶'],
     ['不粘锅铲柔性材质常见', '硅胶'],
     ['酒塞常用植物组织', '软木'],
     ['家用躺椅常见茎蔓植物材质', '藤'],
     ['装饰线脚粉状胶凝材', '石膏'],
     ['门窗钢化透明板', '玻璃'],
-    ['标称304的餐具材质', '不锈钢'],
-    ['焊接用金属丝主料常见', '锡'],
-    ['遥控外壳常见工程塑料', 'ABS塑料'],
-    ['收纳箱常见食品级塑料', 'PP塑料'],
-    ['透明展示板常见有机玻璃俗称材', '亚克力'],
-    ['钓鱼竿轻质高强纤维常见', '碳纤维'],
-    ['橄榄油主要来自', '油橄榄'],
-    ['葵花油主要来自', '葵花籽'],
-    ['豆油主要来自', '大豆'],
+    ['毛巾型植物纤维替代棉', '竹纤维'],
   ],
   hard: [
+    // 化纤 / 工业纺织
+    ['冲锋衣化纤面常见', '涤纶'],
+    ['雨伞伞面化纤常见', '尼龙'],
+    ['膨体毛线常见', '腈纶'],
+    ['松紧腰带弹力纤维常见', '氨纶'],
+    // 工程塑料 / 高分子
     ['PE保鲜膜', '聚乙烯'],
     ['PVC水管', '聚氯乙烯'],
     ['不粘锅涂层常见代号PTFE对应', '聚四氟乙烯'],
     ['白色泡沫包装板常见', '聚苯乙烯'],
-    ['建筑保温岩质纤维板', '岩棉'],
+    ['遥控外壳常见工程塑料', 'ABS塑料'],
+    ['收纳箱常见食品级塑料', 'PP塑料'],
+    ['透明展示板常见有机玻璃俗称材', '亚克力'],
+    ['钓鱼竿轻质高强纤维常见', '碳纤维'],
+    ['海绵泡沫弹性体常见', '聚氨酯'],
+    ['汽车密封条三元乙丙对应', 'EPDM橡胶'],
+    ['车船外壳纤维树脂复合材俗称对应', '玻璃钢'],
+    // 合金 / 特种金属
+    ['轻质窗框金属常见', '铝合金'],
     ['断桥窗型材金属主体', '铝合金'],
+    ['标称304的餐具材质', '不锈钢'],
     ['眼镜架轻质金属常见', '钛合金'],
     ['笔记本壳体轻质金属常见', '镁合金'],
     ['切削刀头超硬合金常见', '硬质合金'],
-    ['强磁吸铁石常见磁材来源', '稀土磁材'],
+    ['焊接用金属丝主料常见', '锡'],
     ['蓄电池极板主要金属', '铅'],
+    ['强磁吸铁石常见磁材来源', '稀土磁材'],
+    // 石化 / 建材工业
+    ['建筑保温岩质纤维板', '岩棉'],
     ['铺路黑黏结料常见', '沥青'],
-    ['车船外壳纤维树脂复合材俗称对应', '玻璃钢'],
-    ['海绵泡沫弹性体常见', '聚氨酯'],
-    ['汽车密封条三元乙丙对应', 'EPDM橡胶'],
   ],
 }
 
@@ -244,7 +318,9 @@ function materialNameLeaks(product, material) {
   return false
 }
 
-/** 种属：事物 → 类别（必须正确） */
+/** 种属：事物 → 类别（必须正确）
+ * easy：日常食材/用品大类；normal：稍生僻食材；hard：加工胶剂/伪谷物/蜂产品细分等
+ */
 const KINDS = {
   easy: [
     ['大米', '粮食'],
@@ -256,7 +332,10 @@ const KINDS = {
     ['馒头', '粮食加工品'],
     ['土豆', '薯类'],
     ['红薯', '薯类'],
+    ['马铃薯', '薯类'],
+    ['甘薯', '薯类'],
     ['西红柿', '蔬果'],
+    ['番茄', '蔬果'],
     ['黄瓜', '蔬果'],
     ['白菜', '蔬果'],
     ['萝卜', '蔬果'],
@@ -309,6 +388,8 @@ const KINDS = {
     ['紫菜', '藻类'],
     ['香菇', '菌类'],
     ['木耳', '菌类'],
+    ['银耳', '菌类'],
+    ['海带', '藻类'],
     ['绿豆', '豆类'],
     ['花生', '油料作物'],
     ['芝麻', '油料作物'],
@@ -322,22 +403,17 @@ const KINDS = {
     ['猪油', '动物油脂'],
     ['菜籽油', '植物油'],
     ['山茶油', '植物油'],
-  ],
-  hard: [
-    ['番茄', '蔬果'],
-    ['马铃薯', '薯类'],
-    ['甘薯', '薯类'],
+    ['椰子油', '植物油'],
+    ['亚麻籽油', '植物油'],
     ['芋头', '薯芋类'],
     ['魔芋', '薯芋类'],
-    ['银耳', '菌类'],
-    ['海带', '藻类'],
+  ],
+  hard: [
     ['藜麦', '伪谷物'],
     ['蜂蜡', '蜂产品'],
     ['蜂王浆', '蜂产品'],
     ['明胶', '动物胶'],
     ['琼脂', '植物胶'],
-    ['椰子油', '植物油'],
-    ['亚麻籽油', '植物油'],
     ['木糖醇', '甜味料'],
   ],
 }
@@ -367,6 +443,8 @@ const PARTS = {
     ['插头', '电源线'],
     ['拉头', '拉链'],
     ['琴键', '钢琴'],
+    ['铅芯', '自动铅笔'],
+    ['墨囊', '钢笔'],
   ],
   normal: [
     ['滤芯', '净水器'],
@@ -383,7 +461,6 @@ const PARTS = {
     ['刹车片', '制动系统'],
     ['密封圈', '压力锅'],
     ['加热管', '电热水器'],
-    ['墨囊', '钢笔'],
   ],
   hard: [
     ['三元催化器', '汽车尾气系统'],
@@ -400,7 +477,6 @@ const PARTS = {
     ['凸轮轴', '发动机'],
     ['增压叶轮', '涡轮增压器'],
     ['阀座', '止回阀'],
-    ['铅芯', '自动铅笔'],
   ],
 }
 
@@ -1297,6 +1373,7 @@ function addRelations(diff) {
 }
 
 for (const d of ['easy', 'normal', 'hard']) {
+  addNatureKnowledge(d) // 天气/节日/天文/山川：每难度精确 120 题，优先入库
   addMaterials(d)
   addMaterialReverse(d)
   addKinds(d)
@@ -1523,5 +1600,20 @@ export const LIFE_SENSE_BANK_COUNTS = {
 `,
   'utf8',
 )
+
+// 专题入库检查：天气/节日/天文/山川 每难度须满 120
+for (const diff of ['easy', 'normal', 'hard']) {
+  const nature = final.filter((q) => q.difficulty === diff && String(q.key || '').includes('nature-'))
+  if (nature.length < 120) {
+    throw new Error(`入库后 ${diff} 自然专题不足 120（实际 ${nature.length}）`)
+  }
+  const byTopic = { weather: 0, festival: 0, astronomy: 0, landform: 0 }
+  for (const q of nature) {
+    for (const t of Object.keys(byTopic)) {
+      if (String(q.key).includes(`nature-${t}`)) byTopic[t] += 1
+    }
+  }
+  console.log(`[nature] ${diff}:`, byTopic, 'sum', nature.length)
+}
 
 console.log('OK', payload.easy, payload.normal, payload.hard, 'total', payload.total)

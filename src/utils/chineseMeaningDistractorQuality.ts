@@ -50,12 +50,31 @@ export function meaningDistractorQualityFailure(input: {
     }
 
     const cl = cjkChars(correct).length
-    if (cl >= 5) {
-      for (const d of distractors) {
-        const dl = cjkChars(d).length
-        if (dl > 0 && (dl < Math.max(3, Math.floor(cl * 0.35)) || dl > Math.ceil(cl * 2.8))) {
-          return '释义选项长短过于悬殊'
+    if (cl >= 4) {
+      const lengths = [correct, ...distractors].map((s) => cjkChars(s).length)
+      const sorted = [...lengths].sort((a, b) => a - b)
+      const median = sorted[1]!
+      for (const dl of lengths) {
+        if (Math.abs(dl - median) > 2) {
+          return '释义选项字数不够齐整（易凭长短蒙对）'
         }
+      }
+      // 正确项不得独最长（多 1 字也毙）
+      const cOnly = lengths[0]!
+      const dMax = Math.max(...lengths.slice(1))
+      if (cOnly > dMax) {
+        return '正确释义独最长'
+      }
+      const heavy = (s: string) => /[，,；;、]/.test(s)
+      if (heavy(correct) && distractors.every((d) => !heavy(d))) {
+        return '仅正确释义含逗号类标点'
+      }
+      const punct = (s: string) =>
+        (s.match(/[，,；;、：:。.！!？?（）()《》「」""''—…·]/g) || []).length
+      const cP = punct(correct)
+      const dPMax = Math.max(...distractors.map(punct))
+      if (cP > dPMax) {
+        return '正确释义标点独多'
       }
     }
 
@@ -93,6 +112,7 @@ export const CHINESE_MEANING_DISTRACTOR_RULES = `
 - 禁止干扰项写成具体生活情节（如下班休息、发布通知、盘点库存、监督下属、追求功名等）。
 - 选释义：干扰优先①近义错位（程度/对象/褒贬偷换）；②拆字望文生义但读来像词典义；③常混近义词释义；④本义/引申义错位。每个干扰都要像词典短释义。
 - 选词语：干扰须为常混近义/形近词（尽量与 term 有相同字或同义场），禁止风马牛不相及的词。
-- 反例（禁止）：「遑急」正确「匆忙急迫」却配「着急下班休息」；「砥砺」正确「磨炼意志」却配「严格监督下属」。
-- 正例：「顾惜」正确「顾全爱惜」配「顾念爱护」「怜惜体恤」「顾念旧情」类近义错位。
+- **字数与标点必须齐整**：四释义字数相差尽量≤2字；**禁止正确项独最长**（多1字也不行）；禁止正确项标点独多/独含逗号顿号。
+- 反例（禁止）：「遑急」正确「匆忙急迫」却配「着急下班休息」；「砥砺」正确「磨炼意志，相互勉励」却配无逗号短干扰。
+- 正例：「顾惜」正确「顾全爱惜」配「顾念爱护」「怜惜体恤」「眷顾思念」类近义错位（字数接近、均无独标点）。
 `.trim()

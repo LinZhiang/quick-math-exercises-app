@@ -123,7 +123,7 @@ function schemaHint(source: ChineseKeyQuestionSource): string {
     return 'questionType: poem-to-author|poem-to-theme；term；stem；correct；distractors[3]；explanation'
   }
   if (readingMode) {
-    return `questionType 固定 ${readingMode}；term；passage；stem；correct；distractors[3]；explanationFocus；explanationCorrect；explanationDistractors[3]（与 distractors 同序）；explanation 可选。解析禁止 A/B/C，须完整通顺；选项字数适度齐长；干扰半真半假。`
+    return `questionType 固定 ${readingMode}；term；passage；stem；correct；distractors[3]；explanationFocus；explanationCorrect；explanationDistractors[3]（与 distractors 同序）；explanation 可选。解析禁止 A/B/C，须完整通顺；禁止正确项独最长或标点独多；干扰半真半假。`
   }
   if (source === 'classical-chinese') {
     return [

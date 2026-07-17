@@ -192,7 +192,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
     <template v-if="test.phase === 'idle' || test.phase === 'loading'">
       <p class="mode-section__hint">
         针对公考言语理解阅读类高频题：主旨观点、细节判断、词句理解、推断下文、标题添加。
-        命题要求干扰「半真半假」、信息密度高；选项字数适度齐长；解析会按题面「选项1～4」逐项对应，先点明主旨位置再分析对错。
+        命题要求干扰「半真半假」、信息密度高；禁止正确项独最长或标点独多；解析会按题面「选项1～4」逐项对应，先点明主旨位置再分析对错。
         请先选择题型，再生成短篇材料题，每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停并公布答案。
       </p>
 

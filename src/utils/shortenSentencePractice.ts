@@ -29,7 +29,7 @@ export const SHORTEN_SENTENCE_MODES: ShortenSentenceModeConfig[] = [
     correctDelta: 20,
     wrongDelta: -20,
     maxScore: 100,
-    desc: '5 题 · 时事短句缩句 · 不计时 · 对 +20 / 错 -20',
+    desc: '5 题 · 新华/求是语体短句缩句 · 不计时 · 对 +20 / 错 -20',
     bankDifficulty: 'easy',
   },
   {
@@ -40,7 +40,7 @@ export const SHORTEN_SENTENCE_MODES: ShortenSentenceModeConfig[] = [
     correctDelta: 20,
     wrongDelta: -20,
     maxScore: 100,
-    desc: '5 题 · 时事长句缩句 · 不计时 · 对 +20 / 错 -20',
+    desc: '5 题 · 新华/求是语体长句缩句 · 不计时 · 对 +20 / 错 -20',
     bankDifficulty: 'hard',
   },
 ]
@@ -129,14 +129,15 @@ export function generateShortenSentenceQuestion(
   id: number,
 ): ShortenSentenceQuestion {
   const item = takeNextItem(mode)
-  const alts = item.alternates?.length
-    ? `（也可接受：${item.alternates.join(' / ')}）`
-    : ''
   return {
     id,
     item,
-    prompt: '请缩写句子：滑动圈选主干词语（也可手动输入），去掉定状补等修饰，留下主谓宾主干。',
-    explanation: `标准缩句：${item.shortened}${alts} 来源：${item.source}`,
+    prompt:
+      '请缩写句子：滑动圈选主干词语（也可手动输入）。去掉定语、状语、补语等修饰，留下主谓宾主干；并列成分请整体保留。',
+    // 面板已展示标准/备选/来源，此处仅作错题本短说明
+    explanation: item.alternates?.length
+      ? `推荐主干：${item.shortened}；也可接受：${item.alternates.join(' / ')}（${item.source}）`
+      : `推荐主干：${item.shortened}（${item.source}）`,
   }
 }
 
@@ -166,8 +167,8 @@ export function validateShortenSentenceAnswer(
   }
   return {
     ok: false,
-    detail: `标准答案：${item.shortened}${
-      item.alternates?.length ? `；也可：${item.alternates.join('、')}` : ''
-    }`,
+    detail: item.alternates?.length
+      ? `推荐主干：${item.shortened}；也可接受：${item.alternates.join(' / ')}`
+      : `推荐主干：${item.shortened}`,
   }
 }

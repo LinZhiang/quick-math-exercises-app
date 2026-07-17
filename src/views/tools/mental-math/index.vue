@@ -882,7 +882,7 @@ function finishShortenSentenceAnswer(answer: string) {
     correct: ok,
     scoreAfter: score.value,
     elapsedMs: circleAccumulatedMs,
-    explanation: ok ? undefined : `${check.detail}。${q.explanation}`,
+    explanation: ok ? undefined : check.detail,
   })
   if (!ok) {
     upsertMentalMathWrong({
@@ -890,12 +890,12 @@ function finishShortenSentenceAnswer(answer: string) {
       expression: q.item.sentence,
       correctAnswer: q.item.shortened,
       chosenAnswer: shortenSentenceLastAnswer.value,
-      explanation: `${check.detail}。${q.explanation}`,
+      explanation: q.explanation,
     })
   }
 
   feedback.value = ok ? 'correct' : 'wrong'
-  shortenSentenceFeedbackDetail.value = ok ? q.explanation : `${check.detail}。${q.explanation}`
+  shortenSentenceFeedbackDetail.value = ok ? '缩句正确' : check.detail
   if (ok) playMentalMathCorrectSound()
   else playMentalMathWrongSound()
 

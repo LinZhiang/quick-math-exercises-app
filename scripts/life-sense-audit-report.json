@@ -4,9 +4,34 @@
     "normal": 900,
     "hard": 900
   },
-  "uniqueStems": 583,
+  "uniqueStems": 943,
   "errorCount": 0,
   "warningCount": 0,
   "errors": [],
-  "warnings": []
+  "warnings": [],
+  "natureCounts": {
+    "easy": 120,
+    "normal": 120,
+    "hard": 120
+  },
+  "natureTopicCounts": {
+    "easy": {
+      "weather": 30,
+      "festival": 30,
+      "astronomy": 30,
+      "landform": 30
+    },
+    "normal": {
+      "weather": 30,
+      "festival": 30,
+      "astronomy": 30,
+      "landform": 30
+    },
+    "hard": {
+      "weather": 30,
+      "festival": 30,
+      "astronomy": 30,
+      "landform": 30
+    }
+  }
 }

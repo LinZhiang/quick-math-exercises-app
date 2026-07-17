@@ -254,11 +254,14 @@ function goNext() {
     <section v-else class="ss-zone ss-zone--review" aria-label="答案对照">
       <p class="ss-zone__title">你的作答</p>
       <p class="ss-answer-box">{{ submittedAnswer || draft.trim() || '（空）' }}</p>
-      <p class="ss-zone__title ss-zone__title--answer">标准缩句</p>
+      <p class="ss-zone__title ss-zone__title--answer">推荐主干（标准答案）</p>
       <p class="ss-answer-box ss-answer-box--ok">{{ question.item.shortened }}</p>
-      <ul v-if="question.item.alternates?.length" class="ss-alts">
-        <li v-for="(a, i) in question.item.alternates" :key="i">也可：{{ a }}</li>
-      </ul>
+      <template v-if="question.item.alternates?.length">
+        <p class="ss-zone__title ss-zone__title--alts">也可接受（以下写法同判正确）</p>
+        <ul class="ss-alts">
+          <li v-for="(a, i) in question.item.alternates" :key="i">{{ a }}</li>
+        </ul>
+      </template>
       <p v-if="reviewDetail" class="ss-review-detail">{{ reviewDetail }}</p>
     </section>
 
@@ -474,6 +477,12 @@ function goNext() {
   border-color: #86efac;
   background: #f0fdf4;
   color: #166534;
+}
+
+.ss-zone__title--alts {
+  margin-top: 8px;
+  font-weight: 600;
+  color: #334155;
 }
 
 .ss-alts {
