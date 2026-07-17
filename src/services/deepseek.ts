@@ -190,7 +190,7 @@ export async function requestChinesePracticeVariantJson(input: {
     '1. 可换提问方式（换题干/换角度），但仍考查同一知识要点或材料理解能力；',
     '2. 可继续以原正确选项为答案，也可在保证科学性的前提下，改为考查原干扰项中某一知识点（此时新 correct 必须对应该新问法的真正正确答案）；',
     '3. 选项可改写，干扰仍要有迷惑性；不要几乎原样照抄；',
-    '4. 阅读类须保留或微调 passage，不得丢掉材料胡编；选项字数适度齐长即可（正确项或干扰项均可略长），禁止正确项明显独最长到靠长短蒙对。',
+    '4. 阅读类须保留或微调 passage，不得丢掉材料胡编；选项字数/标点必须齐整，禁止正确项独最长或独含逗号顿号。',
     '',
     '【硬性质量·违反则整题作废】',
     '5. questionType 必须与题干/选项形态一致：',
@@ -1786,8 +1786,7 @@ export async function requestRhetoricUsageMcqs(input: {
 const READING_COMPREHENSION_SYSTEM = [
   '你是公务员考试与事业单位考试「言语理解·阅读理解」命题专家，熟悉主旨观点、细节判断、词句理解、推断下文、标题添加等高频题型。',
   '命题必须对标国考/联考真题难度：正确项不可一眼可辨，干扰项须「真假参半」、有迷惑力。',
-  '选项字数采适度原则：四项大致齐长；正确项可以最长，干扰项也可以最长，不要刻意把正确项写短或把错项灌水凑长。',
-  '仅当正确项明显比所有干扰项都长、靠「选最长」可蒙对时才不合格。',
+  '选项表面必须齐整：禁止正确项独最长（多1字也不行），标点风格一致；禁止正确项标点独多或独含逗号/顿号。',
   '严禁「只需/唯一/全部」等绝对化低级错项；干扰项要信息密度高、读来像正确答案。',
   '解析必须结构化：explanationFocus + explanationCorrect + explanationDistractors[3]（与 distractors 同序）；禁止用 A/B/C 指代选项；语句完整，禁止残缺断句。',
   '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
@@ -1832,14 +1831,14 @@ function readingComprehensionFormat(mode: ChineseReadingQuestionType): string {
 ${readingComprehensionModeGuidance(mode)}
 
 【干扰项质量·必须遵守】
-1. **长度适度（平衡，非控死）**：
-   - 四个选项字数应大致接近（跨度建议约 18 字内）。
-   - **允许**正确项略长或最长，也**允许**某个干扰项更长——不要为了反套路硬把正确项写短、或给错项灌水凑字数。
-   - **禁止**的只有极端情形：正确项比每一个干扰项都明显更长（甩开约 8 字以上），以至于「选最长」就能蒙对。
+1. **字数与标点齐整（硬性·系统会拒收）**：
+   - **禁止正确项独最长**（哪怕只多 1 字也不行）；须有干扰项同长或更长。
+   - 标点风格须一致：禁止正确项标点独多，禁止只有正确项带逗号/顿号/分号。
+   - 禁止「正确项最完整、干扰项残缺短句」的反差；宁可四项都稍短或都稍长。
 2. **半真半假**：每个错项都要包含材料中出现过的关键词或半对信息，再在「侧重、范围、程度、逻辑关系」上出错；读起来像合理概括，细辨才错。
 3. **禁止低级错项**：不要用「只需」「仅仅」「唯一」「全部」「一定」「绝对」等极端词把选项做死；不要写与材料明文直接相反、小学生也能排除的句子。
 4. **禁止形式泄题**：不要让正确项独用「统筹/既要又要/重点是…同时…」这类最周全句式，而错项全是片面短句。四个选项句式风格应同类。
-5. **自检**：数四项字数——谁最长都可以，只要不是正确项明显独最长到靠长短蒙；再问「只看长短会不会稳选某一项？」——若会，微调使长短接近。
+5. **自检**：数四项字数与逗号——若「选最长」或「选标点最多」能稳中正确项，必须改到分不出。
 
 【命题要求】
 - 每题必须有 passage：短材料约 150～350 字，公考风格议论文/说明文片段，信息有轻重主次（便于出半真干扰）
@@ -1895,7 +1894,7 @@ export async function requestReadingComprehensionMcqs(input: {
     format,
     historyHint,
     `本批 ${count} 道的 term 必须互不相同；每题须含独立 passage。`,
-    `**务必做到**：选项字数适度齐长；干扰半真半假；禁止绝对化低级错项；解析必须含 explanationFocus、explanationCorrect、explanationDistractors[3]（与 distractors 同序），禁止 A/B/C，语句完整。`,
+    `**务必做到**：选项字数/标点齐整（禁止正确项独最长或独含逗号）；干扰半真半假；禁止绝对化低级错项；解析必须含 explanationFocus、explanationCorrect、explanationDistractors[3]（与 distractors 同序），禁止 A/B/C，语句完整。`,
     `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
   ]
     .filter(Boolean)
@@ -1931,7 +1930,7 @@ export async function requestReadingComprehensionMcqs(input: {
       const oneRaw = await deepseekChatRaw(
         [
           `请生成第 ${slot} 道阅读理解四选一题，题型固定为 **${modeLabel}**（questionType=\`${mode}\`）。`,
-          `字数适度齐长即可。干扰半真半假。`,
+          `字数/标点必须齐整，禁止正确项独最长。干扰半真半假。`,
           `解析硬性：explanationFocus、explanationCorrect、explanationDistractors[3]（与 distractors 一一对应）；禁止 A/B/C；语句完整收尾。`,
           `禁止「只需/唯一」类低级错项。`,
           format,

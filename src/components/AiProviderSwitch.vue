@@ -43,6 +43,12 @@ function onVisionProbe() {
     </el-radio-group>
     <span class="ai-provider-switch__hint">
       当前：{{ getAiProviderLabel(provider) }}
+      <template v-if="provider === 'deepseek'">
+        · 未切到豆包时请求走 DeepSeek，方舟用量会为 0
+      </template>
+      <template v-else>
+        · 方舟用量请筛模型 ID：doubao-seed-2-1-pro-260628（不是 240628）
+      </template>
       <template v-if="!visionOk"> · 识图/图形请选手动切到豆包</template>
     </span>
     <el-button

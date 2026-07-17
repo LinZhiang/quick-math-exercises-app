@@ -4,6 +4,7 @@ import {
   ALL_GRAMMAR_ROLES,
   GRAMMAR_JUDGMENT_BANK,
   GRAMMAR_ROLE_LABELS,
+  isCircleGrammarBankReady,
   type GrammarPart,
   type GrammarRole,
   type GrammarSentence,
@@ -120,7 +121,9 @@ export function clampCircleGrammarScore(score: number): number {
 
 function poolFor(mode: CircleGrammarMode): GrammarSentence[] {
   const diff = getCircleGrammarModeConfig(mode).bankDifficulty
-  return GRAMMAR_JUDGMENT_BANK.filter((s) => s.difficulty === diff)
+  return GRAMMAR_JUDGMENT_BANK.filter(
+    (s) => s.difficulty === diff && isCircleGrammarBankReady(s),
+  )
 }
 
 function cursorKey(mode: CircleGrammarMode): 'easy' | 'hard' {

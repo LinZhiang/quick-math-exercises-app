@@ -125,10 +125,31 @@ for (const item of items) {
     )
   }
 
+  const strip = (s) =>
+    s.replace(/[，。、；：！？\s"'“”‘’《》【】（）()\[\]{}·…—\-～~、]/g, '')
+  const isSubseq = (shortText, longText) => {
+    const a = strip(shortText)
+    const b = strip(longText)
+    let j = 0
+    for (let i = 0; i < b.length && j < a.length; i++) {
+      if (b[i] === a[j]) j += 1
+    }
+    return j === a.length
+  }
+  if (shortened && sentence && !isSubseq(shortened, sentence)) {
+    errors.push(`${id}: shortened is not a character subsequence of sentence`)
+  }
+
   if (alternates) {
     for (const alt of alternates) {
       if (!alt || !alt.trim()) errors.push(`${id}: empty alternate`)
       if (alt === shortened) errors.push(`${id}: alternate equals shortened: "${alt}"`)
+      if (alt.length >= sentence.length) {
+        errors.push(`${id}: alternate not shorter than sentence`)
+      }
+      if (!isSubseq(alt, sentence)) {
+        errors.push(`${id}: alternate is not a character subsequence of sentence: ${alt}`)
+      }
     }
   }
 }

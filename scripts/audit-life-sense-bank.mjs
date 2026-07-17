@@ -121,7 +121,13 @@ const MUST_MAT = {
   大米: '稻谷',
   PE保鲜膜: '聚乙烯',
   PVC水管: '聚氯乙烯',
-  橄榄油主要来自: '油橄榄',
+  '橄榄油主要来自': '油橄榄',
+  电源线芯常见: '铜',
+  冲锋衣化纤面常见: '涤纶',
+  雨伞伞面化纤常见: '尼龙',
+  PE保鲜膜: '聚乙烯',
+  PVC水管: '聚氯乙烯',
+  标称304的餐具材质: '不锈钢',
 }
 
 const FORBIDDEN_MAT_STEMS = [
@@ -168,6 +174,7 @@ const MUST_PART = {
   '硒鼓通常属于？': '激光打印机',
   '三元催化器通常属于？': '汽车尾气系统',
   '节气门通常属于？': '进气系统',
+  '铅芯通常属于？': '自动铅笔',
 }
 
 const PART_ALSO_ON = {
@@ -330,6 +337,85 @@ for (const q of items) {
     err('组成题干过宽或旧格式', q)
   }
 
+  // 难度分层：工业加工/合成材料 → 难题；日常简单构成 → 简单题
+  const MAT_SHOULD_HARD = new Set([
+    '涤纶',
+    '尼龙',
+    '腈纶',
+    '氨纶',
+    '聚乙烯',
+    '聚氯乙烯',
+    '聚四氟乙烯',
+    '聚苯乙烯',
+    'ABS塑料',
+    'PP塑料',
+    '亚克力',
+    '碳纤维',
+    '聚氨酯',
+    'EPDM橡胶',
+    '玻璃钢',
+    '铝合金',
+    '不锈钢',
+    '钛合金',
+    '镁合金',
+    '硬质合金',
+    '锡',
+    '铅',
+    '稀土磁材',
+    '岩棉',
+    '沥青',
+  ])
+  const MAT_SHOULD_EASY = new Set([
+    '棉花',
+    '羽绒',
+    '铝',
+    '石蜡',
+    '橡胶',
+    '皮革',
+    '牛奶',
+    '大豆',
+    '小麦',
+    '稻谷',
+    '瓷土',
+    '陶土',
+    '玻璃',
+    '木材',
+    '竹子',
+    '砖',
+    '纸',
+    '纸板',
+    '草',
+    '铜',
+    '油橄榄',
+    '葵花籽',
+  ])
+  const KIND_SHOULD_NOT_HARD = new Set([
+    '番茄',
+    '马铃薯',
+    '甘薯',
+    '西红柿',
+    '土豆',
+    '红薯',
+    '大米',
+    '苹果',
+    '牛奶',
+  ])
+
+  if (q.stem.endsWith('的主要原材料是？')) {
+    if (q.difficulty === 'easy' && MAT_SHOULD_HARD.has(q.correct)) {
+      err('工业/合成材料不应落在简单题', q)
+    }
+    if (q.difficulty === 'hard' && MAT_SHOULD_EASY.has(q.correct)) {
+      err('日常简单材料不应落在难题', q)
+    }
+  }
+  if (q.stem.endsWith('是一种？')) {
+    const name = q.stem.slice(0, -4)
+    if (q.difficulty === 'hard' && KIND_SHOULD_NOT_HARD.has(name)) {
+      err('日常种属题不应落在难题', q)
+    }
+  }
+
   // 语义荒谬
   const absurdPairs = [
     [/酸奶|牛奶|奶酪|奶粉|羊奶|黄油/, /灯具|鞋类|箱包|清洁用品|刀具|木材|玻璃/],
@@ -378,6 +464,36 @@ const report = {
   warningCount: warnings.length,
   errors,
   warnings: warnings.slice(0, 100),
+}
+
+// 天气/节日/天文/山川专题：每难度至少 120
+{
+  const natureCounts = { easy: 0, normal: 0, hard: 0 }
+  const topicCounts = {
+    easy: { weather: 0, festival: 0, astronomy: 0, landform: 0 },
+    normal: { weather: 0, festival: 0, astronomy: 0, landform: 0 },
+    hard: { weather: 0, festival: 0, astronomy: 0, landform: 0 },
+  }
+  for (const q of items) {
+    const k = String(q.key || '')
+    if (!k.includes('nature-')) continue
+    natureCounts[q.difficulty] = (natureCounts[q.difficulty] || 0) + 1
+    for (const t of ['weather', 'festival', 'astronomy', 'landform']) {
+      if (k.includes(`nature-${t}`)) topicCounts[q.difficulty][t] += 1
+    }
+  }
+  for (const diff of ['easy', 'normal', 'hard']) {
+    if (natureCounts[diff] < 120) {
+      err(`自然专题 ${diff} 不足120（${natureCounts[diff]}）`)
+    }
+    for (const t of ['weather', 'festival', 'astronomy', 'landform']) {
+      if (topicCounts[diff][t] < 30) {
+        err(`自然专题 ${diff}/${t} 不足30（${topicCounts[diff][t]}）`)
+      }
+    }
+  }
+  report.natureCounts = natureCounts
+  report.natureTopicCounts = topicCounts
 }
 
 fs.writeFileSync(

@@ -2,6 +2,8 @@ import {
   assembleFourChoiceMcq,
   extractMcqCorrectAndDistractors,
   isPlayableFourChoiceMcq,
+  mcqOptionSurfaceLeakFailure,
+  mcqOptionVisibleLength,
   normalizeMcqOptionText,
 } from '@/utils/chineseMcqAiFields'
 
@@ -91,33 +93,16 @@ function shuffleInPlace<T>(arr: T[]): T[] {
 
 /** 选项可见长度（去空白），用于防「选最长=正确」 */
 export function readingOptionTextLength(s: string): number {
-  return String(s ?? '')
-    .trim()
-    .replace(/\s+/g, '')
-    .length
+  return mcqOptionVisibleLength(s)
 }
 
 /**
- * 阅读理解选项长度质量（适度原则）：
- * - 允许正确项最长，也允许干扰项最长，不强行规定谁更长
- * - 四项大致齐长；仅拒收「正确项明显独最长、靠选最长可蒙」的极端题
+ * 阅读理解选项长度/标点质量：与全站四选一表面泄题规则对齐（更严）。
  */
 export function readingMcqLengthQualityOk(correct: string, distractors: string[]): boolean {
-  const c = readingOptionTextLength(correct)
-  const ds = distractors.map(readingOptionTextLength).filter((n) => n > 0)
-  if (!c || ds.length !== 3) return false
-
-  const all = [c, ...ds]
-  const max = Math.max(...all)
-  const min = Math.min(...all)
-  // 跨度过大不自然（不论谁最长）
-  if (max - min > 18) return false
-
-  const maxDistractor = Math.max(...ds)
-  // 正确项比每一个干扰项都长，且明显甩开次长 → 易「选最长」蒙对，才拒收
-  if (c > maxDistractor && c - maxDistractor >= 8) return false
-
-  return true
+  return (
+    mcqOptionSurfaceLeakFailure([correct, ...distractors], 0) == null
+  )
 }
 
 function trimExplanationClause(s: string): string {

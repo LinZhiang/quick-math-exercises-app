@@ -45,7 +45,10 @@ export function setAiProvider(provider: AiProvider): void {
 }
 
 export function getAiProviderLabel(provider: AiProvider = getAiProvider()): string {
-  return provider === 'doubao' ? '豆包 Seed-2.1-pro' : 'DeepSeek V4-Flash'
+  // 与 server/.env 的 DOUBAO_MODEL_ID 一致；控制台用量请筛 260628，不是 240628
+  return provider === 'doubao'
+    ? '豆包 Seed-2.1-pro（260628）'
+    : 'DeepSeek V4-Flash'
 }
 
 /** 进度条/短文案用短名 */
