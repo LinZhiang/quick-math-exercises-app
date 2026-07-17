@@ -1,4 +1,4 @@
-const CACHE = 'quick-math-v3'
+const CACHE = 'quick-math-v4'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -32,7 +32,16 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
   const url = new URL(event.request.url)
   if (url.origin !== self.location.origin) return
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/v1/')) return
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/v1/') ||
+    url.pathname.startsWith('/auth/') ||
+    url.pathname.startsWith('/admin/') ||
+    url.pathname === '/health' ||
+    url.pathname.startsWith('/status/')
+  ) {
+    return
+  }
 
   event.respondWith(
     (async () => {

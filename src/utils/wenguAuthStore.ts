@@ -4,6 +4,11 @@
  * - 成员：sessionStorage + 服务端 Token 默认 2 小时
  */
 import { ref } from 'vue'
+import {
+  probeWenguAuthServer,
+  readWenguJsonResponse,
+  wenguApiFetch,
+} from '@/utils/wenguApiFetch'
 
 const MEMBER_STORAGE_KEY = 'wengu-session-v1'
 const ADMIN_STORAGE_KEY = 'wengu-admin-session-v1'
@@ -30,7 +35,7 @@ let unloadHookInstalled = false
 export const WENGU_LOGIN_REQUIRED_HINT =
   '未登录：请到「导览 → 安装」登录后，再使用语文 AI 功能'
 
-export const WENGU_ACCOUNT_DISABLED_HINT = '账号已被禁用，请联系管理员'
+export { probeWenguAuthServer, type WenguServerProbe } from '@/utils/wenguApiFetch'
 
 function notify() {
   wenguAuthTick.value += 1
@@ -112,6 +117,8 @@ function clearMemoryAndStorage() {
   notify()
 }
 
+export const WENGU_ACCOUNT_DISABLED_HINT = '账号已被禁用，请联系管理员'
+
 export function getWenguAuthToken(): string | null {
   void wenguAuthTick.value
   return memorySession?.token ?? readStored()?.token ?? null
@@ -141,7 +148,7 @@ export async function hydrateWenguAuthStore(): Promise<void> {
       return
     }
     try {
-      const res = await fetch('/auth/me', {
+      const res = await wenguApiFetch('/auth/me', {
         headers: { Authorization: `Bearer ${stored.token}` },
       })
       if (res.status === 403) {
@@ -152,7 +159,7 @@ export async function hydrateWenguAuthStore(): Promise<void> {
         clearMemoryAndStorage()
         return
       }
-      const data = (await res.json()) as { ok?: boolean; user?: WenguUser }
+      const data = await readWenguJsonResponse<{ ok?: boolean; user?: WenguUser }>(res)
       if (!data.ok || !data.user) {
         clearMemoryAndStorage()
         return
@@ -168,19 +175,19 @@ export async function hydrateWenguAuthStore(): Promise<void> {
 }
 
 export async function loginWengu(username: string, password: string): Promise<WenguUser> {
-  const res = await fetch('/auth/login', {
+  const res = await wenguApiFetch('/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username: username.trim(), password }),
   })
-  const data = (await res.json()) as {
+  const data = await readWenguJsonResponse<{
     ok?: boolean
     message?: string
     token?: string
     user?: WenguUser
-  }
+  }>(res)
   if (!res.ok || !data.ok || !data.token || !data.user) {
-    throw new Error(data.message || '登录失败')
+    throw new Error(data.message || `登录失败（HTTP ${res.status}）`)
   }
   memorySession = { token: data.token, user: data.user }
   writeStored(memorySession)
@@ -193,7 +200,7 @@ export async function logoutWengu(): Promise<void> {
   const token = getWenguAuthToken()
   if (token) {
     try {
-      await fetch('/auth/logout', {
+      await wenguApiFetch('/auth/logout', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -239,7 +246,7 @@ export type WenguMemberUser = {
 async function adminFetch(path: string, init?: RequestInit) {
   const token = getWenguAuthToken()
   if (!token) throw new Error('未登录')
-  const res = await fetch(path, {
+  const res = await wenguApiFetch(path, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -247,7 +254,7 @@ async function adminFetch(path: string, init?: RequestInit) {
       ...(init?.headers ?? {}),
     },
   })
-  const data = (await res.json()) as { ok?: boolean; message?: string }
+  const data = await readWenguJsonResponse<{ ok?: boolean; message?: string }>(res)
   if (res.status === 401 || res.status === 403) {
     clearMemoryAndStorage()
   }

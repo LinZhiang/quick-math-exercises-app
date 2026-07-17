@@ -10,11 +10,16 @@ import {
   isWenguLoggedIn,
   loginWengu,
   logoutWengu,
+  probeWenguAuthServer,
   resetWenguMemberPassword,
   setWenguMemberEnabled,
   type WenguMemberUser,
+  type WenguServerProbe,
   wenguAuthTick,
 } from '@/utils/wenguAuthStore'
+
+const serverProbe = ref<WenguServerProbe | null>(null)
+const probingServer = ref(false)
 
 const username = ref('')
 const password = ref('')
@@ -41,12 +46,28 @@ const isAdmin = computed(() => {
   return isWenguAdmin()
 })
 
+async function refreshServerProbe() {
+  probingServer.value = true
+  try {
+    serverProbe.value = await probeWenguAuthServer()
+  } finally {
+    probingServer.value = false
+  }
+}
+
 async function onLogin() {
   const u = username.value.trim()
   const p = password.value
   if (!u || !p) {
     ElMessage.warning('请输入用户名和密码')
     return
+  }
+  if (!serverProbe.value?.ok) {
+    await refreshServerProbe()
+    if (!serverProbe.value?.ok) {
+      ElMessage.error(serverProbe.value?.message ?? '无法连接登录服务')
+      return
+    }
   }
   loggingIn.value = true
   try {
@@ -153,6 +174,7 @@ async function onDeleteMember(row: WenguMemberUser) {
 }
 
 onMounted(() => {
+  void refreshServerProbe()
   if (isAdmin.value) void loadMembers()
 })
 </script>
@@ -167,6 +189,20 @@ onMounted(() => {
     <p class="mode-section__hint wengu-auth__risk">
       本工具仅家庭可信人员使用，请勿在公共设备登录；建议在 DeepSeek 后台设置调用限额，降低泄露损失。
     </p>
+
+    <div
+      v-if="serverProbe"
+      class="install-card"
+      :class="serverProbe.ok ? 'install-card--ok' : 'install-card--warn'"
+    >
+      <p class="install-card__title">登录服务连接</p>
+      <p class="install-card__text">{{ serverProbe.message }}</p>
+      <p v-if="!serverProbe.ok" class="install-card__text wengu-auth__note">
+        手机请用 Chrome 打开 <code>https://电脑WiFiIP:8790</code>（与电脑同一 WiFi），先点「高级 → 继续前往」信任证书，再登录。
+        若主屏幕是以前装的旧快捷方式，请删掉后从上述地址重新「安装应用」。
+      </p>
+      <el-button size="small" :loading="probingServer" @click="refreshServerProbe">重新检测</el-button>
+    </div>
 
     <div v-if="loggedIn && currentUser" class="install-card install-card--ok">
       <p class="install-card__title">已登录</p>
@@ -274,6 +310,11 @@ onMounted(() => {
 .install-card--ok {
   border-color: color-mix(in srgb, var(--el-color-success) 40%, var(--app-border-soft));
   background: color-mix(in srgb, var(--el-color-success-light-9) 45%, transparent);
+}
+
+.install-card--warn {
+  border-color: color-mix(in srgb, var(--el-color-warning) 45%, var(--app-border-soft));
+  background: color-mix(in srgb, var(--el-color-warning-light-9) 40%, transparent);
 }
 
 .install-card__title {
