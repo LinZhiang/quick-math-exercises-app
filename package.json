@@ -13,6 +13,8 @@
     "build": "vue-tsc -b && vite build",
     "sync:env": "node scripts/sync-server-env.mjs",
     "serve:install": "node scripts/family-start.mjs",
+    "serve:public": "node scripts/family-public.mjs",
+    "setup:cloud": "node scripts/tunnel-help.mjs",
     "tunnel:help": "node scripts/tunnel-help.mjs",
     "type-check": "vue-tsc --noEmit"
   },

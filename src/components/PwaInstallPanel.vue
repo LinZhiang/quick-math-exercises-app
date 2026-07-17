@@ -17,9 +17,8 @@ async function onInstall() {
   <section class="mode-section install-panel" id="practice-install">
     <h3 class="mode-section__title">安装到手机</h3>
     <p class="mode-section__hint">
-      手机 Chrome 打开本页（Cloudflare 公网地址或家里局域网地址）→ 安装应用。
-      装好后<strong>出门不用开电脑</strong>，有手机网络就能练。
-      语文 AI 功能需先在下方「语文 AI 登录」；口算练习无需登录。
+      手机 Chrome 打开本页（Cloudflare 公网地址）→ 安装应用。
+      装好后有手机网络就能练；语文 AI 在下方登录即可（公网站点出门也能用，无需开电脑）。
     </p>
 
     <div v-if="installed" class="install-card install-card--ok">

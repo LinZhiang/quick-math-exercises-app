@@ -1,6 +1,5 @@
 /**
- * 同步 server/.env → .env.local（构建时注入 VITE_ 变量）
- * 优先级：CI 环境变量 > server/.env > 主 App
+ * 同步前端 .env.local（仅模型名；密钥在服务端 / Cloudflare Secrets）
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -29,45 +28,30 @@ function readEnvVarFromFile(file, name) {
   return m?.[1]?.trim().replace(/^["']|["']$/g, '') ?? ''
 }
 
-function readKeyFromEnvFile(file) {
-  return readEnvVarFromFile(file, 'DEEPSEEK_API_KEY')
-}
-
-function keyFromProcessEnv() {
-  return (process.env.VITE_DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY || '').trim()
-}
-
 function modelFromProcessEnv() {
   return (process.env.VITE_DEEPSEEK_MODEL || 'deepseek-v4-flash').trim()
 }
 
-function apiOriginFromProcessEnv() {
-  return (process.env.VITE_WENGU_API_ORIGIN || process.env.WENGU_PUBLIC_API_URL || '').trim().replace(/\/$/, '')
-}
-
-function writeLocalEnv({ model, apiOrigin, source }) {
+function writeLocalEnv({ model, source }) {
   const lines = [
     `# 由 sync-server-env.mjs 生成（来源：${source}）`,
-    '# DeepSeek 密钥仅在 server/.env；前端登录后走服务端代理',
+    '# 密钥不进前端：本地用 server/.env；公网用 Cloudflare Pages Secrets + Functions',
     `VITE_DEEPSEEK_MODEL=${model}`,
+    '',
   ]
-  if (apiOrigin) {
-    lines.push(`VITE_WENGU_API_ORIGIN=${apiOrigin}`)
-  }
-  lines.push('')
   fs.writeFileSync(localEnv, lines.join('\n'), 'utf8')
   console.log(`[sync:env] 已写入 .env.local（${source}）`)
-  if (apiOrigin) console.log(`[sync:env] API 根地址：${apiOrigin}`)
 }
 
-const envKey = keyFromProcessEnv()
-const envApiOrigin = apiOriginFromProcessEnv()
-if (!isPlaceholderKey(envKey) || envApiOrigin) {
-  writeLocalEnv({
-    model: modelFromProcessEnv(),
-    apiOrigin: envApiOrigin,
-    source: '环境变量',
-  })
+// Cloudflare Pages：前端无需密钥，Functions 使用 Secrets
+if (isCi) {
+  writeLocalEnv({ model: modelFromProcessEnv(), source: 'Cloudflare CI' })
+  process.exit(0)
+}
+
+const envKey = (process.env.VITE_DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY || '').trim()
+if (!isPlaceholderKey(envKey)) {
+  writeLocalEnv({ model: modelFromProcessEnv(), source: '环境变量' })
   process.exit(0)
 }
 
@@ -85,33 +69,17 @@ if (!fs.existsSync(serverEnv)) {
   }
 }
 
-const fileKey = readKeyFromEnvFile(serverEnv)
-const fileApiOrigin = readEnvVarFromFile(serverEnv, 'WENGU_PUBLIC_API_URL')
-if (!isPlaceholderKey(fileKey) || fileApiOrigin) {
-  writeLocalEnv({
-    model: modelFromProcessEnv(),
-    apiOrigin: fileApiOrigin,
-    source: 'server/.env',
-  })
+const fileKey = readEnvVarFromFile(serverEnv, 'DEEPSEEK_API_KEY')
+if (!isPlaceholderKey(fileKey)) {
+  writeLocalEnv({ model: modelFromProcessEnv(), source: 'server/.env' })
   process.exit(0)
 }
 
-if (isCi) {
-  console.error(
-    '[sync:env] Cloudflare 构建缺少配置。请在 Pages → Settings → Environment variables 添加：\n' +
-      '  VITE_WENGU_API_ORIGIN = 家庭 Node 服务的公网地址（Cloudflare Tunnel 等）\n' +
-      '并在 server/.env 设置 CORS_ORIGIN 包含你的 pages.dev 域名。\n' +
-      '本地 server/.env 还需 DEEPSEEK_API_KEY 与 WENGU_ADMIN_PASSWORD。',
-  )
-} else {
-  console.error(
-    '[sync:env] 未找到 DEEPSEEK_API_KEY。请编辑 server/.env：\n' +
-      '  DEEPSEEK_API_KEY=sk-...\n' +
-      '  WENGU_ADMIN_USERNAME=admin\n' +
-      '  WENGU_ADMIN_PASSWORD=你的强密码\n' +
-      '若用 Cloudflare Pages 静态前端，另加：\n' +
-      '  WENGU_PUBLIC_API_URL=https://你的隧道或公网API地址\n' +
-      '  CORS_ORIGIN=https://你的项目.pages.dev',
-  )
-}
+console.error(
+  '[sync:env] 未找到 DEEPSEEK_API_KEY。本地请编辑 server/.env：\n' +
+    '  DEEPSEEK_API_KEY=sk-...\n' +
+    '  WENGU_ADMIN_USERNAME=admin\n' +
+    '  WENGU_ADMIN_PASSWORD=你的强密码\n' +
+    '公网（一步到位）：在 Cloudflare Pages Secrets 配置同名变量，无需隧道。',
+)
 process.exit(1)

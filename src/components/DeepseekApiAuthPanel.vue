@@ -13,17 +13,28 @@ import {
   probeWenguAuthServer,
   resetWenguMemberPassword,
   setWenguMemberEnabled,
-  usesRemoteWenguApi,
   type WenguMemberUser,
   type WenguServerProbe,
   wenguAuthTick,
 } from '@/utils/wenguAuthStore'
+import {
+  describeWenguApiTarget,
+  getBuildTimeWenguApiOrigin,
+  getWenguApiOrigin,
+  setWenguApiOriginOverride,
+} from '@/utils/wenguApiOrigin'
 
 const serverProbe = ref<WenguServerProbe | null>(null)
 const probingServer = ref(false)
+const showAdvancedApi = ref(false)
+const apiOriginDraft = ref(getWenguApiOrigin())
+const apiOriginTick = ref(0)
 const locationOrigin = typeof location !== 'undefined' ? location.origin : ''
 const isCloudflarePagesHost = locationOrigin.includes('pages.dev')
-const hasRemoteApi = usesRemoteWenguApi()
+const currentApiTarget = computed(() => {
+  void apiOriginTick.value
+  return describeWenguApiTarget()
+})
 
 const username = ref('')
 const password = ref('')
@@ -57,6 +68,29 @@ async function refreshServerProbe() {
   } finally {
     probingServer.value = false
   }
+}
+
+function onSaveApiOrigin() {
+  const raw = apiOriginDraft.value.trim().replace(/\/$/, '')
+  if (raw && !/^https?:\/\//i.test(raw)) {
+    ElMessage.warning('请填写完整地址，例如 https://abc.trycloudflare.com')
+    return
+  }
+  if (/xxxx\.trycloudflare\.com/i.test(raw)) {
+    ElMessage.error('这是示例占位地址，请换成电脑终端里打印的真实隧道地址')
+    return
+  }
+  setWenguApiOriginOverride(raw || null)
+  apiOriginTick.value += 1
+  ElMessage.success(raw ? `已保存 API 地址：${raw}` : '已改回默认（同源/构建配置）')
+  void refreshServerProbe()
+}
+
+function onClearApiOrigin() {
+  apiOriginDraft.value = getBuildTimeWenguApiOrigin()
+  setWenguApiOriginOverride(null)
+  apiOriginTick.value += 1
+  void refreshServerProbe()
 }
 
 async function onLogin() {
@@ -178,6 +212,12 @@ async function onDeleteMember(row: WenguMemberUser) {
 }
 
 onMounted(() => {
+  // 公网站点默认走同源 Functions，清掉以前填的隧道地址
+  if (isCloudflarePagesHost && getWenguApiOrigin()) {
+    setWenguApiOriginOverride(null)
+    apiOriginDraft.value = ''
+    apiOriginTick.value += 1
+  }
   void refreshServerProbe()
   if (isAdmin.value) void loadMembers()
 })
@@ -187,11 +227,12 @@ onMounted(() => {
   <section class="mode-section wengu-auth" id="practice-deepseek-auth" aria-label="语文 AI 登录">
     <h3 class="mode-section__title">语文 AI 登录</h3>
     <p class="mode-section__hint">
-      口算等练习无需登录。使用语文 AI 出题/讲解时，需在此登录；DeepSeek 密钥保存在<strong>服务端</strong>，不会写入手机浏览器。
-      管理员账号在 <code>server/.env</code> 配置，换设备后用同一套用户名密码即可登录。
+      口算无需登录。语文 AI 在此登录即可。
+      <strong>公网推荐</strong>：家人打开同一个 <code>pages.dev</code> 地址，登录后出门也能用（云端服务，无需开家里电脑、无需填隧道）。
+      管理员账号与电脑端相同（Cloudflare Secrets / <code>server/.env</code>）。
     </p>
     <p class="mode-section__hint wengu-auth__risk">
-      本工具仅家庭可信人员使用，请勿在公共设备登录；建议在 DeepSeek 后台设置调用限额，降低泄露损失。
+      本工具仅家庭可信人员使用；请在 DeepSeek 后台设置调用限额。
     </p>
 
     <div
@@ -199,23 +240,43 @@ onMounted(() => {
       class="install-card"
       :class="serverProbe.ok ? 'install-card--ok' : 'install-card--warn'"
     >
-      <p class="install-card__title">登录服务连接</p>
+      <p class="install-card__title">服务状态</p>
       <p class="install-card__text">{{ serverProbe.message }}</p>
-      <p v-if="serverProbe.apiTarget" class="install-card__text wengu-auth__note">
-        API 目标：<code>{{ serverProbe.apiTarget }}</code>
-      </p>
       <p v-if="!serverProbe.ok" class="install-card__text wengu-auth__note">
-        <template v-if="isCloudflarePagesHost && !hasRemoteApi">
-          你正在使用 Cloudflare 静态页（<code>pages.dev</code>）。请在
-          <code>server/.env</code> 填 <code>WENGU_PUBLIC_API_URL</code>（隧道公网地址），
-          在 Cloudflare Pages 填 <code>VITE_WENGU_API_ORIGIN</code>（同一地址），
-          并设置 <code>CORS_ORIGIN</code> 包含本域名，然后重新部署。
+        <template v-if="isCloudflarePagesHost">
+          管理员请到 Cloudflare Pages → Settings → Environment variables（Secrets）配置：
+          <code>DEEPSEEK_API_KEY</code>、<code>WENGU_ADMIN_PASSWORD</code>，
+          可选 <code>WENGU_ADMIN_USERNAME</code>，然后重新部署。
+          成员管理还需绑定 KV：<code>WENGU_KV</code>。
         </template>
         <template v-else>
-          局域网用法：手机 Chrome 打开 <code>https://电脑WiFiIP:8790</code>，先信任证书再登录。
+          本地请运行 <code>npm run serve:install</code>；公网请使用已配置 Secrets 的 pages.dev。
         </template>
       </p>
       <el-button size="small" :loading="probingServer" @click="refreshServerProbe">重新检测</el-button>
+      <el-button size="small" text type="primary" @click="showAdvancedApi = !showAdvancedApi">
+        {{ showAdvancedApi ? '收起高级选项' : '高级：自定义 API 地址' }}
+      </el-button>
+    </div>
+
+    <div v-if="showAdvancedApi" class="install-card">
+      <p class="install-card__title">自定义 API（一般不需要）</p>
+      <p class="install-card__text">
+        默认已同源调用本站服务。仅在特殊调试时填写其他地址。
+      </p>
+      <div class="wengu-auth__form" style="margin-top: 10px">
+        <el-input
+          v-model="apiOriginDraft"
+          clearable
+          placeholder="留空 = 本站同源"
+          @keydown.enter.prevent="onSaveApiOrigin"
+        />
+        <div class="wengu-auth__member-actions">
+          <el-button type="primary" size="small" @click="onSaveApiOrigin">保存并检测</el-button>
+          <el-button size="small" @click="onClearApiOrigin">清除</el-button>
+        </div>
+        <p class="install-card__text wengu-auth__note">当前目标：<code>{{ currentApiTarget }}</code></p>
+      </div>
     </div>
 
     <div v-if="loggedIn && currentUser" class="install-card install-card--ok">

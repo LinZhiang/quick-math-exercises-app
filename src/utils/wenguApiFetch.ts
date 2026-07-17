@@ -1,5 +1,5 @@
 /**
- * 登录 / AI 相关 API 请求
+ * 登录 / AI 相关 API 请求（默认同源：Pages Functions 或家庭 Node）
  */
 import {
   describeWenguApiTarget,
@@ -19,45 +19,28 @@ export class WenguApiError extends Error {
 }
 
 function offlineHint(): string {
-  const pageOrigin = typeof location !== 'undefined' ? location.origin : ''
-  const apiTarget = describeWenguApiTarget()
-
   if (usesRemoteWenguApi()) {
-    return `无法连接 API 服务（${apiTarget}）。请确认电脑已运行 npm run serve:install，且 Cloudflare 隧道/公网映射正常。`
+    return `无法连接自定义 API（${describeWenguApiTarget()}）。可在安装页清除自定义地址，改用本站同源服务。`
   }
-
-  if (pageOrigin.includes('pages.dev')) {
+  if (typeof location !== 'undefined' && location.hostname.includes('pages.dev')) {
     return (
-      '当前为 Cloudflare 静态页，未配置后端 API。请在 server/.env 设置 WENGU_PUBLIC_API_URL（家庭服务公网地址），' +
-      'Cloudflare Pages 环境变量 VITE_WENGU_API_ORIGIN 与之相同，然后重新部署。'
+      '无法连接本站登录服务。请确认 Cloudflare Pages 已配置 Secrets：' +
+      'DEEPSEEK_API_KEY、WENGU_ADMIN_PASSWORD，并重新部署。'
     )
   }
-
-  const port = typeof location !== 'undefined' ? location.port : ''
-  if (port && port !== '8790') {
-    return `当前页面 ${pageOrigin}，请用手机打开 https://电脑WiFiIP:8790，或在配置中填写 WENGU_PUBLIC_API_URL。`
-  }
-
-  return '无法连接登录服务：请确认电脑已执行 npm run serve:install，手机与电脑在同一 WiFi，地址为 https://电脑IP:8790'
+  return '无法连接登录服务。本地请运行 npm run serve:install；公网请用已配置 Secrets 的 pages.dev。'
 }
 
 export async function readWenguJsonResponse<T>(res: Response): Promise<T> {
   const text = await res.text()
   if (!text.trim()) {
-    if (!res.ok) {
-      throw new WenguApiError(`${offlineHint()}（HTTP ${res.status}，空响应）`, res.status)
-    }
-    throw new WenguApiError(offlineHint())
+    throw new WenguApiError(`${offlineHint()}（HTTP ${res.status}，空响应）`, res.status)
   }
   try {
     return JSON.parse(text) as T
   } catch {
-    const looksHtml = /^\s*</.test(text)
-    const extra = looksHtml && !getWenguApiOrigin() && typeof location !== 'undefined' && location.hostname.includes('pages.dev')
-      ? ' 检测到 HTML 页面：静态托管未配置 VITE_WENGU_API_ORIGIN。'
-      : ''
     throw new WenguApiError(
-      `服务器返回了非 JSON 内容（HTTP ${res.status}）。${offlineHint()}${extra}`,
+      `服务器返回了非 JSON（HTTP ${res.status}）。${offlineHint()}`,
       res.status,
     )
   }
@@ -83,6 +66,7 @@ export type WenguServerProbe = {
   message: string
   authEnabled?: boolean
   apiTarget?: string
+  hosting?: string
 }
 
 export async function probeWenguAuthServer(): Promise<WenguServerProbe> {
@@ -92,6 +76,8 @@ export async function probeWenguAuthServer(): Promise<WenguServerProbe> {
     const data = await readWenguJsonResponse<{
       ok?: boolean
       authEnabled?: boolean
+      hosting?: string
+      alwaysOn?: boolean
     }>(res)
     if (!res.ok || !data.ok) {
       return { ok: false, message: `服务端异常（HTTP ${res.status}）`, apiTarget }
@@ -99,18 +85,23 @@ export async function probeWenguAuthServer(): Promise<WenguServerProbe> {
     if (!data.authEnabled) {
       return {
         ok: false,
-        message: '服务端未配置登录：请在 server/.env 填写 WENGU_ADMIN_PASSWORD 并重启服务',
+        message: '未配置管理员密码：请在 Cloudflare Secrets / server/.env 设置 WENGU_ADMIN_PASSWORD',
         authEnabled: false,
         apiTarget,
+        hosting: data.hosting,
       }
     }
+    const onPages = data.hosting === 'cloudflare-pages' || data.alwaysOn
     return {
       ok: true,
-      message: usesRemoteWenguApi()
-        ? `已连接远程 API：${apiTarget}`
-        : '已连接家庭登录服务',
+      message: onPages
+        ? '已连接云端登录服务（出门可直接用本站，无需开电脑）'
+        : usesRemoteWenguApi()
+          ? `已连接远程 API：${apiTarget}`
+          : '已连接登录服务',
       authEnabled: true,
       apiTarget,
+      hosting: data.hosting,
     }
   } catch (e) {
     return {
