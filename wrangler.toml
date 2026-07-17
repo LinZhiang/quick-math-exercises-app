@@ -1,6 +1,3 @@
-# Cloudflare Pages 构建输出目录（与仪表盘一致）
-name = "quick-math-exercises-app"
+# Cloudflare Pages：仅声明输出目录，避免与仪表盘重复冲突
 compatibility_date = "2024-11-12"
 pages_build_output_dir = "dist"
-
-# 若要在仪表盘绑定 KV：变量名必须为 WENGU_KV（成员账号存储）
