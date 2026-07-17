@@ -302,7 +302,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           </el-button>
         </div>
         <p v-if="!isAiChatConfigured()" class="chinese-quiz__assist-muted">
-          未配置 AI 时无法讲解。
+          未授权 DeepSeek，无法讲解。请到「导览 → 安装」填写 API Key。
         </p>
         <template v-else>
           <p

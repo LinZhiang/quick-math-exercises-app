@@ -1,6 +1,6 @@
 import { ElMessage } from 'element-plus'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { isAiChatConfigured, requestEconomyCommonSenseMcqs } from '@/services/deepseek'
+import { isAiChatConfigured, requestEconomyCommonSenseMcqs, DEEPSEEK_NOT_CONFIGURED_HINT } from '@/services/deepseek'
 import {
   appendGeneratedTerms,
   listRecentGeneratedTerms,
@@ -121,7 +121,7 @@ export function useChineseEconomyCommonSenseTest() {
 
   async function generatePaper() {
     if (!isAiChatConfigured()) {
-      ElMessage.warning('未配置 DeepSeek，请在电脑执行 npm run setup 后重新安装 App')
+      ElMessage.warning(DEEPSEEK_NOT_CONFIGURED_HINT)
       return
     }
     phase.value = 'loading'

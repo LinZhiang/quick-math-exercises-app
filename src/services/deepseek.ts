@@ -89,18 +89,25 @@ import {
   type ReadingComprehensionQuestion,
   readingComprehensionQuestionTypeLabel,
 } from '@/utils/readingComprehensionPractice'
+import {
+  DEEPSEEK_NOT_CONFIGURED_HINT,
+  deepseekAuthTick,
+  hasStoredDeepSeekApiKey,
+  resolveDeepSeekApiKey,
+} from '@/utils/deepseekApiKeyStore'
 
 const WENGU_AI_SOURCE = 'quick-math-exercises-app'
 const DEEPSEEK_API = 'https://api.deepseek.com/chat/completions'
 
-function directApiKey(): string {
-  return import.meta.env.VITE_DEEPSEEK_API_KEY?.trim() ?? ''
+/** 是否已授权 DeepSeek（用户本机 Key；开发环境可回退 VITE_） */
+export function isAiChatConfigured(): boolean {
+  void deepseekAuthTick.value
+  if (hasStoredDeepSeekApiKey()) return true
+  if (import.meta.env.DEV && Boolean(import.meta.env.VITE_DEEPSEEK_API_KEY?.trim())) return true
+  return false
 }
 
-/** 是否已配置 DeepSeek（构建时写入密钥即可，无需电脑代理） */
-export function isAiChatConfigured(): boolean {
-  return Boolean(directApiKey())
-}
+export { DEEPSEEK_NOT_CONFIGURED_HINT }
 
 export type DeepSeekChatTurn = {
   role: 'user' | 'assistant'
@@ -113,9 +120,9 @@ async function deepseekChatCompletion(
   messages: ChatMessage[],
   options?: { temperature?: number; maxTokens?: number },
 ): Promise<string> {
-  const key = directApiKey()
+  const key = await resolveDeepSeekApiKey()
   if (!key) {
-    throw new Error('未配置 DeepSeek 密钥。请在电脑执行 npm run setup，然后重新安装手机 App。')
+    throw new Error(DEEPSEEK_NOT_CONFIGURED_HINT)
   }
   const res = await fetch(DEEPSEEK_API, {
     method: 'POST',

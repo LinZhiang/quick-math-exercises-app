@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
 import { usePwaInstall } from '@/composables/usePwaInstall'
+import DeepseekApiAuthPanel from '@/components/DeepseekApiAuthPanel.vue'
 
 const { canInstall, showIosHint, installed, promptInstall } = usePwaInstall()
 
@@ -17,9 +18,8 @@ async function onInstall() {
     <h3 class="mode-section__title">安装到手机</h3>
     <p class="mode-section__hint">
       手机 Chrome 打开本页（Cloudflare 公网地址或家里局域网地址）→ 安装应用。
-      装好后<strong>出门不用开电脑</strong>，有手机网络就能练（DeepSeek 直连）。
-      电脑本地首次构建可执行 <code>npm run setup</code>；仅在家里局域网装 App 时可临时用
-      <code>npm run serve:install</code>（装完可关）。
+      装好后<strong>出门不用开电脑</strong>，有手机网络就能练。
+      语文 AI 功能需先在下方完成「DeepSeek API 授权」。
     </p>
 
     <div v-if="installed" class="install-card install-card--ok">
@@ -38,6 +38,8 @@ async function onInstall() {
       </div>
     </template>
   </section>
+
+  <DeepseekApiAuthPanel />
 </template>
 
 <style scoped>

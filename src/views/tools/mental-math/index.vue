@@ -1132,7 +1132,7 @@ onBeforeUnmount(() => {
       <h2 class="page-title">口算练习</h2>
       <p class="page-subtitle page-subtitle--full">
         限时口算、次幂、平方与立方、估算分数、整除及其性质、生活常识、图形推理；左侧「语文练习」含成语识记、词语识记、阅读理解等子功能。
-        口算/图形结果仅在本页展示；语文练习多子模块四选一、正计时，DeepSeek 随机出题，错题与收藏在「关键题练习」。
+        口算/图形结果仅在本页展示；语文练习多子模块四选一、正计时，依赖 DeepSeek 出题（需在「导览 → 安装」授权 API Key），错题与收藏在「关键题练习」。
       </p>
       <p class="page-subtitle page-subtitle--compact">
         点上方分类找模式，点卡片开始练习。
@@ -1455,7 +1455,10 @@ onBeforeUnmount(() => {
           <p class="mode-section__hint">
             面向公务员、事业单位备考；开放成语/词语识记、文言、修辞、阅读理解及公基常识等子功能。
           </p>
-          <ChinesePracticeSection ref="chinesePracticeRef" />
+          <ChinesePracticeSection
+            ref="chinesePracticeRef"
+            @go-install="activeOutlineSection = 'install'"
+          />
         </section>
 
         <PwaInstallPanel v-if="showInstallSection" />

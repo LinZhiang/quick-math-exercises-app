@@ -28,8 +28,19 @@ import ChineseReadingComprehensionPanel from '@/views/tools/chinese-practice/Chi
 import ChineseRhetoricUsagePanel from '@/views/tools/chinese-practice/ChineseRhetoricUsagePanel.vue'
 import ChineseTheoryPolicyPanel from '@/views/tools/chinese-practice/ChineseTheoryPolicyPanel.vue'
 import ChineseWordMemorizationPanel from '@/views/tools/chinese-practice/ChineseWordMemorizationPanel.vue'
+import { isAiChatConfigured, DEEPSEEK_NOT_CONFIGURED_HINT } from '@/services/deepseek'
+import { deepseekAuthTick } from '@/utils/deepseekApiKeyStore'
 
 export type { KeyPracticePayload } from '@/types/chinese-practice'
+
+const emit = defineEmits<{
+  (e: 'go-install'): void
+}>()
+
+const deepseekReady = computed(() => {
+  void deepseekAuthTick.value
+  return isAiChatConfigured()
+})
 
 const activeTab = ref<ChinesePracticeTabId>(DEFAULT_CHINESE_PRACTICE_TAB)
 const activeTabGroupId = ref<ChinesePracticeTabGroupId>(
@@ -165,6 +176,14 @@ defineExpose({
 
 <template>
   <div class="chinese-practice-section">
+    <div v-if="!deepseekReady" class="chinese-practice-section__auth-banner" role="status">
+      <p class="chinese-practice-section__auth-text">{{ DEEPSEEK_NOT_CONFIGURED_HINT }}</p>
+      <a
+        class="chinese-practice-section__auth-link"
+        href="#install"
+        @click.prevent="emit('go-install')"
+      >去授权</a>
+    </div>
     <nav ref="tabsRef" class="chinese-practice-section__nav" aria-label="语文练习子功能">
       <div class="chinese-practice-section__level1" aria-label="一级分类">
         <template
@@ -272,6 +291,35 @@ defineExpose({
 </template>
 
 <style scoped>
+.chinese-practice-section__auth-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, #c2410c 35%, var(--app-border-soft));
+  background: color-mix(in srgb, #fff7ed 80%, transparent);
+}
+
+.chinese-practice-section__auth-text {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #9a3412;
+}
+
+.chinese-practice-section__auth-link {
+  flex-shrink: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #c2410c;
+  text-decoration: underline;
+}
+
 .chinese-practice-section__nav {
   margin-bottom: 16px;
 }
