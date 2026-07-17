@@ -97,6 +97,7 @@ import {
   WENGU_LOGIN_REQUIRED_HINT,
   wenguAuthTick,
 } from '@/utils/wenguAuthStore'
+import { wenguApiFetch } from '@/utils/wenguApiFetch'
 import {
   hasStoredDeepSeekApiKey,
   resolveDeepSeekApiKey,
@@ -104,7 +105,6 @@ import {
 
 const WENGU_AI_SOURCE = 'quick-math-exercises-app'
 const DEEPSEEK_DIRECT_API = 'https://api.deepseek.com/chat/completions'
-const DEEPSEEK_PROXY_API = '/api/ai/chat/completions'
 
 /** 是否可使用语文 AI（已登录走服务端代理；开发环境可回退本机 Key） */
 export function isAiChatConfigured(): boolean {
@@ -141,7 +141,7 @@ async function deepseekChatCompletion(
   })
 
   if (sessionToken) {
-    const res = await fetch(DEEPSEEK_PROXY_API, {
+    const res = await wenguApiFetch('/api/ai/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

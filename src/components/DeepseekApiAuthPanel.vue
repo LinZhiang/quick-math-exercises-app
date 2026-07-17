@@ -13,6 +13,7 @@ import {
   probeWenguAuthServer,
   resetWenguMemberPassword,
   setWenguMemberEnabled,
+  usesRemoteWenguApi,
   type WenguMemberUser,
   type WenguServerProbe,
   wenguAuthTick,
@@ -20,6 +21,9 @@ import {
 
 const serverProbe = ref<WenguServerProbe | null>(null)
 const probingServer = ref(false)
+const locationOrigin = typeof location !== 'undefined' ? location.origin : ''
+const isCloudflarePagesHost = locationOrigin.includes('pages.dev')
+const hasRemoteApi = usesRemoteWenguApi()
 
 const username = ref('')
 const password = ref('')
@@ -197,9 +201,19 @@ onMounted(() => {
     >
       <p class="install-card__title">登录服务连接</p>
       <p class="install-card__text">{{ serverProbe.message }}</p>
+      <p v-if="serverProbe.apiTarget" class="install-card__text wengu-auth__note">
+        API 目标：<code>{{ serverProbe.apiTarget }}</code>
+      </p>
       <p v-if="!serverProbe.ok" class="install-card__text wengu-auth__note">
-        手机请用 Chrome 打开 <code>https://电脑WiFiIP:8790</code>（与电脑同一 WiFi），先点「高级 → 继续前往」信任证书，再登录。
-        若主屏幕是以前装的旧快捷方式，请删掉后从上述地址重新「安装应用」。
+        <template v-if="isCloudflarePagesHost && !hasRemoteApi">
+          你正在使用 Cloudflare 静态页（<code>pages.dev</code>）。请在
+          <code>server/.env</code> 填 <code>WENGU_PUBLIC_API_URL</code>（隧道公网地址），
+          在 Cloudflare Pages 填 <code>VITE_WENGU_API_ORIGIN</code>（同一地址），
+          并设置 <code>CORS_ORIGIN</code> 包含本域名，然后重新部署。
+        </template>
+        <template v-else>
+          局域网用法：手机 Chrome 打开 <code>https://电脑WiFiIP:8790</code>，先信任证书再登录。
+        </template>
       </p>
       <el-button size="small" :loading="probingServer" @click="refreshServerProbe">重新检测</el-button>
     </div>
