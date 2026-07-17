@@ -7,3 +7,4 @@ server/node_modules
 server/.env
 server/logs
 server/certs
+server/data

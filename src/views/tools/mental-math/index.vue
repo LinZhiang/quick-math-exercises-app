@@ -109,6 +109,7 @@ import {
 } from '@/utils/shortenSentencePractice'
 import ChinesePracticeSection from '@/views/tools/chinese-practice/ChinesePracticeSection.vue'
 import PwaInstallPanel from '@/components/PwaInstallPanel.vue'
+import { clearWenguSessionOnAiLeave } from '@/utils/wenguAuthStore'
 import MentalMathWrongBookPanel from '@/views/tools/mental-math/components/MentalMathWrongBookPanel.vue'
 import { upsertMentalMathWrong } from '@/utils/mentalMathWrongBook'
 
@@ -360,8 +361,11 @@ const activeHubGroupId = ref<PracticeHubGroupId>(
 const hubChildSections = computed(() => practiceHubSectionsInGroup(activeHubGroupId.value))
 const showHubLevel2 = computed(() => practiceHubGroupHasMultiple(activeHubGroupId.value))
 
-watch(activeOutlineSection, (id) => {
+watch(activeOutlineSection, (id, prev) => {
   activeHubGroupId.value = practiceHubGroupIdForSection(id)
+  if (prev === 'chinese' && id !== 'chinese' && id !== 'install') {
+    clearWenguSessionOnAiLeave()
+  }
 })
 
 function selectHubGroup(groupId: PracticeHubGroupId) {

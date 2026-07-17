@@ -31,7 +31,9 @@ function lanIp() {
 try {
   run('node scripts/sync-server-env.mjs', '同步 DeepSeek 密钥')
 } catch {
-  console.error('\n[start] 请先配置 server/.env 里的 DEEPSEEK_API_KEY')
+  console.error('\n[start] 请先配置 server/.env：')
+  console.error('  DEEPSEEK_API_KEY=sk-...')
+  console.error('  WENGU_ADMIN_PASSWORD=你的管理员密码（任意设备登录用）')
   process.exit(1)
 }
 

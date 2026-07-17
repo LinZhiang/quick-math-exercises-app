@@ -11,12 +11,22 @@ export default defineConfig(() => {
       ? { key: readFileSync(certKey), cert: readFileSync(certFile) }
       : undefined
 
+  const aiProxyTarget = process.env.VITE_AI_PROXY_TARGET || 'http://127.0.0.1:8790'
+
   const serverCommon = {
     port: 5174,
     strictPort: true,
     host: true,
     allowedHosts: true,
     https,
+    proxy: {
+      '/api': { target: aiProxyTarget, changeOrigin: true },
+      '/auth': { target: aiProxyTarget, changeOrigin: true },
+      '/admin': { target: aiProxyTarget, changeOrigin: true },
+      '/health': { target: aiProxyTarget, changeOrigin: true },
+      '/status': { target: aiProxyTarget, changeOrigin: true },
+      '/v1': { target: aiProxyTarget, changeOrigin: true },
+    },
   }
 
   return {

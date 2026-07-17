@@ -29,7 +29,7 @@ import ChineseRhetoricUsagePanel from '@/views/tools/chinese-practice/ChineseRhe
 import ChineseTheoryPolicyPanel from '@/views/tools/chinese-practice/ChineseTheoryPolicyPanel.vue'
 import ChineseWordMemorizationPanel from '@/views/tools/chinese-practice/ChineseWordMemorizationPanel.vue'
 import { isAiChatConfigured, DEEPSEEK_NOT_CONFIGURED_HINT } from '@/services/deepseek'
-import { deepseekAuthTick } from '@/utils/deepseekApiKeyStore'
+import { wenguAuthTick } from '@/utils/wenguAuthStore'
 
 export type { KeyPracticePayload } from '@/types/chinese-practice'
 
@@ -38,7 +38,7 @@ const emit = defineEmits<{
 }>()
 
 const deepseekReady = computed(() => {
-  void deepseekAuthTick.value
+  void wenguAuthTick.value
   return isAiChatConfigured()
 })
 
@@ -182,7 +182,7 @@ defineExpose({
         class="chinese-practice-section__auth-link"
         href="#install"
         @click.prevent="emit('go-install')"
-      >去授权</a>
+      >去登录</a>
     </div>
     <nav ref="tabsRef" class="chinese-practice-section__nav" aria-label="语文练习子功能">
       <div class="chinese-practice-section__level1" aria-label="一级分类">

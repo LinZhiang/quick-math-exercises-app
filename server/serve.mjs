@@ -10,6 +10,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createAiProxyApp, onListenError, PORT, warnIfMissingEnv } from './ai-proxy-core.mjs'
+import { noStoreCacheMiddleware } from './auth-core.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const distDir = path.join(__dirname, '..', 'dist')
@@ -26,12 +27,22 @@ if (!fs.existsSync(path.join(distDir, 'index.html'))) {
 warnIfMissingEnv()
 
 const app = createAiProxyApp()
+
+app.use((req, res, next) => {
+  if (/\.(js|css|png|jpg|jpeg|gif|webp|ico|svg|woff2?|ttf|map)$/i.test(req.path)) {
+    return next()
+  }
+  noStoreCacheMiddleware(req, res, next)
+})
+
 app.use(express.static(distDir, { index: false, maxAge: '1h' }))
 
 app.get('*', (req, res, next) => {
   if (
     req.path.startsWith('/v1/') ||
     req.path.startsWith('/api/ai/') ||
+    req.path.startsWith('/auth/') ||
+    req.path.startsWith('/admin/') ||
     req.path === '/health' ||
     req.path.startsWith('/status/')
   ) {

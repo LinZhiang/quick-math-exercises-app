@@ -1,5 +1,5 @@
 /**
- * 同步 DeepSeek 密钥到 .env.local（构建进 App，手机出门也能用）
+ * 同步 DeepSeek 密钥到 server/.env，并生成前端 .env.local（仅模型名，不含密钥）
  * 优先级：环境变量（Cloudflare CI）> server/.env > 主 App 的 .env
  */
 import fs from 'node:fs'
@@ -37,21 +37,20 @@ function modelFromProcessEnv() {
   return (process.env.VITE_DEEPSEEK_MODEL || 'deepseek-v4-flash').trim()
 }
 
-function writeLocalEnv(key, model, source) {
+function writeLocalEnv(model, source) {
   const localContent = [
     `# 由 sync-server-env.mjs 生成（来源：${source}）`,
-    '# 密钥打进 App，手机/PWA 直连 DeepSeek，出门无需开电脑',
-    `VITE_DEEPSEEK_API_KEY=${key}`,
+    '# DeepSeek 密钥仅在 server/.env；前端登录后走服务端代理',
     `VITE_DEEPSEEK_MODEL=${model}`,
     '',
   ].join('\n')
   fs.writeFileSync(localEnv, localContent, 'utf8')
-  console.log(`[sync:env] 已写入 .env.local（${source}）`)
+  console.log(`[sync:env] 已写入 .env.local（${source}，仅模型名）`)
 }
 
 const envKey = keyFromProcessEnv()
 if (!isPlaceholderKey(envKey)) {
-  writeLocalEnv(envKey, modelFromProcessEnv(), '环境变量')
+  writeLocalEnv(modelFromProcessEnv(), '环境变量')
   process.exit(0)
 }
 
@@ -71,24 +70,22 @@ if (!fs.existsSync(serverEnv)) {
 
 const fileKey = readKeyFromEnvFile(serverEnv)
 if (!isPlaceholderKey(fileKey)) {
-  writeLocalEnv(fileKey, modelFromProcessEnv(), 'server/.env')
+  writeLocalEnv(modelFromProcessEnv(), 'server/.env')
   process.exit(0)
 }
 
 if (isCi) {
   console.error(
     '[sync:env] 云端构建未找到 DeepSeek 密钥。\n' +
-      '请在 Cloudflare Pages 项目 → Settings → Variables and secrets → + Add：\n' +
-      '  变量名：VITE_DEEPSEEK_API_KEY\n' +
-      '  类型：Secret（推荐）\n' +
-      '  值：与主学习 App server/.env 里的 DEEPSEEK_API_KEY 相同\n' +
-      '  环境：勾选 Production（Preview 也勾上）\n' +
-      '保存后到 Deployments 点 Retry deployment。',
+      '静态托管无法使用服务端登录代理；请改用家庭 HTTPS 服务（npm run serve:install），\n' +
+      '或在 Cloudflare Pages 配置 VITE_DEEPSEEK_API_KEY（仅开发/自用，密钥会打进前端包）。',
   )
 } else {
   console.error(
-    '[sync:env] 未找到 DEEPSEEK_API_KEY。请编辑 server/.env 或先配置主学习 App 的密钥，\n' +
-      '也可设置环境变量 VITE_DEEPSEEK_API_KEY。',
+    '[sync:env] 未找到 DEEPSEEK_API_KEY。请编辑 server/.env 并填写：\n' +
+      '  DEEPSEEK_API_KEY=sk-...\n' +
+      '  WENGU_ADMIN_USERNAME=admin\n' +
+      '  WENGU_ADMIN_PASSWORD=你的强密码',
   )
 }
 process.exit(1)

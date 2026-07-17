@@ -7,6 +7,7 @@ import express from 'express'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { attachAuthRoutes, isAuthConfigured, noStoreCacheMiddleware, requireAuth } from './auth-core.mjs'
 import {
   appendAiRequestLog,
   readRecentAiRequestLogs,
@@ -33,9 +34,17 @@ export function warnIfMissingEnv() {
     console.warn(
       '[quick-math-ai] 未找到 server/.env。请执行 npm run sync:env，或复制 server/.env.example 为 server/.env 并填写 DEEPSEEK_API_KEY。',
     )
-  } else if (!DEEPSEEK_KEY) {
-    // eslint-disable-next-line no-console
-    console.warn('[quick-math-ai] 警告：server/.env 中未配置 DEEPSEEK_API_KEY')
+  } else {
+    if (!DEEPSEEK_KEY) {
+      // eslint-disable-next-line no-console
+      console.warn('[quick-math-ai] 警告：server/.env 中未配置 DEEPSEEK_API_KEY')
+    }
+    if (!isAuthConfigured()) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[quick-math-ai] 警告：未配置 WENGU_ADMIN_PASSWORD，语文 AI 登录不可用。请在 server/.env 设置管理员密码。',
+      )
+    }
   }
 }
 
@@ -59,12 +68,16 @@ export function createAiProxyApp() {
     : cors({ origin: true })
 
   app.use(corsMiddleware)
+  app.use(noStoreCacheMiddleware)
   app.use(express.json({ limit: '32mb' }))
+
+  attachAuthRoutes(app)
 
   app.get('/health', (_req, res) => {
     res.json({
       ok: true,
       hasApiKey: hasDeepseekApiKey(),
+      authEnabled: isAuthConfigured(),
       upstream: UPSTREAM,
     })
   })
@@ -85,6 +98,16 @@ export function createAiProxyApp() {
   })
 
   async function handleChatCompletions(req, res) {
+    if (!isAuthConfigured()) {
+      res.status(503).json({
+        error: {
+          message: '服务端未配置登录：请在 server/.env 填写 WENGU_ADMIN_PASSWORD',
+          type: 'auth_config',
+        },
+      })
+      return
+    }
+
     if (!DEEPSEEK_KEY) {
       res.status(503).json({
         error: {
@@ -96,11 +119,12 @@ export function createAiProxyApp() {
     }
 
     const body = { ...(req.body ?? {}) }
+    const user = req.wenguUser
     const source = String(req.headers['x-wengu-ai-source'] ?? 'unknown').slice(0, 64)
     const model = normalizeOutboundModel(body.model)
     body.model = model
     // eslint-disable-next-line no-console
-    console.log(`[quick-math-ai] model=${model} source=${source}`)
+    console.log(`[quick-math-ai] model=${model} source=${source} user=${user?.username ?? '?'}`)
 
     let upstreamStatus = 0
     let usage = null
@@ -160,8 +184,8 @@ export function createAiProxyApp() {
     }
   }
 
-  app.post('/v1/chat/completions', handleChatCompletions)
-  app.post('/api/ai/chat/completions', handleChatCompletions)
+  app.post('/v1/chat/completions', requireAuth, handleChatCompletions)
+  app.post('/api/ai/chat/completions', requireAuth, handleChatCompletions)
 
   return app
 }

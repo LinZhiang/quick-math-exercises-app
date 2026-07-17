@@ -90,24 +90,34 @@ import {
   readingComprehensionQuestionTypeLabel,
 } from '@/utils/readingComprehensionPractice'
 import {
-  DEEPSEEK_NOT_CONFIGURED_HINT,
-  deepseekAuthTick,
+  getWenguAuthToken,
+  hydrateWenguAuthStore,
+  isWenguLoggedIn,
+  WENGU_ACCOUNT_DISABLED_HINT,
+  WENGU_LOGIN_REQUIRED_HINT,
+  wenguAuthTick,
+} from '@/utils/wenguAuthStore'
+import {
   hasStoredDeepSeekApiKey,
   resolveDeepSeekApiKey,
 } from '@/utils/deepseekApiKeyStore'
 
 const WENGU_AI_SOURCE = 'quick-math-exercises-app'
-const DEEPSEEK_API = 'https://api.deepseek.com/chat/completions'
+const DEEPSEEK_DIRECT_API = 'https://api.deepseek.com/chat/completions'
+const DEEPSEEK_PROXY_API = '/api/ai/chat/completions'
 
-/** 是否已授权 DeepSeek（用户本机 Key；开发环境可回退 VITE_） */
+/** 是否可使用语文 AI（已登录走服务端代理；开发环境可回退本机 Key） */
 export function isAiChatConfigured(): boolean {
-  void deepseekAuthTick.value
-  if (hasStoredDeepSeekApiKey()) return true
-  if (import.meta.env.DEV && Boolean(import.meta.env.VITE_DEEPSEEK_API_KEY?.trim())) return true
+  void wenguAuthTick.value
+  if (isWenguLoggedIn()) return true
+  if (import.meta.env.DEV) {
+    if (hasStoredDeepSeekApiKey()) return true
+    if (Boolean(import.meta.env.VITE_DEEPSEEK_API_KEY?.trim())) return true
+  }
   return false
 }
 
-export { DEEPSEEK_NOT_CONFIGURED_HINT }
+export const DEEPSEEK_NOT_CONFIGURED_HINT = WENGU_LOGIN_REQUIRED_HINT
 
 export type DeepSeekChatTurn = {
   role: 'user' | 'assistant'
@@ -120,23 +130,57 @@ async function deepseekChatCompletion(
   messages: ChatMessage[],
   options?: { temperature?: number; maxTokens?: number },
 ): Promise<string> {
+  await hydrateWenguAuthStore()
+  const sessionToken = getWenguAuthToken()
+  const model = import.meta.env.VITE_DEEPSEEK_MODEL?.trim() || 'deepseek-v4-flash'
+  const body = JSON.stringify({
+    model,
+    messages,
+    temperature: options?.temperature ?? 0.35,
+    max_tokens: options?.maxTokens ?? 8192,
+  })
+
+  if (sessionToken) {
+    const res = await fetch(DEEPSEEK_PROXY_API, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${sessionToken}`,
+        'X-Wengu-Ai-Source': WENGU_AI_SOURCE,
+      },
+      body,
+    })
+    if (res.status === 401) {
+      throw new Error(WENGU_LOGIN_REQUIRED_HINT)
+    }
+    if (res.status === 403) {
+      throw new Error(WENGU_ACCOUNT_DISABLED_HINT)
+    }
+    if (!res.ok) {
+      const errText = await res.text()
+      throw new Error(`AI 请求失败 (${res.status})：${errText.slice(0, 200)}`)
+    }
+    const data = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>
+    }
+    const msg = data.choices?.[0]?.message
+    const text = (msg?.content ?? msg?.reasoning_content ?? '').trim()
+    if (!text) throw new Error('AI 未返回有效内容')
+    return text
+  }
+
   const key = await resolveDeepSeekApiKey()
   if (!key) {
-    throw new Error(DEEPSEEK_NOT_CONFIGURED_HINT)
+    throw new Error(WENGU_LOGIN_REQUIRED_HINT)
   }
-  const res = await fetch(DEEPSEEK_API, {
+  const res = await fetch(DEEPSEEK_DIRECT_API, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${key}`,
       'X-Wengu-Ai-Source': WENGU_AI_SOURCE,
     },
-    body: JSON.stringify({
-      model: import.meta.env.VITE_DEEPSEEK_MODEL?.trim() || 'deepseek-v4-flash',
-      messages,
-      temperature: options?.temperature ?? 0.35,
-      max_tokens: options?.maxTokens ?? 8192,
-    }),
+    body,
   })
   if (!res.ok) {
     const errText = await res.text()
