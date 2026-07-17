@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { markdownToDisplaySafeHtml } from '@/utils/markdownToHtml'
 import type { DeepSeekDisplayTurn } from '@/composables/useDeepseekConversation'
+import { getAiProviderShortName, aiProviderTick } from '@/utils/aiProviderStore'
 
 const props = defineProps<{
   turns: DeepSeekDisplayTurn[]
@@ -12,8 +13,10 @@ const firstAssistantIndex = computed(() =>
   props.turns.findIndex((turn) => turn.role === 'assistant'),
 )
 
-const renderedTurns = computed(() =>
-  props.turns.map((turn, index) => {
+const renderedTurns = computed(() => {
+  void aiProviderTick.value
+  const assistantName = getAiProviderShortName()
+  return props.turns.map((turn, index) => {
     const displayLabel =
       turn.label ??
       (turn.role === 'assistant' &&
@@ -22,18 +25,18 @@ const renderedTurns = computed(() =>
         ? props.firstAssistantTitle
         : turn.role === 'user'
           ? '你的追问'
-          : 'DeepSeek')
+          : assistantName)
     return {
       ...turn,
       html: markdownToDisplaySafeHtml(turn.content),
       displayLabel,
     }
-  }),
-)
+  })
+})
 </script>
 
 <template>
-  <div v-if="renderedTurns.length" class="deepseek-thread" aria-label="DeepSeek 对话">
+  <div v-if="renderedTurns.length" class="deepseek-thread" aria-label="AI 对话">
     <article
       v-for="(turn, index) in renderedTurns"
       :key="index"

@@ -26,7 +26,7 @@ export function charLiteracyQuestionTypeLabel(type: ChineseCharLiteracyQuestionT
 }
 
 /**
- * 选项里若带「（误）」、引号点错、× 等标记，会一眼暴露对错，必须丢弃。
+ * 选项里若带「（误）」、引号点错、×、自我纠正话术等，会一眼露馅或不成题，必须丢弃。
  * 合法读音括号如（kù）保留。
  */
 export function optionHasObviousErrorMark(text: string): boolean {
@@ -41,7 +41,53 @@ export function optionHasObviousErrorMark(text: string): boolean {
   if (/[“”].{1,4}[“”]/.test(t)) return true
   // 单字书名号点错：一「愁」莫展
   if (/[「『].{1}[」』]/.test(t)) return true
+
+  // 模型把思考/自我纠正写进选项：如「虚与委蛇 (yí) ？不，虚与委蛇 (shé)」
+  if (/[？?]/.test(t)) return true
+  if (/[！!]/.test(t)) return true
+  if (/(?:不对|不是|不应|应为|应该是|更正|改成|或者说|等等|抱歉|其实|等等吧)/.test(t)) {
+    return true
+  }
+  if (/[，,；;：:].{0,6}(?:不|是|应|对)/.test(t)) return true
+  // 同一选项出现两个及以上拼音注音 → 多半改来改去
+  const pyGroups = t.match(
+    /[（(][a-züāáǎàōóǒòēéěèīíǐìūúǔùǖǘǚǜńňǹ\s\-]+[）)]/gi,
+  )
+  if (pyGroups && pyGroups.length >= 2) return true
+  // 选项过长（正常读音/词语选项很短）
+  if (t.replace(/\s+/g, '').length > 28) return true
+
   return false
+}
+
+/** 读音题：四选项须同形、干净，禁止「半对半改」式垃圾项 */
+export function pronunciationMcqQualityFailure(input: {
+  correct: string
+  distractors: string[]
+}): string | null {
+  const options = [input.correct, ...input.distractors].map((s) => s.trim())
+  if (options.length !== 4) return '结构不完整'
+  if (options.some(optionHasObviousErrorMark)) return '选项含露馅/自我纠正标记'
+
+  const stripPy = (s: string) =>
+    s.replace(/[（(][^）)]*[）)]/g, '').replace(/\s+/g, '').trim()
+
+  const bases = options.map(stripPy)
+  if (bases.some((b) => !b)) return '读音题选项缺少词语正文'
+
+  // 同词多音辨析：四项去拼音后应完全相同（只改注音）
+  const allSameBase = bases.every((b) => b === bases[0])
+  // 「下列读音全部正确」类：也可能是不同短语；此时每项仍须短且各仅一处注音
+  if (allSameBase) {
+    const withPy = options.filter((o) => /[（(][a-züāáǎàōóǒòēéěèīíǐìūúǔùǖǘǚǜ]/i.test(o))
+    if (withPy.length !== 4) return '同词读音题：四选项均须带拼音注音'
+  }
+
+  // 任意两项去空白后完全相同 → 废题
+  const norm = options.map((o) => o.replace(/\s+/g, ''))
+  if (new Set(norm).size !== 4) return '选项重复'
+
+  return null
 }
 
 export function getCharLiteracyQuestionFingerprint(input: {
@@ -138,6 +184,10 @@ export function parseCharLiteracyMcqAiObject(item: unknown): {
       distractors,
       explanation,
     })
+    if (fail) return null
+  }
+  if (questionType === 'pronunciation') {
+    const fail = pronunciationMcqQualityFailure({ correct, distractors })
     if (fail) return null
   }
   return { questionType, term, stem, correct, distractors, explanation }

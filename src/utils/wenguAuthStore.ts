@@ -143,31 +143,40 @@ export async function hydrateWenguAuthStore(): Promise<void> {
     purgeLegacyLocalStorage()
     const stored = readStored()
     if (!stored) {
-      memorySession = null
-      notify()
+      // 勿清空 memorySession：登录可能与首次 hydrate 并发，避免把刚登录的会话冲掉
+      if (!memorySession) notify()
       return
     }
     try {
       const res = await wenguApiFetch('/auth/me', {
         headers: { Authorization: `Bearer ${stored.token}` },
       })
+      // 仅当校验的仍是「当前会话」时才因失败清会话（避免冲掉并发新登录）
+      const stillSameSession = () =>
+        (memorySession?.token ?? readStored()?.token) === stored.token
+
       if (res.status === 403) {
-        clearMemoryAndStorage()
+        if (stillSameSession()) clearMemoryAndStorage()
         return
       }
       if (!res.ok) {
-        clearMemoryAndStorage()
+        if (stillSameSession()) clearMemoryAndStorage()
         return
       }
       const data = await readWenguJsonResponse<{ ok?: boolean; user?: WenguUser }>(res)
       if (!data.ok || !data.user) {
-        clearMemoryAndStorage()
+        if (stillSameSession()) clearMemoryAndStorage()
+        return
+      }
+      // 若用户已在校验期间重新登录，保留新会话
+      if (!stillSameSession()) {
+        notify()
         return
       }
       memorySession = { token: stored.token, user: data.user }
       writeStored(memorySession)
     } catch {
-      memorySession = stored
+      if (!memorySession) memorySession = stored
     }
     notify()
   })()
@@ -191,6 +200,8 @@ export async function loginWengu(username: string, password: string): Promise<We
   }
   memorySession = { token: data.token, user: data.user }
   writeStored(memorySession)
+  // 允许下次按需重新校验；避免沿用「启动时无会话」的旧 hydrate 结果
+  hydratePromise = null
   notify()
   return data.user
 }

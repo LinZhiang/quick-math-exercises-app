@@ -14,10 +14,13 @@ const PROJECT = process.env.CF_PAGES_PROJECT || 'quick-math-exercises-app'
 
 const KEYS = [
   'DEEPSEEK_API_KEY',
+  'DEEPSEEK_API_BASE',
+  'DOUBAO_API_KEY',
+  'DOUBAO_API_BASE',
+  'DOUBAO_MODEL_ID',
   'WENGU_ADMIN_USERNAME',
   'WENGU_ADMIN_PASSWORD',
   'WENGU_SESSION_SECRET',
-  'DEEPSEEK_API_BASE',
 ]
 
 function readEnvFile(file) {

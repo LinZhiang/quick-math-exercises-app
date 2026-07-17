@@ -8,6 +8,7 @@ import {
   explanationImpliesNonUniqueAnswer,
   stemHasFillBlank,
 } from '@/utils/chineseVariantQuality'
+import { meaningDistractorQualityFailure } from '@/utils/chineseMeaningDistractorQuality'
 
 export type ChineseIdiomQuestionType = 'word-to-meaning' | 'meaning-to-word'
 
@@ -165,5 +166,15 @@ export function parseIdiomMcqAiObject(item: unknown): {
     return null
   }
   if (explanationImpliesNonUniqueAnswer(explanation, [correct, ...distractors])) return null
+  if (
+    meaningDistractorQualityFailure({
+      questionType,
+      term,
+      correct,
+      distractors,
+    })
+  ) {
+    return null
+  }
   return { questionType, term, stem, correct, distractors, explanation }
 }

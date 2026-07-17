@@ -30,6 +30,7 @@ import ChineseTheoryPolicyPanel from '@/views/tools/chinese-practice/ChineseTheo
 import ChineseWordMemorizationPanel from '@/views/tools/chinese-practice/ChineseWordMemorizationPanel.vue'
 import { isAiChatConfigured, DEEPSEEK_NOT_CONFIGURED_HINT } from '@/services/deepseek'
 import { wenguAuthTick } from '@/utils/wenguAuthStore'
+import AiProviderSwitch from '@/components/AiProviderSwitch.vue'
 
 export type { KeyPracticePayload } from '@/types/chinese-practice'
 
@@ -184,6 +185,7 @@ defineExpose({
         @click.prevent="emit('go-install')"
       >去登录</a>
     </div>
+    <AiProviderSwitch v-if="deepseekReady" />
     <nav ref="tabsRef" class="chinese-practice-section__nav" aria-label="语文练习子功能">
       <div class="chinese-practice-section__level1" aria-label="一级分类">
         <template

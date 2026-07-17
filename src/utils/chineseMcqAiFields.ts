@@ -1,5 +1,7 @@
 /** 语文四选一：从 AI JSON 稳健提取正确答案，并保证选项中一定含正确答案 */
 
+import { CHINESE_MEANING_DISTRACTOR_RULES } from '@/utils/chineseMeaningDistractorQuality'
+
 export function normalizeMcqOptionText(s: string): string {
   return s
     .trim()
@@ -122,10 +124,14 @@ export function isPlayableFourChoiceMcq(q: {
   return true
 }
 
-export const CHINESE_MCQ_CORRECTNESS_RULES = `
+export const CHINESE_MCQ_CORRECTNESS_RULES = (
+  `
 【正确答案约束·严重】
 - correct 的文本必须能在四个选项中找到**完全一致**的一项（勿另写不在选项里的句子）
 - 也可直接返回 options 长度为 4 的数组，并给 correctIndex（0～3）或 correct 为 A/B/C/D
 - distractors 必须 3 个，且与 correct 互不相同、互不雷同
 - 禁止出现「四个选项都对不上题干」「正确项实际不在选项中」的题
-`.trim()
+`.trim() +
+  '\n\n' +
+  CHINESE_MEANING_DISTRACTOR_RULES
+)

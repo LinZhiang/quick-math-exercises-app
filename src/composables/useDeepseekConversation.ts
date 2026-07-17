@@ -41,7 +41,7 @@ export function useDeepseekConversation(options: {
     try {
       systemPrompt.value = input.system
       const raw = (await input.fetch()).trim()
-      if (!raw) throw new Error('DeepSeek 未返回有效内容')
+      if (!raw) throw new Error('AI 未返回有效内容')
 
       apiHistory.value = [
         { role: 'user', content: input.initialUser },
@@ -87,7 +87,7 @@ export function useDeepseekConversation(options: {
         userMessage: trimmed,
       })
       const content = raw.trim()
-      if (!content) throw new Error('DeepSeek 未返回有效内容')
+      if (!content) throw new Error('AI 未返回有效内容')
 
       apiHistory.value = [
         ...prior,
