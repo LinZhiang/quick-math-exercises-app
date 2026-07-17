@@ -113,8 +113,9 @@ function schemaHint(source: ChineseKeyQuestionSource): string {
   if (source === 'char-literacy') {
     return [
       'questionType: pronunciation|typo；term；stem；correct；distractors[3]；explanation',
-      'typo 优先「没有错别字的是」：correct=term=规范写法，干扰=该词错写',
-      '若「有错别字的是」：correct=错写≠term，干扰恰含 term 一次，另两项为其它正确词（禁止同一词多个错写并存）',
+      'typo 四选项须四个不同词语，严禁同一词规范写法与错写同列',
+      '「没有错别字」：correct=term，干扰=另外三词各自的错写',
+      '「有错别字」：correct=term 的错写，干扰=另外三正确词，选项不得含 term',
       '禁止把规范写法标成有错别字答案',
     ].join('。')
   }

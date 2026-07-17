@@ -13,6 +13,7 @@ import {
 } from '@/utils/chineseCharLiteracyStorage'
 import { charLiteracyQuestionTypeLabel } from '@/utils/charLiteracyPractice'
 import type { CharLiteracyQuestion } from '@/utils/charLiteracyPractice'
+import { typoMcqAnswerFeedbackLabel, typoStemPolarity } from '@/utils/chineseVariantQuality'
 
 const CHAR_ASSIST_SYSTEM =
   '你是事业编与公务员考试言语理解「字音字形」教练，擅长多音字、习惯性误读、形近字与音近错别字辨析。用简体中文讲解，点明正确读音/字形及易混原因，可给记忆口诀。回答要具体，避免空泛。'
@@ -60,13 +61,22 @@ function buildAssistPrompt(q: CharLiteracyQuestion): string {
   const chosen =
     row?.chosenIndex != null ? String(q.options[row.chosenIndex] ?? '') : '（未选）'
   const correct = q.options[q.correctIndex] ?? ''
+  const answerLine =
+    q.questionType === 'typo'
+      ? typoMcqAnswerFeedbackLabel(q.stem, correct)
+      : `正确答案：${correct}`
+  const typoNote =
+    q.questionType === 'typo' && typoStemPolarity(q.stem) === 'has-typo'
+      ? `注意：本题问的是「哪一项有错别字」，标答选项本身是错写；规范写法是「${q.term}」。`
+      : ''
   return [
     `题型：${charLiteracyQuestionTypeLabel(q.questionType)}`,
     `考点：${q.term}`,
     `题干：${q.stem}`,
     `选项：\n${opts}`,
     `学员选择：${chosen}`,
-    `正确答案：${correct}`,
+    answerLine,
+    typoNote,
     `作答结果：${row?.correct ? '正确' : '错误'}`,
     q.explanation ? `题目解析：${q.explanation}` : '',
     '请讲解本题正确读音或正确字形，以及干扰项为何易错，并给出记忆要点。',
@@ -241,7 +251,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           {{
             test.results[test.results.length - 1]?.correct
               ? '回答正确'
-              : `回答错误 · 正确答案：${test.currentQuestion.options[test.currentQuestion.correctIndex]}`
+              : test.currentQuestion.questionType === 'typo'
+                ? `回答错误 · ${typoMcqAnswerFeedbackLabel(
+                    test.currentQuestion.stem,
+                    test.currentQuestion.options[test.currentQuestion.correctIndex] ?? '',
+                  )}`
+                : `回答错误 · 正确答案：${test.currentQuestion.options[test.currentQuestion.correctIndex]}`
           }}
         </p>
         <p v-if="test.currentQuestion.explanation" class="chinese-quiz__explain">

@@ -35,6 +35,15 @@ function isNear(canonical: string, candidate: string): boolean {
   return dist >= 1 && dist <= 2
 }
 
+function optionsNearPair(options: string[]): boolean {
+  for (let i = 0; i < options.length; i++) {
+    for (let j = i + 1; j < options.length; j++) {
+      if (isNear(options[i]!, options[j]!)) return true
+    }
+  }
+  return false
+}
+
 function polarity(stem: string): 'has-typo' | 'no-typo' | 'unknown' {
   const s = stem.replace(/\s+/g, '')
   if (/没有错别字|无错别字/.test(s)) return 'no-typo'
@@ -52,17 +61,19 @@ function typoFail(input: {
   const correct = normalize(input.correct)
   const distractors = input.distractors.map(normalize)
   const options = [correct, ...distractors]
+  if (new Set(options).size !== 4) return 'dup options'
+  if (optionsNearPair(options)) return 'near pair in options'
   const p = polarity(input.stem)
   const exact = options.filter((o) => o === term).length
   if (p === 'no-typo') {
     if (correct !== term) return 'no-typo correct!=term'
+    if (exact !== 1) return 'term count'
+    if (distractors.some((o) => isNear(term, o))) return 'distractor near term'
   } else if (p === 'has-typo') {
     if (correct === term) return 'has-typo correct==term'
     if (!isNear(term, correct)) return 'correct not near'
-    if (exact !== 1) return 'term count'
-    if (!distractors.includes(term)) return 'term not distractor'
-    const other = distractors.filter((o) => o !== term && isNear(term, o))
-    if (other.length) return 'multi typo'
+    if (exact !== 0) return 'term must not appear'
+    if (distractors.some((o) => isNear(term, o))) return 'distractor near term'
   }
   return null
 }
@@ -99,13 +110,43 @@ const cases: { name: string; expectReject: boolean; data: Parameters<typeof typo
     },
   },
   {
-    name: '合法有错别字题',
-    expectReject: false,
+    name: '截图坏题：变本加利与变本加厉同列',
+    expectReject: true,
+    data: {
+      stem: '下列词语有错别字的是？',
+      term: '变本加厉',
+      correct: '变本加利',
+      distractors: ['百折不挠', '顶天立地', '变本加厉'],
+    },
+  },
+  {
+    name: '旧规则合法题（含规范写法）现应拒绝',
+    expectReject: true,
     data: {
       stem: '下列词语有错别字的是？',
       term: '和盘托出',
       correct: '合盘托出',
       distractors: ['和盘托出', '淋漓尽致', '司空见惯'],
+    },
+  },
+  {
+    name: '合法有错别字题（四词互异）',
+    expectReject: false,
+    data: {
+      stem: '下列词语有错别字的是？',
+      term: '变本加厉',
+      correct: '变本加利',
+      distractors: ['百折不挠', '顶天立地', '再接再厉'],
+    },
+  },
+  {
+    name: '合法没有错别字题（四词互异）',
+    expectReject: false,
+    data: {
+      stem: '下列词语没有错别字的是？',
+      term: '和盘托出',
+      correct: '和盘托出',
+      distractors: ['世外桃园', '再接再励', '墨守陈规'],
     },
   },
 ]
