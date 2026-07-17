@@ -13,6 +13,7 @@
     "build": "node scripts/cf-build.mjs",
     "build:check": "vue-tsc -b && vite build",
     "sync:env": "node scripts/sync-server-env.mjs",
+    "sync:cf-secrets": "node scripts/push-cf-secrets.mjs",
     "serve:install": "node scripts/family-start.mjs",
     "serve:public": "node scripts/family-public.mjs",
     "setup:cloud": "node scripts/tunnel-help.mjs",

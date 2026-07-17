@@ -212,8 +212,8 @@ async function onDeleteMember(row: WenguMemberUser) {
 }
 
 onMounted(() => {
-  // 公网站点默认走同源 Functions，清掉以前填的隧道地址
-  if (isCloudflarePagesHost && getWenguApiOrigin()) {
+  // 公网：清掉以前填的隧道地址，强制同源 Functions
+  if (isCloudflarePagesHost) {
     setWenguApiOriginOverride(null)
     apiOriginDraft.value = ''
     apiOriginTick.value += 1
@@ -244,13 +244,14 @@ onMounted(() => {
       <p class="install-card__text">{{ serverProbe.message }}</p>
       <p v-if="!serverProbe.ok" class="install-card__text wengu-auth__note">
         <template v-if="isCloudflarePagesHost">
-          管理员请到 Cloudflare Pages → Settings → Environment variables（Secrets）配置：
-          <code>DEEPSEEK_API_KEY</code>、<code>WENGU_ADMIN_PASSWORD</code>，
-          可选 <code>WENGU_ADMIN_USERNAME</code>，然后重新部署。
-          成员管理还需绑定 KV：<code>WENGU_KV</code>。
+          你电脑上的 <code>server/.env</code> <strong>不会</strong>自动带到公网站点。
+          请在本机执行 <code>npm run sync:cf-secrets</code>（需先 <code>npx wrangler login</code>），
+          或到 Cloudflare Pages → Settings → Variables and secrets 手动添加：
+          <code>DEEPSEEK_API_KEY</code>、<code>WENGU_ADMIN_PASSWORD</code>，然后重新部署。
+          手机请强制刷新或清缓存后再打开。
         </template>
         <template v-else>
-          本地请运行 <code>npm run serve:install</code>；公网请使用已配置 Secrets 的 pages.dev。
+          本地请运行 <code>npm run serve:install</code>；公网请配置 Cloudflare Secrets。
         </template>
       </p>
       <el-button size="small" :loading="probingServer" @click="refreshServerProbe">重新检测</el-button>
