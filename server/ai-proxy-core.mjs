@@ -1,8 +1,8 @@
 /**
  * 口算练习 — DeepSeek 转发核心（密钥仅在 server/.env）
  */
+import './load-env.mjs'
 import cors from 'cors'
-import dotenv from 'dotenv'
 import express from 'express'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -16,8 +16,6 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const envFile = path.join(__dirname, '.env')
-
-dotenv.config({ path: envFile })
 
 export const PORT = Number(process.env.PORT || 8790)
 const DEEPSEEK_KEY = (process.env.DEEPSEEK_API_KEY || '').trim()

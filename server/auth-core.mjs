@@ -4,6 +4,7 @@
  * - 普通成员由管理员在后台增删，持久化到 server/data/users.json
  * - Session 为 HMAC 签名短时令牌；登出/禁用走黑名单 + sessionEpoch 实时校验
  */
+import './load-env.mjs'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
