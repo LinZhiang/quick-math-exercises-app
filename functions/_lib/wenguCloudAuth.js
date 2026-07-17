@@ -1,8 +1,15 @@
 /**
  * Cloudflare Pages Functions 共用鉴权 / 存储（Web Crypto，不依赖 Node）
- * 环境变量：DEEPSEEK_API_KEY, WENGU_ADMIN_USERNAME, WENGU_ADMIN_PASSWORD, WENGU_SESSION_SECRET
+ * 环境变量：DEEPSEEK_API_KEY, DOUBAO_API_KEY, DOUBAO_MODEL_ID,
+ * WENGU_ADMIN_USERNAME, WENGU_ADMIN_PASSWORD, WENGU_SESSION_SECRET
  * 可选 KV：WENGU_KV（存成员与黑名单；无 KV 时仅管理员可登录）
  */
+import {
+  mapUpstreamErrorMeta,
+  normalizeAiProvider,
+  resolveAiUpstream,
+  stripProxyOnlyFields,
+} from './aiUpstream.js'
 
 const USERS_KEY = 'users-v1'
 const BLACKLIST_KEY = 'blacklist-v1'
@@ -427,30 +434,66 @@ export async function handleDeleteUser(env, request, usernameRaw) {
 export async function handleChatCompletions(env, request) {
   const gate = await requireAuth(env, request)
   if (gate.error) return gate.error
-  const key = String(env.DEEPSEEK_API_KEY || '').trim()
-  if (!key) {
+
+  const bodyIn = await request.json().catch(() => ({}))
+  const provider = normalizeAiProvider(
+    bodyIn.provider ?? request.headers.get('x-wengu-ai-provider'),
+  )
+  const upstream = resolveAiUpstream(env, provider, String(bodyIn.model || ''))
+
+  if (!upstream.configured) {
     return json(
-      { error: { message: '未配置 DEEPSEEK_API_KEY', type: 'proxy_config' } },
+      {
+        error: {
+          message: upstream.missingHint || `未配置 ${provider}`,
+          type: 'proxy_config',
+          code: 'PROXY_CONFIG',
+          provider,
+        },
+      },
       503,
     )
   }
-  const upstream = String(env.DEEPSEEK_API_BASE || 'https://api.deepseek.com').replace(/\/$/, '')
-  const body = await request.json().catch(() => ({}))
-  const model = String(body.model || '').trim() || 'deepseek-v4-flash'
-  body.model = model
+
+  const body = stripProxyOnlyFields(bodyIn)
+  body.model = upstream.model
+  if (provider === 'doubao' && body.thinking == null) {
+    const mode = String(env.DOUBAO_THINKING || 'disabled').trim().toLowerCase()
+    body.thinking = {
+      type: mode === 'enabled' || mode === 'auto' ? mode : 'disabled',
+    }
+  }
+
   try {
-    const upstreamRes = await fetch(`${upstream}/chat/completions`, {
+    const upstreamRes = await fetch(`${upstream.base}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${key}`,
+        Authorization: `Bearer ${upstream.apiKey}`,
       },
       body: JSON.stringify(body),
     })
+
+    const status = upstreamRes.status
+    const mapped = mapUpstreamErrorMeta(status, provider)
+    if (mapped) {
+      return json(
+        {
+          error: {
+            message: mapped.message,
+            type: mapped.type,
+            code: mapped.code,
+            provider,
+          },
+        },
+        status,
+      )
+    }
+
     const buf = await upstreamRes.arrayBuffer()
     const ct = upstreamRes.headers.get('content-type') || 'application/json'
     return new Response(buf, {
-      status: upstreamRes.status,
+      status,
       headers: {
         'content-type': ct,
         'cache-control': 'no-store',
@@ -458,7 +501,20 @@ export async function handleChatCompletions(env, request) {
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'upstream failed'
-    return json({ error: { message: `AI 代理失败：${msg}`, type: 'proxy_fetch' } }, 502)
+    const isTimeout = /timeout|aborted|ETIMEDOUT|TimeoutError/i.test(msg)
+    return json(
+      {
+        error: {
+          message: isTimeout
+            ? `${provider} 上游超时，请稍后重试。不会自动切换其他模型，请手动切换。`
+            : `AI 代理失败：${msg}`,
+          type: isTimeout ? 'upstream_timeout' : 'proxy_fetch',
+          code: isTimeout ? 'UPSTREAM_504' : 'PROXY_FETCH',
+          provider,
+        },
+      },
+      isTimeout ? 504 : 502,
+    )
   }
 }
 

@@ -281,7 +281,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       </div>
       <div v-if="test.submitted && test.currentQuestion" class="chinese-quiz__assist">
         <div class="chinese-quiz__assist-head">
-          <h5 class="chinese-quiz__assist-title">DeepSeek 本题讲解</h5>
+          <h5 class="chinese-quiz__assist-title">AI 本题讲解</h5>
           <el-button
             v-if="isAiChatConfigured()"
             size="small"
@@ -294,7 +294,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           </el-button>
         </div>
         <p v-if="!isAiChatConfigured()" class="chinese-quiz__assist-muted">
-          未授权 DeepSeek，无法讲解。请到「导览 → 安装」填写 API Key。
+          未登录，无法讲解。请到「导览 → 安装」登录后再试。
         </p>
         <template v-else>
           <p

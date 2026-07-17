@@ -105,8 +105,8 @@ function schemaHint(source: ChineseKeyQuestionSource): string {
   if (source === 'idiom-memorization' || source === 'word-memorization') {
     return [
       'questionType: word-to-meaning|meaning-to-word；term；stem；correct；distractors[3]；explanation',
-      '选释义：选项=释义，禁止填空题干+词语选项，禁止选项含 term',
-      '选词语：correct=term，stem 不得出现 term/答案',
+      '选释义：选项=释义，禁止填空题干+词语选项，禁止选项含 term；干扰须近义易混书面释义，禁口语场景句',
+      '选词语：correct=term，stem 不得出现 term/答案；干扰须近义/形近词',
       '题干须唯一最优答案，禁止近义双解',
     ].join('。')
   }

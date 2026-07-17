@@ -23,6 +23,7 @@ import {
   getWenguApiOrigin,
   setWenguApiOriginOverride,
 } from '@/utils/wenguApiOrigin'
+import AiProviderSwitch from '@/components/AiProviderSwitch.vue'
 
 const serverProbe = ref<WenguServerProbe | null>(null)
 const probingServer = ref(false)
@@ -232,8 +233,11 @@ onMounted(() => {
       管理员账号与电脑端相同（Cloudflare Secrets / <code>server/.env</code>）。
     </p>
     <p class="mode-section__hint wengu-auth__risk">
-      本工具仅家庭可信人员使用；请在 DeepSeek 后台设置调用限额。
+      本工具仅家庭可信人员使用；请在 DeepSeek / 火山方舟后台设置调用限额。
+      模型可在下方手动切换（默认 DeepSeek，不自动降级）。
     </p>
+
+    <AiProviderSwitch />
 
     <div
       v-if="serverProbe"
@@ -247,7 +251,8 @@ onMounted(() => {
           你电脑上的 <code>server/.env</code> <strong>不会</strong>自动带到公网站点。
           请在本机执行 <code>npm run sync:cf-secrets</code>（需先 <code>npx wrangler login</code>），
           或到 Cloudflare Pages → Settings → Variables and secrets 手动添加：
-          <code>DEEPSEEK_API_KEY</code>、<code>WENGU_ADMIN_PASSWORD</code>，然后重新部署。
+          <code>DEEPSEEK_API_KEY</code>、<code>DOUBAO_API_KEY</code>、<code>DOUBAO_MODEL_ID</code>、
+          <code>WENGU_ADMIN_PASSWORD</code>，然后重新部署。
           手机请强制刷新或清缓存后再打开。
         </template>
         <template v-else>

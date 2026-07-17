@@ -158,7 +158,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   <div class="chinese-idiom-panel">
     <template v-if="test.phase === 'idle' || test.phase === 'loading'">
       <p class="mode-section__hint">
-        针对公务员、事业单位常考古诗文：DeepSeek 每轮随机混合「选作者」「选描写（意境/景色/天气/情感）」，
+        针对公务员、事业单位常考古诗文：AI 每轮随机混合「选作者」「选描写（意境/景色/天气/情感）」，
         每轮 {{ test.questionCount }} 题，四选一。正计时，提交后暂停并公布答案，点「下一题」继续。
       </p>
       <div class="chinese-setup">
@@ -289,7 +289,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       </div>
       <div v-if="test.submitted && test.currentQuestion" class="chinese-quiz__assist">
         <div class="chinese-quiz__assist-head">
-          <h5 class="chinese-quiz__assist-title">DeepSeek 本题讲解</h5>
+          <h5 class="chinese-quiz__assist-title">AI 本题讲解</h5>
           <el-button
             v-if="isAiChatConfigured()"
             size="small"
@@ -302,7 +302,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           </el-button>
         </div>
         <p v-if="!isAiChatConfigured()" class="chinese-quiz__assist-muted">
-          未授权 DeepSeek，无法讲解。请到「导览 → 安装」填写 API Key。
+          未登录，无法讲解。请到「导览 → 安装」登录后再试。
         </p>
         <template v-else>
           <p

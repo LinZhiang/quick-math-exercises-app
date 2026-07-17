@@ -90,21 +90,18 @@ import {
   readingComprehensionQuestionTypeLabel,
 } from '@/utils/readingComprehensionPractice'
 import {
-  getWenguAuthToken,
-  hydrateWenguAuthStore,
   isWenguLoggedIn,
-  WENGU_ACCOUNT_DISABLED_HINT,
   WENGU_LOGIN_REQUIRED_HINT,
   wenguAuthTick,
 } from '@/utils/wenguAuthStore'
-import { wenguApiFetch } from '@/utils/wenguApiFetch'
 import {
   hasStoredDeepSeekApiKey,
-  resolveDeepSeekApiKey,
 } from '@/utils/deepseekApiKeyStore'
-
-const WENGU_AI_SOURCE = 'quick-math-exercises-app'
-const DEEPSEEK_DIRECT_API = 'https://api.deepseek.com/chat/completions'
+import {
+  aiChatCompletion,
+  type AiMessage,
+} from '@/services/ai'
+import { aiRequestProgressText, getAiProvider } from '@/utils/aiProviderStore'
 
 /** 是否可使用语文 AI（已登录走服务端代理；开发环境可回退本机 Key） */
 export function isAiChatConfigured(): boolean {
@@ -126,73 +123,17 @@ export type DeepSeekChatTurn = {
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 
+/** 内部转发至 aiChatCompletion（沿用当前手动选择的 provider） */
 async function deepseekChatCompletion(
   messages: ChatMessage[],
   options?: { temperature?: number; maxTokens?: number },
 ): Promise<string> {
-  await hydrateWenguAuthStore()
-  const sessionToken = getWenguAuthToken()
-  const model = import.meta.env.VITE_DEEPSEEK_MODEL?.trim() || 'deepseek-v4-flash'
-  const body = JSON.stringify({
-    model,
-    messages,
-    temperature: options?.temperature ?? 0.35,
-    max_tokens: options?.maxTokens ?? 8192,
+  return aiChatCompletion(messages as AiMessage[], {
+    provider: getAiProvider(),
+    capability: 'text',
+    temperature: options?.temperature,
+    maxTokens: options?.maxTokens,
   })
-
-  if (sessionToken) {
-    const res = await wenguApiFetch('/api/ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${sessionToken}`,
-        'X-Wengu-Ai-Source': WENGU_AI_SOURCE,
-      },
-      body,
-    })
-    if (res.status === 401) {
-      throw new Error(WENGU_LOGIN_REQUIRED_HINT)
-    }
-    if (res.status === 403) {
-      throw new Error(WENGU_ACCOUNT_DISABLED_HINT)
-    }
-    if (!res.ok) {
-      const errText = await res.text()
-      throw new Error(`AI 请求失败 (${res.status})：${errText.slice(0, 200)}`)
-    }
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>
-    }
-    const msg = data.choices?.[0]?.message
-    const text = (msg?.content ?? msg?.reasoning_content ?? '').trim()
-    if (!text) throw new Error('AI 未返回有效内容')
-    return text
-  }
-
-  const key = await resolveDeepSeekApiKey()
-  if (!key) {
-    throw new Error(WENGU_LOGIN_REQUIRED_HINT)
-  }
-  const res = await fetch(DEEPSEEK_DIRECT_API, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${key}`,
-      'X-Wengu-Ai-Source': WENGU_AI_SOURCE,
-    },
-    body,
-  })
-  if (!res.ok) {
-    const errText = await res.text()
-    throw new Error(`AI 请求失败 (${res.status})：${errText.slice(0, 200)}`)
-  }
-  const data = (await res.json()) as {
-    choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>
-  }
-  const msg = data.choices?.[0]?.message
-  const text = (msg?.content ?? msg?.reasoning_content ?? '').trim()
-  if (!text) throw new Error('AI 未返回有效内容')
-  return text
 }
 
 async function deepseekChatRaw(
@@ -302,6 +243,7 @@ export async function deepseekChatConversation(input: {
 const IDIOM_SYSTEM = [
   '你是公务员考试与事业单位考试「言语理解」命题专家，专门命制**四字成语**识记题（含选词填空、类比推理高频成语）。',
   '不要出非成语实词、关联词或双音节普通词语；目标必须是常用四字成语。',
+  '干扰项必须高迷惑：近义错位/望文生义/常混成语，禁止口语场景句导致一眼排除。',
   '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
 ].join('\n')
 
@@ -313,14 +255,14 @@ const IDIOM_FORMAT = `
 【命题要求】
 - **仅出四字成语**（如「潜移默化」「脱颖而出」），不要出双音节实词、关联词、网络新词或非成语短语
 - 优先事业编/国考言语理解、逻辑填空高频易混成语
-- 干扰项须为近义、形近或常混的释义/成语
-- 释义选项 12～28 字，成语选项须为四字
+- **干扰项迷惑力（极重要）**：释义四项书面齐整；干扰优先近义成语释义错位、拆字生义、常混成语义；禁止生活场景化错项
+- 释义选项 10～24 字；成语选项须为四字；选词语干扰须为常混近义/形近成语（尽量有共同字）
 - term 填目标成语（选词语题 **不得** 在 stem 中出现 term 或正确答案）
 - meaning-to-word 的 stem 只写释义/比喻义/语境，禁止写出答案成语
 - explanation 用 1～2 句简体中文说明辨析要点
 
 【JSON 示例】
-选释义：{"questionType":"word-to-meaning","term":"潜移默化","stem":"「潜移默化」的正确释义是？","correct":"……","distractors":["……","……","……"],"explanation":"……"}
+选释义：{"questionType":"word-to-meaning","term":"潜移默化","stem":"「潜移默化」的正确释义是？","correct":"人的思想或性格在不知不觉中受到感染、影响而发生变化","distractors":["暗中活动以改变局面","默默积累而后突然显露","表面和缓而实际已生变故"],"explanation":"……"}
 选词语：{"questionType":"meaning-to-word","term":"脱颖而出","stem":"比喻人的才能全部显露出来的是？","correct":"脱颖而出","distractors":["出类拔萃","崭露头角","锋芒毕露"],"explanation":"……"}
 `.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
@@ -359,7 +301,7 @@ export async function requestIdiomRecognitionMcqs(input: {
 }): Promise<IdiomRecognitionQuestion[]> {
   const count = input.count ?? IDIOM_RECOGNITION_QUESTION_COUNT
   const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.('正在向 DeepSeek 请求题目…')
+  input.onProgress?.(aiRequestProgressText('题目'))
 
   const typeHints = Array.from({ length: count }, (_, i) =>
     i % 2 === 0 ? '选释义' : '选词语',
@@ -478,7 +420,7 @@ export async function requestPoetryRecognitionMcqs(input: {
 }): Promise<PoetryRecognitionQuestion[]> {
   const count = input.count ?? POETRY_RECOGNITION_QUESTION_COUNT
   const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.('正在向 DeepSeek 请求诗词题目…')
+  input.onProgress?.(aiRequestProgressText('诗词题目'))
 
   const typeHints = Array.from({ length: count }, (_, i) =>
     i % 2 === 0 ? '选作者' : '选描写',
@@ -601,7 +543,7 @@ export async function requestLifeCommonSenseMcqs(input: {
 }): Promise<LifeCommonSenseQuestion[]> {
   const count = input.count ?? LIFE_COMMON_SENSE_QUESTION_COUNT
   const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.('正在向 DeepSeek 请求生活科学题目…')
+  input.onProgress?.(aiRequestProgressText('生活科学题目'))
 
   const historyHint = buildAvoidTermsHint('生活科学知识点', [...blocked])
   const user = [
@@ -717,7 +659,7 @@ export async function requestGeographyCommonSenseMcqs(input: {
 }): Promise<GeographyCommonSenseQuestion[]> {
   const count = input.count ?? GEOGRAPHY_COMMON_SENSE_QUESTION_COUNT
   const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.('正在向 DeepSeek 请求地理常识题目…')
+  input.onProgress?.(aiRequestProgressText('地理常识题目'))
 
   const historyHint = buildAvoidTermsHint('地理知识点', [...blocked])
   const user = [
@@ -785,6 +727,7 @@ export async function requestGeographyCommonSenseMcqs(input: {
 const CHAR_LITERACY_SYSTEM = [
   '你是公务员考试与事业单位考试「言语理解·字音字形」命题专家，熟悉公考高频易错读音、多音字、形近字与音近错别字。',
   '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
+  '选项必须干净：禁止把思考、自我纠正、问号、多个拼音写进选项正文。',
 ].join('\n')
 
 const CHAR_LITERACY_FORMAT = `
@@ -795,7 +738,9 @@ const CHAR_LITERACY_FORMAT = `
 【命题要求·干扰要强且不能一眼露馅】
 - 优先事业编/国考言语理解高频易错点：多音字、习惯性误读、形近字、音近别字
 - term 填考点关键词的**规范写法**（如「纨绔」「暴殄天物」「一筹莫展」「和盘托出」）
-- 读音题：四个选项外观一致，均为「词语 + 拼音」或同格式注音；干扰项只改拼音（常见误读），**不要**写（误）、错、×、引号点错等任何对错提示
+- 读音题：四个选项外观一致，均为「词语 + 单一拼音注音」；干扰项只改拼音（常见误读）；**每个选项只能出现一处拼音括号**
+- **严禁**把思考过程写进选项（如「……（yí）？不，……（shé）」「不对」「应该是」等自我纠正话术）；此类整题作废
+- **严禁**选项中出现问号、感叹号、逗号拼接两套答案、或多个拼音注音
 - 错别字题：四个选项均为完整词语/成语，外观一致；**不要**用引号、括号、（误）等标出哪个字错了
 - **错别字极性（极重要）**：
   - **四个选项=四个不同词语**；严禁同一成语的规范写法与错写同列（如禁止同时出现「变本加利」与「变本加厉」）
@@ -807,7 +752,7 @@ const CHAR_LITERACY_FORMAT = `
 - explanation 用 1～2 句点明正确读音/正确字形及易混原因（解析里可以说哪里错，选项正文里不能说）
 
 【JSON 示例】
-读音：{"questionType":"pronunciation","term":"纨绔","stem":"下列加点字读音正确的是？","correct":"纨绔子弟（kù）","distractors":["纨绔子弟（kuā）","纨绔子弟（guā）","纨绔子弟（huà）"],"explanation":"……"}
+读音：{"questionType":"pronunciation","term":"虚与委蛇","stem":"下列词语中加点字读音正确的是？","correct":"虚与委蛇（yí）","distractors":["虚与委蛇（shé）","虚与委蛇（yé）","虚与委蛇（tuó）"],"explanation":"「蛇」此处读 yí，不读 shé。"}
 没有错别字：{"questionType":"typo","term":"和盘托出","stem":"下列词语没有错别字的是？","correct":"和盘托出","distractors":["世外桃园","再接再励","墨守陈规"],"explanation":"「和盘托出」书写正确；另三项分别为「桃源」「再厉」「成规」之误。"}
 有错别字：{"questionType":"typo","term":"变本加厉","stem":"下列词语有错别字的是？","correct":"变本加利","distractors":["百折不挠","顶天立地","再接再厉"],"explanation":"「变本加利」应为「变本加厉」，「厉」意为猛烈，不可写作「利」。"}
 `.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
@@ -836,7 +781,7 @@ export async function requestCharLiteracyMcqs(input: {
 }): Promise<CharLiteracyQuestion[]> {
   const count = input.count ?? CHAR_LITERACY_QUESTION_COUNT
   const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.('正在向 DeepSeek 请求字音字形题目…')
+  input.onProgress?.(aiRequestProgressText('字音字形题目'))
 
   const typeHints = Array.from({ length: count }, (_, i) =>
     i % 2 === 0 ? '读音辨析' : '错别字',
@@ -957,7 +902,7 @@ export async function requestHistoryCommonSenseMcqs(input: {
 }): Promise<HistoryCommonSenseQuestion[]> {
   const count = input.count ?? HISTORY_COMMON_SENSE_QUESTION_COUNT
   const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.('正在向 DeepSeek 请求历史常识题目…')
+  input.onProgress?.(aiRequestProgressText('历史常识题目'))
 
   const historyHint = buildAvoidTermsHint('历史知识点', [...blocked])
   const user = [
@@ -1077,7 +1022,7 @@ export async function requestPartyHistoryMcqs(input: {
 }): Promise<PartyHistoryQuestion[]> {
   const count = input.count ?? PARTY_HISTORY_QUESTION_COUNT
   const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.('正在向 DeepSeek 请求中共党史题目…')
+  input.onProgress?.(aiRequestProgressText('中共党史题目'))
 
   const historyHint = buildAvoidTermsHint('党史知识点', [...blocked])
   const user = [
@@ -1192,7 +1137,7 @@ export async function requestTheoryPolicyMcqs(input: {
 }): Promise<TheoryPolicyQuestion[]> {
   const count = input.count ?? THEORY_POLICY_QUESTION_COUNT
   const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.('正在向 DeepSeek 请求理论政策题目…')
+  input.onProgress?.(aiRequestProgressText('理论政策题目'))
 
   const historyHint = buildAvoidTermsHint('理论政策知识点', [...blocked])
   const user = [
@@ -1308,7 +1253,7 @@ export async function requestLegalCommonSenseMcqs(input: {
 }): Promise<LegalCommonSenseQuestion[]> {
   const count = input.count ?? LEGAL_COMMON_SENSE_QUESTION_COUNT
   const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.('正在向 DeepSeek 请求法律常识题目…')
+  input.onProgress?.(aiRequestProgressText('法律常识题目'))
 
   const historyHint = buildAvoidTermsHint('法律知识点', [...blocked])
   const user = [
@@ -1423,7 +1368,7 @@ export async function requestEconomyCommonSenseMcqs(input: {
 }): Promise<EconomyCommonSenseQuestion[]> {
   const count = input.count ?? ECONOMY_COMMON_SENSE_QUESTION_COUNT
   const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.('正在向 DeepSeek 请求经济常识题目…')
+  input.onProgress?.(aiRequestProgressText('经济常识题目'))
 
   const historyHint = buildAvoidTermsHint('经济知识点', [...blocked])
   const user = [
@@ -1491,6 +1436,7 @@ export async function requestEconomyCommonSenseMcqs(input: {
 const WORD_MEMORIZATION_SYSTEM = [
   '你是公务员考试与事业单位考试「言语理解·词语识记」命题专家，专门命制**非四字成语**的词语识记题（实词、虚词、关联词、近义辨析等）。',
   '禁止出四字成语；目标必须是双音节/三音节词语或常见关联词、短语。',
+  '干扰项必须高迷惑：近义错位/拆字望文生义/常混词，禁止口语场景句导致一眼排除。',
   '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
 ].join('\n')
 
@@ -1502,14 +1448,14 @@ const WORD_MEMORIZATION_FORMAT = `
 【命题要求】
 - **禁止四字成语**；词语长度多为 2～3 字，或常见关联词（如「尽管如此」「不仅…而且…」类，可作 term 短标签）
 - 优先事业编/国考言语理解逻辑填空高频易混实词、虚词、近义辨析
-- 干扰项须为近义、形近或常混的释义/词语
-- 释义选项 10～28 字；词语选项须为非四字成语的短词语
+- **干扰项迷惑力（极重要）**：四个释义/词语须齐整、书面；干扰优先近义程度/对象偷换、拆字生义但像词典义、常混近义词；禁止「着急下班」「发布通知」「监督下属」等生活场景句
+- 释义选项 8～24 字，风格统一如词典短释；词语选项须为非四字成语的短词语
 - term 填目标词语（选词语题 **不得** 在 stem 中出现 term 或正确答案）
-- meaning-to-word 的 stem 只写释义/用法/语境，禁止写出答案词语
+- meaning-to-word 的 stem 只写释义/用法/语境，禁止写出答案词语；干扰词须与 term 同义场或有共同汉字
 - explanation 用 1～2 句简体中文说明辨析要点
 
 【JSON 示例】
-选释义：{"questionType":"word-to-meaning","term":"砥砺","stem":"「砥砺」的正确释义是？","correct":"磨炼；激励","distractors":["指责批评","敷衍应付","故意拖延"],"explanation":"……"}
+选释义：{"questionType":"word-to-meaning","term":"顾惜","stem":"「顾惜」的正确释义是？","correct":"顾全爱惜；珍惜","distractors":["顾念爱护","怜惜体恤","眷顾思念"],"explanation":"「顾惜」侧重顾全并爱惜，对象可为身体、名誉、情面等。"}
 选词语：{"questionType":"meaning-to-word","term":"贻误","stem":"因拖延或差错而造成不利影响，可用哪个词语？","correct":"贻误","distractors":["延误","耽误","辜负"],"explanation":"……"}
 `.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
@@ -1537,7 +1483,7 @@ export async function requestWordMemorizationMcqs(input: {
 }): Promise<WordMemorizationQuestion[]> {
   const count = input.count ?? WORD_MEMORIZATION_QUESTION_COUNT
   const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.('正在向 DeepSeek 请求词语识记题目…')
+  input.onProgress?.(aiRequestProgressText('词语识记题目'))
 
   const typeHints = Array.from({ length: count }, (_, i) =>
     i % 2 === 0 ? '选释义' : '选词语',
@@ -1662,7 +1608,7 @@ export async function requestClassicalChineseMcqs(input: {
 }): Promise<ClassicalChineseQuestion[]> {
   const count = input.count ?? CLASSICAL_CHINESE_QUESTION_COUNT
   const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.('正在向 DeepSeek 请求文言文题目…')
+  input.onProgress?.(aiRequestProgressText('文言文题目'))
 
   const historyHint = buildAvoidTermsHint('文言知识点', [...blocked])
   const user = [
@@ -1772,7 +1718,7 @@ export async function requestRhetoricUsageMcqs(input: {
 }): Promise<RhetoricUsageQuestion[]> {
   const count = input.count ?? RHETORIC_USAGE_QUESTION_COUNT
   const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.('正在向 DeepSeek 请求修辞运用题目…')
+  input.onProgress?.(aiRequestProgressText('修辞运用题目'))
 
   const historyHint = buildAvoidTermsHint('修辞知识点', [...blocked])
   const user = [
@@ -1941,7 +1887,7 @@ export async function requestReadingComprehensionMcqs(input: {
   const modeLabel = readingComprehensionQuestionTypeLabel(mode)
   const format = readingComprehensionFormat(mode)
   const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.(`正在向 DeepSeek 请求阅读理解（${modeLabel}）题目…`)
+  input.onProgress?.(aiRequestProgressText(`阅读理解（${modeLabel}）题目`))
 
   const historyHint = buildAvoidTermsHint('阅读材料主题', [...blocked])
   const user = [
