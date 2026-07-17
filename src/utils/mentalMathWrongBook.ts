@@ -89,7 +89,11 @@ export function mentalMathModeToWrongSection(modeId: string): MentalMathWrongSec
   if (
     modeId === 'grammar-judgment-easy' ||
     modeId === 'grammar-judgment-normal' ||
-    modeId === 'grammar-judgment-hard'
+    modeId === 'grammar-judgment-hard' ||
+    modeId === 'circle-grammar-easy' ||
+    modeId === 'circle-grammar-hard' ||
+    modeId === 'shorten-sentence-easy' ||
+    modeId === 'shorten-sentence-hard'
   ) {
     return 'grammar-judgment'
   }

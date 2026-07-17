@@ -13,6 +13,8 @@ import {
 import MentalMathPracticeGuide from '@/views/tools/mental-math/components/MentalMathPracticeGuide.vue'
 import TwentyFourPointPanel from '@/views/tools/mental-math/components/TwentyFourPointPanel.vue'
 import SudokuPanel from '@/views/tools/mental-math/components/SudokuPanel.vue'
+import CircleGrammarPanel from '@/views/tools/mental-math/components/CircleGrammarPanel.vue'
+import ShortenSentencePanel from '@/views/tools/mental-math/components/ShortenSentencePanel.vue'
 import GraphicReasoningCell from '@/views/tools/graphic-reasoning/components/GraphicReasoningCell.vue'
 import {
   clampGraphicReasoningScore,
@@ -80,6 +82,31 @@ import {
   type SudokuMode,
   type SudokuQuestion,
 } from '@/utils/sudokuPractice'
+import {
+  CIRCLE_GRAMMAR_MODES,
+  clampCircleGrammarScore,
+  formatCircleGrammarExpected,
+  formatCircleGrammarMarks,
+  generateCircleGrammarQuestion,
+  getCircleGrammarModeConfig,
+  getCircleGrammarQuestionFingerprint,
+  isCircleGrammarMode,
+  validateCircleGrammarAnswer,
+  type CircleGrammarMark,
+  type CircleGrammarMode,
+  type CircleGrammarQuestion,
+} from '@/utils/circleGrammarPractice'
+import {
+  SHORTEN_SENTENCE_MODES,
+  clampShortenSentenceScore,
+  generateShortenSentenceQuestion,
+  getShortenSentenceModeConfig,
+  getShortenSentenceQuestionFingerprint,
+  isShortenSentenceMode,
+  validateShortenSentenceAnswer,
+  type ShortenSentenceMode,
+  type ShortenSentenceQuestion,
+} from '@/utils/shortenSentencePractice'
 import ChinesePracticeSection from '@/views/tools/chinese-practice/ChinesePracticeSection.vue'
 import PwaInstallPanel from '@/components/PwaInstallPanel.vue'
 import MentalMathWrongBookPanel from '@/views/tools/mental-math/components/MentalMathWrongBookPanel.vue'
@@ -87,7 +114,13 @@ import { upsertMentalMathWrong } from '@/utils/mentalMathWrongBook'
 
 type Phase = 'select' | 'countdown' | 'playing' | 'finished'
 type CountdownStep = 3 | 2 | 1 | 'GO'
-type PracticeMode = MentalMathMode | GraphicReasoningMode | TwentyFourPointMode | SudokuMode
+type PracticeMode =
+  | MentalMathMode
+  | GraphicReasoningMode
+  | TwentyFourPointMode
+  | SudokuMode
+  | CircleGrammarMode
+  | ShortenSentenceMode
 
 const COUNTDOWN_STEPS: CountdownStep[] = [3, 2, 1, 'GO']
 
@@ -102,12 +135,29 @@ const twentyFourQuestion = ref<TwentyFourPointQuestion | null>(null)
 const twentyFourPanelRef = ref<InstanceType<typeof TwentyFourPointPanel> | null>(null)
 const sudokuQuestion = ref<SudokuQuestion | null>(null)
 const sudokuPanelRef = ref<InstanceType<typeof SudokuPanel> | null>(null)
+const circleGrammarQuestion = ref<CircleGrammarQuestion | null>(null)
+const circleGrammarPanelRef = ref<InstanceType<typeof CircleGrammarPanel> | null>(null)
+const shortenSentenceQuestion = ref<ShortenSentenceQuestion | null>(null)
+const shortenSentencePanelRef = ref<InstanceType<typeof ShortenSentencePanel> | null>(null)
 const chinesePracticeRef = ref<InstanceType<typeof ChinesePracticeSection> | null>(null)
 const questionSeq = ref(0)
 const records = ref<MentalMathAnswerRecord[]>([])
 const graphicRecords = ref<GraphicReasoningAnswerRecord[]>([])
 const remainingMs = ref(0)
 const totalMs = ref(0)
+/** 不计倒计时时累计用时（毫秒）；圈语法为答题段累计，审题时暂停 */
+const elapsedMs = ref(0)
+/** 圈语法：当前答题段开始时间 */
+let circleSegmentStartMs = 0
+/** 圈语法：已累计（不含当前段） */
+let circleAccumulatedMs = 0
+const circleTimerRunning = ref(false)
+/** 圈语法 / 缩句：提交后展示答案、等待点下一题 */
+const circleGrammarReviewing = ref(false)
+const circleGrammarFeedbackDetail = ref('')
+const shortenSentenceReviewing = ref(false)
+const shortenSentenceFeedbackDetail = ref('')
+const shortenSentenceLastAnswer = ref('')
 const feedback = ref<'correct' | 'wrong' | null>(null)
 const acceptingInput = ref(true)
 const countdownValue = ref<CountdownStep | null>(null)
@@ -133,6 +183,14 @@ const isSudokuSession = computed(
   () => activeMode.value != null && isSudokuMode(activeMode.value),
 )
 
+const isCircleGrammarSession = computed(
+  () => activeMode.value != null && isCircleGrammarMode(activeMode.value),
+)
+
+const isShortenSentenceSession = computed(
+  () => activeMode.value != null && isShortenSentenceMode(activeMode.value),
+)
+
 const isGraphicSession = computed(
   () => activeMode.value != null && isGraphicMode(activeMode.value),
 )
@@ -142,6 +200,8 @@ const isLifeSenseSession = computed(
     !isGraphicMode(activeMode.value) &&
     !isTwentyFourPointMode(activeMode.value) &&
     !isSudokuMode(activeMode.value) &&
+    !isCircleGrammarMode(activeMode.value) &&
+    !isShortenSentenceMode(activeMode.value) &&
     isLifeSensePracticeMode(activeMode.value as MentalMathMode),
 )
 const isGrammarJudgmentSession = computed(
@@ -150,6 +210,8 @@ const isGrammarJudgmentSession = computed(
     !isGraphicMode(activeMode.value) &&
     !isTwentyFourPointMode(activeMode.value) &&
     !isSudokuMode(activeMode.value) &&
+    !isCircleGrammarMode(activeMode.value) &&
+    !isShortenSentenceMode(activeMode.value) &&
     isGrammarJudgmentPracticeMode(activeMode.value as MentalMathMode),
 )
 
@@ -164,10 +226,66 @@ const modeConfig = computed(() => {
   if (isSudokuMode(activeMode.value)) {
     return getSudokuModeConfig(activeMode.value)
   }
+  if (isCircleGrammarMode(activeMode.value)) {
+    return getCircleGrammarModeConfig(activeMode.value)
+  }
+  if (isShortenSentenceMode(activeMode.value)) {
+    return getShortenSentenceModeConfig(activeMode.value)
+  }
   return getMentalMathModeConfig(activeMode.value)
 })
 
+/** 圈语法 / 缩句等：不计倒计时，只显示累计用时 */
+const isElapsedOnlySession = computed(
+  () =>
+    (isCircleGrammarSession.value || isShortenSentenceSession.value) &&
+    (modeConfig.value?.durationSec ?? 0) <= 0,
+)
+
+const circleGrammarQuestionCount = computed(() =>
+  isCircleGrammarSession.value && activeMode.value && isCircleGrammarMode(activeMode.value)
+    ? getCircleGrammarModeConfig(activeMode.value).questionCount
+    : 5,
+)
+
+const circleGrammarQuestionIndex = computed(() =>
+  records.value.length + (circleGrammarReviewing.value ? 0 : 1),
+)
+
+const circleGrammarIsLastReview = computed(
+  () =>
+    circleGrammarReviewing.value &&
+    records.value.length >= circleGrammarQuestionCount.value,
+)
+
+const shortenSentenceQuestionCount = computed(() =>
+  isShortenSentenceSession.value && activeMode.value && isShortenSentenceMode(activeMode.value)
+    ? getShortenSentenceModeConfig(activeMode.value).questionCount
+    : 5,
+)
+
+const shortenSentenceQuestionIndex = computed(() =>
+  records.value.length + (shortenSentenceReviewing.value ? 0 : 1),
+)
+
+const shortenSentenceIsLastReview = computed(
+  () =>
+    shortenSentenceReviewing.value &&
+    records.value.length >= shortenSentenceQuestionCount.value,
+)
+
+const elapsedQuestionCount = computed(() =>
+  isShortenSentenceSession.value
+    ? shortenSentenceQuestionCount.value
+    : circleGrammarQuestionCount.value,
+)
+
 const progressPercent = computed(() => {
+  if (isElapsedOnlySession.value) {
+    const total = elapsedQuestionCount.value
+    if (total <= 0) return 0
+    return Math.max(0, Math.min(100, (records.value.length / total) * 100))
+  }
   if (totalMs.value <= 0) return 0
   return Math.max(0, Math.min(100, (remainingMs.value / totalMs.value) * 100))
 })
@@ -220,7 +338,15 @@ const chineseSessionActive = computed(() => chinesePracticeRef.value?.isRunningO
 
 const mcqOptionCount = computed(() => {
   const mode = activeMode.value
-  if (!mode || isTwentyFourPointMode(mode) || isSudokuMode(mode)) return 0
+  if (
+    !mode ||
+    isTwentyFourPointMode(mode) ||
+    isSudokuMode(mode) ||
+    isCircleGrammarMode(mode) ||
+    isShortenSentenceMode(mode)
+  ) {
+    return 0
+  }
   if (isGraphicMode(mode)) return getGraphicReasoningModeConfig(mode).optionCount
   return getMentalMathModeConfig(mode as MentalMathMode).optionCount
 })
@@ -317,6 +443,8 @@ function nextQuestion() {
     question.value = null
     twentyFourQuestion.value = null
     sudokuQuestion.value = null
+    circleGrammarQuestion.value = null
+    shortenSentenceQuestion.value = null
   } else if (isTwentyFourPointMode(activeMode.value)) {
     const q = generateTwentyFourPointPuzzle(activeMode.value, questionSeq.value, lastQuestionFingerprint.value)
     twentyFourQuestion.value = q
@@ -324,6 +452,8 @@ function nextQuestion() {
     question.value = null
     graphicQuestion.value = null
     sudokuQuestion.value = null
+    circleGrammarQuestion.value = null
+    shortenSentenceQuestion.value = null
   } else if (isSudokuMode(activeMode.value)) {
     const q = generateSudokuPuzzle(activeMode.value, questionSeq.value, lastQuestionFingerprint.value)
     sudokuQuestion.value = q
@@ -331,6 +461,28 @@ function nextQuestion() {
     question.value = null
     graphicQuestion.value = null
     twentyFourQuestion.value = null
+    circleGrammarQuestion.value = null
+    shortenSentenceQuestion.value = null
+  } else if (isCircleGrammarMode(activeMode.value)) {
+    const q = generateCircleGrammarQuestion(activeMode.value, questionSeq.value)
+    circleGrammarQuestion.value = q
+    lastQuestionFingerprint.value = getCircleGrammarQuestionFingerprint(q)
+    sessionQuestionFingerprints.value.add(lastQuestionFingerprint.value)
+    question.value = null
+    graphicQuestion.value = null
+    twentyFourQuestion.value = null
+    sudokuQuestion.value = null
+    shortenSentenceQuestion.value = null
+  } else if (isShortenSentenceMode(activeMode.value)) {
+    const q = generateShortenSentenceQuestion(activeMode.value, questionSeq.value)
+    shortenSentenceQuestion.value = q
+    lastQuestionFingerprint.value = getShortenSentenceQuestionFingerprint(q)
+    sessionQuestionFingerprints.value.add(lastQuestionFingerprint.value)
+    question.value = null
+    graphicQuestion.value = null
+    twentyFourQuestion.value = null
+    sudokuQuestion.value = null
+    circleGrammarQuestion.value = null
   } else {
     const mCfg = getMentalMathModeConfig(activeMode.value as MentalMathMode)
     const q = generateMentalMathQuestion(
@@ -346,6 +498,8 @@ function nextQuestion() {
     graphicQuestion.value = null
     twentyFourQuestion.value = null
     sudokuQuestion.value = null
+    circleGrammarQuestion.value = null
+    shortenSentenceQuestion.value = null
   }
   feedback.value = null
   acceptingInput.value = true
@@ -355,8 +509,15 @@ function finishSession(perfect = false) {
   clearTimers()
   acceptingInput.value = false
   finishedByPerfect.value = perfect
+  if (isElapsedOnlySession.value) {
+    elapsedMs.value = circleAccumulatedMs
+  } else {
+    elapsedMs.value = Math.max(elapsedMs.value, Date.now() - sessionStartMs)
+  }
   if (perfect) {
-    syncRemainingFromSession()
+    if (!isElapsedOnlySession.value) {
+      syncRemainingFromSession()
+    }
     prepareQbPerfectMidi()
     if (!tryPlayQbPerfectMidiSync()) {
       void startQbPerfectMidi()
@@ -402,7 +563,11 @@ function beginPlaying(mode: PracticeMode) {
       ? getTwentyFourPointModeConfig(mode)
       : isSudokuMode(mode)
         ? getSudokuModeConfig(mode)
-        : getMentalMathModeConfig(mode as MentalMathMode)
+        : isCircleGrammarMode(mode)
+          ? getCircleGrammarModeConfig(mode)
+          : isShortenSentenceMode(mode)
+            ? getShortenSentenceModeConfig(mode)
+            : getMentalMathModeConfig(mode as MentalMathMode)
   score.value = 0
   finishedByPerfect.value = false
   records.value = []
@@ -412,11 +577,33 @@ function beginPlaying(mode: PracticeMode) {
   sessionQuestionFingerprints.value = new Set()
   totalMs.value = cfg.durationSec * 1000
   remainingMs.value = totalMs.value
+  elapsedMs.value = 0
+  circleAccumulatedMs = 0
+  circleSegmentStartMs = Date.now()
+  circleTimerRunning.value =
+    (isCircleGrammarMode(mode) || isShortenSentenceMode(mode)) && cfg.durationSec <= 0
+  circleGrammarReviewing.value = false
+  circleGrammarFeedbackDetail.value = ''
+  shortenSentenceReviewing.value = false
+  shortenSentenceFeedbackDetail.value = ''
+  shortenSentenceLastAnswer.value = ''
   sessionStartMs = Date.now()
   phase.value = 'playing'
   nextQuestion()
 
   timerHandle = setInterval(() => {
+    if (
+      (isCircleGrammarMode(mode) || isShortenSentenceMode(mode)) &&
+      cfg.durationSec <= 0
+    ) {
+      if (circleTimerRunning.value) {
+        elapsedMs.value = circleAccumulatedMs + (Date.now() - circleSegmentStartMs)
+      } else {
+        elapsedMs.value = circleAccumulatedMs
+      }
+      return
+    }
+    elapsedMs.value = Date.now() - sessionStartMs
     remainingMs.value = Math.max(0, totalMs.value - (Date.now() - sessionStartMs))
     if (remainingMs.value <= 0) {
       finishSession()
@@ -571,6 +758,168 @@ function finishSudokuAnswer(grid: number[][]) {
   }, ok ? 380 : 900)
 }
 
+function finishCircleGrammarAnswer(marks: CircleGrammarMark[]) {
+  prepareQbPerfectMidi()
+  if (
+    phase.value !== 'playing' ||
+    !acceptingInput.value ||
+    !modeConfig.value ||
+    !circleGrammarQuestion.value ||
+    !activeMode.value ||
+    !isCircleGrammarMode(activeMode.value) ||
+    circleGrammarReviewing.value
+  ) {
+    return
+  }
+
+  const cfg = getCircleGrammarModeConfig(activeMode.value)
+  const q = circleGrammarQuestion.value
+  const check = validateCircleGrammarAnswer(q.expected, marks)
+  const ok = check.ok
+
+  // 先停表，再公布答案
+  if (circleTimerRunning.value) {
+    circleAccumulatedMs += Math.max(0, Date.now() - circleSegmentStartMs)
+    circleTimerRunning.value = false
+    elapsedMs.value = circleAccumulatedMs
+  }
+
+  const chosenAnswer = formatCircleGrammarMarks(marks)
+  const correctAnswer = formatCircleGrammarExpected(q.expected)
+
+  score.value = clampCircleGrammarScore(score.value + (ok ? cfg.correctDelta : cfg.wrongDelta))
+  records.value.push({
+    questionId: q.id,
+    expression: q.sentence.sentence,
+    correctAnswer,
+    chosenAnswer,
+    chosenIndex: -1,
+    correct: ok,
+    scoreAfter: score.value,
+    elapsedMs: circleAccumulatedMs,
+    explanation: ok ? undefined : `${check.detail}。${q.explanation}`,
+  })
+  if (!ok) {
+    upsertMentalMathWrong({
+      modeId: activeMode.value,
+      expression: q.sentence.sentence,
+      correctAnswer,
+      chosenAnswer,
+      explanation: `${check.detail}。${q.explanation}`,
+    })
+  }
+
+  feedback.value = ok ? 'correct' : 'wrong'
+  circleGrammarFeedbackDetail.value = ok
+    ? q.explanation
+    : `${check.detail}。${q.explanation}`
+  if (ok) playMentalMathCorrectSound()
+  else playMentalMathWrongSound()
+
+  acceptingInput.value = false
+  circleGrammarReviewing.value = true
+}
+
+/** 圈语法：看完本题答案后进入下一题，或五题后出总结果 */
+function advanceCircleGrammar() {
+  if (phase.value !== 'playing' || !circleGrammarReviewing.value || !activeMode.value) return
+  if (!isCircleGrammarMode(activeMode.value)) return
+
+  const cfg = getCircleGrammarModeConfig(activeMode.value)
+  const done = records.value.length >= cfg.questionCount
+  circleGrammarReviewing.value = false
+  circleGrammarFeedbackDetail.value = ''
+  feedback.value = null
+
+  if (done) {
+    const perfect = score.value >= cfg.maxScore
+    finishSession(perfect)
+    return
+  }
+
+  nextQuestion()
+  circleSegmentStartMs = Date.now()
+  circleTimerRunning.value = true
+}
+
+function finishShortenSentenceAnswer(answer: string) {
+  prepareQbPerfectMidi()
+  if (
+    phase.value !== 'playing' ||
+    !acceptingInput.value ||
+    !modeConfig.value ||
+    !shortenSentenceQuestion.value ||
+    !activeMode.value ||
+    !isShortenSentenceMode(activeMode.value) ||
+    shortenSentenceReviewing.value
+  ) {
+    return
+  }
+
+  const cfg = getShortenSentenceModeConfig(activeMode.value)
+  const q = shortenSentenceQuestion.value
+  const check = validateShortenSentenceAnswer(q.item, answer)
+  const ok = check.ok
+
+  if (circleTimerRunning.value) {
+    circleAccumulatedMs += Math.max(0, Date.now() - circleSegmentStartMs)
+    circleTimerRunning.value = false
+    elapsedMs.value = circleAccumulatedMs
+  }
+
+  shortenSentenceLastAnswer.value = answer.trim() || '（空）'
+  score.value = clampShortenSentenceScore(score.value + (ok ? cfg.correctDelta : cfg.wrongDelta))
+  records.value.push({
+    questionId: q.id,
+    expression: q.item.sentence,
+    correctAnswer: q.item.shortened,
+    chosenAnswer: shortenSentenceLastAnswer.value,
+    chosenIndex: -1,
+    correct: ok,
+    scoreAfter: score.value,
+    elapsedMs: circleAccumulatedMs,
+    explanation: ok ? undefined : `${check.detail}。${q.explanation}`,
+  })
+  if (!ok) {
+    upsertMentalMathWrong({
+      modeId: activeMode.value,
+      expression: q.item.sentence,
+      correctAnswer: q.item.shortened,
+      chosenAnswer: shortenSentenceLastAnswer.value,
+      explanation: `${check.detail}。${q.explanation}`,
+    })
+  }
+
+  feedback.value = ok ? 'correct' : 'wrong'
+  shortenSentenceFeedbackDetail.value = ok ? q.explanation : `${check.detail}。${q.explanation}`
+  if (ok) playMentalMathCorrectSound()
+  else playMentalMathWrongSound()
+
+  acceptingInput.value = false
+  shortenSentenceReviewing.value = true
+}
+
+function advanceShortenSentence() {
+  if (phase.value !== 'playing' || !shortenSentenceReviewing.value || !activeMode.value) return
+  if (!isShortenSentenceMode(activeMode.value)) return
+
+  const cfg = getShortenSentenceModeConfig(activeMode.value)
+  const done = records.value.length >= cfg.questionCount
+  shortenSentenceReviewing.value = false
+  shortenSentenceFeedbackDetail.value = ''
+  shortenSentenceLastAnswer.value = ''
+  feedback.value = null
+
+  if (done) {
+    finishSession(score.value >= cfg.maxScore)
+    return
+  }
+
+  nextQuestion()
+  circleSegmentStartMs = Date.now()
+  circleTimerRunning.value = true
+}
+
 function applyAnswer(choiceIndex: number) {
   prepareQbPerfectMidi()
   if (phase.value !== 'playing' || !acceptingInput.value || !modeConfig.value) {
@@ -581,6 +930,8 @@ function applyAnswer(choiceIndex: number) {
     !isGraphicSession.value &&
     !isTwentyFourSession.value &&
     !isSudokuSession.value &&
+    !isCircleGrammarSession.value &&
+    !isShortenSentenceSession.value &&
     !question.value
   ) {
     return
@@ -697,7 +1048,9 @@ function onKeydown(e: KeyboardEvent) {
   if (
     !activeMode.value ||
     isTwentyFourPointMode(activeMode.value) ||
-    isSudokuMode(activeMode.value)
+    isSudokuMode(activeMode.value) ||
+    isCircleGrammarMode(activeMode.value) ||
+    isShortenSentenceMode(activeMode.value)
   ) {
     return
   }
@@ -721,10 +1074,20 @@ function backToSelect() {
   graphicQuestion.value = null
   twentyFourQuestion.value = null
   sudokuQuestion.value = null
+  circleGrammarQuestion.value = null
+  shortenSentenceQuestion.value = null
   feedback.value = null
   countdownValue.value = null
   lastQuestionFingerprint.value = null
   sessionQuestionFingerprints.value = new Set()
+  elapsedMs.value = 0
+  circleAccumulatedMs = 0
+  circleTimerRunning.value = false
+  circleGrammarReviewing.value = false
+  circleGrammarFeedbackDetail.value = ''
+  shortenSentenceReviewing.value = false
+  shortenSentenceFeedbackDetail.value = ''
+  shortenSentenceLastAnswer.value = ''
 }
 
 onMounted(() => {
@@ -973,7 +1336,7 @@ onBeforeUnmount(() => {
         >
           <h3 class="mode-section__title">语法判断</h3>
           <p class="mode-section__hint">
-            给出句子，随机考察主/谓/宾/定/状/补（找成分或判成分）。题库 150 句按序出题；简单题均衡覆盖六种成分，复杂题为加长单句。答错记入错题集。计分：简单 +5/−10，普通 +8/−15，复杂 +13/−26。
+            给出句子，随机考察主/谓/宾/定/状/补（找成分或判成分）。题库 150 句按序出题；普通题六种成分齐全，复杂题为超长单句。答错记入错题集。计分：简单 +7/−14，普通 +10/−20，复杂 +15/−30。
           </p>
           <div class="mode-grid">
             <button
@@ -981,6 +1344,41 @@ onBeforeUnmount(() => {
               :key="m.id"
               type="button"
               class="mode-card mode-card--grammar-judgment"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">{{ m.label }}</h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+          </div>
+
+          <h4 class="mode-section__subtitle">圈出所有语法</h4>
+          <p class="mode-section__hint">
+            圈出句中全部主谓宾定状补：可手指滑动圈词，或手动输入后点确认。简单题用普通句式，困难题用复杂句式。共 5 题；提交后停表看答案，点下一题再计时，五题结束后再看总成绩。对 +20 / 错 −5（扣完为止）。
+          </p>
+          <div class="mode-grid">
+            <button
+              v-for="m in CIRCLE_GRAMMAR_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--circle-grammar"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">{{ m.label }}</h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+          </div>
+          <h4 class="mode-section__subtitle">缩句练习</h4>
+          <p class="mode-section__hint">
+            摘自求是网、新华网近年时事长句（优先 2026）。滑动圈选主干再自动拼接，也可手动改。简单 75 句 / 困难 75 句。流程同「圈出所有语法」：提交停表看答案，点下一题再计时；共 5 题。对 +20 / 错 −20。
+          </p>
+          <div class="mode-grid">
+            <button
+              v-for="m in SHORTEN_SENTENCE_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--shorten-sentence"
               @click="startMode(m.id)"
             >
               <h3 class="mode-card__title">{{ m.label }}</h3>
@@ -1083,14 +1481,25 @@ onBeforeUnmount(() => {
       v-else-if="
         phase === 'playing' &&
         modeConfig &&
-        (question || graphicQuestion || twentyFourQuestion || sudokuQuestion)
+        (question ||
+          graphicQuestion ||
+          twentyFourQuestion ||
+          sudokuQuestion ||
+          circleGrammarQuestion ||
+          shortenSentenceQuestion)
       "
       class="play-panel"
     >
       <div class="play-top">
         <div class="play-meta">
           <div class="play-meta__main">
-            <span class="play-mode">{{ modeConfig.label }}</span>
+            <span class="play-mode">{{
+              isCircleGrammarSession
+                ? `圈出所有语法 · ${modeConfig.label}`
+                : isShortenSentenceSession
+                  ? `缩句练习 · ${modeConfig.label}`
+                  : modeConfig.label
+            }}</span>
             <span class="play-score">得分 <strong>{{ score }}</strong> / {{ modeConfig.maxScore }}</span>
           </div>
           <div class="session-actions session-actions--inline">
@@ -1098,10 +1507,14 @@ onBeforeUnmount(() => {
             <el-button size="small" @click="backToSelect">返回</el-button>
           </div>
         </div>
-        <div class="time-bar" aria-label="剩余时间">
+        <div class="time-bar" :aria-label="isElapsedOnlySession ? '进度' : '剩余时间'">
           <div class="time-bar__fill" :style="{ width: `${progressPercent}%` }" />
         </div>
-        <div class="time-bar__label">{{ (remainingMs / 1000).toFixed(1) }} 秒</div>
+        <div v-if="isElapsedOnlySession" class="time-bar__label">
+          已用时 {{ (elapsedMs / 1000).toFixed(1) }} 秒 · 已答
+          {{ records.length }} / {{ elapsedQuestionCount }}
+        </div>
+        <div v-else class="time-bar__label">{{ (remainingMs / 1000).toFixed(1) }} 秒</div>
       </div>
 
       <template v-if="graphicQuestion">
@@ -1176,6 +1589,36 @@ onBeforeUnmount(() => {
         @submit="finishSudokuAnswer"
       />
 
+      <CircleGrammarPanel
+        v-else-if="circleGrammarQuestion"
+        ref="circleGrammarPanelRef"
+        :question="circleGrammarQuestion"
+        :feedback="feedback"
+        :accepting-input="acceptingInput"
+        :reviewing="circleGrammarReviewing"
+        :review-detail="circleGrammarFeedbackDetail"
+        :question-index="circleGrammarQuestionIndex"
+        :question-count="circleGrammarQuestionCount"
+        :is-last="circleGrammarIsLastReview"
+        @submit="finishCircleGrammarAnswer"
+        @next="advanceCircleGrammar"
+      />
+
+      <ShortenSentencePanel
+        v-else-if="shortenSentenceQuestion"
+        ref="shortenSentencePanelRef"
+        :question="shortenSentenceQuestion"
+        :feedback="feedback"
+        :accepting-input="acceptingInput"
+        :reviewing="shortenSentenceReviewing"
+        :review-detail="shortenSentenceFeedbackDetail"
+        :question-index="shortenSentenceQuestionIndex"
+        :question-count="shortenSentenceQuestionCount"
+        :is-last="shortenSentenceIsLastReview"
+        @submit="finishShortenSentenceAnswer"
+        @next="advanceShortenSentence"
+      />
+
       <template v-else-if="question">
         <div class="question-block">
           <p
@@ -1207,7 +1650,16 @@ onBeforeUnmount(() => {
         </ul>
       </template>
 
-      <p v-if="!isTwentyFourSession && !isSudokuSession && mcqOptionCount > 0" class="hint">
+      <p
+        v-if="
+          !isTwentyFourSession &&
+          !isSudokuSession &&
+          !isCircleGrammarSession &&
+          !isShortenSentenceSession &&
+          mcqOptionCount > 0
+        "
+        class="hint"
+      >
         键盘按 <kbd>1</kbd>～<kbd>{{ mcqOptionCount }}</kbd> 快速作答
       </p>
     </div>
@@ -1218,10 +1670,19 @@ onBeforeUnmount(() => {
       :class="{ 'result-panel--perfect': finishedByPerfect }"
     >
       <h3 class="result-title">
-        {{ finishedByPerfect ? '恭喜满分！' : '时间到' }}
+        {{
+          finishedByPerfect
+            ? '恭喜满分！'
+            : isElapsedOnlySession
+              ? '练习结束'
+              : '时间到'
+        }}
       </h3>
-      <p v-if="finishedByPerfect" class="result-perfect">
+      <p v-if="finishedByPerfect && !isElapsedOnlySession" class="result-perfect">
         剩余时间 <strong>{{ (remainingMs / 1000).toFixed(1) }}</strong> 秒
+      </p>
+      <p v-if="isElapsedOnlySession" class="result-perfect">
+        用时 <strong>{{ (elapsedMs / 1000).toFixed(1) }}</strong> 秒
       </p>
       <p class="result-score">
         最终得分：<strong>{{ score }}</strong> / {{ modeConfig.maxScore }}
@@ -1442,6 +1903,31 @@ onBeforeUnmount(() => {
 .mode-card--grammar-judgment:hover {
   border-color: color-mix(in srgb, #7c5cbf 50%, var(--app-border-soft));
   box-shadow: 0 4px 16px rgba(124, 92, 191, 0.12);
+}
+
+.mode-section__subtitle {
+  margin: 18px 0 6px;
+  font-size: 1rem;
+  font-weight: 750;
+  color: #0f172a;
+}
+
+.mode-card--circle-grammar {
+  border-color: color-mix(in srgb, #0d9488 28%, var(--app-border-soft));
+}
+
+.mode-card--circle-grammar:hover {
+  border-color: color-mix(in srgb, #0d9488 50%, var(--app-border-soft));
+  box-shadow: 0 4px 16px rgba(13, 148, 136, 0.12);
+}
+
+.mode-card--shorten-sentence {
+  border-color: color-mix(in srgb, #c2410c 28%, var(--app-border-soft));
+}
+
+.mode-card--shorten-sentence:hover {
+  border-color: color-mix(in srgb, #c2410c 50%, var(--app-border-soft));
+  box-shadow: 0 4px 16px rgba(194, 65, 12, 0.12);
 }
 
 .mode-card--graphic {
