@@ -1,4 +1,4 @@
-import { isAuthConfigured, json } from '../_lib/wenguCloudAuth.js'
+import { isAuthConfigured, json } from './_lib/wenguCloudAuth.js'
 
 export async function onRequestGet(context) {
   const env = context.env
