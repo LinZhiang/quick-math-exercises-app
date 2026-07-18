@@ -1,10 +1,7 @@
-import perfectScoreUrl from '@/assets/voice/A_085XGW.wav?url'
+import perfectScoreUrl from '@/assets/voice/全部答对.wav?url'
 
-/**
- * 与口算提示音（答对了/开始）听感对齐：祝贺曲为 gm.dls 满幅渲染，需压低播放增益。
- * 按各 wav 前段 RMS 估算，约 0.36 接近「答对了」「开始」的响度。
- */
-const PERFECT_SCORE_PLAYBACK_VOLUME = 0.36
+/** 与单题「答对了」同类人声，默认音量即可 */
+const PERFECT_SCORE_PLAYBACK_VOLUME = 1
 /** 满分结果出现后延迟播放，避免与「答对了」叠在一起 */
 const PERFECT_SCORE_PLAY_DELAY_MS = 1000
 
@@ -58,7 +55,7 @@ export function tryPlayQbPerfectMidiSync(): boolean {
   return true
 }
 
-/** 满分祝贺音乐（A_085XGW.MID → wav，Microsoft GS / gm.dls 原速渲染） */
+/** 全部答对祝贺音（全部答对.wav） */
 export async function startQbPerfectMidi(): Promise<boolean> {
   clearPlayDelay()
   resetPerfectAudio()

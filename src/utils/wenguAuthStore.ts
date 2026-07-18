@@ -9,6 +9,7 @@ import {
   readWenguJsonResponse,
   wenguApiFetch,
 } from '@/utils/wenguApiFetch'
+import { isMemberCustomApiOriginValid } from '@/utils/wenguApiOrigin'
 
 const MEMBER_STORAGE_KEY = 'wengu-session-v1'
 const ADMIN_STORAGE_KEY = 'wengu-admin-session-v1'
@@ -135,6 +136,15 @@ export function isWenguLoggedIn(): boolean {
 
 export function isWenguAdmin(): boolean {
   return getWenguUser()?.role === 'admin'
+}
+
+/** 成员是否已具备可用的自定义 API（管理员始终 true） */
+export function isWenguApiReadyForCurrentUser(): boolean {
+  void wenguAuthTick.value
+  const user = getWenguUser()
+  if (!user) return false
+  if (user.role === 'admin') return true
+  return isMemberCustomApiOriginValid()
 }
 
 export async function hydrateWenguAuthStore(): Promise<void> {

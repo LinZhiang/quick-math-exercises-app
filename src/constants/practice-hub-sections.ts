@@ -11,6 +11,7 @@ export type PracticeHubSectionId =
   | 'twentyfour'
   | 'sudoku'
   | 'graphic'
+  | 'data-analysis'
   | 'chinese'
   | 'install'
 
@@ -32,6 +33,7 @@ export const PRACTICE_HUB_SECTIONS: PracticeHubSection[] = [
   { id: 'twentyfour', title: '二十四点' },
   { id: 'sudoku', title: '数独' },
   { id: 'graphic', title: '图形推理' },
+  { id: 'data-analysis', title: '资料分析' },
   { id: 'chinese', title: '语文练习' },
   { id: 'install', title: '安装' },
 ]
@@ -53,7 +55,11 @@ export const PRACTICE_HUB_GROUPS: PracticeHubGroup[] = [
     sectionIds: ['arithmetic', 'power', 'square-cube', 'fraction', 'divisibility'],
   },
   { id: 'quick', title: '快判', sectionIds: ['life-sense', 'grammar-judgment'] },
-  { id: 'puzzle', title: '益智', sectionIds: ['twentyfour', 'sudoku', 'graphic'] },
+  {
+    id: 'puzzle',
+    title: '数学推理',
+    sectionIds: ['twentyfour', 'sudoku', 'graphic', 'data-analysis'],
+  },
   { id: 'chinese', title: '语文', sectionIds: ['chinese'] },
 ]
 

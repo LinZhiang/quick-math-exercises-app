@@ -1,4 +1,13 @@
-/** 困难语法句库：成分须覆盖全文（除标点），供「圈出所有语法」使用 */
+/** 困难语法句库：成分须覆盖全文（除标点），供「圈出所有语法」使用
+ *
+ * 统一新标准（中学教法 + 与主流模型归类对齐；圈选金标互不重叠）：
+ * 1) 处所主语：「处所 + 动作 + 事物」→ 处所词标主语。
+ *    例：台下顿时响起掌声 → 台下=主语；他在台下唱歌 → 在台下=状语。
+ * 2) 动补合并：「响起了」等作单一谓语，不拆「响」+「起了」。
+ * 3) 把字句：「把+NP」整段标状语，不另拆「歌」等为宾语（防重复圈选）。
+ *    双标兼容（状语整段 / 单独标宾语都算对）暂未开启，需时再放宽判分。
+ * 4) 嵌套定语（反复、这首、难唱的）已含在更大状/定短语内，金标不重复拆出。
+ */
 
 export type HardGrammarRole =
   | 'subject'
@@ -59,10 +68,10 @@ export const HARD: HardSentence[] = [
     { text: '把这首难唱的歌', role: 'adverbial' },
     { text: '唱', role: 'predicate' },
     { text: '得非常动听', role: 'complement' },
-    { text: '台下', role: 'adverbial' },
+    // 后分句「台下响起了掌声」：处所词「台下」是主语（存现/处所主语句），不是状语
+    { text: '台下', role: 'subject' },
     { text: '顿时', role: 'adverbial' },
-    { text: '响', role: 'predicate' },
-    { text: '起了', role: 'complement' },
+    { text: '响起了', role: 'predicate' },
     { text: '经久不息的', role: 'attributive' },
     { text: '掌声', role: 'object' },
   ]),
@@ -173,11 +182,10 @@ export const HARD: HardSentence[] = [
     { text: '把坏掉的机器', role: 'adverbial' },
     { text: '修', role: 'predicate' },
     { text: '得跟新的一样', role: 'complement' },
-    { text: '车间里', role: 'adverbial' },
+    { text: '车间里', role: 'subject' },
     { text: '顿时', role: 'adverbial' },
     { text: '又', role: 'adverbial' },
-    { text: '响', role: 'predicate' },
-    { text: '起了', role: 'complement' },
+    { text: '响起了', role: 'predicate' },
     { text: '轰鸣', role: 'object' },
   ]),
   S('h13', '在伸手不见五指的山洞里，探险队员仍把地图摸索着摊开，借着微弱的手电光辨认方向。', [
@@ -271,7 +279,7 @@ export const HARD: HardSentence[] = [
     { text: '送货的司机', role: 'object' },
     { text: '焦急', role: 'predicate' },
     { text: '得直跺脚', role: 'complement' },
-    { text: '电台里', role: 'adverbial' },
+    { text: '电台里', role: 'subject' },
     { text: '却', role: 'adverbial' },
     { text: '迟迟', role: 'adverbial' },
     { text: '没有', role: 'adverbial' },
@@ -459,7 +467,7 @@ export const HARD: HardSentence[] = [
     { text: '把行人的脚步声', role: 'adverbial' },
     { text: '衬托', role: 'predicate' },
     { text: '得格外清晰', role: 'complement' },
-    { text: '寺院里', role: 'adverbial' },
+    { text: '寺院里', role: 'subject' },
     { text: '静', role: 'predicate' },
     { text: '得只剩风穿过松林', role: 'complement' },
   ]),

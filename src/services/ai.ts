@@ -13,9 +13,11 @@ import {
 import {
   getWenguAuthToken,
   hydrateWenguAuthStore,
+  isWenguApiReadyForCurrentUser,
   WENGU_ACCOUNT_DISABLED_HINT,
   WENGU_LOGIN_REQUIRED_HINT,
 } from '@/utils/wenguAuthStore'
+import { WENGU_MEMBER_CUSTOM_API_HINT } from '@/utils/wenguApiOrigin'
 import { wenguApiFetch } from '@/utils/wenguApiFetch'
 import { resolveDeepSeekApiKey } from '@/utils/deepseekApiKeyStore'
 
@@ -126,12 +128,32 @@ function buildRequestBody(
   }
 }
 
+function looksLikeLocalProxyDown(text: string, status: number): boolean {
+  const t = text.toLowerCase()
+  return (
+    t.includes('econnrefused') ||
+    t.includes('127.0.0.1:8790') ||
+    t.includes('localhost:8790') ||
+    ((status === 502 || status === 503 || status === 504) &&
+      (t.includes('proxy') || t.includes('connect')))
+  )
+}
+
 async function parseErrorResponse(
   res: Response,
   provider: AiProvider,
 ): Promise<never> {
   const status = res.status
   const errText = await res.text().catch(() => '')
+  if (looksLikeLocalProxyDown(errText, status)) {
+    throw new AiUpstreamError({
+      message:
+        '本地 AI 代理（8790）未启动或已断开，不是豆包方舟拒绝访问。请确认 npm run dev:full 已运行且终端出现 [quick-math-ai]。',
+      status,
+      code: 'LOCAL_PROXY_DOWN',
+      provider,
+    })
+  }
   let payload: {
     error?: { message?: string; type?: string; code?: string; provider?: string }
   } = {}
@@ -205,6 +227,9 @@ export async function aiChatCompletion(
 
   await hydrateWenguAuthStore()
   const sessionToken = getWenguAuthToken()
+  if (sessionToken && !isWenguApiReadyForCurrentUser()) {
+    throw new Error(WENGU_MEMBER_CUSTOM_API_HINT)
+  }
   const body = JSON.stringify(buildRequestBody(messages, provider, options))
 
   if (sessionToken) {
@@ -276,6 +301,9 @@ export async function aiChatCompletionStream(
   const sessionToken = getWenguAuthToken()
   if (!sessionToken) {
     throw new Error(WENGU_LOGIN_REQUIRED_HINT)
+  }
+  if (!isWenguApiReadyForCurrentUser()) {
+    throw new Error(WENGU_MEMBER_CUSTOM_API_HINT)
   }
 
   const body = JSON.stringify(

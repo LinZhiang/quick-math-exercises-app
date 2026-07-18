@@ -21,6 +21,11 @@ export type ChineseGeneratedHistoryKind =
   | 'economy-common-sense'
   | 'life-common-sense'
   | 'geography-common-sense'
+  | 'data-analysis-percent'
+  | 'data-analysis-growth'
+  | 'data-analysis-growth-inter-year'
+  | 'data-analysis-growth-avg-annual'
+  | 'data-analysis-growth-mixed'
 
 const STORAGE_KEYS: Record<ChineseGeneratedHistoryKind, string> = {
   idiom: 'chinese-generated-history-idiom-v1',
@@ -41,6 +46,14 @@ const STORAGE_KEYS: Record<ChineseGeneratedHistoryKind, string> = {
   'economy-common-sense': 'chinese-generated-history-economy-common-sense-v1',
   'life-common-sense': 'chinese-generated-history-life-common-sense-v1',
   'geography-common-sense': 'chinese-generated-history-geography-common-sense-v1',
+  'data-analysis-percent': 'chinese-generated-history-data-analysis-percent-v1',
+  'data-analysis-growth': 'chinese-generated-history-data-analysis-growth-v1',
+  'data-analysis-growth-inter-year':
+    'chinese-generated-history-data-analysis-growth-inter-year-v1',
+  'data-analysis-growth-avg-annual':
+    'chinese-generated-history-data-analysis-growth-avg-annual-v1',
+  'data-analysis-growth-mixed':
+    'chinese-generated-history-data-analysis-growth-mixed-v1',
 }
 
 function normalizeTerm(term: string): string {

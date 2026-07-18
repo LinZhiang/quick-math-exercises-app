@@ -15,6 +15,11 @@ import TwentyFourPointPanel from '@/views/tools/mental-math/components/TwentyFou
 import SudokuPanel from '@/views/tools/mental-math/components/SudokuPanel.vue'
 import CircleGrammarPanel from '@/views/tools/mental-math/components/CircleGrammarPanel.vue'
 import ShortenSentencePanel from '@/views/tools/mental-math/components/ShortenSentencePanel.vue'
+import DataAnalysisPanel from '@/views/tools/mental-math/components/DataAnalysisPanel.vue'
+import DataAnalysisGrowthPanel from '@/views/tools/mental-math/components/DataAnalysisGrowthPanel.vue'
+import DataAnalysisGrowthInterYearPanel from '@/views/tools/mental-math/components/DataAnalysisGrowthInterYearPanel.vue'
+import DataAnalysisGrowthAvgAnnualPanel from '@/views/tools/mental-math/components/DataAnalysisGrowthAvgAnnualPanel.vue'
+import DataAnalysisGrowthMixedPanel from '@/views/tools/mental-math/components/DataAnalysisGrowthMixedPanel.vue'
 import GraphicReasoningCell from '@/views/tools/graphic-reasoning/components/GraphicReasoningCell.vue'
 import {
   clampGraphicReasoningScore,
@@ -141,6 +146,19 @@ const circleGrammarPanelRef = ref<InstanceType<typeof CircleGrammarPanel> | null
 const shortenSentenceQuestion = ref<ShortenSentenceQuestion | null>(null)
 const shortenSentencePanelRef = ref<InstanceType<typeof ShortenSentencePanel> | null>(null)
 const chinesePracticeRef = ref<InstanceType<typeof ChinesePracticeSection> | null>(null)
+const dataAnalysisPanelRef = ref<InstanceType<typeof DataAnalysisPanel> | null>(null)
+const dataAnalysisGrowthPanelRef = ref<InstanceType<typeof DataAnalysisGrowthPanel> | null>(null)
+const dataAnalysisGrowthInterYearPanelRef = ref<InstanceType<
+  typeof DataAnalysisGrowthInterYearPanel
+> | null>(null)
+const dataAnalysisGrowthAvgAnnualPanelRef = ref<InstanceType<
+  typeof DataAnalysisGrowthAvgAnnualPanel
+> | null>(null)
+const dataAnalysisGrowthMixedPanelRef = ref<InstanceType<
+  typeof DataAnalysisGrowthMixedPanel
+> | null>(null)
+/** 资料分析「增长」子模块折叠：默认收起 */
+const dataAnalysisGrowthFoldOpen = ref(false)
 const questionSeq = ref(0)
 const records = ref<MentalMathAnswerRecord[]>([])
 const graphicRecords = ref<GraphicReasoningAnswerRecord[]>([])
@@ -329,13 +347,24 @@ const showSudokuSection = computed(
 const showGraphicSection = computed(
   () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'graphic',
 )
+const showDataAnalysisSection = computed(
+  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'data-analysis',
+)
 const showChineseSection = computed(
   () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'chinese',
 )
 const showInstallSection = computed(() => activeOutlineSection.value === 'install')
 const showGuideSection = computed(() => activeOutlineSection.value === 'guide')
 
-const chineseSessionActive = computed(() => chinesePracticeRef.value?.isRunningOrLoading ?? false)
+const chineseSessionActive = computed(
+  () =>
+    (chinesePracticeRef.value?.isRunningOrLoading ?? false) ||
+    (dataAnalysisPanelRef.value?.isRunningOrLoading ?? false) ||
+    (dataAnalysisGrowthPanelRef.value?.isRunningOrLoading ?? false) ||
+    (dataAnalysisGrowthInterYearPanelRef.value?.isRunningOrLoading ?? false) ||
+    (dataAnalysisGrowthAvgAnnualPanelRef.value?.isRunningOrLoading ?? false) ||
+    (dataAnalysisGrowthMixedPanelRef.value?.isRunningOrLoading ?? false),
+)
 
 const mcqOptionCount = computed(() => {
   const mode = activeMode.value
@@ -1106,6 +1135,8 @@ onMounted(() => {
     activeOutlineSection.value = 'sudoku'
   } else if (hash === 'graphic' || route.query.section === 'graphic') {
     activeOutlineSection.value = 'graphic'
+  } else if (hash === 'data-analysis' || route.query.section === 'data-analysis') {
+    activeOutlineSection.value = 'data-analysis'
   } else if (hash === 'chinese' || hash === 'chinese-idiom' || route.query.section === 'chinese' || route.query.section === 'chinese-idiom') {
     activeOutlineSection.value = 'chinese'
   } else if (hash === 'chinese-key' || route.query.section === 'chinese-key') {
@@ -1135,7 +1166,7 @@ onBeforeUnmount(() => {
     <header v-if="phase === 'select'" class="page-hero">
       <h2 class="page-title">口算练习</h2>
       <p class="page-subtitle page-subtitle--full">
-        限时口算、次幂、平方与立方、估算分数、整除及其性质、生活常识、图形推理；左侧「语文练习」含成语识记、词语识记、阅读理解等子功能。
+        限时口算、次幂、平方与立方、估算分数、整除、生活常识；数学推理含二十四点、数独、图形推理、资料分析；左侧「语文练习」含成语识记、词语识记、阅读理解等。
         口算/图形结果仅在本页展示；语文练习多子模块四选一、正计时，依赖 AI 出题（DeepSeek / 豆包，需在「导览 → 安装」登录），错题与收藏在「关键题练习」。
       </p>
       <p class="page-subtitle page-subtitle--compact">
@@ -1451,6 +1482,60 @@ onBeforeUnmount(() => {
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
+          </div>
+        </section>
+
+        <section v-if="showDataAnalysisSection" class="mode-section" id="practice-data-analysis">
+          <h3 class="mode-section__title">资料分析</h3>
+          <p class="mode-section__hint">
+            公考/事业编资料分析考点。开放「百分数与百分点」与「增长」（一般/隔年/年均/混合，默认折叠）；各模块错题集分开。正计时，提交后停表看答案再下一题。
+          </p>
+          <h4 class="mode-section__subtitle">百分数与百分点</h4>
+          <DataAnalysisPanel ref="dataAnalysisPanelRef" />
+          <MentalMathWrongBookPanel section="data-analysis" />
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="dataAnalysisGrowthFoldOpen"
+              @click="dataAnalysisGrowthFoldOpen = !dataAnalysisGrowthFoldOpen"
+            >
+              <span class="da-growth-fold__title">增长</span>
+              <span class="da-growth-fold__meta">一般 · 隔年 · 年均 · 混合</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': dataAnalysisGrowthFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="dataAnalysisGrowthFoldOpen" class="da-growth-fold__body">
+              <h4 class="mode-section__subtitle">增长 · 一般增长</h4>
+              <p class="mode-section__hint">
+                基期/现期、增长量与增长率；复杂题含统计图，仅豆包出题。与「百分数与百分点」错题不混用。
+              </p>
+              <DataAnalysisGrowthPanel ref="dataAnalysisGrowthPanelRef" />
+              <MentalMathWrongBookPanel section="data-analysis-growth" />
+              <h4 class="mode-section__subtitle">增长 · 隔年增长</h4>
+              <p class="mode-section__hint">
+                隔年增速与隔年基期；简单题纯文字，复杂题为两年累计增速双折线图。仅豆包出题，错题单独成集。
+              </p>
+              <DataAnalysisGrowthInterYearPanel ref="dataAnalysisGrowthInterYearPanelRef" />
+              <MentalMathWrongBookPanel section="data-analysis-growth-inter-year" />
+              <h4 class="mode-section__subtitle">增长 · 年均增长</h4>
+              <p class="mode-section__hint">
+                年均增长量/增长率、多期连乘、初期判定与外推；简单题纯文字，复杂题含柱折线图或数据表。仅豆包出题，错题单独成集。
+              </p>
+              <DataAnalysisGrowthAvgAnnualPanel ref="dataAnalysisGrowthAvgAnnualPanelRef" />
+              <MentalMathWrongBookPanel section="data-analysis-growth-avg-annual" />
+              <h4 class="mode-section__subtitle">增长 · 混合增长</h4>
+              <p class="mode-section__hint">
+                整体增速介于部分之间、偏向基期大的一侧、十字交叉与反推另一部分增速；简单/复杂均为纯文字。复杂题选项贴近，须计算或估权，对齐书上难题。仅豆包出题，错题单独成集。
+              </p>
+              <DataAnalysisGrowthMixedPanel ref="dataAnalysisGrowthMixedPanelRef" />
+              <MentalMathWrongBookPanel section="data-analysis-growth-mixed" />
+            </div>
           </div>
         </section>
 
@@ -1917,6 +2002,62 @@ onBeforeUnmount(() => {
   font-size: 1rem;
   font-weight: 750;
   color: #0f172a;
+}
+
+.da-growth-fold {
+  margin-top: 14px;
+  border: 1px solid color-mix(in srgb, #0d9488 22%, var(--app-border-soft, #e2e8f0));
+  border-radius: 12px;
+  background: color-mix(in srgb, #0d9488 4%, var(--app-card-bg, #fff));
+  overflow: hidden;
+}
+
+.da-growth-fold__toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+
+.da-growth-fold__toggle:hover {
+  background: color-mix(in srgb, #0d9488 8%, transparent);
+}
+
+.da-growth-fold__title {
+  font-size: 1.05rem;
+  font-weight: 750;
+  color: #0f172a;
+}
+
+.da-growth-fold__meta {
+  flex: 1;
+  font-size: 13px;
+  color: var(--app-text-muted, #64748b);
+}
+
+.da-growth-fold__chevron {
+  font-size: 14px;
+  color: #0d9488;
+  transition: transform 0.18s ease;
+}
+
+.da-growth-fold__chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.da-growth-fold__body {
+  padding: 0 14px 14px;
+  border-top: 1px solid color-mix(in srgb, #0d9488 14%, transparent);
+}
+
+.da-growth-fold__body .mode-section__subtitle:first-child {
+  margin-top: 12px;
 }
 
 .mode-card--circle-grammar {
