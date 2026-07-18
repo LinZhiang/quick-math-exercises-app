@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   createWenguMember,
@@ -7,6 +7,7 @@ import {
   fetchWenguMembers,
   getWenguUser,
   isWenguAdmin,
+  isWenguApiReadyForCurrentUser,
   isWenguLoggedIn,
   loginWengu,
   logoutWengu,
@@ -21,12 +22,15 @@ import {
   describeWenguApiTarget,
   getBuildTimeWenguApiOrigin,
   getWenguApiOrigin,
+  hasWenguApiOriginOverride,
+  isMemberCustomApiOriginValid,
   setWenguApiOriginOverride,
 } from '@/utils/wenguApiOrigin'
 import AiProviderSwitch from '@/components/AiProviderSwitch.vue'
 
 const serverProbe = ref<WenguServerProbe | null>(null)
 const probingServer = ref(false)
+/** 管理员可折叠；成员登录后默认展开必填 */
 const showAdvancedApi = ref(false)
 const apiOriginDraft = ref(getWenguApiOrigin())
 const apiOriginTick = ref(0)
@@ -62,6 +66,25 @@ const isAdmin = computed(() => {
   return isWenguAdmin()
 })
 
+const memberApiReady = computed(() => {
+  void apiOriginTick.value
+  void wenguAuthTick.value
+  return isMemberCustomApiOriginValid()
+})
+
+const apiReadyForUser = computed(() => {
+  void apiOriginTick.value
+  void wenguAuthTick.value
+  return isWenguApiReadyForCurrentUser()
+})
+
+/** 登录后显示；或未登录但已存自定义地址时也可改（方便改错地址后重登） */
+const showCustomApiPanel = computed(() => {
+  void apiOriginTick.value
+  if (loggedIn.value) return showAdvancedApi.value || !isAdmin.value
+  return hasWenguApiOriginOverride()
+})
+
 async function refreshServerProbe() {
   probingServer.value = true
   try {
@@ -71,9 +94,23 @@ async function refreshServerProbe() {
   }
 }
 
+function syncApiDraftFromStore() {
+  apiOriginDraft.value = hasWenguApiOriginOverride()
+    ? getWenguApiOrigin()
+    : isAdmin.value
+      ? getBuildTimeWenguApiOrigin() || ''
+      : ''
+  apiOriginTick.value += 1
+}
+
 function onSaveApiOrigin() {
   const raw = apiOriginDraft.value.trim().replace(/\/$/, '')
-  if (raw && !/^https?:\/\//i.test(raw)) {
+  if (!raw) {
+    if (!isAdmin.value) {
+      ElMessage.warning('成员必须填写自己的 API 地址，不能留空使用本站默认接口')
+      return
+    }
+  } else if (!/^https?:\/\//i.test(raw)) {
     ElMessage.warning('请填写完整地址，例如 https://abc.trycloudflare.com')
     return
   }
@@ -81,13 +118,38 @@ function onSaveApiOrigin() {
     ElMessage.error('这是示例占位地址，请换成电脑终端里打印的真实隧道地址')
     return
   }
+  if (!isAdmin.value) {
+    if (!raw || raw === locationOrigin || raw === getBuildTimeWenguApiOrigin()) {
+      ElMessage.error('成员不能使用本站默认地址，请填写你自己的服务地址')
+      return
+    }
+  }
+
+  const prev = hasWenguApiOriginOverride() ? getWenguApiOrigin() : ''
   setWenguApiOriginOverride(raw || null)
   apiOriginTick.value += 1
   ElMessage.success(raw ? `已保存 API 地址：${raw}` : '已改回默认（同源/构建配置）')
+
+  // 成员改地址后 Token 往往不能跨站复用，需在新地址重新登录
+  if (!isAdmin.value && raw && raw !== prev) {
+    void (async () => {
+      await logoutWengu()
+      username.value = ''
+      password.value = ''
+      members.value = []
+      ElMessage.info('API 地址已更新，请使用该地址对应的服务重新登录')
+      await refreshServerProbe()
+    })()
+    return
+  }
   void refreshServerProbe()
 }
 
 function onClearApiOrigin() {
+  if (!isAdmin.value) {
+    ElMessage.warning('成员不能清除为自己的默认接口，请填写有效的自定义地址')
+    return
+  }
   apiOriginDraft.value = getBuildTimeWenguApiOrigin()
   setWenguApiOriginOverride(null)
   apiOriginTick.value += 1
@@ -113,7 +175,21 @@ async function onLogin() {
     const user = await loginWengu(u, p)
     password.value = ''
     ElMessage.success(`已登录：${user.username}${user.role === 'admin' ? '（管理员）' : ''}`)
-    if (user.role === 'admin') void loadMembers()
+    if (user.role === 'admin') {
+      // 公网管理员强制同源，避免误用旧隧道
+      if (isCloudflarePagesHost) {
+        setWenguApiOriginOverride(null)
+        syncApiDraftFromStore()
+      }
+      void loadMembers()
+      showAdvancedApi.value = false
+    } else {
+      showAdvancedApi.value = true
+      syncApiDraftFromStore()
+      if (!isMemberCustomApiOriginValid()) {
+        ElMessage.warning('成员须填写自己的 API 地址后，才能使用语文 AI')
+      }
+    }
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '登录失败')
   } finally {
@@ -135,6 +211,7 @@ async function onLogout() {
   username.value = ''
   password.value = ''
   members.value = []
+  showAdvancedApi.value = false
   ElMessage.success('已退出登录')
 }
 
@@ -212,14 +289,23 @@ async function onDeleteMember(row: WenguMemberUser) {
   }
 }
 
-onMounted(() => {
-  // 公网：清掉以前填的隧道地址，强制同源 Functions
-  if (isCloudflarePagesHost) {
-    setWenguApiOriginOverride(null)
-    apiOriginDraft.value = ''
-    apiOriginTick.value += 1
+watch(loggedIn, (ok) => {
+  if (!ok) {
+    showAdvancedApi.value = false
+    return
   }
+  if (!isAdmin.value) {
+    showAdvancedApi.value = true
+    syncApiDraftFromStore()
+  }
+})
+
+onMounted(() => {
   void refreshServerProbe()
+  if (loggedIn.value && !isAdmin.value) {
+    showAdvancedApi.value = true
+    syncApiDraftFromStore()
+  }
   if (isAdmin.value) void loadMembers()
 })
 </script>
@@ -235,6 +321,7 @@ onMounted(() => {
     <p class="mode-section__hint wengu-auth__risk">
       本工具仅家庭可信人员使用；请在 DeepSeek / 火山方舟后台设置调用限额。
       模型可在下方手动切换（默认 DeepSeek，不自动降级）。
+      成员账号须自备 API 地址，不能直接使用本站默认接口。
     </p>
 
     <AiProviderSwitch />
@@ -260,29 +347,6 @@ onMounted(() => {
         </template>
       </p>
       <el-button size="small" :loading="probingServer" @click="refreshServerProbe">重新检测</el-button>
-      <el-button size="small" text type="primary" @click="showAdvancedApi = !showAdvancedApi">
-        {{ showAdvancedApi ? '收起高级选项' : '高级：自定义 API 地址' }}
-      </el-button>
-    </div>
-
-    <div v-if="showAdvancedApi" class="install-card">
-      <p class="install-card__title">自定义 API（一般不需要）</p>
-      <p class="install-card__text">
-        默认已同源调用本站服务。仅在特殊调试时填写其他地址。
-      </p>
-      <div class="wengu-auth__form" style="margin-top: 10px">
-        <el-input
-          v-model="apiOriginDraft"
-          clearable
-          placeholder="留空 = 本站同源"
-          @keydown.enter.prevent="onSaveApiOrigin"
-        />
-        <div class="wengu-auth__member-actions">
-          <el-button type="primary" size="small" @click="onSaveApiOrigin">保存并检测</el-button>
-          <el-button size="small" @click="onClearApiOrigin">清除</el-button>
-        </div>
-        <p class="install-card__text wengu-auth__note">当前目标：<code>{{ currentApiTarget }}</code></p>
-      </div>
     </div>
 
     <div v-if="loggedIn && currentUser" class="install-card install-card--ok">
@@ -291,12 +355,72 @@ onMounted(() => {
         当前用户：<code>{{ currentUser.username }}</code>
         <span v-if="currentUser.role === 'admin'">（管理员）</span>
       </p>
+      <p
+        v-if="!isAdmin && !memberApiReady"
+        class="install-card__text wengu-auth__note wengu-auth__warn"
+      >
+        尚未配置可用的自定义 API，语文 AI 暂不可用。请在下方填写你自己的服务地址。
+      </p>
       <div class="wengu-auth__actions">
         <el-button type="danger" plain size="small" @click="onLogout">退出登录</el-button>
+        <el-button
+          v-if="isAdmin"
+          size="small"
+          text
+          type="primary"
+          @click="showAdvancedApi = !showAdvancedApi"
+        >
+          {{ showAdvancedApi ? '收起高级选项' : '高级：自定义 API 地址' }}
+        </el-button>
       </div>
     </div>
 
-    <div v-else class="install-card">
+    <!-- 自定义 API：登录后显示（成员必填）；未登录但已保存过地址时也可修改以便重登 -->
+    <div
+      v-if="showCustomApiPanel"
+      class="install-card"
+      :class="{ 'install-card--warn': !isAdmin && !memberApiReady }"
+    >
+      <p class="install-card__title">
+        {{
+          !loggedIn
+            ? '自定义 API'
+            : isAdmin
+              ? '自定义 API（一般不需要）'
+              : '自定义 API（成员必填）'
+        }}
+      </p>
+      <p class="install-card__text">
+        <template v-if="!loggedIn">
+          当前浏览器已保存自定义地址。可修改后，用该服务重新登录。
+        </template>
+        <template v-else-if="isAdmin">
+          默认已同源调用本站服务。仅在特殊调试时填写其他地址。
+        </template>
+        <template v-else>
+          成员不能使用本站默认接口。请填写你自己的服务根地址（如家里电脑的隧道
+          <code>https://….trycloudflare.com</code>），保存后需用该服务重新登录。
+        </template>
+      </p>
+      <div class="wengu-auth__form" style="margin-top: 10px">
+        <el-input
+          v-model="apiOriginDraft"
+          clearable
+          :placeholder="isAdmin ? '留空 = 本站同源' : '必填，例如 https://xxxx.trycloudflare.com'"
+          @keydown.enter.prevent="onSaveApiOrigin"
+        />
+        <div class="wengu-auth__member-actions">
+          <el-button type="primary" size="small" @click="onSaveApiOrigin">保存并检测</el-button>
+          <el-button v-if="isAdmin" size="small" @click="onClearApiOrigin">清除</el-button>
+        </div>
+        <p class="install-card__text wengu-auth__note">
+          当前目标：<code>{{ currentApiTarget }}</code>
+          <span v-if="!isAdmin && apiReadyForUser"> · 已可用</span>
+        </p>
+      </div>
+    </div>
+
+    <div v-if="!loggedIn" class="install-card">
       <p class="install-card__title">登录</p>
       <div class="wengu-auth__form">
         <el-input
@@ -323,13 +447,8 @@ onMounted(() => {
         </el-button>
       </div>
       <p class="install-card__text wengu-auth__note">
-        <template v-if="loggedIn && currentUser?.role === 'admin'">
-          管理员登录保存在本机 localStorage，有效期约 7 天，关标签后无需重登。
-        </template>
-        <template v-else>
-          成员登录保存在 sessionStorage（关标签即失效，约 2 小时过期）；离开语文练习区也会自动清除。
-        </template>
-        禁用成员后其旧 Token 立即失效。
+        管理员登录保存在本机 localStorage，有效期约 7 天；成员登录保存在 sessionStorage（关标签即失效）。
+        成员登录后须填写自己的 API 地址。禁用成员后其旧 Token 立即失效。
       </p>
     </div>
 
@@ -423,10 +542,19 @@ onMounted(() => {
 
 .wengu-auth__actions {
   margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .wengu-auth__note {
   margin-top: 10px;
+}
+
+.wengu-auth__warn {
+  color: var(--el-color-warning);
+  font-weight: 600;
 }
 
 .wengu-auth__member-list {

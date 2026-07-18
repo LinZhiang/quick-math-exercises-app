@@ -28,7 +28,10 @@ function offlineHint(): string {
       'DEEPSEEK_API_KEY、WENGU_ADMIN_PASSWORD，并重新部署。'
     )
   }
-  return '无法连接登录服务。本地请运行 npm run serve:install；公网请用已配置 Secrets 的 pages.dev。'
+  return (
+    '无法连接本地 AI/登录代理（默认 8790）。请确认已运行 npm run dev:full，' +
+    '终端出现 [quick-math-ai] http://0.0.0.0:8790 后再生成题目；不是豆包方舟主动封禁。'
+  )
 }
 
 export async function readWenguJsonResponse<T>(res: Response): Promise<T> {

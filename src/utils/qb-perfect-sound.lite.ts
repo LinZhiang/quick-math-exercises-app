@@ -1,9 +1,9 @@
 /**
  * 满分祝贺音（轻量版，用于 Cloudflare Pages 等体积敏感构建）
  */
-import perfectScoreUrl from '@/assets/voice/答对了.wav?url'
+import perfectScoreUrl from '@/assets/voice/全部答对.wav?url'
 
-const PERFECT_SCORE_PLAYBACK_VOLUME = 0.45
+const PERFECT_SCORE_PLAYBACK_VOLUME = 1
 const PERFECT_SCORE_PLAY_DELAY_MS = 1000
 
 let perfectAudio: HTMLAudioElement | null = null

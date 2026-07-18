@@ -1,0 +1,38 @@
+---
+description: 练习题高亮标记规范（解析驱动、专名+数据、禁圈迷惑项）
+alwaysApply: true
+---
+
+# 练习题高亮标记流程
+
+后续多数练习模式（资料分析、语文、口算解析等）提交后高亮，统一按本流程。参考实现：`src/utils/dataAnalysisPractice.ts`（`normalizeDataAnalysisEvidenceSpans` / `validateDataAnalysisAnswerMath` / `renderDataAnalysisPassageHtml`）。
+
+## 核心原则
+
+1. **解析驱动**：材料/题干里圈什么，以「解析真正用到的信息」为准，不是题干里出现的所有词，也不是材料里所有同名指标。
+2. **只圈两类**：① 专名/主体（针对谁）；② 算式用到的数据（增速、%、百分点、回落/加快等）。
+3. **迷惑条件不圈**：解析写明「忽略 / 无关 / 迷惑」的指标与数字，材料里也不高亮。
+4. **禁圈噪声**：裸时期词（八月份、前八个月）、裸「同比增长」等无区分度的词单独不圈。
+5. **同色一致**：同一主体及其数据分色对应；材料、题干、解析三处专名/数据用同一套 `evidenceSpans` 映射，不要各自再扩一堆主体。
+
+## 实现清单（新模式照做）
+
+- 题目字段保留 `evidenceSpans: string[]`（须为材料/原文**子串**）+ `explanation` + 可选 `method`。
+- 入库前：`normalize*EvidenceSpans(passage, spans, stem, explanation)`——去掉忽略段后再抽专名与数据；AI 给的 spans 只保留出现在解题句中的。
+- 入库前：若有算式，做算术校验（逐步 `a±b=c` 正确，末步结果 = `correct`）；算错直接拒题重出。
+- 展示：材料用 `evidenceSpans`；题干/解析只映射 spans 里实际出现的片段，**不要**再 `extractSubjectAnchors` 全量补圈。
+- 出题 prompt：明确「evidenceSpans = 解析用到的专名+数据；迷惑条件进材料但不要进 spans；算式必须算对」。
+
+## 反例
+
+- ❌ 解析说忽略「规模以上工业增加值」，材料却整段绿它
+- ❌ 算式用了 5.2%、回落 1.1 个百分点，材料里不圈
+- ❌ 只圈「八月份」，关键 % / 百分点不圈
+- ❌ `5.3%−5.1%=0.3` 这类口算错仍标为标准答案
+
+## 资料分析 · 增长一般增长
+
+- 简单/复杂共用错题分区 `data-analysis-growth`；与「百分数与百分点」(`data-analysis`) 隔离。
+- 复杂题统计图只渲染、不高亮；高亮仍只针对文字材料/题干/解析。
+- 本模块出题强制豆包（`provider: 'doubao'`）。
+- 增长题用 `normalizeGrowthEvidenceSpans`：必须圈齐现期值+增长量等完整带单位短语（如「1200万千瓦」「增长200万千瓦」）；禁止「增长200」「增速=200」噪声。

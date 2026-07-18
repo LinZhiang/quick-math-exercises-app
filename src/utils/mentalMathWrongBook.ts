@@ -9,6 +9,11 @@ export type MentalMathWrongSection =
   | 'life-sense'
   | 'grammar-judgment'
   | 'twentyfour'
+  | 'data-analysis'
+  | 'data-analysis-growth'
+  | 'data-analysis-growth-inter-year'
+  | 'data-analysis-growth-avg-annual'
+  | 'data-analysis-growth-mixed'
 
 export type MentalMathWrongRecord = {
   fingerprint: string
@@ -64,6 +69,11 @@ export const MENTAL_MATH_WRONG_SECTION_LABELS: Record<MentalMathWrongSection, st
   'life-sense': '生活常识',
   'grammar-judgment': '语法判断',
   twentyfour: '二十四点',
+  'data-analysis': '资料分析 · 百分数与百分点',
+  'data-analysis-growth': '资料分析 · 增长·一般增长',
+  'data-analysis-growth-inter-year': '资料分析 · 增长·隔年增长',
+  'data-analysis-growth-avg-annual': '资料分析 · 增长·年均增长',
+  'data-analysis-growth-mixed': '资料分析 · 增长·混合增长',
 }
 
 /** 模式 id → 错题分区；不在集合内则不记错题本 */
@@ -98,6 +108,28 @@ export function mentalMathModeToWrongSection(modeId: string): MentalMathWrongSec
     return 'grammar-judgment'
   }
   if (modeId === 'twentyfour-easy' || modeId === 'twentyfour-hard') return 'twentyfour'
+  if (modeId === 'data-analysis-easy' || modeId === 'data-analysis-hard') return 'data-analysis'
+  if (modeId === 'data-analysis-growth-easy' || modeId === 'data-analysis-growth-hard') {
+    return 'data-analysis-growth'
+  }
+  if (
+    modeId === 'data-analysis-growth-inter-year-easy' ||
+    modeId === 'data-analysis-growth-inter-year-hard'
+  ) {
+    return 'data-analysis-growth-inter-year'
+  }
+  if (
+    modeId === 'data-analysis-growth-avg-annual-easy' ||
+    modeId === 'data-analysis-growth-avg-annual-hard'
+  ) {
+    return 'data-analysis-growth-avg-annual'
+  }
+  if (
+    modeId === 'data-analysis-growth-mixed-easy' ||
+    modeId === 'data-analysis-growth-mixed-hard'
+  ) {
+    return 'data-analysis-growth-mixed'
+  }
   return null
 }
 
