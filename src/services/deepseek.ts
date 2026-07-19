@@ -167,6 +167,159 @@ import {
   type GrowthMixedQuestion,
 } from '@/utils/dataAnalysisGrowthMixedPractice'
 import {
+  buildProportionBasicHardFromSeedTemplate,
+  buildProportionBasicQuestionFromMcq,
+  detectProportionBasicEasySkillId,
+  PROPORTION_BASIC_HARD_SKILL_SLOTS,
+  PROPORTION_BASIC_QUESTION_COUNT,
+  parseProportionBasicMcqAiObject,
+  pickProportionBasicEasySkillPlan,
+  pickProportionBasicHardSeedTemplates,
+  takeProportionBasicEasyLocalSeeds,
+  takeProportionBasicHardLocalSeeds,
+  type ProportionBasicDifficulty,
+  type ProportionBasicEasySkillId,
+  type ProportionBasicEasySkillSlot,
+  type ProportionBasicHardSeedTemplate,
+  type ProportionBasicQuestion,
+} from '@/utils/dataAnalysisProportionBasicPractice'
+import {
+  buildProportionBaseHardFromSeedTemplate,
+  buildProportionBaseQuestionFromMcq,
+  detectProportionBaseEasySkillId,
+  PROPORTION_BASE_HARD_SKILL_SLOTS,
+  PROPORTION_BASE_QUESTION_COUNT,
+  parseProportionBaseMcqAiObject,
+  pickProportionBaseEasySkillPlan,
+  pickProportionBaseHardSeedTemplates,
+  takeProportionBaseEasyLocalSeeds,
+  takeProportionBaseHardLocalSeeds,
+  type ProportionBaseDifficulty,
+  type ProportionBaseEasySkillId,
+  type ProportionBaseEasySkillSlot,
+  type ProportionBaseHardSeedTemplate,
+  type ProportionBaseQuestion,
+} from '@/utils/dataAnalysisProportionBasePractice'
+import {
+  buildAverageBasicHardFromSeedTemplate,
+  buildAverageBasicQuestionFromMcq,
+  detectAverageBasicEasySkillId,
+  AVERAGE_BASIC_HARD_SKILL_SLOTS,
+  AVERAGE_BASIC_QUESTION_COUNT,
+  parseAverageBasicMcqAiObject,
+  pickAverageBasicEasySkillPlan,
+  pickAverageBasicHardSeedTemplates,
+  takeAverageBasicEasyLocalSeeds,
+  takeAverageBasicHardLocalSeeds,
+  type AverageBasicDifficulty,
+  type AverageBasicEasySkillId,
+  type AverageBasicEasySkillSlot,
+  type AverageBasicHardSeedTemplate,
+  type AverageBasicQuestion,
+} from '@/utils/dataAnalysisAverageBasicPractice'
+import {
+  buildAverageBaseHardFromSeedTemplate,
+  buildAverageBaseQuestionFromMcq,
+  detectAverageBaseEasySkillId,
+  AVERAGE_BASE_HARD_SKILL_SLOTS,
+  AVERAGE_BASE_QUESTION_COUNT,
+  parseAverageBaseMcqAiObject,
+  pickAverageBaseEasySkillPlan,
+  pickAverageBaseHardSeedTemplates,
+  takeAverageBaseEasyLocalSeeds,
+  takeAverageBaseHardLocalSeeds,
+  type AverageBaseDifficulty,
+  type AverageBaseEasySkillId,
+  type AverageBaseEasySkillSlot,
+  type AverageBaseHardSeedTemplate,
+  type AverageBaseQuestion,
+} from '@/utils/dataAnalysisAverageBasePractice'
+import {
+  buildMultipleBasicHardFromSeedTemplate,
+  buildMultipleBasicQuestionFromMcq,
+  detectMultipleBasicEasySkillId,
+  MULTIPLE_BASIC_HARD_SKILL_SLOTS,
+  MULTIPLE_BASIC_QUESTION_COUNT,
+  parseMultipleBasicMcqAiObject,
+  pickMultipleBasicEasySkillPlan,
+  pickMultipleBasicHardSeedTemplates,
+  takeMultipleBasicEasyLocalSeeds,
+  takeMultipleBasicHardLocalSeeds,
+  type MultipleBasicDifficulty,
+  type MultipleBasicEasySkillId,
+  type MultipleBasicEasySkillSlot,
+  type MultipleBasicHardSeedTemplate,
+  type MultipleBasicQuestion,
+} from '@/utils/dataAnalysisMultipleBasicPractice'
+import {
+  buildMultipleBaseHardFromSeedTemplate,
+  buildMultipleBaseQuestionFromMcq,
+  detectMultipleBaseEasySkillId,
+  MULTIPLE_BASE_HARD_SKILL_SLOTS,
+  MULTIPLE_BASE_QUESTION_COUNT,
+  parseMultipleBaseMcqAiObject,
+  pickMultipleBaseEasySkillPlan,
+  pickMultipleBaseHardSeedTemplates,
+  takeMultipleBaseEasyLocalSeeds,
+  takeMultipleBaseHardLocalSeeds,
+  type MultipleBaseDifficulty,
+  type MultipleBaseEasySkillId,
+  type MultipleBaseEasySkillSlot,
+  type MultipleBaseHardSeedTemplate,
+  type MultipleBaseQuestion,
+} from '@/utils/dataAnalysisMultipleBasePractice'
+import {
+  buildIndexHardFromSeedTemplate,
+  buildIndexQuestionFromMcq,
+  detectIndexEasySkillId,
+  INDEX_HARD_SKILL_SLOTS,
+  INDEX_QUESTION_COUNT,
+  parseIndexMcqAiObject,
+  pickIndexEasySkillPlan,
+  pickIndexHardSeedTemplates,
+  takeIndexEasyLocalSeeds,
+  takeIndexHardLocalSeeds,
+  type IndexDifficulty,
+  type IndexEasySkillId,
+  type IndexEasySkillSlot,
+  type IndexHardSeedTemplate,
+  type IndexQuestion,
+} from '@/utils/dataAnalysisIndexPractice'
+import {
+  buildPullHardFromSeedTemplate,
+  buildPullQuestionFromMcq,
+  detectPullEasySkillId,
+  PULL_HARD_SKILL_SLOTS,
+  PULL_QUESTION_COUNT,
+  parsePullMcqAiObject,
+  pickPullEasySkillPlan,
+  pickPullHardSeedTemplates,
+  takePullEasyLocalSeeds,
+  takePullHardLocalSeeds,
+  type PullDifficulty,
+  type PullEasySkillId,
+  type PullEasySkillSlot,
+  type PullHardSeedTemplate,
+  type PullQuestion,
+} from '@/utils/dataAnalysisPullPractice'
+import {
+  buildSurplusHardFromSeedTemplate,
+  buildSurplusQuestionFromMcq,
+  detectSurplusEasySkillId,
+  SURPLUS_HARD_SKILL_SLOTS,
+  SURPLUS_QUESTION_COUNT,
+  parseSurplusMcqAiObject,
+  pickSurplusEasySkillPlan,
+  pickSurplusHardSeedTemplates,
+  takeSurplusEasyLocalSeeds,
+  takeSurplusHardLocalSeeds,
+  type SurplusDifficulty,
+  type SurplusEasySkillId,
+  type SurplusEasySkillSlot,
+  type SurplusHardSeedTemplate,
+  type SurplusQuestion,
+} from '@/utils/dataAnalysisSurplusPractice'
+import {
   hasStoredDeepSeekApiKey,
 } from '@/utils/deepseekApiKeyStore'
 import {
@@ -3593,6 +3746,2752 @@ export async function requestDataAnalysisGrowthMixedMcqs(input: {
     if (deduped.length < count) {
       input.onProgress?.(`本地复杂题库补齐剩余…`)
       for (const q of takeGrowthMixedHardLocalSeeds(
+        count - deduped.length,
+        900,
+        usedFingerprints,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(
+      `仅成功生成 ${deduped.length}/${count} 题。请确认本地代理 8790 已启动后重试。`,
+    )
+  }
+  return deduped.slice(0, count)
+}
+
+
+/** 比重基本公式 / 基期比重：强制豆包 */
+const PROPORTION_FORCE_PROVIDER: AiProvider = 'doubao'
+
+const DATA_ANALYSIS_PROPORTION_BASIC_SYSTEM = `
+你是公务员/事业编「资料分析」命题专家，专精教材考点「比重——基本公式」。
+
+【公式】
+1. 比重=部分值/整体值×100%
+2. 部分值=整体值×比重；整体值=部分值/比重
+3. 连续占比：A占B为p1、B占C为p2 ⇒ A占C=p1×p2；A=C×p1×p2
+
+【简单题】纯文字无图；数字好算，贴近教材马拉松占比类例题。
+【复杂题】必须含扇形图 pies（1～2 张）；难度≥教材发电量扇形真题，宜多一步推算；选项贴近。
+pies 格式：[{ "title":"…", "note":"可选", "slices":[{"name":"水电","value":17},…] }]，value 为百分数数字。
+【解析】须可验算；末句「答案为…」。只输出合法 JSON。
+`.trim()
+
+const DATA_ANALYSIS_PROPORTION_BASE_SYSTEM = `
+你是公务员/事业编「资料分析」命题专家，专精教材考点「比重——基期比重」。
+
+【公式】
+1. 已知增长量：基期比重=(A−a)/(B−b)
+2. 已知增速：基期比重=A/B×(1+qB)/(1+qA)
+3. 比重增长量（百分点）=A/B×(qA−qB)/(1+qA)
+4. qA>qB 现期比重上升；qA<qB 下降
+
+【简单题】纯文字无表。
+【复杂题】必须含 table（工业经济效益指标类多列表）；难度对齐教材亏损企业占比题或更难。
+table：{ "title","unit?","columns":[…],"rows":[[…],…] }
+【解析】须可验算；末句「答案为…」。只输出合法 JSON。
+`.trim()
+
+function proportionBasicFormat(difficulty: ProportionBasicDifficulty): string {
+  if (difficulty === 'easy') {
+    return `【简单】纯文字；pies 省略或 []。字段：term,passage,stem,correct,distractors[3],evidenceSpans,method,explanation。`
+  }
+  return `【复杂】必须 pies 含 1～2 张扇形图；读图多步。字段：term,passage,pies,stem,correct,distractors[3],evidenceSpans,method,explanation。`
+}
+
+function proportionBaseFormat(difficulty: ProportionBaseDifficulty): string {
+  if (difficulty === 'easy') {
+    return `【简单】纯文字无表；table:null。字段：term,passage,stem,correct,distractors[3],evidenceSpans,method,explanation。`
+  }
+  return `【复杂】必须 table 多行多列；基期比重/比重变化。字段：term,passage,table,stem,correct,distractors[3],evidenceSpans,method,explanation。`
+}
+
+function tryBuildProportionBasicQuestion(
+  item: unknown,
+  difficulty: ProportionBasicDifficulty,
+  seq: number,
+): ProportionBasicQuestion | null {
+  const fields = parseProportionBasicMcqAiObject(item)
+  if (!fields) return null
+  return buildProportionBasicQuestionFromMcq({ ...fields, difficulty, seq })
+}
+
+function tryBuildProportionBaseQuestion(
+  item: unknown,
+  difficulty: ProportionBaseDifficulty,
+  seq: number,
+): ProportionBaseQuestion | null {
+  const fields = parseProportionBaseMcqAiObject(item)
+  if (!fields) return null
+  return buildProportionBaseQuestionFromMcq({ ...fields, difficulty, seq })
+}
+
+async function requestProportionBasicEasyBatch(
+  count: number,
+  skillPlan: ProportionBasicEasySkillSlot[],
+  avoidTerms: string[],
+): Promise<ProportionBasicQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·比重基本公式主题', avoidTerms)
+  const skillLines = skillPlan
+    .slice(0, count)
+    .map((s, i) => `${i + 1}. ${s.label}：${s.prompt}`)
+    .join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「比重——基本公式」简单四选一，组成 JSON 数组。`,
+        proportionBasicFormat('easy'),
+        `【本轮考点】\n${skillLines}`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_PROPORTION_BASIC_SYSTEM,
+        temperature: 0.4,
+        maxTokens: 3200,
+        provider: PROPORTION_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: ProportionBasicQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildProportionBasicQuestion(item, 'easy', 10 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestProportionBasicHardBatch(
+  count: number,
+  avoidTerms: string[],
+): Promise<ProportionBasicQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·比重基本公式主题', avoidTerms)
+  const skillLines = PROPORTION_BASIC_HARD_SKILL_SLOTS.map(
+    (s, i) => `${i + 1}. ${s.label}：${s.prompt}`,
+  ).join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「比重——基本公式」复杂四选一，组成 JSON 数组。`,
+        proportionBasicFormat('hard'),
+        `【考点须覆盖，每题不同】\n${skillLines}`,
+        `每题必须有可读扇形图 pies；数字换新；explanation 写清步骤。`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_PROPORTION_BASIC_SYSTEM,
+        temperature: 0.35,
+        maxTokens: 4800,
+        provider: PROPORTION_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: ProportionBasicQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildProportionBasicQuestion(item, 'hard', 20 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestHardProportionBasicAnchoredMcq(input: {
+  seed: ProportionBasicHardSeedTemplate
+  seq: number
+  timeoutMs: number
+}): Promise<ProportionBasicQuestion | null> {
+  const skillHint = input.seed.skillId
+    ? `本题考点倾向：${input.seed.skillId}（可改数字与设问，但须同一考点且更难或持平）。`
+    : ''
+  const piesJson = JSON.stringify(input.seed.pies)
+  const prompt = [
+    `请基于【给定 pies】出 1 道「比重——基本公式」复杂四选一。`,
+    skillHint,
+    `【给定 pies（扇区百分数尽量保持，可微调非关键数字）】`,
+    piesJson,
+    `【种子材料】${input.seed.passage}`,
+    `【种子设问参考】${input.seed.stem}`,
+    proportionBasicFormat('hard'),
+    `返回 JSON 可省略 pies（将使用给定图）；explanation 末句「答案为…」。不要 markdown。`,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  try {
+    const raw = await withTimeout(
+      deepseekChatRaw(prompt, {
+        system: DATA_ANALYSIS_PROPORTION_BASIC_SYSTEM,
+        temperature: 0.32,
+        maxTokens: 1600,
+        provider: PROPORTION_FORCE_PROVIDER,
+      }),
+      input.timeoutMs,
+      '豆包比重基本公式锚定出题',
+    )
+    const parsed = parseAiJsonObjectLenient(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    const fields = parseProportionBasicMcqAiObject(parsed)
+    if (!fields) return null
+    return buildProportionBasicQuestionFromMcq({
+      ...fields,
+      pies: fields.pies ?? input.seed.pies,
+      passage: fields.passage || input.seed.passage,
+      difficulty: 'hard',
+      seq: input.seq,
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function requestDataAnalysisProportionBasicMcqs(input: {
+  count?: number
+  difficulty: ProportionBasicDifficulty
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<ProportionBasicQuestion[]> {
+  const count = input.count ?? PROPORTION_BASIC_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const historyBlocked = new Set(
+    (input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean),
+  )
+
+  const deduped: ProportionBasicQuestion[] = []
+  const usedTerms = new Set<string>(historyBlocked)
+  const usedFingerprints = new Set<string>()
+  const usedSkillIds = new Set<ProportionBasicEasySkillId>()
+
+  const pushIfNew = (q: ProportionBasicQuestion | null) => {
+    if (!q) return false
+    if (usedFingerprints.has(q.fingerprint)) return false
+    if (deduped.some((x) => x.fingerprint === q.fingerprint)) return false
+    const termKey = normalizeAvoidTerm(q.term)
+    deduped.push(q)
+    usedFingerprints.add(q.fingerprint)
+    if (termKey) usedTerms.add(termKey)
+    const skill = detectProportionBasicEasySkillId(q)
+    if (skill) usedSkillIds.add(skill)
+    return true
+  }
+
+  const skillPlan =
+    difficulty === 'easy' ? pickProportionBasicEasySkillPlan(count + 4) : []
+
+  if (difficulty === 'easy') {
+    input.onProgress?.(`豆包整包生成 ${count} 道比重基本公式简单题…`)
+    try {
+      const batch = await withTimeout(
+        requestProportionBasicEasyBatch(count, skillPlan, [...usedTerms]),
+        70_000,
+        '豆包比重基本公式整包',
+      )
+      for (const q of batch) pushIfNew(q)
+    } catch {
+      /* 补题 */
+    }
+
+    for (let i = 0; deduped.length < count && i < count; i++) {
+      const slot =
+        skillPlan.find((s) => !usedSkillIds.has(s.id)) ??
+        skillPlan[deduped.length % Math.max(1, skillPlan.length)]
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题${slot ? ` · ${slot.label}` : ''}…`,
+      )
+      try {
+        const avoidHint = buildAvoidTermsHint('资料分析·比重基本公式主题', [...usedTerms])
+        const raw = await withTimeout(
+          deepseekChatRaw(
+            [
+              `请生成 1 道「比重——基本公式」简单四选一。`,
+              slot ? `【本考点】${slot.label}：${slot.prompt}` : '',
+              proportionBasicFormat('easy'),
+              avoidHint,
+            ]
+              .filter(Boolean)
+              .join('\n'),
+            {
+              system: DATA_ANALYSIS_PROPORTION_BASIC_SYSTEM,
+              temperature: 0.4,
+              maxTokens: 1200,
+              provider: PROPORTION_FORCE_PROVIDER,
+            },
+          ),
+          35_000,
+          '豆包比重基本公式单题',
+        )
+        const parsed = parseAiJsonObjectLenient(raw)
+        pushIfNew(tryBuildProportionBasicQuestion(parsed, 'easy', 50 + i))
+      } catch {
+        /* continue */
+      }
+      await sleepMs(180)
+    }
+
+    if (deduped.length < count) {
+      input.onProgress?.(`保底补齐比重基本公式简单题…`)
+      const missing = skillPlan.map((s) => s.id).filter((id) => !usedSkillIds.has(id))
+      for (const q of takeProportionBasicEasyLocalSeeds(
+        count - deduped.length,
+        800,
+        usedFingerprints,
+        missing,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  } else {
+    input.onProgress?.(`豆包整包生成 ${count} 道比重基本公式复杂题…`)
+    try {
+      const batch = await withTimeout(
+        requestProportionBasicHardBatch(count, [...usedTerms]),
+        48_000,
+        '豆包比重基本公式复杂整包',
+      )
+      for (const q of batch) pushIfNew(q)
+      if (batch.length) {
+        input.onProgress?.(`整包已收录 ${deduped.length}/${count} 题`)
+      }
+    } catch {
+      input.onProgress?.(`整包超时或失败，改用短时单题/本地题库…`)
+    }
+
+    const anchors = pickProportionBasicHardSeedTemplates(count)
+    for (let i = 0; deduped.length < count && i < anchors.length; i++) {
+      const seed = anchors[i]!
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题 · ${seed.term}（短时）…`,
+      )
+      const aiQ = await requestHardProportionBasicAnchoredMcq({
+        seed,
+        seq: 100 + i,
+        timeoutMs: 14_000,
+      })
+      if (pushIfNew(aiQ)) {
+        input.onProgress?.(`第 ${deduped.length} 题豆包通过`)
+        continue
+      }
+      const fallback = buildProportionBasicHardFromSeedTemplate(seed, 500 + i)
+      if (pushIfNew(fallback)) {
+        input.onProgress?.(
+          `第 ${deduped.length} 题用本地保底「${seed.term}」`,
+        )
+      }
+    }
+
+    if (deduped.length < count) {
+      input.onProgress?.(`本地复杂题库补齐剩余…`)
+      for (const q of takeProportionBasicHardLocalSeeds(
+        count - deduped.length,
+        900,
+        usedFingerprints,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(
+      `仅成功生成 ${deduped.length}/${count} 题。请确认本地代理 8790 已启动后重试。`,
+    )
+  }
+  return deduped.slice(0, count)
+}
+
+async function requestProportionBaseEasyBatch(
+  count: number,
+  skillPlan: ProportionBaseEasySkillSlot[],
+  avoidTerms: string[],
+): Promise<ProportionBaseQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·基期比重主题', avoidTerms)
+  const skillLines = skillPlan
+    .slice(0, count)
+    .map((s, i) => `${i + 1}. ${s.label}：${s.prompt}`)
+    .join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「比重——基期比重」简单四选一，组成 JSON 数组。`,
+        proportionBaseFormat('easy'),
+        `【本轮考点】\n${skillLines}`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_PROPORTION_BASE_SYSTEM,
+        temperature: 0.4,
+        maxTokens: 3200,
+        provider: PROPORTION_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: ProportionBaseQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildProportionBaseQuestion(item, 'easy', 10 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestProportionBaseHardBatch(
+  count: number,
+  avoidTerms: string[],
+): Promise<ProportionBaseQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·基期比重主题', avoidTerms)
+  const skillLines = PROPORTION_BASE_HARD_SKILL_SLOTS.map(
+    (s, i) => `${i + 1}. ${s.label}：${s.prompt}`,
+  ).join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「比重——基期比重」复杂四选一，组成 JSON 数组。`,
+        proportionBaseFormat('hard'),
+        `【考点须覆盖，每题不同】\n${skillLines}`,
+        `每题必须有 table；数字换新；explanation 写清步骤。`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_PROPORTION_BASE_SYSTEM,
+        temperature: 0.35,
+        maxTokens: 4800,
+        provider: PROPORTION_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: ProportionBaseQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildProportionBaseQuestion(item, 'hard', 20 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestHardProportionBaseAnchoredMcq(input: {
+  seed: ProportionBaseHardSeedTemplate
+  seq: number
+  timeoutMs: number
+}): Promise<ProportionBaseQuestion | null> {
+  const skillHint = input.seed.skillId
+    ? `本题考点倾向：${input.seed.skillId}（可改设问，表数据尽量保持）。`
+    : ''
+  const tableJson = JSON.stringify(input.seed.table)
+  const prompt = [
+    `请基于【给定 table】出 1 道「比重——基期比重」复杂四选一。`,
+    skillHint,
+    `【给定 table（禁止改动表中数字）】`,
+    tableJson,
+    `【种子材料】${input.seed.passage}`,
+    `【种子设问参考】${input.seed.stem}`,
+    proportionBaseFormat('hard'),
+    `返回 JSON 可省略 table（将使用给定表）；explanation 末句「答案为…」。不要 markdown。`,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  try {
+    const raw = await withTimeout(
+      deepseekChatRaw(prompt, {
+        system: DATA_ANALYSIS_PROPORTION_BASE_SYSTEM,
+        temperature: 0.32,
+        maxTokens: 1600,
+        provider: PROPORTION_FORCE_PROVIDER,
+      }),
+      input.timeoutMs,
+      '豆包基期比重锚定出题',
+    )
+    const parsed = parseAiJsonObjectLenient(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    const fields = parseProportionBaseMcqAiObject(parsed)
+    if (!fields) return null
+    return buildProportionBaseQuestionFromMcq({
+      ...fields,
+      table: fields.table ?? input.seed.table,
+      passage: fields.passage || input.seed.passage,
+      difficulty: 'hard',
+      seq: input.seq,
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function requestDataAnalysisProportionBaseMcqs(input: {
+  count?: number
+  difficulty: ProportionBaseDifficulty
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<ProportionBaseQuestion[]> {
+  const count = input.count ?? PROPORTION_BASE_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const historyBlocked = new Set(
+    (input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean),
+  )
+
+  const deduped: ProportionBaseQuestion[] = []
+  const usedTerms = new Set<string>(historyBlocked)
+  const usedFingerprints = new Set<string>()
+  const usedSkillIds = new Set<ProportionBaseEasySkillId>()
+
+  const pushIfNew = (q: ProportionBaseQuestion | null) => {
+    if (!q) return false
+    if (usedFingerprints.has(q.fingerprint)) return false
+    if (deduped.some((x) => x.fingerprint === q.fingerprint)) return false
+    const termKey = normalizeAvoidTerm(q.term)
+    deduped.push(q)
+    usedFingerprints.add(q.fingerprint)
+    if (termKey) usedTerms.add(termKey)
+    const skill = detectProportionBaseEasySkillId(q)
+    if (skill) usedSkillIds.add(skill)
+    return true
+  }
+
+  const skillPlan =
+    difficulty === 'easy' ? pickProportionBaseEasySkillPlan(count + 4) : []
+
+  if (difficulty === 'easy') {
+    input.onProgress?.(`豆包整包生成 ${count} 道基期比重简单题…`)
+    try {
+      const batch = await withTimeout(
+        requestProportionBaseEasyBatch(count, skillPlan, [...usedTerms]),
+        70_000,
+        '豆包基期比重整包',
+      )
+      for (const q of batch) pushIfNew(q)
+    } catch {
+      /* 补题 */
+    }
+
+    for (let i = 0; deduped.length < count && i < count; i++) {
+      const slot =
+        skillPlan.find((s) => !usedSkillIds.has(s.id)) ??
+        skillPlan[deduped.length % Math.max(1, skillPlan.length)]
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题${slot ? ` · ${slot.label}` : ''}…`,
+      )
+      try {
+        const avoidHint = buildAvoidTermsHint('资料分析·基期比重主题', [...usedTerms])
+        const raw = await withTimeout(
+          deepseekChatRaw(
+            [
+              `请生成 1 道「比重——基期比重」简单四选一。`,
+              slot ? `【本考点】${slot.label}：${slot.prompt}` : '',
+              proportionBaseFormat('easy'),
+              avoidHint,
+            ]
+              .filter(Boolean)
+              .join('\n'),
+            {
+              system: DATA_ANALYSIS_PROPORTION_BASE_SYSTEM,
+              temperature: 0.4,
+              maxTokens: 1200,
+              provider: PROPORTION_FORCE_PROVIDER,
+            },
+          ),
+          35_000,
+          '豆包基期比重单题',
+        )
+        const parsed = parseAiJsonObjectLenient(raw)
+        pushIfNew(tryBuildProportionBaseQuestion(parsed, 'easy', 50 + i))
+      } catch {
+        /* continue */
+      }
+      await sleepMs(180)
+    }
+
+    if (deduped.length < count) {
+      input.onProgress?.(`保底补齐基期比重简单题…`)
+      const missing = skillPlan.map((s) => s.id).filter((id) => !usedSkillIds.has(id))
+      for (const q of takeProportionBaseEasyLocalSeeds(
+        count - deduped.length,
+        800,
+        usedFingerprints,
+        missing,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  } else {
+    input.onProgress?.(`豆包整包生成 ${count} 道基期比重复杂题…`)
+    try {
+      const batch = await withTimeout(
+        requestProportionBaseHardBatch(count, [...usedTerms]),
+        48_000,
+        '豆包基期比重复杂整包',
+      )
+      for (const q of batch) pushIfNew(q)
+      if (batch.length) {
+        input.onProgress?.(`整包已收录 ${deduped.length}/${count} 题`)
+      }
+    } catch {
+      input.onProgress?.(`整包超时或失败，改用短时单题/本地题库…`)
+    }
+
+    const anchors = pickProportionBaseHardSeedTemplates(count)
+    for (let i = 0; deduped.length < count && i < anchors.length; i++) {
+      const seed = anchors[i]!
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题 · ${seed.term}（短时）…`,
+      )
+      const aiQ = await requestHardProportionBaseAnchoredMcq({
+        seed,
+        seq: 100 + i,
+        timeoutMs: 14_000,
+      })
+      if (pushIfNew(aiQ)) {
+        input.onProgress?.(`第 ${deduped.length} 题豆包通过`)
+        continue
+      }
+      const fallback = buildProportionBaseHardFromSeedTemplate(seed, 500 + i)
+      if (pushIfNew(fallback)) {
+        input.onProgress?.(
+          `第 ${deduped.length} 题用本地保底「${seed.term}」`,
+        )
+      }
+    }
+
+    if (deduped.length < count) {
+      input.onProgress?.(`本地复杂题库补齐剩余…`)
+      for (const q of takeProportionBaseHardLocalSeeds(
+        count - deduped.length,
+        900,
+        usedFingerprints,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(
+      `仅成功生成 ${deduped.length}/${count} 题。请确认本地代理 8790 已启动后重试。`,
+    )
+  }
+  return deduped.slice(0, count)
+}
+
+
+/** 平均数基本公式 / 基期平均数：强制豆包；纯文字无图 */
+const AVERAGE_FORCE_PROVIDER: AiProvider = 'doubao'
+
+const DATA_ANALYSIS_AVERAGE_BASIC_SYSTEM = `
+你是公务员/事业编「资料分析」命题专家，专精教材考点「平均数——基本公式」。
+
+【公式】
+1. 平均数=总量/份数
+2. 总量=平均数×份数
+3. 份数=总量/平均数
+4. 算术平均 m=(m1+…+mn)/n
+
+【简单题】纯文字；数字好算，直接套公式。
+【复杂题】仍纯文字（不要图/表）；须含单位换算、大数估算或先合计再平均等多步；难度对齐教材粮食总产/原木均价例题。
+【解析】须可验算；末句「答案为…」。只输出合法 JSON。
+`.trim()
+
+const DATA_ANALYSIS_AVERAGE_BASE_SYSTEM = `
+你是公务员/事业编「资料分析」命题专家，专精教材考点「平均数——基期平均数」。
+
+【公式】（A=现期总量增速qA，B=现期份数增速qB）
+1. 基期平均数=A/B×(1+qB)/(1+qA)
+2. 平均数增长量=A/B×(qA−qB)/(1+qA)
+3. 平均数增长率=(qA−qB)/(1+qB)
+4. qA>qB 现期平均上升；qA<qB 下降
+
+【简单题】纯文字；数字相对简明。
+【复杂题】仍纯文字；对齐教材货运平均运距增长量、快递每件收入增速等真题；选项须含升降方向干扰。
+【解析】须可验算；末句「答案为…」。只输出合法 JSON。
+`.trim()
+
+function averageBasicFormat(difficulty: AverageBasicDifficulty): string {
+  if (difficulty === 'easy') {
+    return `【简单】纯文字无图。字段：term,passage,stem,correct,distractors[3],evidenceSpans,method,explanation。`
+  }
+  return `【复杂】纯文字无图；单位换算/大数估算/多步。字段同简单题。`
+}
+
+function averageBaseFormat(difficulty: AverageBaseDifficulty): string {
+  if (difficulty === 'easy') {
+    return `【简单】纯文字无图。字段：term,passage,stem,correct,distractors[3],evidenceSpans,method,explanation。`
+  }
+  return `【复杂】纯文字无图；增长量/增长率估算，选项含升降干扰。字段同简单题。`
+}
+
+function tryBuildAverageBasicQuestion(
+  item: unknown,
+  difficulty: AverageBasicDifficulty,
+  seq: number,
+): AverageBasicQuestion | null {
+  const fields = parseAverageBasicMcqAiObject(item)
+  if (!fields) return null
+  return buildAverageBasicQuestionFromMcq({ ...fields, difficulty, seq })
+}
+
+function tryBuildAverageBaseQuestion(
+  item: unknown,
+  difficulty: AverageBaseDifficulty,
+  seq: number,
+): AverageBaseQuestion | null {
+  const fields = parseAverageBaseMcqAiObject(item)
+  if (!fields) return null
+  return buildAverageBaseQuestionFromMcq({ ...fields, difficulty, seq })
+}
+
+async function requestAverageBasicEasyBatch(
+  count: number,
+  skillPlan: AverageBasicEasySkillSlot[],
+  avoidTerms: string[],
+): Promise<AverageBasicQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·平均数基本公式主题', avoidTerms)
+  const skillLines = skillPlan
+    .slice(0, count)
+    .map((s, i) => `${i + 1}. ${s.label}：${s.prompt}`)
+    .join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「平均数——基本公式」简单四选一，组成 JSON 数组。`,
+        averageBasicFormat('easy'),
+        `【本轮考点】\n${skillLines}`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_AVERAGE_BASIC_SYSTEM,
+        temperature: 0.4,
+        maxTokens: 3200,
+        provider: AVERAGE_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: AverageBasicQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildAverageBasicQuestion(item, 'easy', 10 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestAverageBasicHardBatch(
+  count: number,
+  avoidTerms: string[],
+): Promise<AverageBasicQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·平均数基本公式主题', avoidTerms)
+  const skillLines = AVERAGE_BASIC_HARD_SKILL_SLOTS.map(
+    (s, i) => `${i + 1}. ${s.label}：${s.prompt}`,
+  ).join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「平均数——基本公式」复杂四选一，组成 JSON 数组。`,
+        averageBasicFormat('hard'),
+        `【考点须覆盖，每题不同】\n${skillLines}`,
+        `数字换新；explanation 写清步骤，末句「答案为…」。`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_AVERAGE_BASIC_SYSTEM,
+        temperature: 0.35,
+        maxTokens: 4200,
+        provider: AVERAGE_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: AverageBasicQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildAverageBasicQuestion(item, 'hard', 20 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestHardAverageBasicAnchoredMcq(input: {
+  seed: AverageBasicHardSeedTemplate
+  seq: number
+  timeoutMs: number
+}): Promise<AverageBasicQuestion | null> {
+  const skillHint = input.seed.skillId
+    ? `本题考点倾向：${input.seed.skillId}（可改数字与设问，但须同一考点）。`
+    : ''
+  const prompt = [
+    `请参考下列种子题出 1 道「平均数——基本公式」复杂四选一（纯文字，不要图）。`,
+    skillHint,
+    `【种子材料】${input.seed.passage}`,
+    `【种子设问参考】${input.seed.stem}`,
+    averageBasicFormat('hard'),
+    `explanation 末句写「答案为…」。不要 markdown。`,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  try {
+    const raw = await withTimeout(
+      deepseekChatRaw(prompt, {
+        system: DATA_ANALYSIS_AVERAGE_BASIC_SYSTEM,
+        temperature: 0.32,
+        maxTokens: 1400,
+        provider: AVERAGE_FORCE_PROVIDER,
+      }),
+      input.timeoutMs,
+      '豆包平均数基本公式锚定出题',
+    )
+    const parsed = parseAiJsonObjectLenient(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    const fields = parseAverageBasicMcqAiObject(parsed)
+    if (!fields) return null
+    return buildAverageBasicQuestionFromMcq({
+      ...fields,
+      passage: fields.passage || input.seed.passage,
+      difficulty: 'hard',
+      seq: input.seq,
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function requestDataAnalysisAverageBasicMcqs(input: {
+  count?: number
+  difficulty: AverageBasicDifficulty
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<AverageBasicQuestion[]> {
+  const count = input.count ?? AVERAGE_BASIC_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const historyBlocked = new Set(
+    (input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean),
+  )
+
+  const deduped: AverageBasicQuestion[] = []
+  const usedTerms = new Set<string>(historyBlocked)
+  const usedFingerprints = new Set<string>()
+  const usedSkillIds = new Set<AverageBasicEasySkillId>()
+
+  const pushIfNew = (q: AverageBasicQuestion | null) => {
+    if (!q) return false
+    if (usedFingerprints.has(q.fingerprint)) return false
+    if (deduped.some((x) => x.fingerprint === q.fingerprint)) return false
+    const termKey = normalizeAvoidTerm(q.term)
+    deduped.push(q)
+    usedFingerprints.add(q.fingerprint)
+    if (termKey) usedTerms.add(termKey)
+    const skill = detectAverageBasicEasySkillId(q)
+    if (skill) usedSkillIds.add(skill)
+    return true
+  }
+
+  const skillPlan =
+    difficulty === 'easy' ? pickAverageBasicEasySkillPlan(count + 4) : []
+
+  if (difficulty === 'easy') {
+    input.onProgress?.(`豆包整包生成 ${count} 道平均数基本公式简单题…`)
+    try {
+      const batch = await withTimeout(
+        requestAverageBasicEasyBatch(count, skillPlan, [...usedTerms]),
+        70_000,
+        '豆包平均数基本公式整包',
+      )
+      for (const q of batch) pushIfNew(q)
+    } catch {
+      /* 补题 */
+    }
+
+    for (let i = 0; deduped.length < count && i < count; i++) {
+      const slot =
+        skillPlan.find((s) => !usedSkillIds.has(s.id)) ??
+        skillPlan[deduped.length % Math.max(1, skillPlan.length)]
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题${slot ? ` · ${slot.label}` : ''}…`,
+      )
+      try {
+        const avoidHint = buildAvoidTermsHint('资料分析·平均数基本公式主题', [...usedTerms])
+        const raw = await withTimeout(
+          deepseekChatRaw(
+            [
+              `请生成 1 道「平均数——基本公式」简单四选一。`,
+              slot ? `【本考点】${slot.label}：${slot.prompt}` : '',
+              averageBasicFormat('easy'),
+              avoidHint,
+            ]
+              .filter(Boolean)
+              .join('\n'),
+            {
+              system: DATA_ANALYSIS_AVERAGE_BASIC_SYSTEM,
+              temperature: 0.4,
+              maxTokens: 1200,
+              provider: AVERAGE_FORCE_PROVIDER,
+            },
+          ),
+          35_000,
+          '豆包平均数基本公式单题',
+        )
+        const parsed = parseAiJsonObjectLenient(raw)
+        pushIfNew(tryBuildAverageBasicQuestion(parsed, 'easy', 50 + i))
+      } catch {
+        /* continue */
+      }
+      await sleepMs(180)
+    }
+
+    if (deduped.length < count) {
+      input.onProgress?.(`保底补齐平均数基本公式简单题…`)
+      const missing = skillPlan.map((s) => s.id).filter((id) => !usedSkillIds.has(id))
+      for (const q of takeAverageBasicEasyLocalSeeds(
+        count - deduped.length,
+        800,
+        usedFingerprints,
+        missing,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  } else {
+    input.onProgress?.(`豆包整包生成 ${count} 道平均数基本公式复杂题…`)
+    try {
+      const batch = await withTimeout(
+        requestAverageBasicHardBatch(count, [...usedTerms]),
+        48_000,
+        '豆包平均数基本公式复杂整包',
+      )
+      for (const q of batch) pushIfNew(q)
+      if (batch.length) {
+        input.onProgress?.(`整包已收录 ${deduped.length}/${count} 题`)
+      }
+    } catch {
+      input.onProgress?.(`整包超时或失败，改用短时单题/本地题库…`)
+    }
+
+    const anchors = pickAverageBasicHardSeedTemplates(count)
+    for (let i = 0; deduped.length < count && i < anchors.length; i++) {
+      const seed = anchors[i]!
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题 · ${seed.term}（短时）…`,
+      )
+      const aiQ = await requestHardAverageBasicAnchoredMcq({
+        seed,
+        seq: 100 + i,
+        timeoutMs: 14_000,
+      })
+      if (pushIfNew(aiQ)) {
+        input.onProgress?.(`第 ${deduped.length} 题豆包通过`)
+        continue
+      }
+      const fallback = buildAverageBasicHardFromSeedTemplate(seed, 500 + i)
+      if (pushIfNew(fallback)) {
+        input.onProgress?.(
+          `第 ${deduped.length} 题用本地保底「${seed.term}」`,
+        )
+      }
+    }
+
+    if (deduped.length < count) {
+      input.onProgress?.(`本地复杂题库补齐剩余…`)
+      for (const q of takeAverageBasicHardLocalSeeds(
+        count - deduped.length,
+        900,
+        usedFingerprints,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(
+      `仅成功生成 ${deduped.length}/${count} 题。请确认本地代理 8790 已启动后重试。`,
+    )
+  }
+  return deduped.slice(0, count)
+}
+
+async function requestAverageBaseEasyBatch(
+  count: number,
+  skillPlan: AverageBaseEasySkillSlot[],
+  avoidTerms: string[],
+): Promise<AverageBaseQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·基期平均数主题', avoidTerms)
+  const skillLines = skillPlan
+    .slice(0, count)
+    .map((s, i) => `${i + 1}. ${s.label}：${s.prompt}`)
+    .join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「平均数——基期平均数」简单四选一，组成 JSON 数组。`,
+        averageBaseFormat('easy'),
+        `【本轮考点】\n${skillLines}`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_AVERAGE_BASE_SYSTEM,
+        temperature: 0.4,
+        maxTokens: 3200,
+        provider: AVERAGE_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: AverageBaseQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildAverageBaseQuestion(item, 'easy', 10 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestAverageBaseHardBatch(
+  count: number,
+  avoidTerms: string[],
+): Promise<AverageBaseQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·基期平均数主题', avoidTerms)
+  const skillLines = AVERAGE_BASE_HARD_SKILL_SLOTS.map(
+    (s, i) => `${i + 1}. ${s.label}：${s.prompt}`,
+  ).join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「平均数——基期平均数」复杂四选一，组成 JSON 数组。`,
+        averageBaseFormat('hard'),
+        `【考点须覆盖，每题不同】\n${skillLines}`,
+        `数字换新；选项含升降干扰；explanation 写清步骤。`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_AVERAGE_BASE_SYSTEM,
+        temperature: 0.35,
+        maxTokens: 4200,
+        provider: AVERAGE_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: AverageBaseQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildAverageBaseQuestion(item, 'hard', 20 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestHardAverageBaseAnchoredMcq(input: {
+  seed: AverageBaseHardSeedTemplate
+  seq: number
+  timeoutMs: number
+}): Promise<AverageBaseQuestion | null> {
+  const skillHint = input.seed.skillId
+    ? `本题考点倾向：${input.seed.skillId}（可改数字与设问，但须同一考点）。`
+    : ''
+  const prompt = [
+    `请参考下列种子题出 1 道「平均数——基期平均数」复杂四选一（纯文字，不要图）。`,
+    skillHint,
+    `【种子材料】${input.seed.passage}`,
+    `【种子设问参考】${input.seed.stem}`,
+    averageBaseFormat('hard'),
+    `explanation 末句写「答案为…」。不要 markdown。`,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  try {
+    const raw = await withTimeout(
+      deepseekChatRaw(prompt, {
+        system: DATA_ANALYSIS_AVERAGE_BASE_SYSTEM,
+        temperature: 0.32,
+        maxTokens: 1400,
+        provider: AVERAGE_FORCE_PROVIDER,
+      }),
+      input.timeoutMs,
+      '豆包基期平均数锚定出题',
+    )
+    const parsed = parseAiJsonObjectLenient(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    const fields = parseAverageBaseMcqAiObject(parsed)
+    if (!fields) return null
+    return buildAverageBaseQuestionFromMcq({
+      ...fields,
+      passage: fields.passage || input.seed.passage,
+      difficulty: 'hard',
+      seq: input.seq,
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function requestDataAnalysisAverageBaseMcqs(input: {
+  count?: number
+  difficulty: AverageBaseDifficulty
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<AverageBaseQuestion[]> {
+  const count = input.count ?? AVERAGE_BASE_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const historyBlocked = new Set(
+    (input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean),
+  )
+
+  const deduped: AverageBaseQuestion[] = []
+  const usedTerms = new Set<string>(historyBlocked)
+  const usedFingerprints = new Set<string>()
+  const usedSkillIds = new Set<AverageBaseEasySkillId>()
+
+  const pushIfNew = (q: AverageBaseQuestion | null) => {
+    if (!q) return false
+    if (usedFingerprints.has(q.fingerprint)) return false
+    if (deduped.some((x) => x.fingerprint === q.fingerprint)) return false
+    const termKey = normalizeAvoidTerm(q.term)
+    deduped.push(q)
+    usedFingerprints.add(q.fingerprint)
+    if (termKey) usedTerms.add(termKey)
+    const skill = detectAverageBaseEasySkillId(q)
+    if (skill) usedSkillIds.add(skill)
+    return true
+  }
+
+  const skillPlan =
+    difficulty === 'easy' ? pickAverageBaseEasySkillPlan(count + 4) : []
+
+  if (difficulty === 'easy') {
+    input.onProgress?.(`豆包整包生成 ${count} 道基期平均数简单题…`)
+    try {
+      const batch = await withTimeout(
+        requestAverageBaseEasyBatch(count, skillPlan, [...usedTerms]),
+        70_000,
+        '豆包基期平均数整包',
+      )
+      for (const q of batch) pushIfNew(q)
+    } catch {
+      /* 补题 */
+    }
+
+    for (let i = 0; deduped.length < count && i < count; i++) {
+      const slot =
+        skillPlan.find((s) => !usedSkillIds.has(s.id)) ??
+        skillPlan[deduped.length % Math.max(1, skillPlan.length)]
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题${slot ? ` · ${slot.label}` : ''}…`,
+      )
+      try {
+        const avoidHint = buildAvoidTermsHint('资料分析·基期平均数主题', [...usedTerms])
+        const raw = await withTimeout(
+          deepseekChatRaw(
+            [
+              `请生成 1 道「平均数——基期平均数」简单四选一。`,
+              slot ? `【本考点】${slot.label}：${slot.prompt}` : '',
+              averageBaseFormat('easy'),
+              avoidHint,
+            ]
+              .filter(Boolean)
+              .join('\n'),
+            {
+              system: DATA_ANALYSIS_AVERAGE_BASE_SYSTEM,
+              temperature: 0.4,
+              maxTokens: 1200,
+              provider: AVERAGE_FORCE_PROVIDER,
+            },
+          ),
+          35_000,
+          '豆包基期平均数单题',
+        )
+        const parsed = parseAiJsonObjectLenient(raw)
+        pushIfNew(tryBuildAverageBaseQuestion(parsed, 'easy', 50 + i))
+      } catch {
+        /* continue */
+      }
+      await sleepMs(180)
+    }
+
+    if (deduped.length < count) {
+      input.onProgress?.(`保底补齐基期平均数简单题…`)
+      const missing = skillPlan.map((s) => s.id).filter((id) => !usedSkillIds.has(id))
+      for (const q of takeAverageBaseEasyLocalSeeds(
+        count - deduped.length,
+        800,
+        usedFingerprints,
+        missing,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  } else {
+    input.onProgress?.(`豆包整包生成 ${count} 道基期平均数复杂题…`)
+    try {
+      const batch = await withTimeout(
+        requestAverageBaseHardBatch(count, [...usedTerms]),
+        48_000,
+        '豆包基期平均数复杂整包',
+      )
+      for (const q of batch) pushIfNew(q)
+      if (batch.length) {
+        input.onProgress?.(`整包已收录 ${deduped.length}/${count} 题`)
+      }
+    } catch {
+      input.onProgress?.(`整包超时或失败，改用短时单题/本地题库…`)
+    }
+
+    const anchors = pickAverageBaseHardSeedTemplates(count)
+    for (let i = 0; deduped.length < count && i < anchors.length; i++) {
+      const seed = anchors[i]!
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题 · ${seed.term}（短时）…`,
+      )
+      const aiQ = await requestHardAverageBaseAnchoredMcq({
+        seed,
+        seq: 100 + i,
+        timeoutMs: 14_000,
+      })
+      if (pushIfNew(aiQ)) {
+        input.onProgress?.(`第 ${deduped.length} 题豆包通过`)
+        continue
+      }
+      const fallback = buildAverageBaseHardFromSeedTemplate(seed, 500 + i)
+      if (pushIfNew(fallback)) {
+        input.onProgress?.(
+          `第 ${deduped.length} 题用本地保底「${seed.term}」`,
+        )
+      }
+    }
+
+    if (deduped.length < count) {
+      input.onProgress?.(`本地复杂题库补齐剩余…`)
+      for (const q of takeAverageBaseHardLocalSeeds(
+        count - deduped.length,
+        900,
+        usedFingerprints,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(
+      `仅成功生成 ${deduped.length}/${count} 题。请确认本地代理 8790 已启动后重试。`,
+    )
+  }
+  return deduped.slice(0, count)
+}
+
+
+/** 倍数与翻番：强制豆包 */
+const MULTIPLE_FORCE_PROVIDER: AiProvider = 'doubao'
+
+const DATA_ANALYSIS_MULTIPLE_BASIC_SYSTEM = `
+你是公务员/事业编「资料分析」命题专家，专精「倍数与翻番——基本公式」。
+
+【公式】
+1. A是B的几倍 = A/B
+2. A比B多/高几倍 = A/B−1（可写成百分数）
+3. 翻 n 番 = 变为原来的 2^n 倍；数值 = 基期×2^n
+
+【简单题】纯文字无表。
+【复杂题】必须含 table；可先求人均再比倍，难度≥教材仓储/邮政题。
+table：{title, unit?, columns, rows}
+【解析】末句「答案为…」。只输出合法 JSON。
+`.trim()
+
+const DATA_ANALYSIS_MULTIPLE_BASE_SYSTEM = `
+你是公务员/事业编「资料分析」命题专家，专精「基期倍数与增长量倍数」。
+
+【公式】
+1. 基期倍数 = A/B×(1+qB)/(1+qA)
+2. 增长量倍数 = A×qA/(B×qB)×(1+qB)/(1+qA)；增长量=现期×r/(1+r)
+
+【简单题】纯文字无表。
+【复杂题】必须含 table；增长量倍数可用特征分数估算，难度高于教材白酒/啤酒题。
+【解析】末句「答案为…」。只输出合法 JSON。
+`.trim()
+
+function multipleBasicFormat(difficulty: MultipleBasicDifficulty): string {
+  if (difficulty === 'easy') {
+    return `【简单】纯文字；table:null。字段：term,passage,stem,correct,distractors[3],evidenceSpans,method,explanation。`
+  }
+  return `【复杂】必须 table。字段：term,passage,table,stem,correct,distractors[3],evidenceSpans,method,explanation。`
+}
+
+function multipleBaseFormat(difficulty: MultipleBaseDifficulty): string {
+  if (difficulty === 'easy') {
+    return `【简单】纯文字；table:null。字段：term,passage,stem,correct,distractors[3],evidenceSpans,method,explanation。`
+  }
+  return `【复杂】必须 table；选项贴近。字段：term,passage,table,stem,correct,distractors[3],evidenceSpans,method,explanation。`
+}
+
+function tryBuildMultipleBasicQuestion(
+  item: unknown,
+  difficulty: MultipleBasicDifficulty,
+  seq: number,
+): MultipleBasicQuestion | null {
+  const fields = parseMultipleBasicMcqAiObject(item)
+  if (!fields) return null
+  return buildMultipleBasicQuestionFromMcq({ ...fields, difficulty, seq })
+}
+
+function tryBuildMultipleBaseQuestion(
+  item: unknown,
+  difficulty: MultipleBaseDifficulty,
+  seq: number,
+): MultipleBaseQuestion | null {
+  const fields = parseMultipleBaseMcqAiObject(item)
+  if (!fields) return null
+  return buildMultipleBaseQuestionFromMcq({ ...fields, difficulty, seq })
+}
+
+async function requestMultipleBasicEasyBatch(
+  count: number,
+  skillPlan: MultipleBasicEasySkillSlot[],
+  avoidTerms: string[],
+): Promise<MultipleBasicQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·倍数基本公式主题', avoidTerms)
+  const skillLines = skillPlan
+    .slice(0, count)
+    .map((s, i) => `${i + 1}. ${s.label}：${s.prompt}`)
+    .join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「倍数与翻番——基本公式」简单四选一，组成 JSON 数组。`,
+        multipleBasicFormat('easy'),
+        `【本轮考点】\n${skillLines}`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_MULTIPLE_BASIC_SYSTEM,
+        temperature: 0.4,
+        maxTokens: 3200,
+        provider: MULTIPLE_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: MultipleBasicQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildMultipleBasicQuestion(item, 'easy', 10 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestMultipleBasicHardBatch(
+  count: number,
+  avoidTerms: string[],
+): Promise<MultipleBasicQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·倍数基本公式主题', avoidTerms)
+  const skillLines = MULTIPLE_BASIC_HARD_SKILL_SLOTS.map(
+    (s, i) => `${i + 1}. ${s.label}：${s.prompt}`,
+  ).join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「倍数与翻番——基本公式」复杂四选一，组成 JSON 数组。`,
+        multipleBasicFormat('hard'),
+        `【考点须覆盖】\n${skillLines}`,
+        `每题必须有 table；explanation 写清步骤。`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_MULTIPLE_BASIC_SYSTEM,
+        temperature: 0.35,
+        maxTokens: 4800,
+        provider: MULTIPLE_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: MultipleBasicQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildMultipleBasicQuestion(item, 'hard', 20 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestHardMultipleBasicAnchoredMcq(input: {
+  seed: MultipleBasicHardSeedTemplate
+  seq: number
+  timeoutMs: number
+}): Promise<MultipleBasicQuestion | null> {
+  const skillHint = input.seed.skillId
+    ? `本题考点倾向：${input.seed.skillId}。`
+    : ''
+  const tableJson = JSON.stringify(input.seed.table)
+  const prompt = [
+    `请基于【给定 table】出 1 道「倍数与翻番——基本公式」复杂四选一。`,
+    skillHint,
+    `【给定 table（禁止改动表中数字）】`,
+    tableJson,
+    `【种子材料】${input.seed.passage}`,
+    `【种子设问参考】${input.seed.stem}`,
+    multipleBasicFormat('hard'),
+    `可省略 table（将用给定表）。explanation 末句「答案为…」。不要 markdown。`,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  try {
+    const raw = await withTimeout(
+      deepseekChatRaw(prompt, {
+        system: DATA_ANALYSIS_MULTIPLE_BASIC_SYSTEM,
+        temperature: 0.32,
+        maxTokens: 1600,
+        provider: MULTIPLE_FORCE_PROVIDER,
+      }),
+      input.timeoutMs,
+      '豆包倍数基本公式锚定出题',
+    )
+    const parsed = parseAiJsonObjectLenient(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    const fields = parseMultipleBasicMcqAiObject(parsed)
+    if (!fields) return null
+    return buildMultipleBasicQuestionFromMcq({
+      ...fields,
+      table: fields.table ?? input.seed.table,
+      passage: fields.passage || input.seed.passage,
+      difficulty: 'hard',
+      seq: input.seq,
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function requestDataAnalysisMultipleBasicMcqs(input: {
+  count?: number
+  difficulty: MultipleBasicDifficulty
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<MultipleBasicQuestion[]> {
+  const count = input.count ?? MULTIPLE_BASIC_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const historyBlocked = new Set(
+    (input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean),
+  )
+  const deduped: MultipleBasicQuestion[] = []
+  const usedTerms = new Set<string>(historyBlocked)
+  const usedFingerprints = new Set<string>()
+  const usedSkillIds = new Set<MultipleBasicEasySkillId>()
+
+  const pushIfNew = (q: MultipleBasicQuestion | null) => {
+    if (!q) return false
+    if (usedFingerprints.has(q.fingerprint)) return false
+    if (deduped.some((x) => x.fingerprint === q.fingerprint)) return false
+    const termKey = normalizeAvoidTerm(q.term)
+    deduped.push(q)
+    usedFingerprints.add(q.fingerprint)
+    if (termKey) usedTerms.add(termKey)
+    const skill = detectMultipleBasicEasySkillId(q)
+    if (skill) usedSkillIds.add(skill)
+    return true
+  }
+
+  const skillPlan =
+    difficulty === 'easy' ? pickMultipleBasicEasySkillPlan(count + 4) : []
+
+  if (difficulty === 'easy') {
+    input.onProgress?.(`豆包整包生成 ${count} 道倍数基本公式简单题…`)
+    try {
+      const batch = await withTimeout(
+        requestMultipleBasicEasyBatch(count, skillPlan, [...usedTerms]),
+        70_000,
+        '豆包倍数基本公式整包',
+      )
+      for (const q of batch) pushIfNew(q)
+    } catch {
+      /* */
+    }
+    for (let i = 0; deduped.length < count && i < count; i++) {
+      const slot =
+        skillPlan.find((s) => !usedSkillIds.has(s.id)) ??
+        skillPlan[deduped.length % Math.max(1, skillPlan.length)]
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题${slot ? ` · ${slot.label}` : ''}…`,
+      )
+      try {
+        const avoidHint = buildAvoidTermsHint('资料分析·倍数基本公式主题', [...usedTerms])
+        const raw = await withTimeout(
+          deepseekChatRaw(
+            [
+              `请生成 1 道「倍数与翻番——基本公式」简单四选一。`,
+              slot ? `【本考点】${slot.label}：${slot.prompt}` : '',
+              multipleBasicFormat('easy'),
+              avoidHint,
+            ]
+              .filter(Boolean)
+              .join('\n'),
+            {
+              system: DATA_ANALYSIS_MULTIPLE_BASIC_SYSTEM,
+              temperature: 0.4,
+              maxTokens: 1200,
+              provider: MULTIPLE_FORCE_PROVIDER,
+            },
+          ),
+          35_000,
+          '豆包倍数基本公式单题',
+        )
+        pushIfNew(tryBuildMultipleBasicQuestion(parseAiJsonObjectLenient(raw), 'easy', 50 + i))
+      } catch {
+        /* */
+      }
+      await sleepMs(180)
+    }
+    if (deduped.length < count) {
+      input.onProgress?.(`保底补齐倍数基本公式简单题…`)
+      const missing = skillPlan.map((s) => s.id).filter((id) => !usedSkillIds.has(id))
+      for (const q of takeMultipleBasicEasyLocalSeeds(
+        count - deduped.length,
+        800,
+        usedFingerprints,
+        missing,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  } else {
+    input.onProgress?.(`豆包整包生成 ${count} 道倍数基本公式复杂题…`)
+    try {
+      const batch = await withTimeout(
+        requestMultipleBasicHardBatch(count, [...usedTerms]),
+        48_000,
+        '豆包倍数基本公式复杂整包',
+      )
+      for (const q of batch) pushIfNew(q)
+    } catch {
+      input.onProgress?.(`整包失败，改用短时单题/本地题库…`)
+    }
+    const anchors = pickMultipleBasicHardSeedTemplates(count)
+    for (let i = 0; deduped.length < count && i < anchors.length; i++) {
+      const seed = anchors[i]!
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题 · ${seed.term}（短时）…`,
+      )
+      const aiQ = await requestHardMultipleBasicAnchoredMcq({
+        seed,
+        seq: 100 + i,
+        timeoutMs: 14_000,
+      })
+      if (pushIfNew(aiQ)) continue
+      pushIfNew(buildMultipleBasicHardFromSeedTemplate(seed, 500 + i))
+    }
+    if (deduped.length < count) {
+      for (const q of takeMultipleBasicHardLocalSeeds(
+        count - deduped.length,
+        900,
+        usedFingerprints,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(
+      `仅成功生成 ${deduped.length}/${count} 题。请确认本地代理 8790 已启动后重试。`,
+    )
+  }
+  return deduped.slice(0, count)
+}
+
+async function requestMultipleBaseEasyBatch(
+  count: number,
+  skillPlan: MultipleBaseEasySkillSlot[],
+  avoidTerms: string[],
+): Promise<MultipleBaseQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·基期与增长量倍数主题', avoidTerms)
+  const skillLines = skillPlan
+    .slice(0, count)
+    .map((s, i) => `${i + 1}. ${s.label}：${s.prompt}`)
+    .join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「基期倍数与增长量倍数」简单四选一，组成 JSON 数组。`,
+        multipleBaseFormat('easy'),
+        `【本轮考点】\n${skillLines}`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_MULTIPLE_BASE_SYSTEM,
+        temperature: 0.4,
+        maxTokens: 3200,
+        provider: MULTIPLE_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: MultipleBaseQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildMultipleBaseQuestion(item, 'easy', 10 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestMultipleBaseHardBatch(
+  count: number,
+  avoidTerms: string[],
+): Promise<MultipleBaseQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·基期与增长量倍数主题', avoidTerms)
+  const skillLines = MULTIPLE_BASE_HARD_SKILL_SLOTS.map(
+    (s, i) => `${i + 1}. ${s.label}：${s.prompt}`,
+  ).join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「基期倍数与增长量倍数」复杂四选一，组成 JSON 数组。`,
+        multipleBaseFormat('hard'),
+        `【考点须覆盖】\n${skillLines}`,
+        `每题必须有 table；难度高于教材。`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_MULTIPLE_BASE_SYSTEM,
+        temperature: 0.35,
+        maxTokens: 4800,
+        provider: MULTIPLE_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: MultipleBaseQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildMultipleBaseQuestion(item, 'hard', 20 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestHardMultipleBaseAnchoredMcq(input: {
+  seed: MultipleBaseHardSeedTemplate
+  seq: number
+  timeoutMs: number
+}): Promise<MultipleBaseQuestion | null> {
+  const skillHint = input.seed.skillId
+    ? `本题考点倾向：${input.seed.skillId}。`
+    : ''
+  const tableJson = JSON.stringify(input.seed.table)
+  const prompt = [
+    `请基于【给定 table】出 1 道「基期倍数与增长量倍数」复杂四选一。`,
+    skillHint,
+    `【给定 table（禁止改动表中数字）】`,
+    tableJson,
+    `【种子材料】${input.seed.passage}`,
+    `【种子设问参考】${input.seed.stem}`,
+    multipleBaseFormat('hard'),
+    `可省略 table。explanation 末句「答案为…」。不要 markdown。`,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  try {
+    const raw = await withTimeout(
+      deepseekChatRaw(prompt, {
+        system: DATA_ANALYSIS_MULTIPLE_BASE_SYSTEM,
+        temperature: 0.32,
+        maxTokens: 1600,
+        provider: MULTIPLE_FORCE_PROVIDER,
+      }),
+      input.timeoutMs,
+      '豆包基期增长量倍数锚定出题',
+    )
+    const parsed = parseAiJsonObjectLenient(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    const fields = parseMultipleBaseMcqAiObject(parsed)
+    if (!fields) return null
+    return buildMultipleBaseQuestionFromMcq({
+      ...fields,
+      table: fields.table ?? input.seed.table,
+      passage: fields.passage || input.seed.passage,
+      difficulty: 'hard',
+      seq: input.seq,
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function requestDataAnalysisMultipleBaseMcqs(input: {
+  count?: number
+  difficulty: MultipleBaseDifficulty
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<MultipleBaseQuestion[]> {
+  const count = input.count ?? MULTIPLE_BASE_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const historyBlocked = new Set(
+    (input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean),
+  )
+  const deduped: MultipleBaseQuestion[] = []
+  const usedTerms = new Set<string>(historyBlocked)
+  const usedFingerprints = new Set<string>()
+  const usedSkillIds = new Set<MultipleBaseEasySkillId>()
+
+  const pushIfNew = (q: MultipleBaseQuestion | null) => {
+    if (!q) return false
+    if (usedFingerprints.has(q.fingerprint)) return false
+    if (deduped.some((x) => x.fingerprint === q.fingerprint)) return false
+    const termKey = normalizeAvoidTerm(q.term)
+    deduped.push(q)
+    usedFingerprints.add(q.fingerprint)
+    if (termKey) usedTerms.add(termKey)
+    const skill = detectMultipleBaseEasySkillId(q)
+    if (skill) usedSkillIds.add(skill)
+    return true
+  }
+
+  const skillPlan =
+    difficulty === 'easy' ? pickMultipleBaseEasySkillPlan(count + 4) : []
+
+  if (difficulty === 'easy') {
+    input.onProgress?.(`豆包整包生成 ${count} 道基期与增长量倍数简单题…`)
+    try {
+      const batch = await withTimeout(
+        requestMultipleBaseEasyBatch(count, skillPlan, [...usedTerms]),
+        70_000,
+        '豆包基期增长量倍数整包',
+      )
+      for (const q of batch) pushIfNew(q)
+    } catch {
+      /* */
+    }
+    for (let i = 0; deduped.length < count && i < count; i++) {
+      const slot =
+        skillPlan.find((s) => !usedSkillIds.has(s.id)) ??
+        skillPlan[deduped.length % Math.max(1, skillPlan.length)]
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题${slot ? ` · ${slot.label}` : ''}…`,
+      )
+      try {
+        const avoidHint = buildAvoidTermsHint('资料分析·基期与增长量倍数主题', [...usedTerms])
+        const raw = await withTimeout(
+          deepseekChatRaw(
+            [
+              `请生成 1 道「基期倍数与增长量倍数」简单四选一。`,
+              slot ? `【本考点】${slot.label}：${slot.prompt}` : '',
+              multipleBaseFormat('easy'),
+              avoidHint,
+            ]
+              .filter(Boolean)
+              .join('\n'),
+            {
+              system: DATA_ANALYSIS_MULTIPLE_BASE_SYSTEM,
+              temperature: 0.4,
+              maxTokens: 1200,
+              provider: MULTIPLE_FORCE_PROVIDER,
+            },
+          ),
+          35_000,
+          '豆包基期增长量倍数单题',
+        )
+        pushIfNew(tryBuildMultipleBaseQuestion(parseAiJsonObjectLenient(raw), 'easy', 50 + i))
+      } catch {
+        /* */
+      }
+      await sleepMs(180)
+    }
+    if (deduped.length < count) {
+      const missing = skillPlan.map((s) => s.id).filter((id) => !usedSkillIds.has(id))
+      for (const q of takeMultipleBaseEasyLocalSeeds(
+        count - deduped.length,
+        800,
+        usedFingerprints,
+        missing,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  } else {
+    input.onProgress?.(`豆包整包生成 ${count} 道基期与增长量倍数复杂题…`)
+    try {
+      const batch = await withTimeout(
+        requestMultipleBaseHardBatch(count, [...usedTerms]),
+        48_000,
+        '豆包基期增长量倍数复杂整包',
+      )
+      for (const q of batch) pushIfNew(q)
+    } catch {
+      input.onProgress?.(`整包失败，改用短时单题/本地题库…`)
+    }
+    const anchors = pickMultipleBaseHardSeedTemplates(count)
+    for (let i = 0; deduped.length < count && i < anchors.length; i++) {
+      const seed = anchors[i]!
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题 · ${seed.term}（短时）…`,
+      )
+      const aiQ = await requestHardMultipleBaseAnchoredMcq({
+        seed,
+        seq: 100 + i,
+        timeoutMs: 14_000,
+      })
+      if (pushIfNew(aiQ)) continue
+      pushIfNew(buildMultipleBaseHardFromSeedTemplate(seed, 500 + i))
+    }
+    if (deduped.length < count) {
+      for (const q of takeMultipleBaseHardLocalSeeds(
+        count - deduped.length,
+        900,
+        usedFingerprints,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(
+      `仅成功生成 ${deduped.length}/${count} 题。请确认本地代理 8790 已启动后重试。`,
+    )
+  }
+  return deduped.slice(0, count)
+}
+
+
+/** 指数：强制豆包；纯文字无表 */
+const INDEX_FORCE_PROVIDER: AiProvider = 'doubao'
+
+const DATA_ANALYSIS_INDEX_SYSTEM = `
+你是公务员/事业编「资料分析」命题专家，专精教材考点「指数」。
+
+【核心关系】（基期指数通常为100）
+1. 现期实际值/基期实际值 = 指数/100 ⇒ 现期=基期×指数/100
+2. 增长率 = (指数−100)%；指数>100上升，<100下降，=100持平
+3. 倍数 = 指数/100
+4. 两指数相差 n 点 ⇔ 对应增长率相差 n 个百分点
+
+【简单题】纯文字无表；数字略易，直接套公式。
+【复杂题】仍纯文字无表；材料可含多分类指数与「升/降×点」，须反推上期或比较点数；难度≥教材工业企业景气指数真题。
+【解析】末句「答案为…」。只输出合法 JSON。
+`.trim()
+
+function indexFormat(difficulty: IndexDifficulty): string {
+  if (difficulty === 'easy') {
+    return `【简单】纯文字无表。字段：term,passage,stem,correct,distractors[3],evidenceSpans,method,explanation。`
+  }
+  return `【复杂】纯文字无表；多分类+点数。字段同简单题。`
+}
+
+function tryBuildIndexQuestion(
+  item: unknown,
+  difficulty: IndexDifficulty,
+  seq: number,
+): IndexQuestion | null {
+  const fields = parseIndexMcqAiObject(item)
+  if (!fields) return null
+  return buildIndexQuestionFromMcq({ ...fields, difficulty, seq })
+}
+
+async function requestIndexEasyBatch(
+  count: number,
+  skillPlan: IndexEasySkillSlot[],
+  avoidTerms: string[],
+): Promise<IndexQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·指数主题', avoidTerms)
+  const skillLines = skillPlan
+    .slice(0, count)
+    .map((s, i) => `${i + 1}. ${s.label}：${s.prompt}`)
+    .join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「指数」简单四选一，组成 JSON 数组。`,
+        indexFormat('easy'),
+        `【本轮考点】\n${skillLines}`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_INDEX_SYSTEM,
+        temperature: 0.4,
+        maxTokens: 3200,
+        provider: INDEX_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: IndexQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildIndexQuestion(item, 'easy', 10 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestIndexHardBatch(
+  count: number,
+  avoidTerms: string[],
+): Promise<IndexQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·指数主题', avoidTerms)
+  const skillLines = INDEX_HARD_SKILL_SLOTS.map(
+    (s, i) => `${i + 1}. ${s.label}：${s.prompt}`,
+  ).join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「指数」复杂四选一，组成 JSON 数组。`,
+        indexFormat('hard'),
+        `【考点须覆盖】\n${skillLines}`,
+        `材料可仿工业企业景气指数（多规模/地区+点数）；explanation 写清步骤。`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_INDEX_SYSTEM,
+        temperature: 0.35,
+        maxTokens: 4200,
+        provider: INDEX_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: IndexQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildIndexQuestion(item, 'hard', 20 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestHardIndexAnchoredMcq(input: {
+  seed: IndexHardSeedTemplate
+  seq: number
+  timeoutMs: number
+}): Promise<IndexQuestion | null> {
+  const skillHint = input.seed.skillId
+    ? `本题考点倾向：${input.seed.skillId}。`
+    : ''
+  const prompt = [
+    `请参考下列种子题出 1 道「指数」复杂四选一（纯文字，不要表/图）。`,
+    skillHint,
+    `【种子材料】${input.seed.passage}`,
+    `【种子设问参考】${input.seed.stem}`,
+    indexFormat('hard'),
+    `explanation 末句「答案为…」。不要 markdown。`,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  try {
+    const raw = await withTimeout(
+      deepseekChatRaw(prompt, {
+        system: DATA_ANALYSIS_INDEX_SYSTEM,
+        temperature: 0.32,
+        maxTokens: 1400,
+        provider: INDEX_FORCE_PROVIDER,
+      }),
+      input.timeoutMs,
+      '豆包指数锚定出题',
+    )
+    const parsed = parseAiJsonObjectLenient(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    const fields = parseIndexMcqAiObject(parsed)
+    if (!fields) return null
+    return buildIndexQuestionFromMcq({
+      ...fields,
+      passage: fields.passage || input.seed.passage,
+      difficulty: 'hard',
+      seq: input.seq,
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function requestDataAnalysisIndexMcqs(input: {
+  count?: number
+  difficulty: IndexDifficulty
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<IndexQuestion[]> {
+  const count = input.count ?? INDEX_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const historyBlocked = new Set(
+    (input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean),
+  )
+  const deduped: IndexQuestion[] = []
+  const usedTerms = new Set<string>(historyBlocked)
+  const usedFingerprints = new Set<string>()
+  const usedSkillIds = new Set<IndexEasySkillId>()
+
+  const pushIfNew = (q: IndexQuestion | null) => {
+    if (!q) return false
+    if (usedFingerprints.has(q.fingerprint)) return false
+    if (deduped.some((x) => x.fingerprint === q.fingerprint)) return false
+    const termKey = normalizeAvoidTerm(q.term)
+    deduped.push(q)
+    usedFingerprints.add(q.fingerprint)
+    if (termKey) usedTerms.add(termKey)
+    const skill = detectIndexEasySkillId(q)
+    if (skill) usedSkillIds.add(skill)
+    return true
+  }
+
+  const skillPlan = difficulty === 'easy' ? pickIndexEasySkillPlan(count + 4) : []
+
+  if (difficulty === 'easy') {
+    input.onProgress?.(`豆包整包生成 ${count} 道指数简单题…`)
+    try {
+      const batch = await withTimeout(
+        requestIndexEasyBatch(count, skillPlan, [...usedTerms]),
+        70_000,
+        '豆包指数整包',
+      )
+      for (const q of batch) pushIfNew(q)
+    } catch {
+      /* */
+    }
+    for (let i = 0; deduped.length < count && i < count; i++) {
+      const slot =
+        skillPlan.find((s) => !usedSkillIds.has(s.id)) ??
+        skillPlan[deduped.length % Math.max(1, skillPlan.length)]
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题${slot ? ` · ${slot.label}` : ''}…`,
+      )
+      try {
+        const avoidHint = buildAvoidTermsHint('资料分析·指数主题', [...usedTerms])
+        const raw = await withTimeout(
+          deepseekChatRaw(
+            [
+              `请生成 1 道「指数」简单四选一。`,
+              slot ? `【本考点】${slot.label}：${slot.prompt}` : '',
+              indexFormat('easy'),
+              avoidHint,
+            ]
+              .filter(Boolean)
+              .join('\n'),
+            {
+              system: DATA_ANALYSIS_INDEX_SYSTEM,
+              temperature: 0.4,
+              maxTokens: 1200,
+              provider: INDEX_FORCE_PROVIDER,
+            },
+          ),
+          35_000,
+          '豆包指数单题',
+        )
+        pushIfNew(tryBuildIndexQuestion(parseAiJsonObjectLenient(raw), 'easy', 50 + i))
+      } catch {
+        /* */
+      }
+      await sleepMs(180)
+    }
+    if (deduped.length < count) {
+      const missing = skillPlan.map((s) => s.id).filter((id) => !usedSkillIds.has(id))
+      for (const q of takeIndexEasyLocalSeeds(
+        count - deduped.length,
+        800,
+        usedFingerprints,
+        missing,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  } else {
+    input.onProgress?.(`豆包整包生成 ${count} 道指数复杂题…`)
+    try {
+      const batch = await withTimeout(
+        requestIndexHardBatch(count, [...usedTerms]),
+        48_000,
+        '豆包指数复杂整包',
+      )
+      for (const q of batch) pushIfNew(q)
+    } catch {
+      input.onProgress?.(`整包失败，改用短时单题/本地题库…`)
+    }
+    const anchors = pickIndexHardSeedTemplates(count)
+    for (let i = 0; deduped.length < count && i < anchors.length; i++) {
+      const seed = anchors[i]!
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题 · ${seed.term}（短时）…`,
+      )
+      const aiQ = await requestHardIndexAnchoredMcq({
+        seed,
+        seq: 100 + i,
+        timeoutMs: 14_000,
+      })
+      if (pushIfNew(aiQ)) continue
+      pushIfNew(buildIndexHardFromSeedTemplate(seed, 500 + i))
+    }
+    if (deduped.length < count) {
+      for (const q of takeIndexHardLocalSeeds(
+        count - deduped.length,
+        900,
+        usedFingerprints,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(
+      `仅成功生成 ${deduped.length}/${count} 题。请确认本地代理 8790 已启动后重试。`,
+    )
+  }
+  return deduped.slice(0, count)
+}
+
+
+/** 拉动增长和比例：强制豆包；纯文字无表 */
+const PULL_FORCE_PROVIDER: AiProvider = 'doubao'
+
+const DATA_ANALYSIS_PULL_SYSTEM = `
+你是公务员/事业编「资料分析」命题专家，专精「拉动……增长、贡献率、利润率」。
+
+【公式】
+1. 拉动……增长（百分点）= 部分增长量 / 整体基期值
+2. 贡献率 = 部分增长量 / 整体增长量 ×100%
+3. 利润率 = 利润 / 收入；升降：q利>q收上升，反之下降
+4. 利润率变化量（百分点）≈ 现期利润率×(q利−q收)/(1+q利)
+
+【简单题】纯文字无表；尽量直接给增量/基期，略易。
+【复杂题】仍纯文字无表；须由现期与增速推算增量/基期，对齐教材六大行业拉动、房贷贡献率、软件利润率题或更难。
+【解析】末句「答案为…」。只输出合法 JSON。
+`.trim()
+
+function pullFormat(difficulty: PullDifficulty): string {
+  if (difficulty === 'easy') {
+    return `【简单】纯文字无表。字段：term,passage,stem,correct,distractors[3],evidenceSpans,method,explanation。`
+  }
+  return `【复杂】纯文字无表；多步估算。字段同简单题。`
+}
+
+function tryBuildPullQuestion(
+  item: unknown,
+  difficulty: PullDifficulty,
+  seq: number,
+): PullQuestion | null {
+  const fields = parsePullMcqAiObject(item)
+  if (!fields) return null
+  return buildPullQuestionFromMcq({ ...fields, difficulty, seq })
+}
+
+async function requestPullEasyBatch(
+  count: number,
+  skillPlan: PullEasySkillSlot[],
+  avoidTerms: string[],
+): Promise<PullQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·拉动增长和比例主题', avoidTerms)
+  const skillLines = skillPlan
+    .slice(0, count)
+    .map((s, i) => `${i + 1}. ${s.label}：${s.prompt}`)
+    .join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「拉动增长和比例」简单四选一，组成 JSON 数组。`,
+        pullFormat('easy'),
+        `【本轮考点】\n${skillLines}`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_PULL_SYSTEM,
+        temperature: 0.4,
+        maxTokens: 3200,
+        provider: PULL_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: PullQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildPullQuestion(item, 'easy', 10 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestPullHardBatch(
+  count: number,
+  avoidTerms: string[],
+): Promise<PullQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·拉动增长和比例主题', avoidTerms)
+  const skillLines = PULL_HARD_SKILL_SLOTS.map(
+    (s, i) => `${i + 1}. ${s.label}：${s.prompt}`,
+  ).join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「拉动增长和比例」复杂四选一，组成 JSON 数组。`,
+        pullFormat('hard'),
+        `【考点须覆盖】\n${skillLines}`,
+        `explanation 写清步骤，末句「答案为…」。`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_PULL_SYSTEM,
+        temperature: 0.35,
+        maxTokens: 4200,
+        provider: PULL_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: PullQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildPullQuestion(item, 'hard', 20 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestHardPullAnchoredMcq(input: {
+  seed: PullHardSeedTemplate
+  seq: number
+  timeoutMs: number
+}): Promise<PullQuestion | null> {
+  const skillHint = input.seed.skillId
+    ? `本题考点倾向：${input.seed.skillId}。`
+    : ''
+  const prompt = [
+    `请参考下列种子题出 1 道「拉动增长和比例」复杂四选一（纯文字，不要表/图）。`,
+    skillHint,
+    `【种子材料】${input.seed.passage}`,
+    `【种子设问参考】${input.seed.stem}`,
+    pullFormat('hard'),
+    `explanation 末句写「答案为…」。不要 markdown。`,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  try {
+    const raw = await withTimeout(
+      deepseekChatRaw(prompt, {
+        system: DATA_ANALYSIS_PULL_SYSTEM,
+        temperature: 0.32,
+        maxTokens: 1400,
+        provider: PULL_FORCE_PROVIDER,
+      }),
+      input.timeoutMs,
+      '豆包拉动增长锚定出题',
+    )
+    const parsed = parseAiJsonObjectLenient(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    const fields = parsePullMcqAiObject(parsed)
+    if (!fields) return null
+    return buildPullQuestionFromMcq({
+      ...fields,
+      passage: fields.passage || input.seed.passage,
+      difficulty: 'hard',
+      seq: input.seq,
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function requestDataAnalysisPullMcqs(input: {
+  count?: number
+  difficulty: PullDifficulty
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<PullQuestion[]> {
+  const count = input.count ?? PULL_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const historyBlocked = new Set(
+    (input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean),
+  )
+  const deduped: PullQuestion[] = []
+  const usedTerms = new Set<string>(historyBlocked)
+  const usedFingerprints = new Set<string>()
+  const usedSkillIds = new Set<PullEasySkillId>()
+
+  const pushIfNew = (q: PullQuestion | null) => {
+    if (!q) return false
+    if (usedFingerprints.has(q.fingerprint)) return false
+    if (deduped.some((x) => x.fingerprint === q.fingerprint)) return false
+    const termKey = normalizeAvoidTerm(q.term)
+    deduped.push(q)
+    usedFingerprints.add(q.fingerprint)
+    if (termKey) usedTerms.add(termKey)
+    const skill = detectPullEasySkillId(q)
+    if (skill) usedSkillIds.add(skill)
+    return true
+  }
+
+  const skillPlan = difficulty === 'easy' ? pickPullEasySkillPlan(count + 4) : []
+
+  if (difficulty === 'easy') {
+    input.onProgress?.(`豆包整包生成 ${count} 道拉动增长和比例简单题…`)
+    try {
+      const batch = await withTimeout(
+        requestPullEasyBatch(count, skillPlan, [...usedTerms]),
+        70_000,
+        '豆包拉动增长整包',
+      )
+      for (const q of batch) pushIfNew(q)
+    } catch {
+      /* */
+    }
+    for (let i = 0; deduped.length < count && i < count; i++) {
+      const slot =
+        skillPlan.find((s) => !usedSkillIds.has(s.id)) ??
+        skillPlan[deduped.length % Math.max(1, skillPlan.length)]
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题${slot ? ` · ${slot.label}` : ''}…`,
+      )
+      try {
+        const avoidHint = buildAvoidTermsHint('资料分析·拉动增长和比例主题', [...usedTerms])
+        const raw = await withTimeout(
+          deepseekChatRaw(
+            [
+              `请生成 1 道「拉动增长和比例」简单四选一。`,
+              slot ? `【本考点】${slot.label}：${slot.prompt}` : '',
+              pullFormat('easy'),
+              avoidHint,
+            ]
+              .filter(Boolean)
+              .join('\n'),
+            {
+              system: DATA_ANALYSIS_PULL_SYSTEM,
+              temperature: 0.4,
+              maxTokens: 1200,
+              provider: PULL_FORCE_PROVIDER,
+            },
+          ),
+          35_000,
+          '豆包拉动增长单题',
+        )
+        pushIfNew(tryBuildPullQuestion(parseAiJsonObjectLenient(raw), 'easy', 50 + i))
+      } catch {
+        /* */
+      }
+      await sleepMs(180)
+    }
+    if (deduped.length < count) {
+      const missing = skillPlan.map((s) => s.id).filter((id) => !usedSkillIds.has(id))
+      for (const q of takePullEasyLocalSeeds(
+        count - deduped.length,
+        800,
+        usedFingerprints,
+        missing,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  } else {
+    input.onProgress?.(`豆包整包生成 ${count} 道拉动增长和比例复杂题…`)
+    try {
+      const batch = await withTimeout(
+        requestPullHardBatch(count, [...usedTerms]),
+        48_000,
+        '豆包拉动增长复杂整包',
+      )
+      for (const q of batch) pushIfNew(q)
+    } catch {
+      input.onProgress?.(`整包失败，改用短时单题/本地题库…`)
+    }
+    const anchors = pickPullHardSeedTemplates(count)
+    for (let i = 0; deduped.length < count && i < anchors.length; i++) {
+      const seed = anchors[i]!
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题 · ${seed.term}（短时）…`,
+      )
+      const aiQ = await requestHardPullAnchoredMcq({
+        seed,
+        seq: 100 + i,
+        timeoutMs: 14_000,
+      })
+      if (pushIfNew(aiQ)) continue
+      pushIfNew(buildPullHardFromSeedTemplate(seed, 500 + i))
+    }
+    if (deduped.length < count) {
+      for (const q of takePullHardLocalSeeds(
+        count - deduped.length,
+        900,
+        usedFingerprints,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(
+      `仅成功生成 ${deduped.length}/${count} 题。请确认本地代理 8790 已启动后重试。`,
+    )
+  }
+  return deduped.slice(0, count)
+}
+
+
+/** 顺差与逆差：强制豆包；简单无表，复杂有表 */
+const SURPLUS_FORCE_PROVIDER: AiProvider = 'doubao'
+
+const DATA_ANALYSIS_SURPLUS_SYSTEM = `
+你是公务员/事业编「资料分析」命题专家，专精「顺差与逆差」。
+
+【公式】
+1. 进出口总额 = 进口 + 出口
+2. 顺差 = 出口 − 进口（出口>进口）
+3. 逆差 = 进口 − 出口（进口>出口）
+
+【简单题】纯文字无表；略易。
+【复杂题】必须含 table；多年差额筛选/比较/扩大幅度等，难度高于教材水果进出口计数题。
+table：{title, unit?, columns, rows}
+【解析】末句「答案为…」。只输出合法 JSON。
+`.trim()
+
+function surplusFormat(difficulty: SurplusDifficulty): string {
+  if (difficulty === 'easy') {
+    return `【简单】纯文字；table:null。字段：term,passage,stem,correct,distractors[3],evidenceSpans,method,explanation。`
+  }
+  return `【复杂】必须 table。字段：term,passage,table,stem,correct,distractors[3],evidenceSpans,method,explanation。`
+}
+
+function tryBuildSurplusQuestion(
+  item: unknown,
+  difficulty: SurplusDifficulty,
+  seq: number,
+): SurplusQuestion | null {
+  const fields = parseSurplusMcqAiObject(item)
+  if (!fields) return null
+  return buildSurplusQuestionFromMcq({ ...fields, difficulty, seq })
+}
+
+async function requestSurplusEasyBatch(
+  count: number,
+  skillPlan: SurplusEasySkillSlot[],
+  avoidTerms: string[],
+): Promise<SurplusQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·顺差与逆差主题', avoidTerms)
+  const skillLines = skillPlan
+    .slice(0, count)
+    .map((s, i) => `${i + 1}. ${s.label}：${s.prompt}`)
+    .join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「顺差与逆差」简单四选一，组成 JSON 数组。`,
+        surplusFormat('easy'),
+        `【本轮考点】\n${skillLines}`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_SURPLUS_SYSTEM,
+        temperature: 0.4,
+        maxTokens: 3200,
+        provider: SURPLUS_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: SurplusQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildSurplusQuestion(item, 'easy', 10 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestSurplusHardBatch(
+  count: number,
+  avoidTerms: string[],
+): Promise<SurplusQuestion[]> {
+  const avoidHint = buildAvoidTermsHint('资料分析·顺差与逆差主题', avoidTerms)
+  const skillLines = SURPLUS_HARD_SKILL_SLOTS.map(
+    (s, i) => `${i + 1}. ${s.label}：${s.prompt}`,
+  ).join('\n')
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `请一次性生成 **${count} 道**「顺差与逆差」复杂四选一，组成 JSON 数组。`,
+        surplusFormat('hard'),
+        `【考点须覆盖】\n${skillLines}`,
+        `每题必须有 table；难度高于教材。`,
+        avoidHint,
+        `不要 markdown。`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      {
+        system: DATA_ANALYSIS_SURPLUS_SYSTEM,
+        temperature: 0.35,
+        maxTokens: 4800,
+        provider: SURPLUS_FORCE_PROVIDER,
+      },
+    )
+    const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+    if (!Array.isArray(parsed)) return []
+    const out: SurplusQuestion[] = []
+    parsed.forEach((item, idx) => {
+      const q = tryBuildSurplusQuestion(item, 'hard', 20 + idx)
+      if (q) out.push(q)
+    })
+    return out
+  } catch {
+    return []
+  }
+}
+
+async function requestHardSurplusAnchoredMcq(input: {
+  seed: SurplusHardSeedTemplate
+  seq: number
+  timeoutMs: number
+}): Promise<SurplusQuestion | null> {
+  const skillHint = input.seed.skillId
+    ? `本题考点倾向：${input.seed.skillId}。`
+    : ''
+  const tableJson = JSON.stringify(input.seed.table)
+  const prompt = [
+    `请基于【给定 table】出 1 道「顺差与逆差」复杂四选一。`,
+    skillHint,
+    `【给定 table（禁止改动表中数字）】`,
+    tableJson,
+    `【种子材料】${input.seed.passage}`,
+    `【种子设问参考】${input.seed.stem}`,
+    surplusFormat('hard'),
+    `可省略 table。explanation 末句「答案为…」。不要 markdown。`,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  try {
+    const raw = await withTimeout(
+      deepseekChatRaw(prompt, {
+        system: DATA_ANALYSIS_SURPLUS_SYSTEM,
+        temperature: 0.32,
+        maxTokens: 1600,
+        provider: SURPLUS_FORCE_PROVIDER,
+      }),
+      input.timeoutMs,
+      '豆包顺差逆差锚定出题',
+    )
+    const parsed = parseAiJsonObjectLenient(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    const fields = parseSurplusMcqAiObject(parsed)
+    if (!fields) return null
+    return buildSurplusQuestionFromMcq({
+      ...fields,
+      table: fields.table ?? input.seed.table,
+      passage: fields.passage || input.seed.passage,
+      difficulty: 'hard',
+      seq: input.seq,
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function requestDataAnalysisSurplusMcqs(input: {
+  count?: number
+  difficulty: SurplusDifficulty
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<SurplusQuestion[]> {
+  const count = input.count ?? SURPLUS_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const historyBlocked = new Set(
+    (input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean),
+  )
+  const deduped: SurplusQuestion[] = []
+  const usedTerms = new Set<string>(historyBlocked)
+  const usedFingerprints = new Set<string>()
+  const usedSkillIds = new Set<SurplusEasySkillId>()
+
+  const pushIfNew = (q: SurplusQuestion | null) => {
+    if (!q) return false
+    if (usedFingerprints.has(q.fingerprint)) return false
+    if (deduped.some((x) => x.fingerprint === q.fingerprint)) return false
+    const termKey = normalizeAvoidTerm(q.term)
+    deduped.push(q)
+    usedFingerprints.add(q.fingerprint)
+    if (termKey) usedTerms.add(termKey)
+    const skill = detectSurplusEasySkillId(q)
+    if (skill) usedSkillIds.add(skill)
+    return true
+  }
+
+  const skillPlan =
+    difficulty === 'easy' ? pickSurplusEasySkillPlan(count + 4) : []
+
+  if (difficulty === 'easy') {
+    input.onProgress?.(`豆包整包生成 ${count} 道顺差与逆差简单题…`)
+    try {
+      const batch = await withTimeout(
+        requestSurplusEasyBatch(count, skillPlan, [...usedTerms]),
+        70_000,
+        '豆包顺差逆差整包',
+      )
+      for (const q of batch) pushIfNew(q)
+    } catch {
+      /* */
+    }
+    for (let i = 0; deduped.length < count && i < count; i++) {
+      const slot =
+        skillPlan.find((s) => !usedSkillIds.has(s.id)) ??
+        skillPlan[deduped.length % Math.max(1, skillPlan.length)]
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题${slot ? ` · ${slot.label}` : ''}…`,
+      )
+      try {
+        const avoidHint = buildAvoidTermsHint('资料分析·顺差与逆差主题', [...usedTerms])
+        const raw = await withTimeout(
+          deepseekChatRaw(
+            [
+              `请生成 1 道「顺差与逆差」简单四选一。`,
+              slot ? `【本考点】${slot.label}：${slot.prompt}` : '',
+              surplusFormat('easy'),
+              avoidHint,
+            ]
+              .filter(Boolean)
+              .join('\n'),
+            {
+              system: DATA_ANALYSIS_SURPLUS_SYSTEM,
+              temperature: 0.4,
+              maxTokens: 1200,
+              provider: SURPLUS_FORCE_PROVIDER,
+            },
+          ),
+          35_000,
+          '豆包顺差逆差单题',
+        )
+        pushIfNew(tryBuildSurplusQuestion(parseAiJsonObjectLenient(raw), 'easy', 50 + i))
+      } catch {
+        /* */
+      }
+      await sleepMs(180)
+    }
+    if (deduped.length < count) {
+      const missing = skillPlan.map((s) => s.id).filter((id) => !usedSkillIds.has(id))
+      for (const q of takeSurplusEasyLocalSeeds(
+        count - deduped.length,
+        800,
+        usedFingerprints,
+        missing,
+      )) {
+        pushIfNew(q)
+      }
+    }
+  } else {
+    input.onProgress?.(`豆包整包生成 ${count} 道顺差与逆差复杂题…`)
+    try {
+      const batch = await withTimeout(
+        requestSurplusHardBatch(count, [...usedTerms]),
+        48_000,
+        '豆包顺差逆差复杂整包',
+      )
+      for (const q of batch) pushIfNew(q)
+    } catch {
+      input.onProgress?.(`整包失败，改用短时单题/本地题库…`)
+    }
+    const anchors = pickSurplusHardSeedTemplates(count)
+    for (let i = 0; deduped.length < count && i < anchors.length; i++) {
+      const seed = anchors[i]!
+      input.onProgress?.(
+        `补第 ${deduped.length + 1}/${count} 题 · ${seed.term}（短时）…`,
+      )
+      const aiQ = await requestHardSurplusAnchoredMcq({
+        seed,
+        seq: 100 + i,
+        timeoutMs: 14_000,
+      })
+      if (pushIfNew(aiQ)) continue
+      pushIfNew(buildSurplusHardFromSeedTemplate(seed, 500 + i))
+    }
+    if (deduped.length < count) {
+      for (const q of takeSurplusHardLocalSeeds(
         count - deduped.length,
         900,
         usedFingerprints,

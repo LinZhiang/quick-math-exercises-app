@@ -26,6 +26,15 @@ export type ChineseGeneratedHistoryKind =
   | 'data-analysis-growth-inter-year'
   | 'data-analysis-growth-avg-annual'
   | 'data-analysis-growth-mixed'
+  | 'data-analysis-proportion-basic'
+  | 'data-analysis-proportion-base'
+  | 'data-analysis-average-basic'
+  | 'data-analysis-average-base'
+  | 'data-analysis-multiple-basic'
+  | 'data-analysis-multiple-base'
+  | 'data-analysis-index'
+  | 'data-analysis-pull'
+  | 'data-analysis-surplus'
 
 const STORAGE_KEYS: Record<ChineseGeneratedHistoryKind, string> = {
   idiom: 'chinese-generated-history-idiom-v1',
@@ -54,6 +63,21 @@ const STORAGE_KEYS: Record<ChineseGeneratedHistoryKind, string> = {
     'chinese-generated-history-data-analysis-growth-avg-annual-v1',
   'data-analysis-growth-mixed':
     'chinese-generated-history-data-analysis-growth-mixed-v1',
+  'data-analysis-proportion-basic':
+    'chinese-generated-history-data-analysis-proportion-basic-v1',
+  'data-analysis-proportion-base':
+    'chinese-generated-history-data-analysis-proportion-base-v1',
+  'data-analysis-average-basic':
+    'chinese-generated-history-data-analysis-average-basic-v1',
+  'data-analysis-average-base':
+    'chinese-generated-history-data-analysis-average-base-v1',
+  'data-analysis-multiple-basic':
+    'chinese-generated-history-data-analysis-multiple-basic-v1',
+  'data-analysis-multiple-base':
+    'chinese-generated-history-data-analysis-multiple-base-v1',
+  'data-analysis-index': 'chinese-generated-history-data-analysis-index-v1',
+  'data-analysis-pull': 'chinese-generated-history-data-analysis-pull-v1',
+  'data-analysis-surplus': 'chinese-generated-history-data-analysis-surplus-v1',
 }
 
 function normalizeTerm(term: string): string {

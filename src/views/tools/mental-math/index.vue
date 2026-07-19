@@ -20,6 +20,26 @@ import DataAnalysisGrowthPanel from '@/views/tools/mental-math/components/DataAn
 import DataAnalysisGrowthInterYearPanel from '@/views/tools/mental-math/components/DataAnalysisGrowthInterYearPanel.vue'
 import DataAnalysisGrowthAvgAnnualPanel from '@/views/tools/mental-math/components/DataAnalysisGrowthAvgAnnualPanel.vue'
 import DataAnalysisGrowthMixedPanel from '@/views/tools/mental-math/components/DataAnalysisGrowthMixedPanel.vue'
+import DataAnalysisProportionBasicPanel from '@/views/tools/mental-math/components/DataAnalysisProportionBasicPanel.vue'
+import DataAnalysisProportionBasePanel from '@/views/tools/mental-math/components/DataAnalysisProportionBasePanel.vue'
+import DataAnalysisAverageBasicPanel from '@/views/tools/mental-math/components/DataAnalysisAverageBasicPanel.vue'
+import DataAnalysisAverageBasePanel from '@/views/tools/mental-math/components/DataAnalysisAverageBasePanel.vue'
+import DataAnalysisMultipleBasicPanel from '@/views/tools/mental-math/components/DataAnalysisMultipleBasicPanel.vue'
+import DataAnalysisMultipleBasePanel from '@/views/tools/mental-math/components/DataAnalysisMultipleBasePanel.vue'
+import DataAnalysisIndexPanel from '@/views/tools/mental-math/components/DataAnalysisIndexPanel.vue'
+import DataAnalysisPullPanel from '@/views/tools/mental-math/components/DataAnalysisPullPanel.vue'
+import DataAnalysisSurplusPanel from '@/views/tools/mental-math/components/DataAnalysisSurplusPanel.vue'
+import DataAnalysisStrategyGuideButton from '@/views/tools/mental-math/components/DataAnalysisStrategyGuideButton.vue'
+import DivisibilityJudgePanel from '@/views/tools/mental-math/components/DivisibilityJudgePanel.vue'
+import PrimeCompositePanel from '@/views/tools/mental-math/components/PrimeCompositePanel.vue'
+import GcdLcmPanel from '@/views/tools/mental-math/components/GcdLcmPanel.vue'
+import RatioMultPanel from '@/views/tools/mental-math/components/RatioMultPanel.vue'
+import RemPropPanel from '@/views/tools/mental-math/components/RemPropPanel.vue'
+import SubElimPanel from '@/views/tools/mental-math/components/SubElimPanel.vue'
+import EquationMethodPanel from '@/views/tools/mental-math/components/EquationMethodPanel.vue'
+import SpecialValuePanel from '@/views/tools/mental-math/components/SpecialValuePanel.vue'
+import RatioMethodPanel from '@/views/tools/mental-math/components/RatioMethodPanel.vue'
+import CrossMethodPanel from '@/views/tools/mental-math/components/CrossMethodPanel.vue'
 import GraphicReasoningCell from '@/views/tools/graphic-reasoning/components/GraphicReasoningCell.vue'
 import {
   clampGraphicReasoningScore,
@@ -157,8 +177,63 @@ const dataAnalysisGrowthAvgAnnualPanelRef = ref<InstanceType<
 const dataAnalysisGrowthMixedPanelRef = ref<InstanceType<
   typeof DataAnalysisGrowthMixedPanel
 > | null>(null)
+const dataAnalysisProportionBasicPanelRef = ref<InstanceType<
+  typeof DataAnalysisProportionBasicPanel
+> | null>(null)
+const dataAnalysisProportionBasePanelRef = ref<InstanceType<
+  typeof DataAnalysisProportionBasePanel
+> | null>(null)
+const dataAnalysisAverageBasicPanelRef = ref<InstanceType<
+  typeof DataAnalysisAverageBasicPanel
+> | null>(null)
+const dataAnalysisAverageBasePanelRef = ref<InstanceType<
+  typeof DataAnalysisAverageBasePanel
+> | null>(null)
+const dataAnalysisMultipleBasicPanelRef = ref<InstanceType<
+  typeof DataAnalysisMultipleBasicPanel
+> | null>(null)
+const dataAnalysisMultipleBasePanelRef = ref<InstanceType<
+  typeof DataAnalysisMultipleBasePanel
+> | null>(null)
+const dataAnalysisIndexPanelRef = ref<InstanceType<typeof DataAnalysisIndexPanel> | null>(
+  null,
+)
+const dataAnalysisPullPanelRef = ref<InstanceType<typeof DataAnalysisPullPanel> | null>(null)
+const dataAnalysisSurplusPanelRef = ref<InstanceType<typeof DataAnalysisSurplusPanel> | null>(
+  null,
+)
+const divisibilityJudgePanelRef = ref<InstanceType<typeof DivisibilityJudgePanel> | null>(null)
+const primeCompositePanelRef = ref<InstanceType<typeof PrimeCompositePanel> | null>(null)
+const gcdLcmPanelRef = ref<InstanceType<typeof GcdLcmPanel> | null>(null)
+const ratioMultPanelRef = ref<InstanceType<typeof RatioMultPanel> | null>(null)
+const remPropPanelRef = ref<InstanceType<typeof RemPropPanel> | null>(null)
+const subElimPanelRef = ref<InstanceType<typeof SubElimPanel> | null>(null)
+const equationMethodPanelRef = ref<InstanceType<typeof EquationMethodPanel> | null>(null)
+const specialValuePanelRef = ref<InstanceType<typeof SpecialValuePanel> | null>(null)
+const ratioMethodPanelRef = ref<InstanceType<typeof RatioMethodPanel> | null>(null)
+const crossMethodPanelRef = ref<InstanceType<typeof CrossMethodPanel> | null>(null)
 /** 资料分析「增长」子模块折叠：默认收起 */
 const dataAnalysisGrowthFoldOpen = ref(false)
+/** 资料分析「比重」子模块折叠：默认收起 */
+const dataAnalysisProportionFoldOpen = ref(false)
+/** 资料分析「平均数」子模块折叠：默认收起 */
+const dataAnalysisAverageFoldOpen = ref(false)
+/** 资料分析「倍数与翻番」子模块折叠：默认收起 */
+const dataAnalysisMultipleFoldOpen = ref(false)
+/** 资料分析「指数」子模块折叠：默认收起 */
+const dataAnalysisIndexFoldOpen = ref(false)
+/** 资料分析「拉动增长和比例」子模块折叠：默认收起 */
+const dataAnalysisPullFoldOpen = ref(false)
+/** 资料分析「顺差与逆差」子模块折叠：默认收起 */
+const dataAnalysisSurplusFoldOpen = ref(false)
+/** 运算技巧「整除及其性质」折叠：默认收起 */
+const opSkillDivFoldOpen = ref(false)
+const opSkillRemFoldOpen = ref(false)
+const opSkillSubElimFoldOpen = ref(false)
+const opSkillEqMethodFoldOpen = ref(false)
+const opSkillSpecValFoldOpen = ref(false)
+const opSkillRatioMethodFoldOpen = ref(false)
+const opSkillCrossMethodFoldOpen = ref(false)
 const questionSeq = ref(0)
 const records = ref<MentalMathAnswerRecord[]>([])
 const graphicRecords = ref<GraphicReasoningAnswerRecord[]>([])
@@ -350,6 +425,15 @@ const showGraphicSection = computed(
 const showDataAnalysisSection = computed(
   () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'data-analysis',
 )
+const showOpSkillSection = computed(
+  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'op-skill',
+)
+const showOpHighfreqSection = computed(
+  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'op-highfreq',
+)
+const showOpOtherSection = computed(
+  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'op-other',
+)
 const showChineseSection = computed(
   () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'chinese',
 )
@@ -363,7 +447,26 @@ const chineseSessionActive = computed(
     (dataAnalysisGrowthPanelRef.value?.isRunningOrLoading ?? false) ||
     (dataAnalysisGrowthInterYearPanelRef.value?.isRunningOrLoading ?? false) ||
     (dataAnalysisGrowthAvgAnnualPanelRef.value?.isRunningOrLoading ?? false) ||
-    (dataAnalysisGrowthMixedPanelRef.value?.isRunningOrLoading ?? false),
+    (dataAnalysisGrowthMixedPanelRef.value?.isRunningOrLoading ?? false) ||
+    (dataAnalysisProportionBasicPanelRef.value?.isRunningOrLoading ?? false) ||
+    (dataAnalysisProportionBasePanelRef.value?.isRunningOrLoading ?? false) ||
+    (dataAnalysisAverageBasicPanelRef.value?.isRunningOrLoading ?? false) ||
+    (dataAnalysisAverageBasePanelRef.value?.isRunningOrLoading ?? false) ||
+    (dataAnalysisMultipleBasicPanelRef.value?.isRunningOrLoading ?? false) ||
+    (dataAnalysisMultipleBasePanelRef.value?.isRunningOrLoading ?? false) ||
+    (dataAnalysisIndexPanelRef.value?.isRunningOrLoading ?? false) ||
+    (dataAnalysisPullPanelRef.value?.isRunningOrLoading ?? false) ||
+    (dataAnalysisSurplusPanelRef.value?.isRunningOrLoading ?? false) ||
+    (divisibilityJudgePanelRef.value?.isRunningOrLoading ?? false) ||
+    (primeCompositePanelRef.value?.isRunningOrLoading ?? false) ||
+    (gcdLcmPanelRef.value?.isRunningOrLoading ?? false) ||
+    (ratioMultPanelRef.value?.isRunningOrLoading ?? false) ||
+    (remPropPanelRef.value?.isRunningOrLoading ?? false) ||
+    (subElimPanelRef.value?.isRunningOrLoading ?? false) ||
+    (equationMethodPanelRef.value?.isRunningOrLoading ?? false) ||
+    (specialValuePanelRef.value?.isRunningOrLoading ?? false) ||
+    (ratioMethodPanelRef.value?.isRunningOrLoading ?? false) ||
+    (crossMethodPanelRef.value?.isRunningOrLoading ?? false),
 )
 
 const mcqOptionCount = computed(() => {
@@ -1137,6 +1240,12 @@ onMounted(() => {
     activeOutlineSection.value = 'graphic'
   } else if (hash === 'data-analysis' || route.query.section === 'data-analysis') {
     activeOutlineSection.value = 'data-analysis'
+  } else if (hash === 'op-skill' || route.query.section === 'op-skill') {
+    activeOutlineSection.value = 'op-skill'
+  } else if (hash === 'op-highfreq' || route.query.section === 'op-highfreq') {
+    activeOutlineSection.value = 'op-highfreq'
+  } else if (hash === 'op-other' || route.query.section === 'op-other') {
+    activeOutlineSection.value = 'op-other'
   } else if (hash === 'chinese' || hash === 'chinese-idiom' || route.query.section === 'chinese' || route.query.section === 'chinese-idiom') {
     activeOutlineSection.value = 'chinese'
   } else if (hash === 'chinese-key' || route.query.section === 'chinese-key') {
@@ -1166,7 +1275,7 @@ onBeforeUnmount(() => {
     <header v-if="phase === 'select'" class="page-hero">
       <h2 class="page-title">口算练习</h2>
       <p class="page-subtitle page-subtitle--full">
-        限时口算、次幂、平方与立方、估算分数、整除、生活常识；数学推理含二十四点、数独、图形推理、资料分析；左侧「语文练习」含成语识记、词语识记、阅读理解等。
+        限时口算、次幂、平方与立方、估算分数、整除、生活常识；数学推理含二十四点、数独、图形推理、资料分析、运算技巧、高频运算、其他运算；左侧「语文练习」含成语识记、词语识记、阅读理解等。
         口算/图形结果仅在本页展示；语文练习多子模块四选一、正计时，依赖 AI 出题（DeepSeek / 豆包，需在「导览 → 安装」登录），错题与收藏在「关键题练习」。
       </p>
       <p class="page-subtitle page-subtitle--compact">
@@ -1325,7 +1434,7 @@ onBeforeUnmount(() => {
         <section v-if="showDivisibilitySection" class="mode-section" id="practice-divisibility">
           <h3 class="mode-section__title">整除及其性质</h3>
           <p class="mode-section__hint">
-            整除判定、质数合数、公因数公倍数等（由浅入深，适合口算速练）。答错会记入下方错题集。计分同四则（对 +1 秒 / 错 −1 秒，分 0～100）。
+            整除判定、质数与合数、公因数与公倍数（由浅入深，适合口算速练；不含质因数分解）。答错会记入下方错题集。计分同四则（对 +1 秒 / 错 −1 秒，分 0～100）。
           </p>
           <div class="mode-grid">
             <button
@@ -1488,9 +1597,12 @@ onBeforeUnmount(() => {
         <section v-if="showDataAnalysisSection" class="mode-section" id="practice-data-analysis">
           <h3 class="mode-section__title">资料分析</h3>
           <p class="mode-section__hint">
-            公考/事业编资料分析考点。开放「百分数与百分点」与「增长」（一般/隔年/年均/混合，默认折叠）；各模块错题集分开。正计时，提交后停表看答案再下一题。
+            公考/事业编资料分析考点。开放「百分数与百分点」、「增长」「比重」「平均数」「倍数与翻番」「指数」「拉动增长和比例」「顺差与逆差」（后七者默认折叠）；各模块错题集分开。正计时，提交后停表看答案再下一题。
           </p>
-          <h4 class="mode-section__subtitle">百分数与百分点</h4>
+          <div class="da-topic-head">
+            <h4 class="mode-section__subtitle">百分数与百分点</h4>
+            <DataAnalysisStrategyGuideButton topic-id="percent-point" />
+          </div>
           <DataAnalysisPanel ref="dataAnalysisPanelRef" />
           <MentalMathWrongBookPanel section="data-analysis" />
 
@@ -1511,25 +1623,37 @@ onBeforeUnmount(() => {
               </span>
             </button>
             <div v-show="dataAnalysisGrowthFoldOpen" class="da-growth-fold__body">
-              <h4 class="mode-section__subtitle">增长 · 一般增长</h4>
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">增长 · 一般增长</h4>
+                <DataAnalysisStrategyGuideButton topic-id="growth-general" />
+              </div>
               <p class="mode-section__hint">
                 基期/现期、增长量与增长率；复杂题含统计图，仅豆包出题。与「百分数与百分点」错题不混用。
               </p>
               <DataAnalysisGrowthPanel ref="dataAnalysisGrowthPanelRef" />
               <MentalMathWrongBookPanel section="data-analysis-growth" />
-              <h4 class="mode-section__subtitle">增长 · 隔年增长</h4>
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">增长 · 隔年增长</h4>
+                <DataAnalysisStrategyGuideButton topic-id="growth-inter-year" />
+              </div>
               <p class="mode-section__hint">
                 隔年增速与隔年基期；简单题纯文字，复杂题为两年累计增速双折线图。仅豆包出题，错题单独成集。
               </p>
               <DataAnalysisGrowthInterYearPanel ref="dataAnalysisGrowthInterYearPanelRef" />
               <MentalMathWrongBookPanel section="data-analysis-growth-inter-year" />
-              <h4 class="mode-section__subtitle">增长 · 年均增长</h4>
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">增长 · 年均增长</h4>
+                <DataAnalysisStrategyGuideButton topic-id="growth-avg-annual" />
+              </div>
               <p class="mode-section__hint">
                 年均增长量/增长率、多期连乘、初期判定与外推；简单题纯文字，复杂题含柱折线图或数据表。仅豆包出题，错题单独成集。
               </p>
               <DataAnalysisGrowthAvgAnnualPanel ref="dataAnalysisGrowthAvgAnnualPanelRef" />
               <MentalMathWrongBookPanel section="data-analysis-growth-avg-annual" />
-              <h4 class="mode-section__subtitle">增长 · 混合增长</h4>
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">增长 · 混合增长</h4>
+                <DataAnalysisStrategyGuideButton topic-id="growth-mixed" />
+              </div>
               <p class="mode-section__hint">
                 整体增速介于部分之间、偏向基期大的一侧、十字交叉与反推另一部分增速；简单/复杂均为纯文字。复杂题选项贴近，须计算或估权，对齐书上难题。仅豆包出题，错题单独成集。
               </p>
@@ -1537,6 +1661,449 @@ onBeforeUnmount(() => {
               <MentalMathWrongBookPanel section="data-analysis-growth-mixed" />
             </div>
           </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="dataAnalysisProportionFoldOpen"
+              @click="dataAnalysisProportionFoldOpen = !dataAnalysisProportionFoldOpen"
+            >
+              <span class="da-growth-fold__title">比重</span>
+              <span class="da-growth-fold__meta">基本公式 · 基期比重</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': dataAnalysisProportionFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="dataAnalysisProportionFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">比重 · 基本公式</h4>
+                <DataAnalysisStrategyGuideButton topic-id="proportion-basic" />
+              </div>
+              <p class="mode-section__hint">
+                比重=部分/整体、反推与连续占比；简单题纯文字，复杂题含扇形图（难度难于教材）。仅豆包出题，错题单独成集。
+              </p>
+              <DataAnalysisProportionBasicPanel ref="dataAnalysisProportionBasicPanelRef" />
+              <MentalMathWrongBookPanel section="data-analysis-proportion-basic" />
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">比重 · 基期比重</h4>
+                <DataAnalysisStrategyGuideButton topic-id="proportion-base" />
+              </div>
+              <p class="mode-section__hint">
+                基期比重、比重增长量与升降判断；简单题纯文字，复杂题含数据表（对齐教材或更难）。仅豆包出题，错题单独成集。
+              </p>
+              <DataAnalysisProportionBasePanel ref="dataAnalysisProportionBasePanelRef" />
+              <MentalMathWrongBookPanel section="data-analysis-proportion-base" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="dataAnalysisAverageFoldOpen"
+              @click="dataAnalysisAverageFoldOpen = !dataAnalysisAverageFoldOpen"
+            >
+              <span class="da-growth-fold__title">平均数</span>
+              <span class="da-growth-fold__meta">基本公式 · 基期平均数</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': dataAnalysisAverageFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="dataAnalysisAverageFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">平均数 · 基本公式</h4>
+                <DataAnalysisStrategyGuideButton topic-id="average-basic" />
+              </div>
+              <p class="mode-section__hint">
+                平均数=总量/份数及反推；简单题数字简明，复杂题含单位换算/大数估算/多步（无图）。仅豆包出题，错题单独成集。
+              </p>
+              <DataAnalysisAverageBasicPanel ref="dataAnalysisAverageBasicPanelRef" />
+              <MentalMathWrongBookPanel section="data-analysis-average-basic" />
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">平均数 · 基期平均数</h4>
+                <DataAnalysisStrategyGuideButton topic-id="average-base" />
+              </div>
+              <p class="mode-section__hint">
+                基期平均数、平均数增长量/增长率与升降判断；简单/复杂均为纯文字，复杂对齐教材货运/快递真题。仅豆包出题，错题单独成集。
+              </p>
+              <DataAnalysisAverageBasePanel ref="dataAnalysisAverageBasePanelRef" />
+              <MentalMathWrongBookPanel section="data-analysis-average-base" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="dataAnalysisMultipleFoldOpen"
+              @click="dataAnalysisMultipleFoldOpen = !dataAnalysisMultipleFoldOpen"
+            >
+              <span class="da-growth-fold__title">倍数与翻番</span>
+              <span class="da-growth-fold__meta">基本公式 · 基期与增长量倍数</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': dataAnalysisMultipleFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="dataAnalysisMultipleFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">倍数 · 基本公式</h4>
+                <DataAnalysisStrategyGuideButton topic-id="multiple-basic" />
+              </div>
+              <p class="mode-section__hint">
+                是几倍、多/高几倍、翻番；简单题纯文字，复杂题含数据表（可先人均再比倍）。仅豆包出题，错题单独成集。
+              </p>
+              <DataAnalysisMultipleBasicPanel ref="dataAnalysisMultipleBasicPanelRef" />
+              <MentalMathWrongBookPanel section="data-analysis-multiple-basic" />
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">倍数 · 基期与增长量倍数</h4>
+                <DataAnalysisStrategyGuideButton topic-id="multiple-base" />
+              </div>
+              <p class="mode-section__hint">
+                基期倍数、增长量倍数；简单题纯文字，复杂题含数据表（难度高于教材）。仅豆包出题，错题单独成集。
+              </p>
+              <DataAnalysisMultipleBasePanel ref="dataAnalysisMultipleBasePanelRef" />
+              <MentalMathWrongBookPanel section="data-analysis-multiple-base" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <div class="da-growth-fold__toggle-row">
+              <button
+                type="button"
+                class="da-growth-fold__toggle"
+                :aria-expanded="dataAnalysisIndexFoldOpen"
+                @click="dataAnalysisIndexFoldOpen = !dataAnalysisIndexFoldOpen"
+              >
+                <span class="da-growth-fold__title">指数</span>
+                <span class="da-growth-fold__meta">简单 · 复杂</span>
+                <span
+                  class="da-growth-fold__chevron"
+                  :class="{ 'is-open': dataAnalysisIndexFoldOpen }"
+                >
+                  ▾
+                </span>
+              </button>
+              <DataAnalysisStrategyGuideButton topic-id="index" />
+            </div>
+            <div v-show="dataAnalysisIndexFoldOpen" class="da-growth-fold__body">
+              <p class="mode-section__hint">
+                指数与实际值、增长率、倍数的关系；点数差对应增长率差。简单/复杂均为纯文字无表；简单略易，复杂对齐教材景气指数题或更难。仅豆包出题，错题单独成集。
+              </p>
+              <DataAnalysisIndexPanel ref="dataAnalysisIndexPanelRef" />
+              <MentalMathWrongBookPanel section="data-analysis-index" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <div class="da-growth-fold__toggle-row">
+              <button
+                type="button"
+                class="da-growth-fold__toggle"
+                :aria-expanded="dataAnalysisPullFoldOpen"
+                @click="dataAnalysisPullFoldOpen = !dataAnalysisPullFoldOpen"
+              >
+                <span class="da-growth-fold__title">拉动增长和比例</span>
+                <span class="da-growth-fold__meta">简单 · 复杂</span>
+                <span
+                  class="da-growth-fold__chevron"
+                  :class="{ 'is-open': dataAnalysisPullFoldOpen }"
+                >
+                  ▾
+                </span>
+              </button>
+              <DataAnalysisStrategyGuideButton topic-id="pull" />
+            </div>
+            <div v-show="dataAnalysisPullFoldOpen" class="da-growth-fold__body">
+              <p class="mode-section__hint">
+                拉动……增长、贡献率、利润率及其变化。简单/复杂均为纯文字无表；简单略易，复杂对齐教材真题或更难。仅豆包出题，错题单独成集。
+              </p>
+              <DataAnalysisPullPanel ref="dataAnalysisPullPanelRef" />
+              <MentalMathWrongBookPanel section="data-analysis-pull" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <div class="da-growth-fold__toggle-row">
+              <button
+                type="button"
+                class="da-growth-fold__toggle"
+                :aria-expanded="dataAnalysisSurplusFoldOpen"
+                @click="dataAnalysisSurplusFoldOpen = !dataAnalysisSurplusFoldOpen"
+              >
+                <span class="da-growth-fold__title">顺差与逆差</span>
+                <span class="da-growth-fold__meta">简单 · 复杂</span>
+                <span
+                  class="da-growth-fold__chevron"
+                  :class="{ 'is-open': dataAnalysisSurplusFoldOpen }"
+                >
+                  ▾
+                </span>
+              </button>
+              <DataAnalysisStrategyGuideButton topic-id="surplus" />
+            </div>
+            <div v-show="dataAnalysisSurplusFoldOpen" class="da-growth-fold__body">
+              <p class="mode-section__hint">
+                进出口总额、顺差、逆差。简单题纯文字略易；复杂题含数据表（多年筛选/比较等，难于教材）。仅豆包出题，错题单独成集。
+              </p>
+              <DataAnalysisSurplusPanel ref="dataAnalysisSurplusPanelRef" />
+              <MentalMathWrongBookPanel section="data-analysis-surplus" />
+            </div>
+          </div>
+        </section>
+
+        <section v-if="showOpSkillSection" class="mode-section" id="practice-op-skill">
+          <h3 class="mode-section__title">运算技巧</h3>
+          <p class="mode-section__hint">
+            数学运算常用技巧与判定方法。当前开放「整除及其性质」「余数及其性质」「代入排除法」「方程法」「特值法」「比例法」「十字交叉法」；本地程序组卷，流程同资料分析（正计时、提交后看解析）。
+          </p>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opSkillDivFoldOpen"
+              @click="opSkillDivFoldOpen = !opSkillDivFoldOpen"
+            >
+              <span class="da-growth-fold__title">整除及其性质</span>
+              <span class="da-growth-fold__meta">整除的判定 · 质数与合数 · 公因数与公倍数 · 由比例判定倍数</span>
+              <span class="da-growth-fold__chevron" :class="{ 'is-open': opSkillDivFoldOpen }">
+                ▾
+              </span>
+            </button>
+            <div v-show="opSkillDivFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">整除的判定</h4>
+                <DataAnalysisStrategyGuideButton topic-id="div-judge" />
+              </div>
+              <p class="mode-section__hint">
+                3/9/7/11/6/14 等整除判定；中等含半满足干扰与结论辨析；困难对标/难于经典真题，7
+                类考点各一题。本地组卷，每轮 7 题。
+              </p>
+              <DivisibilityJudgePanel ref="divisibilityJudgePanelRef" />
+              <MentalMathWrongBookPanel section="op-skill-div-judge" />
+
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">质数与合数</h4>
+                <DataAnalysisStrategyGuideButton topic-id="prime-comp" />
+              </div>
+              <p class="mode-section__hint">
+                质数/合数判定与质因数分解；困难对齐经典真题 2（三质数），7 类变式每轮抽 6
+                题且题型不重复。本地组卷，每轮 6 题。
+              </p>
+              <PrimeCompositePanel ref="primeCompositePanelRef" />
+              <MentalMathWrongBookPanel section="op-skill-prime-comp" />
+
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">公因数与公倍数</h4>
+                <DataAnalysisStrategyGuideButton topic-id="gcd-lcm" />
+              </div>
+              <p class="mode-section__hint">
+                最大公因数 / 最小公倍数；中等含周期相遇（经典真题 3）；困难对齐经典真题 4（等差连乘末尾
+                0），7 类变式每轮抽 6 题且题型不重复。本地组卷，每轮 6 题。
+              </p>
+              <GcdLcmPanel ref="gcdLcmPanelRef" />
+              <MentalMathWrongBookPanel section="op-skill-gcd-lcm" />
+
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">由比例判定倍数</h4>
+                <DataAnalysisStrategyGuideButton topic-id="ratio-mult" />
+              </div>
+              <p class="mode-section__hint">
+                最简比判定倍数；中等对齐经典真题 5；困难为难于真题的 12 类变式，每轮抽 5
+                题且题型不重复。本地组卷，每轮 5 题。
+              </p>
+              <RatioMultPanel ref="ratioMultPanelRef" />
+              <MentalMathWrongBookPanel section="op-skill-ratio-mult" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opSkillRemFoldOpen"
+              @click="opSkillRemFoldOpen = !opSkillRemFoldOpen"
+            >
+              <span class="da-growth-fold__title">余数及其性质</span>
+              <span class="da-growth-fold__meta">同余性质 · 不定方程 · 分组余数</span>
+              <span class="da-growth-fold__chevron" :class="{ 'is-open': opSkillRemFoldOpen }">
+                ▾
+              </span>
+            </button>
+            <div v-show="opSkillRemFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">余数及其性质</h4>
+                <DataAnalysisStrategyGuideButton topic-id="rem-prop" />
+              </div>
+              <p class="mode-section__hint">
+                同余三大性质；中等对齐经典真题（赛点同余 / 分组代入）；困难为难于真题的 9
+                类变式，每轮 7 题且题型不重复。本地组卷。
+              </p>
+              <RemPropPanel ref="remPropPanelRef" />
+              <MentalMathWrongBookPanel section="op-skill-rem-prop" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opSkillSubElimFoldOpen"
+              @click="opSkillSubElimFoldOpen = !opSkillSubElimFoldOpen"
+            >
+              <span class="da-growth-fold__title">代入排除法</span>
+              <span class="da-growth-fold__meta">直接代入 · 选择性代入 · 最值代入顺序</span>
+              <span class="da-growth-fold__chevron" :class="{ 'is-open': opSkillSubElimFoldOpen }">
+                ▾
+              </span>
+            </button>
+            <div v-show="opSkillSubElimFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">代入排除法</h4>
+                <DataAnalysisStrategyGuideButton topic-id="sub-elim" />
+              </div>
+              <p class="mode-section__hint">
+                直接/选择代入；中等对齐经典真题 1（分组余数）、真题 2（百分数筛选项）；困难为难于真题的
+                10 类变式，每轮 5 题且题型不重复。本地组卷。
+              </p>
+              <SubElimPanel ref="subElimPanelRef" />
+              <MentalMathWrongBookPanel section="op-skill-sub-elim" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opSkillEqMethodFoldOpen"
+              @click="opSkillEqMethodFoldOpen = !opSkillEqMethodFoldOpen"
+            >
+              <span class="da-growth-fold__title">方程法</span>
+              <span class="da-growth-fold__meta">设未知数 · 方程组 · 整体代换</span>
+              <span class="da-growth-fold__chevron" :class="{ 'is-open': opSkillEqMethodFoldOpen }">
+                ▾
+              </span>
+            </button>
+            <div v-show="opSkillEqMethodFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">方程法</h4>
+                <DataAnalysisStrategyGuideButton topic-id="eq-method" />
+              </div>
+              <p class="mode-section__hint">
+                设未知数列方程；中等对齐经典真题 1（行程）、真题 2（年龄）；困难对齐经典真题
+                3（整体代换），10 类变式每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+              </p>
+              <EquationMethodPanel ref="equationMethodPanelRef" />
+              <MentalMathWrongBookPanel section="op-skill-eq-method" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opSkillSpecValFoldOpen"
+              @click="opSkillSpecValFoldOpen = !opSkillSpecValFoldOpen"
+            >
+              <span class="da-growth-fold__title">特值法</span>
+              <span class="da-growth-fold__meta">设 1 · 设 100 · 设公倍数 · 设份数</span>
+              <span class="da-growth-fold__chevron" :class="{ 'is-open': opSkillSpecValFoldOpen }">
+                ▾
+              </span>
+            </button>
+            <div v-show="opSkillSpecValFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">特值法</h4>
+                <DataAnalysisStrategyGuideButton topic-id="spec-val" />
+              </div>
+              <p class="mode-section__hint">
+                仅简单/困难。简单：经典 4 类格式各 2 题；困难：14 类变式每轮抽 8
+                题且题型不重复。本地组卷，每轮 8 题。
+              </p>
+              <SpecialValuePanel ref="specialValuePanelRef" />
+              <MentalMathWrongBookPanel section="op-skill-spec-val" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opSkillRatioMethodFoldOpen"
+              @click="opSkillRatioMethodFoldOpen = !opSkillRatioMethodFoldOpen"
+            >
+              <span class="da-growth-fold__title">比例法</span>
+              <span class="da-growth-fold__meta">份数 · 比例统一 · 行程正比例</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opSkillRatioMethodFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opSkillRatioMethodFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">比例法</h4>
+                <DataAnalysisStrategyGuideButton topic-id="ratio-method" />
+              </div>
+              <p class="mode-section__hint">
+                简单对齐示例（份数差）；中等对齐经典真题 1（调动后人比 / 比例统一）；困难对齐经典真题
+                2（行程正比例），10 类变式每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+              </p>
+              <RatioMethodPanel ref="ratioMethodPanelRef" />
+              <MentalMathWrongBookPanel section="op-skill-ratio-method" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opSkillCrossMethodFoldOpen"
+              @click="opSkillCrossMethodFoldOpen = !opSkillCrossMethodFoldOpen"
+            >
+              <span class="da-growth-fold__title">十字交叉法</span>
+              <span class="da-growth-fold__meta">混合比例 · 交叉求份 · 盈亏浓度</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opSkillCrossMethodFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opSkillCrossMethodFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">十字交叉法</h4>
+                <DataAnalysisStrategyGuideButton topic-id="cross-method" />
+              </div>
+              <p class="mode-section__hint">
+                简单对齐示例（已知 a、b、c 直接交叉）；中等对齐经典真题（先算混合率，可含亏损）；困难为
+                10 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+              </p>
+              <CrossMethodPanel ref="crossMethodPanelRef" />
+              <MentalMathWrongBookPanel section="op-skill-cross-method" />
+            </div>
+          </div>
+        </section>
+
+        <section v-if="showOpHighfreqSection" class="mode-section" id="practice-op-highfreq">
+          <h3 class="mode-section__title">高频运算</h3>
+          <p class="mode-section__hint">题型筹备中，稍后开放。</p>
+        </section>
+
+        <section v-if="showOpOtherSection" class="mode-section" id="practice-op-other">
+          <h3 class="mode-section__title">其他运算</h3>
+          <p class="mode-section__hint">题型筹备中，稍后开放。</p>
         </section>
 
         <section v-if="showChineseSection" class="mode-section" id="practice-chinese">
@@ -2004,12 +2571,42 @@ onBeforeUnmount(() => {
   color: #0f172a;
 }
 
+.da-topic-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0 6px;
+}
+
+.da-topic-head .mode-section__subtitle {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.da-growth-fold__body > .da-topic-head:first-child {
+  margin-top: 0;
+}
+
 .da-growth-fold {
   margin-top: 14px;
   border: 1px solid color-mix(in srgb, #0d9488 22%, var(--app-border-soft, #e2e8f0));
   border-radius: 12px;
   background: color-mix(in srgb, #0d9488 4%, var(--app-card-bg, #fff));
   overflow: hidden;
+}
+
+.da-growth-fold__toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 12px;
+}
+
+.da-growth-fold__toggle-row .da-growth-fold__toggle {
+  flex: 1;
+  min-width: 0;
 }
 
 .da-growth-fold__toggle {

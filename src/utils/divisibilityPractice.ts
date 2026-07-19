@@ -1,4 +1,4 @@
-/** 整除及其性质：整除判定、质合数与质因数分解、公因数与公倍数（本地出题） */
+/** 整除及其性质：整除判定、质数与合数、公因数与公倍数（本地出题；不含质因数分解） */
 
 export type DivisibilityMode =
   | 'divisibility-easy'
@@ -26,7 +26,7 @@ export const DIVISIBILITY_MODES: DivisibilityModeConfig[] = [
     correctDelta: 5,
     wrongDelta: -10,
     maxScore: 100,
-    desc: '35 秒 · 整除入门（2/3/5/6/9）· 小数内质合数 · GCD/分解数字≤20 · 3 选项 · 对 +5 / 错 -10 · 对 +1 秒 / 错 -1 秒',
+    desc: '35 秒 · 整除入门（2/3/5/6/9）· 小数内质合数 · GCD/LCM 数字≤20 · 3 选项 · 对 +5 / 错 -10 · 对 +1 秒 / 错 -1 秒',
   },
   {
     id: 'divisibility-distractor',
@@ -46,7 +46,7 @@ export const DIVISIBILITY_MODES: DivisibilityModeConfig[] = [
     correctDelta: 8,
     wrongDelta: -15,
     maxScore: 100,
-    desc: '40 秒 · 中等整除（含少量 7）· 中等质因数/公倍 · 4 选项 · 对 +8 / 错 -15 · 对 +1 秒 / 错 -1 秒',
+    desc: '40 秒 · 中等整除（含少量 7）· 质合数与 GCD/LCM · 4 选项 · 对 +8 / 错 -15 · 对 +1 秒 / 错 -1 秒',
   },
   {
     id: 'divisibility-hard',
@@ -56,7 +56,7 @@ export const DIVISIBILITY_MODES: DivisibilityModeConfig[] = [
     correctDelta: 10,
     wrongDelta: -20,
     maxScore: 100,
-    desc: '50 秒 · 稍大数整除（含 11）· 质因数与 GCD/LCM · 仍控制在速算可及 · 5 选项 · 对 +10 / 错 -20 · 对 +1 秒 / 错 -1 秒',
+    desc: '50 秒 · 稍大数整除（含 11）· 质合数与 GCD/LCM · 仍控制在速算可及 · 5 选项 · 对 +10 / 错 -20 · 对 +1 秒 / 错 -1 秒',
   },
 ]
 
@@ -107,27 +107,6 @@ function isPrime(n: number): boolean {
   return true
 }
 
-/** 质因数分解标准写法，如 2²×3×5 */
-function formatPrimeFactorization(n: number): string {
-  if (n < 2) return String(n)
-  const parts: string[] = []
-  let x = n
-  let p = 2
-  while (p * p <= x) {
-    if (x % p === 0) {
-      let exp = 0
-      while (x % p === 0) {
-        x /= p
-        exp++
-      }
-      parts.push(exp === 1 ? String(p) : `${p}^${exp}`)
-    }
-    p = p === 2 ? 3 : p + 2
-  }
-  if (x > 1) parts.push(String(x))
-  return parts.join('×')
-}
-
 function digitSum(n: number): number {
   return String(Math.abs(n))
     .split('')
@@ -148,13 +127,10 @@ function pickFrom<T>(arr: T[]): T {
 }
 
 const SMALL_PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31]
-/** 简单题合数/分解用：不超过 20 */
+/** 简单题合数：不超过 20 */
 const EASY_COMPOSITES = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20]
-const EASY_FACTOR_NS = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20]
-/** 普通题分解：中等偏易，便于口算 */
-const NORMAL_FACTOR_NS = [12, 16, 18, 20, 24, 28, 30, 32, 36, 40, 42, 45, 48]
-/** 高难分解：仍控制在速算可及，避免三位数大积 */
-const HARD_FACTOR_NS = [36, 40, 42, 48, 54, 56, 60, 63, 72, 75, 80, 84, 90, 96, 108, 120]
+const NORMAL_COMPOSITES = [...EASY_COMPOSITES, 21, 22, 24, 25, 27, 28]
+const HARD_COMPOSITES = [...NORMAL_COMPOSITES, 32, 33, 35, 39, 45, 49]
 
 function buildMcq(input: {
   id: number
@@ -358,87 +334,28 @@ function genDivisibilityCheck(
   })
 }
 
-function strongFactorizationWrongs(n: number, correct: string): string[] {
-  const wrongs: string[] = []
-  const bump = correct.replace(/\^(\d+)/g, (_, e) => `^${Number(e) + 1}`)
-  const drop = correct.replace(/\^(\d+)/g, (_, e) => (Number(e) <= 2 ? '' : `^${Number(e) - 1}`)).replace(/××/g, '×').replace(/^×|×$/g, '')
-  if (bump !== correct) wrongs.push(bump)
-  if (drop && drop !== correct) wrongs.push(drop.replace(/\^1/g, '').replace(/×+/g, '×'))
-  // 把某个质因数改成相邻质数
-  wrongs.push(correct.replace(/3/, '5').replace(/2/, '3'))
-  wrongs.push(formatPrimeFactorization(n * 2))
-  wrongs.push(formatPrimeFactorization(Math.max(4, Math.floor(n / 2))))
-  wrongs.push(`${n}`)
-  // 写成连乘但漏指数含义：2×2×3 等价错误展示
-  if (n % 4 === 0) wrongs.push(correct.replace('2^2', '2×2'))
-  return wrongs.filter((w) => w && w !== correct)
-}
-
 function genPrimeComposite(id: number, optionCount: number, mode: DivisibilityMode): DivisibilityQuestion {
   const strong = isStrongDistract(mode)
   const band = modeBand(mode)
   const style = Math.random()
 
-  // 简单题：多练质合数判断，少出分解；分解数字严格 ≤20
-  if (band === 'easy') {
-    if (style < 0.42) {
-      const correct = pickFrom(SMALL_PRIMES.filter((p) => p <= 19))
-      const wrongPool = strong
-        ? [1, 9, 15, 21, 25, 27]
-        : EASY_COMPOSITES
-      return buildMcq({
-        id,
-        expression: '下列哪个数是质数？',
-        correct,
-        distractors: fillDistractors(correct, optionCount - 1, wrongPool),
-      })
-    }
-    if (style < 0.78) {
-      const correct = pickFrom(EASY_COMPOSITES)
-      const wrongPool = strong ? [...SMALL_PRIMES.filter((p) => p <= 19), 1] : SMALL_PRIMES.filter((p) => p <= 19).concat([1])
-      return buildMcq({
-        id,
-        expression: '下列哪个数是合数？',
-        correct,
-        distractors: fillDistractors(correct, optionCount - 1, wrongPool),
-      })
-    }
-    if (style < 0.9) {
-      return buildMcq({
-        id,
-        expression: '关于数字 1，下列说法正确的是？',
-        correct: '既不是质数也不是合数',
-        distractors: fillDistractors('既不是质数也不是合数', optionCount - 1, [
-          '是质数',
-          '是合数',
-          '既是质数又是合数',
-          '是偶数质数',
-        ]),
-      })
-    }
-    const n = pickFrom(EASY_FACTOR_NS)
-    const correct = formatPrimeFactorization(n)
-    const wrongForms = strong
-      ? strongFactorizationWrongs(n, correct)
-      : [
-          formatPrimeFactorization(Math.max(4, n - 2 <= 20 ? n - 2 : 4)),
-          formatPrimeFactorization(n + 2 <= 20 ? n + 2 : Math.max(4, n - 4)),
-          String(n),
-          correct.replace(/\^(\d+)/, (_, e) => `^${Number(e) + 1}`),
-        ]
-    return buildMcq({
-      id,
-      expression: `${n} 的质因数分解是？`,
-      correct,
-      distractors: fillDistractors(correct, optionCount - 1, wrongForms),
-    })
-  }
+  const primePool =
+    band === 'easy'
+      ? SMALL_PRIMES.filter((p) => p <= 19)
+      : band === 'normal'
+        ? SMALL_PRIMES.filter((p) => p <= 23)
+        : SMALL_PRIMES
+  const compositePool =
+    band === 'easy' ? EASY_COMPOSITES : band === 'normal' ? NORMAL_COMPOSITES : HARD_COMPOSITES
+  const strongCompositeWrongs = [1, 9, 15, 21, 25, 27, 33, 35, 39, 45, 49]
 
-  if (style < 0.4) {
-    const correct = pickFrom(SMALL_PRIMES.filter((p) => (band === 'normal' ? p <= 23 : p <= 31)))
+  if (style < 0.42) {
+    const correct = pickFrom(primePool)
     const wrongPool = strong
-      ? [1, 9, 15, 21, 25, 27, 33, 35, 39, 45, 49]
-      : [...EASY_COMPOSITES, 21, 22, 24, 25, 27, 28, 32, 33, 35]
+      ? band === 'easy'
+        ? [1, 9, 15, 21, 25, 27]
+        : strongCompositeWrongs
+      : compositePool
     return buildMcq({
       id,
       expression: '下列哪个数是质数？',
@@ -447,15 +364,9 @@ function genPrimeComposite(id: number, optionCount: number, mode: DivisibilityMo
     })
   }
 
-  if (style < 0.7) {
-    const correct = pickFrom(
-      band === 'hard'
-        ? [...EASY_COMPOSITES, 21, 22, 24, 25, 27, 28, 32, 33, 35, 39, 45, 49]
-        : [...EASY_COMPOSITES, 21, 22, 24, 25, 27, 28],
-    )
-    const wrongPool = strong
-      ? [...SMALL_PRIMES, 1]
-      : SMALL_PRIMES.concat([1])
+  if (style < 0.78) {
+    const correct = pickFrom(compositePool)
+    const wrongPool = strong ? [...primePool, 1] : [...primePool, 1]
     return buildMcq({
       id,
       expression: '下列哪个数是合数？',
@@ -464,37 +375,39 @@ function genPrimeComposite(id: number, optionCount: number, mode: DivisibilityMo
     })
   }
 
-  if (Math.random() < 0.3 && band !== 'hard') {
+  if (style < 0.9 || band === 'hard') {
+    const n = pickFrom(
+      shuffle([...primePool, ...compositePool, 1]).slice(0, Math.min(12, primePool.length + 4)),
+    )
+    // 单数判断：质数 / 合数 / 既不是
+    let correct: string
+    if (n === 1) correct = '既不是质数也不是合数'
+    else if (isPrime(n)) correct = '质数'
+    else correct = '合数'
     return buildMcq({
       id,
-      expression: '关于数字 1，下列说法正确的是？',
-      correct: '既不是质数也不是合数',
-      distractors: fillDistractors('既不是质数也不是合数', optionCount - 1, [
-        '是质数',
-        '是合数',
+      expression: `${n} 是？`,
+      correct,
+      distractors: fillDistractors(correct, optionCount - 1, [
+        '质数',
+        '合数',
+        '既不是质数也不是合数',
         '既是质数又是合数',
-        '是偶数质数',
+        strong ? '偶数' : '奇数',
       ]),
     })
   }
 
-  const pool = band === 'normal' ? NORMAL_FACTOR_NS : HARD_FACTOR_NS
-  const n = pickFrom(pool)
-  const correct = formatPrimeFactorization(n)
-  const wrongForms = strong
-    ? strongFactorizationWrongs(n, correct)
-    : [
-        formatPrimeFactorization(n + 2),
-        formatPrimeFactorization(Math.max(4, n - 2)),
-        formatPrimeFactorization(n * 2 > 160 ? Math.floor(n / 2) || 4 : n * 2),
-        String(n),
-        correct.replace(/\^(\d+)/, (_, e) => `^${Number(e) + 1}`),
-      ]
   return buildMcq({
     id,
-    expression: `${n} 的质因数分解是？`,
-    correct,
-    distractors: fillDistractors(correct, optionCount - 1, wrongForms),
+    expression: '关于数字 1，下列说法正确的是？',
+    correct: '既不是质数也不是合数',
+    distractors: fillDistractors('既不是质数也不是合数', optionCount - 1, [
+      '是质数',
+      '是合数',
+      '既是质数又是合数',
+      '是偶数质数',
+    ]),
   })
 }
 
@@ -586,7 +499,7 @@ export function generateDivisibilityQuestion(
 ): DivisibilityQuestion {
   const band = modeBand(mode)
   const roll = Math.random()
-  // 简单题：整除判定为主，少上分解/GCD；进阶再增加综合题
+  // 简单题：整除判定为主；其余为质合数、GCD/LCM（不含质因数分解）
   if (band === 'easy') {
     if (roll < 0.55) return genDivisibilityCheck(id, optionCount, mode)
     if (roll < 0.8) return genPrimeComposite(id, optionCount, mode)
