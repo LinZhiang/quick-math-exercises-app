@@ -14,6 +14,25 @@ export type MentalMathWrongSection =
   | 'data-analysis-growth-inter-year'
   | 'data-analysis-growth-avg-annual'
   | 'data-analysis-growth-mixed'
+  | 'data-analysis-proportion-basic'
+  | 'data-analysis-proportion-base'
+  | 'data-analysis-average-basic'
+  | 'data-analysis-average-base'
+  | 'data-analysis-multiple-basic'
+  | 'data-analysis-multiple-base'
+  | 'data-analysis-index'
+  | 'data-analysis-pull'
+  | 'data-analysis-surplus'
+  | 'op-skill-div-judge'
+  | 'op-skill-prime-comp'
+  | 'op-skill-gcd-lcm'
+  | 'op-skill-ratio-mult'
+  | 'op-skill-rem-prop'
+  | 'op-skill-sub-elim'
+  | 'op-skill-eq-method'
+  | 'op-skill-spec-val'
+  | 'op-skill-ratio-method'
+  | 'op-skill-cross-method'
 
 export type MentalMathWrongRecord = {
   fingerprint: string
@@ -74,6 +93,25 @@ export const MENTAL_MATH_WRONG_SECTION_LABELS: Record<MentalMathWrongSection, st
   'data-analysis-growth-inter-year': '资料分析 · 增长·隔年增长',
   'data-analysis-growth-avg-annual': '资料分析 · 增长·年均增长',
   'data-analysis-growth-mixed': '资料分析 · 增长·混合增长',
+  'data-analysis-proportion-basic': '资料分析 · 比重·基本公式',
+  'data-analysis-proportion-base': '资料分析 · 比重·基期比重',
+  'data-analysis-average-basic': '资料分析 · 平均数·基本公式',
+  'data-analysis-average-base': '资料分析 · 平均数·基期平均数',
+  'data-analysis-multiple-basic': '资料分析 · 倍数·基本公式',
+  'data-analysis-multiple-base': '资料分析 · 倍数·基期与增长量倍数',
+  'data-analysis-index': '资料分析 · 指数',
+  'data-analysis-pull': '资料分析 · 拉动增长和比例',
+  'data-analysis-surplus': '资料分析 · 顺差与逆差',
+  'op-skill-div-judge': '运算技巧 · 整除的判定',
+  'op-skill-prime-comp': '运算技巧 · 质数与合数',
+  'op-skill-gcd-lcm': '运算技巧 · 公因数与公倍数',
+  'op-skill-ratio-mult': '运算技巧 · 由比例判定倍数',
+  'op-skill-rem-prop': '运算技巧 · 余数及其性质',
+  'op-skill-sub-elim': '运算技巧 · 代入排除法',
+  'op-skill-eq-method': '运算技巧 · 方程法',
+  'op-skill-spec-val': '运算技巧 · 特值法',
+  'op-skill-ratio-method': '运算技巧 · 比例法',
+  'op-skill-cross-method': '运算技巧 · 十字交叉法',
 }
 
 /** 模式 id → 错题分区；不在集合内则不记错题本 */
@@ -129,6 +167,117 @@ export function mentalMathModeToWrongSection(modeId: string): MentalMathWrongSec
     modeId === 'data-analysis-growth-mixed-hard'
   ) {
     return 'data-analysis-growth-mixed'
+  }
+  if (
+    modeId === 'data-analysis-proportion-basic-easy' ||
+    modeId === 'data-analysis-proportion-basic-hard'
+  ) {
+    return 'data-analysis-proportion-basic'
+  }
+  if (
+    modeId === 'data-analysis-proportion-base-easy' ||
+    modeId === 'data-analysis-proportion-base-hard'
+  ) {
+    return 'data-analysis-proportion-base'
+  }
+  if (
+    modeId === 'data-analysis-average-basic-easy' ||
+    modeId === 'data-analysis-average-basic-hard'
+  ) {
+    return 'data-analysis-average-basic'
+  }
+  if (
+    modeId === 'data-analysis-average-base-easy' ||
+    modeId === 'data-analysis-average-base-hard'
+  ) {
+    return 'data-analysis-average-base'
+  }
+  if (
+    modeId === 'data-analysis-multiple-basic-easy' ||
+    modeId === 'data-analysis-multiple-basic-hard'
+  ) {
+    return 'data-analysis-multiple-basic'
+  }
+  if (
+    modeId === 'data-analysis-multiple-base-easy' ||
+    modeId === 'data-analysis-multiple-base-hard'
+  ) {
+    return 'data-analysis-multiple-base'
+  }
+  if (modeId === 'data-analysis-index-easy' || modeId === 'data-analysis-index-hard') {
+    return 'data-analysis-index'
+  }
+  if (modeId === 'data-analysis-pull-easy' || modeId === 'data-analysis-pull-hard') {
+    return 'data-analysis-pull'
+  }
+  if (modeId === 'data-analysis-surplus-easy' || modeId === 'data-analysis-surplus-hard') {
+    return 'data-analysis-surplus'
+  }
+  if (
+    modeId === 'op-skill-div-judge-easy' ||
+    modeId === 'op-skill-div-judge-medium' ||
+    modeId === 'op-skill-div-judge-hard'
+  ) {
+    return 'op-skill-div-judge'
+  }
+  if (
+    modeId === 'op-skill-prime-comp-easy' ||
+    modeId === 'op-skill-prime-comp-medium' ||
+    modeId === 'op-skill-prime-comp-hard'
+  ) {
+    return 'op-skill-prime-comp'
+  }
+  if (
+    modeId === 'op-skill-gcd-lcm-easy' ||
+    modeId === 'op-skill-gcd-lcm-medium' ||
+    modeId === 'op-skill-gcd-lcm-hard'
+  ) {
+    return 'op-skill-gcd-lcm'
+  }
+  if (
+    modeId === 'op-skill-ratio-mult-easy' ||
+    modeId === 'op-skill-ratio-mult-medium' ||
+    modeId === 'op-skill-ratio-mult-hard'
+  ) {
+    return 'op-skill-ratio-mult'
+  }
+  if (
+    modeId === 'op-skill-rem-prop-easy' ||
+    modeId === 'op-skill-rem-prop-medium' ||
+    modeId === 'op-skill-rem-prop-hard'
+  ) {
+    return 'op-skill-rem-prop'
+  }
+  if (
+    modeId === 'op-skill-sub-elim-easy' ||
+    modeId === 'op-skill-sub-elim-medium' ||
+    modeId === 'op-skill-sub-elim-hard'
+  ) {
+    return 'op-skill-sub-elim'
+  }
+  if (
+    modeId === 'op-skill-eq-method-easy' ||
+    modeId === 'op-skill-eq-method-medium' ||
+    modeId === 'op-skill-eq-method-hard'
+  ) {
+    return 'op-skill-eq-method'
+  }
+  if (modeId === 'op-skill-spec-val-easy' || modeId === 'op-skill-spec-val-hard') {
+    return 'op-skill-spec-val'
+  }
+  if (
+    modeId === 'op-skill-ratio-method-easy' ||
+    modeId === 'op-skill-ratio-method-medium' ||
+    modeId === 'op-skill-ratio-method-hard'
+  ) {
+    return 'op-skill-ratio-method'
+  }
+  if (
+    modeId === 'op-skill-cross-method-easy' ||
+    modeId === 'op-skill-cross-method-medium' ||
+    modeId === 'op-skill-cross-method-hard'
+  ) {
+    return 'op-skill-cross-method'
   }
   return null
 }

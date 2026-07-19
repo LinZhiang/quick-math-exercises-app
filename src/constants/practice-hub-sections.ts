@@ -12,6 +12,9 @@ export type PracticeHubSectionId =
   | 'sudoku'
   | 'graphic'
   | 'data-analysis'
+  | 'op-skill'
+  | 'op-highfreq'
+  | 'op-other'
   | 'chinese'
   | 'install'
 
@@ -34,6 +37,9 @@ export const PRACTICE_HUB_SECTIONS: PracticeHubSection[] = [
   { id: 'sudoku', title: '数独' },
   { id: 'graphic', title: '图形推理' },
   { id: 'data-analysis', title: '资料分析' },
+  { id: 'op-skill', title: '运算技巧' },
+  { id: 'op-highfreq', title: '高频运算' },
+  { id: 'op-other', title: '其他运算' },
   { id: 'chinese', title: '语文练习' },
   { id: 'install', title: '安装' },
 ]
@@ -58,7 +64,15 @@ export const PRACTICE_HUB_GROUPS: PracticeHubGroup[] = [
   {
     id: 'puzzle',
     title: '数学推理',
-    sectionIds: ['twentyfour', 'sudoku', 'graphic', 'data-analysis'],
+    sectionIds: [
+      'twentyfour',
+      'sudoku',
+      'graphic',
+      'data-analysis',
+      'op-skill',
+      'op-highfreq',
+      'op-other',
+    ],
   },
   { id: 'chinese', title: '语文', sectionIds: ['chinese'] },
 ]
