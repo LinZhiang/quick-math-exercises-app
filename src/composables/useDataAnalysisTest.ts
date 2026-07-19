@@ -19,6 +19,7 @@ import {
   type DataAnalysisDifficulty,
   type DataAnalysisQuestion,
 } from '@/utils/dataAnalysisPractice'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type DataAnalysisPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -256,6 +257,7 @@ export function useDataAnalysisTest(difficulty: Ref<DataAnalysisDifficulty | nul
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`data-analysis-${difficulty.value}`)
       phase.value = 'summary'
       return
     }

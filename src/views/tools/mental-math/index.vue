@@ -11,6 +11,8 @@ import {
   type PracticeHubSectionId,
 } from '@/constants/practice-hub-sections'
 import MentalMathPracticeGuide from '@/views/tools/mental-math/components/MentalMathPracticeGuide.vue'
+import PracticeSessionLogPanel from '@/views/tools/mental-math/components/PracticeSessionLogPanel.vue'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
 import TwentyFourPointPanel from '@/views/tools/mental-math/components/TwentyFourPointPanel.vue'
 import SudokuPanel from '@/views/tools/mental-math/components/SudokuPanel.vue'
 import CircleGrammarPanel from '@/views/tools/mental-math/components/CircleGrammarPanel.vue'
@@ -40,6 +42,11 @@ import EquationMethodPanel from '@/views/tools/mental-math/components/EquationMe
 import SpecialValuePanel from '@/views/tools/mental-math/components/SpecialValuePanel.vue'
 import RatioMethodPanel from '@/views/tools/mental-math/components/RatioMethodPanel.vue'
 import CrossMethodPanel from '@/views/tools/mental-math/components/CrossMethodPanel.vue'
+import SumDiffRatioPanel from '@/views/tools/mental-math/components/SumDiffRatioPanel.vue'
+import GeometryPanel from '@/views/tools/mental-math/components/GeometryPanel.vue'
+import RightTrianglePanel from '@/views/tools/mental-math/components/RightTrianglePanel.vue'
+import SimilarTrianglePanel from '@/views/tools/mental-math/components/SimilarTrianglePanel.vue'
+import ColoringPanel from '@/views/tools/mental-math/components/ColoringPanel.vue'
 import GraphicReasoningCell from '@/views/tools/graphic-reasoning/components/GraphicReasoningCell.vue'
 import {
   clampGraphicReasoningScore,
@@ -137,6 +144,7 @@ import PwaInstallPanel from '@/components/PwaInstallPanel.vue'
 import { clearWenguSessionOnAiLeave } from '@/utils/wenguAuthStore'
 import MentalMathWrongBookPanel from '@/views/tools/mental-math/components/MentalMathWrongBookPanel.vue'
 import { upsertMentalMathWrong } from '@/utils/mentalMathWrongBook'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 type Phase = 'select' | 'countdown' | 'playing' | 'finished'
 type CountdownStep = 3 | 2 | 1 | 'GO'
@@ -152,7 +160,7 @@ const COUNTDOWN_STEPS: CountdownStep[] = [3, 2, 1, 'GO']
 
 const route = useRoute()
 const phase = ref<Phase>('select')
-const activeOutlineSection = ref<PracticeHubSectionId>('all')
+const activeOutlineSection = ref<PracticeHubSectionId>('log')
 const activeMode = ref<PracticeMode | null>(null)
 const score = ref(0)
 const question = ref<MentalMathQuestion | null>(null)
@@ -212,6 +220,11 @@ const equationMethodPanelRef = ref<InstanceType<typeof EquationMethodPanel> | nu
 const specialValuePanelRef = ref<InstanceType<typeof SpecialValuePanel> | null>(null)
 const ratioMethodPanelRef = ref<InstanceType<typeof RatioMethodPanel> | null>(null)
 const crossMethodPanelRef = ref<InstanceType<typeof CrossMethodPanel> | null>(null)
+const sumDiffRatioPanelRef = ref<InstanceType<typeof SumDiffRatioPanel> | null>(null)
+const geometryPanelRef = ref<InstanceType<typeof GeometryPanel> | null>(null)
+const rightTrianglePanelRef = ref<InstanceType<typeof RightTrianglePanel> | null>(null)
+const similarTrianglePanelRef = ref<InstanceType<typeof SimilarTrianglePanel> | null>(null)
+const coloringPanelRef = ref<InstanceType<typeof ColoringPanel> | null>(null)
 /** 资料分析「增长」子模块折叠：默认收起 */
 const dataAnalysisGrowthFoldOpen = ref(false)
 /** 资料分析「比重」子模块折叠：默认收起 */
@@ -234,6 +247,11 @@ const opSkillEqMethodFoldOpen = ref(false)
 const opSkillSpecValFoldOpen = ref(false)
 const opSkillRatioMethodFoldOpen = ref(false)
 const opSkillCrossMethodFoldOpen = ref(false)
+const opHighfreqSumDiffRatioFoldOpen = ref(false)
+const opHighfreqGeometryFoldOpen = ref(false)
+const opHighfreqRightTriangleFoldOpen = ref(false)
+const opHighfreqSimilarTriangleFoldOpen = ref(false)
+const opHighfreqColoringFoldOpen = ref(false)
 const questionSeq = ref(0)
 const records = ref<MentalMathAnswerRecord[]>([])
 const graphicRecords = ref<GraphicReasoningAnswerRecord[]>([])
@@ -264,6 +282,8 @@ let timerHandle: ReturnType<typeof setInterval> | null = null
 let feedbackTimer: ReturnType<typeof setTimeout> | null = null
 let countdownTimer: ReturnType<typeof setTimeout> | null = null
 let sessionStartMs = 0
+/** 本局是否已记入「完成一轮」统计，防止 finishSession 重复调用 */
+let sessionCompletionRecorded = false
 
 function isGraphicMode(mode: PracticeMode): mode is GraphicReasoningMode {
   return mode === 'graphic'
@@ -392,53 +412,27 @@ const correctCount = computed(() => sessionRecords.value.filter((r) => r.correct
 const wrongCount = computed(() => sessionRecords.value.filter((r) => !r.correct).length)
 
 const showArithmeticSection = computed(
-  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'arithmetic',
+  () => activeOutlineSection.value === 'arithmetic',
 )
-const showPowerSection = computed(
-  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'power',
-)
-const showSquareCubeSection = computed(
-  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'square-cube',
-)
-const showFractionSection = computed(
-  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'fraction',
-)
-const showDivisibilitySection = computed(
-  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'divisibility',
-)
-const showLifeSenseSection = computed(
-  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'life-sense',
-)
+const showPowerSection = computed(() => activeOutlineSection.value === 'power')
+const showSquareCubeSection = computed(() => activeOutlineSection.value === 'square-cube')
+const showFractionSection = computed(() => activeOutlineSection.value === 'fraction')
+const showDivisibilitySection = computed(() => activeOutlineSection.value === 'divisibility')
+const showLifeSenseSection = computed(() => activeOutlineSection.value === 'life-sense')
 const showGrammarJudgmentSection = computed(
-  () =>
-    activeOutlineSection.value === 'all' || activeOutlineSection.value === 'grammar-judgment',
+  () => activeOutlineSection.value === 'grammar-judgment',
 )
-const showTwentyFourSection = computed(
-  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'twentyfour',
-)
-const showSudokuSection = computed(
-  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'sudoku',
-)
-const showGraphicSection = computed(
-  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'graphic',
-)
-const showDataAnalysisSection = computed(
-  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'data-analysis',
-)
-const showOpSkillSection = computed(
-  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'op-skill',
-)
-const showOpHighfreqSection = computed(
-  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'op-highfreq',
-)
-const showOpOtherSection = computed(
-  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'op-other',
-)
-const showChineseSection = computed(
-  () => activeOutlineSection.value === 'all' || activeOutlineSection.value === 'chinese',
-)
+const showTwentyFourSection = computed(() => activeOutlineSection.value === 'twentyfour')
+const showSudokuSection = computed(() => activeOutlineSection.value === 'sudoku')
+const showGraphicSection = computed(() => activeOutlineSection.value === 'graphic')
+const showDataAnalysisSection = computed(() => activeOutlineSection.value === 'data-analysis')
+const showOpSkillSection = computed(() => activeOutlineSection.value === 'op-skill')
+const showOpHighfreqSection = computed(() => activeOutlineSection.value === 'op-highfreq')
+const showOpOtherSection = computed(() => activeOutlineSection.value === 'op-other')
+const showChineseSection = computed(() => activeOutlineSection.value === 'chinese')
 const showInstallSection = computed(() => activeOutlineSection.value === 'install')
 const showGuideSection = computed(() => activeOutlineSection.value === 'guide')
+const showLogSection = computed(() => activeOutlineSection.value === 'log')
 
 const chineseSessionActive = computed(
   () =>
@@ -466,7 +460,12 @@ const chineseSessionActive = computed(
     (equationMethodPanelRef.value?.isRunningOrLoading ?? false) ||
     (specialValuePanelRef.value?.isRunningOrLoading ?? false) ||
     (ratioMethodPanelRef.value?.isRunningOrLoading ?? false) ||
-    (crossMethodPanelRef.value?.isRunningOrLoading ?? false),
+    (crossMethodPanelRef.value?.isRunningOrLoading ?? false) ||
+    (sumDiffRatioPanelRef.value?.isRunningOrLoading ?? false) ||
+    (geometryPanelRef.value?.isRunningOrLoading ?? false) ||
+    (rightTrianglePanelRef.value?.isRunningOrLoading ?? false) ||
+    (similarTrianglePanelRef.value?.isRunningOrLoading ?? false) ||
+    (coloringPanelRef.value?.isRunningOrLoading ?? false),
 )
 
 const mcqOptionCount = computed(() => {
@@ -659,6 +658,15 @@ function finishSession(perfect = false) {
       void startQbPerfectMidi()
     }
   }
+  if (!sessionCompletionRecorded && activeMode.value) {
+    sessionCompletionRecorded = true
+    incrementPracticeCompletion(String(activeMode.value), {
+      correctCount: correctCount.value,
+      totalCount: sessionRecords.value.length,
+      score: score.value,
+      durationMs: elapsedMs.value,
+    })
+  }
   phase.value = 'finished'
 }
 
@@ -693,6 +701,7 @@ function beginPlaying(mode: PracticeMode) {
   clearTimers()
   countdownValue.value = null
   activeMode.value = mode
+  sessionCompletionRecorded = false
   const cfg = isGraphicMode(mode)
     ? getGraphicReasoningModeConfig(mode)
     : isTwentyFourPointMode(mode)
@@ -1230,7 +1239,9 @@ onMounted(() => {
   window.addEventListener('keydown', onKeydown)
   prepareQbPerfectMidi()
   const hash = route.hash.replace('#', '')
-  if (hash === 'guide' || route.query.section === 'guide') {
+  if (hash === 'log' || route.query.section === 'log') {
+    activeOutlineSection.value = 'log'
+  } else if (hash === 'guide' || route.query.section === 'guide') {
     activeOutlineSection.value = 'guide'
   } else if (hash === 'twentyfour' || route.query.section === 'twentyfour') {
     activeOutlineSection.value = 'twentyfour'
@@ -1346,6 +1357,7 @@ onBeforeUnmount(() => {
       </aside>
 
       <div ref="practiceMainRef" class="practice-main mode-select">
+        <PracticeSessionLogPanel v-if="showLogSection" />
         <MentalMathPracticeGuide
           v-if="showGuideSection"
           @start-practice="onGuideStartPractice"
@@ -1361,7 +1373,7 @@ onBeforeUnmount(() => {
               class="mode-card"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }}</h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1381,7 +1393,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--power"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }}</h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1402,7 +1414,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--square-cube"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }}</h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1423,7 +1435,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--fraction"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }}</h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1444,7 +1456,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--divisibility"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }}</h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1465,7 +1477,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--life-sense"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }}</h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1490,7 +1502,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--grammar-judgment"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }}</h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1508,7 +1520,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--circle-grammar"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }}</h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1525,7 +1537,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--shorten-sentence"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }}</h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1546,7 +1558,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--twentyfour"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }}</h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1567,7 +1579,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--sudoku"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }}</h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1587,7 +1599,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--graphic"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }}</h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -2098,7 +2110,158 @@ onBeforeUnmount(() => {
 
         <section v-if="showOpHighfreqSection" class="mode-section" id="practice-op-highfreq">
           <h3 class="mode-section__title">高频运算</h3>
-          <p class="mode-section__hint">题型筹备中，稍后开放。</p>
+          <p class="mode-section__hint">
+            公考数量关系高频题型。当前开放「和差倍比问题」「几何问题」「直角三角形常用结论」「三角形相似」「染色问题」；流程同资料分析（正计时、提交后看解析）。
+          </p>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opHighfreqSumDiffRatioFoldOpen"
+              @click="opHighfreqSumDiffRatioFoldOpen = !opHighfreqSumDiffRatioFoldOpen"
+            >
+              <span class="da-growth-fold__title">和差倍比问题</span>
+              <span class="da-growth-fold__meta">和 · 差 · 倍 · 比 · 列方程</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opHighfreqSumDiffRatioFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opHighfreqSumDiffRatioFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">和差倍比问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="sum-diff-ratio" />
+              </div>
+              <p class="mode-section__hint">
+                简单对齐经典真题 1（份数+转移）；中等对齐经典真题 2（加权总量+整除）；困难为 10
+                类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+              </p>
+              <SumDiffRatioPanel ref="sumDiffRatioPanelRef" />
+              <MentalMathWrongBookPanel section="op-highfreq-sum-diff-ratio" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opHighfreqGeometryFoldOpen"
+              @click="opHighfreqGeometryFoldOpen = !opHighfreqGeometryFoldOpen"
+            >
+              <span class="da-growth-fold__title">几何问题</span>
+              <span class="da-growth-fold__meta">周长 · 面积 · 表面积 · 体积 · 割补</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opHighfreqGeometryFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opHighfreqGeometryFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">几何问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="geometry" />
+              </div>
+              <p class="mode-section__hint">
+                简单略低于经典真题（直接套公式）；中等对齐经典真题 1（割补）/真题 2（长方体变正方体）；困难更高（组合割补/勾股/多步立体）。豆包出题干，几何图按参数渲染，每轮 10 题。
+              </p>
+              <GeometryPanel ref="geometryPanelRef" />
+              <MentalMathWrongBookPanel section="op-highfreq-geometry" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opHighfreqRightTriangleFoldOpen"
+              @click="opHighfreqRightTriangleFoldOpen = !opHighfreqRightTriangleFoldOpen"
+            >
+              <span class="da-growth-fold__title">直角三角形常用结论</span>
+              <span class="da-growth-fold__meta">勾股 · 30°/45° 边比 · 正北集合</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opHighfreqRightTriangleFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opHighfreqRightTriangleFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">直角三角形常用结论</h4>
+                <DataAnalysisStrategyGuideButton topic-id="right-triangle" />
+              </div>
+              <p class="mode-section__hint">
+                简单：勾股数与 30°/45° 边比直接求边；中等对齐经典真题 3（正北集合+30°+同时到达）；困难为
+                8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+              </p>
+              <RightTrianglePanel ref="rightTrianglePanelRef" />
+              <MentalMathWrongBookPanel section="op-highfreq-right-triangle" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opHighfreqSimilarTriangleFoldOpen"
+              @click="opHighfreqSimilarTriangleFoldOpen = !opHighfreqSimilarTriangleFoldOpen"
+            >
+              <span class="da-growth-fold__title">三角形相似</span>
+              <span class="da-growth-fold__meta">A 型 · X 型 · 中位线 · 测高</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opHighfreqSimilarTriangleFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opHighfreqSimilarTriangleFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">三角形相似</h4>
+                <DataAnalysisStrategyGuideButton topic-id="similar-triangle" />
+              </div>
+              <p class="mode-section__hint">
+                简单：相似比/A·X 型/中位线直接求边或面积比；中等对齐经典真题 4（竹竿测树高）；困难为
+                8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+              </p>
+              <SimilarTrianglePanel ref="similarTrianglePanelRef" />
+              <MentalMathWrongBookPanel section="op-highfreq-similar-triangle" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opHighfreqColoringFoldOpen"
+              @click="opHighfreqColoringFoldOpen = !opHighfreqColoringFoldOpen"
+            >
+              <span class="da-growth-fold__title">染色问题</span>
+              <span class="da-growth-fold__meta">三面 · 两面 · 一面 · 未染色</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opHighfreqColoringFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opHighfreqColoringFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">染色问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="coloring" />
+              </div>
+              <p class="mode-section__hint">
+                简单：直接套表中三面/两面/一面/未染色公式；中等对齐经典真题 5（有染色=n³−(n−2)³）；困难为
+                更高阶变式，每轮 4 题且题型不重复。本地组卷，每轮 4 题。
+              </p>
+              <ColoringPanel ref="coloringPanelRef" />
+              <MentalMathWrongBookPanel section="op-highfreq-coloring" />
+            </div>
+          </div>
         </section>
 
         <section v-if="showOpOtherSection" class="mode-section" id="practice-op-other">
@@ -2748,6 +2911,10 @@ onBeforeUnmount(() => {
   margin: 0 0 8px;
   font-size: 1.1rem;
   font-weight: 700;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 0;
 }
 
 .mode-card__desc {
@@ -3274,6 +3441,8 @@ onBeforeUnmount(() => {
   }
 
   .practice-sidebar__level2 {
+    /* 与一级贴紧，避免粘连时中间露白 */
+    margin-top: 0;
     padding: 8px 10px 10px;
     background: var(--app-surface);
   }

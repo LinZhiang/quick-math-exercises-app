@@ -14,6 +14,7 @@ import {
 import { charLiteracyQuestionTypeLabel } from '@/utils/charLiteracyPractice'
 import type { CharLiteracyQuestion } from '@/utils/charLiteracyPractice'
 import { typoMcqAnswerFeedbackLabel, typoStemPolarity } from '@/utils/chineseVariantQuality'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
 
 const CHAR_ASSIST_SYSTEM =
   '你是事业编与公务员考试言语理解「字音字形」教练，擅长多音字、习惯性误读、形近字与音近错别字辨析。用简体中文讲解，点明正确读音/字形及易混原因，可给记忆口诀。回答要具体，避免空泛。'
@@ -168,6 +169,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         针对公务员、事业单位「言语理解」高频字音字形：易错读音、多音字、形近字与音近错别字，
         干扰项偏强。每轮 {{ test.questionCount }} 题四选一，读音/错别字混合。正计时，提交后公布答案。
       </p>
+      <p class="practice-completion-line"><PracticeCompletionStat mode-id="chinese-char-literacy" /></p>
       <div class="chinese-setup">
         <el-button
           type="primary"

@@ -19,6 +19,7 @@ import {
   type GrowthInterYearDifficulty,
   type GrowthInterYearQuestion,
 } from '@/utils/dataAnalysisGrowthInterYearPractice'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type GrowthInterYearPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -260,6 +261,7 @@ export function useDataAnalysisGrowthInterYearTest(
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`data-analysis-growth-inter-year-${difficulty.value}`)
       phase.value = 'summary'
       return
     }

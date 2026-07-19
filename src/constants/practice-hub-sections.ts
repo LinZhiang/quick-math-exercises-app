@@ -1,5 +1,5 @@
 export type PracticeHubSectionId =
-  | 'all'
+  | 'log'
   | 'guide'
   | 'arithmetic'
   | 'power'
@@ -24,7 +24,7 @@ export type PracticeHubSection = {
 }
 
 export const PRACTICE_HUB_SECTIONS: PracticeHubSection[] = [
-  { id: 'all', title: '全部模式' },
+  { id: 'log', title: '日志' },
   { id: 'guide', title: '练习攻略' },
   { id: 'arithmetic', title: '四则口算' },
   { id: 'power', title: '2 的 n 次幂' },
@@ -54,7 +54,7 @@ export type PracticeHubGroup = {
 }
 
 export const PRACTICE_HUB_GROUPS: PracticeHubGroup[] = [
-  { id: 'browse', title: '导览', sectionIds: ['all', 'guide', 'install'] },
+  { id: 'browse', title: '导览', sectionIds: ['log', 'guide', 'install'] },
   {
     id: 'mental',
     title: '口算',

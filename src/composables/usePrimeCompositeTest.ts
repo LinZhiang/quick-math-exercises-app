@@ -11,6 +11,7 @@ import {
   type PrimeCompDifficulty,
   type PrimeCompQuestion,
 } from '@/utils/primeCompositePractice'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type PrimeCompPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -236,6 +237,7 @@ export function usePrimeCompositeTest(difficulty: Ref<PrimeCompDifficulty | null
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`op-skill-prime-comp-${difficulty.value}`)
       phase.value = 'summary'
       return
     }

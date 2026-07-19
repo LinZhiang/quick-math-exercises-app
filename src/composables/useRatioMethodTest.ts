@@ -11,6 +11,7 @@ import {
   type RatioMethodDifficulty,
   type RatioMethodQuestion,
 } from '@/utils/ratioMethodPractice'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type RatioMethodPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -236,6 +237,7 @@ export function useRatioMethodTest(difficulty: Ref<RatioMethodDifficulty | null>
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`op-skill-ratio-method-${difficulty.value}`)
       phase.value = 'summary'
       return
     }

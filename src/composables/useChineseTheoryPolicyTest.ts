@@ -10,9 +10,9 @@ import { createChineseWrongBookGate } from '@/utils/chineseWrongBookGate'
 import {
   beginChineseKeyReviewSession,
   clearChineseKeyReviewSession,
-  isChineseKeyReviewActive,
   type ChineseKeyReviewMeta,
 } from '@/utils/chineseKeyReviewSession'
+import { noteWrongOrReplaceKeyReviewVariant } from '@/utils/chineseKeyReviewWrongReplace'
 import { playMentalMathStartSound } from '@/utils/mentalMathSounds'
 import {
   THEORY_POLICY_QUESTION_COUNT,
@@ -20,6 +20,7 @@ import {
   type TheoryPolicyQuestion,
 } from '@/utils/theoryPolicyPractice'
 import type { ChinesePaperSource } from '@/types/chinese-practice'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type ChineseTheoryPolicyPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -205,9 +206,9 @@ export function useChineseTheoryPolicyTest() {
     })
     submitted.value = true
     carelessMarked.value = false
-    if (!correct && !isChineseKeyReviewActive()) {
+    noteWrongOrReplaceKeyReviewVariant(correct, currentIndex.value, q, () => {
       wrongGate.noteWrongAnswer(q)
-    }
+    })
   }
 
   function nextQuestion() {
@@ -220,6 +221,7 @@ export function useChineseTheoryPolicyTest() {
     resumeQuizTimer()
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      incrementPracticeCompletion('chinese-theory-policy')
       phase.value = 'summary'
       return
     }

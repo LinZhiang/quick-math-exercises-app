@@ -17,6 +17,7 @@ import {
   shouldShowWordMemorizationTermBeforeSubmit,
 } from '@/utils/wordMemorizationPractice'
 import type { WordMemorizationQuestion } from '@/utils/wordMemorizationPractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
 
 const WORD_MEM_ASSIST_SYSTEM =
   '你是事业编与公务员考试言语理解教练，擅长词语辨析（非成语）：实词、虚词、关联词与近义辨析。用简体中文讲解，可结合适用语境与记忆要点。回答要具体，避免空泛。'
@@ -164,6 +165,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         AI 每轮随机混合「选释义」「选词语」题型，每轮 {{ test.questionCount }} 题，四选一。
         正计时，提交后暂停并公布答案，点「下一题」继续。
       </p>
+      <p class="practice-completion-line"><PracticeCompletionStat mode-id="chinese-word-memorization" /></p>
       <div class="chinese-setup">
         <el-button
           type="primary"

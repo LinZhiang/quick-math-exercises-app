@@ -13,6 +13,7 @@ import {
 } from '@/utils/chineseEconomyCommonSenseStorage'
 import { economyCommonSenseQuestionTypeLabel } from '@/utils/economyCommonSensePractice'
 import type { EconomyCommonSenseQuestion } from '@/utils/economyCommonSensePractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
 
 const ECONOMY_ASSIST_SYSTEM =
   '你是事业编联考 C 类「公共基础知识·经济常识」教练，擅长微观经济、宏观经济、社会主义市场经济高频易考点。讲解通俗浅显，紧扣高频考点，不要出模型推导或过难计算。用简体中文，回答要具体。'
@@ -158,6 +159,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         针对事业编联考 C 类「公共基础知识」经济常识高频考点：微观经济、宏观经济、社会主义市场经济基础概念，难度中等偏易，
         每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停并公布答案，点「下一题」继续。
       </p>
+      <p class="practice-completion-line"><PracticeCompletionStat mode-id="chinese-economy-common-sense" /></p>
       <div class="chinese-setup">
         <el-button
           type="primary"

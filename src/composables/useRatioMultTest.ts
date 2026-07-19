@@ -11,6 +11,7 @@ import {
   type RatioMultDifficulty,
   type RatioMultQuestion,
 } from '@/utils/ratioMultPractice'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type RatioMultPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -236,6 +237,7 @@ export function useRatioMultTest(difficulty: Ref<RatioMultDifficulty | null>) {
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`op-skill-ratio-mult-${difficulty.value}`)
       phase.value = 'summary'
       return
     }

@@ -90,6 +90,15 @@ import {
   readingComprehensionQuestionTypeLabel,
 } from '@/utils/readingComprehensionPractice'
 import {
+  buildGeometryQuestionFromSeed,
+  buildLocalGeometryPaper,
+  GEOMETRY_QUESTION_COUNT,
+  pickGeometrySeeds,
+  type GeometryDifficulty,
+  type GeometryQuestion,
+  type GeometrySeed,
+} from '@/utils/geometryPractice'
+import {
   buildDataAnalysisQuestionFromMcq,
   DATA_ANALYSIS_QUESTION_COUNT,
   parseDataAnalysisMcqAiObject,
@@ -6507,4 +6516,135 @@ export async function requestDataAnalysisSurplusMcqs(input: {
     )
   }
   return deduped.slice(0, count)
+}
+
+/** 几何问题：强制豆包；图形由本地种子锚定（SVG 渲染） */
+const GEOMETRY_FORCE_PROVIDER: AiProvider = 'doubao'
+
+const GEOMETRY_SYSTEM = `
+你是公务员/事业编「数量关系·几何问题」命题专家。
+图形数据、正确答案与解析步骤已由系统锚定：你只改写材料与题干表述，不得改动数字、答案与计算步骤。
+只输出合法 JSON 对象，不要 markdown 围栏。
+${CHINESE_MCQ_CORRECTNESS_RULES}
+`.trim()
+
+async function requestAnchoredGeometryMcq(input: {
+  seed: GeometrySeed
+  difficulty: GeometryDifficulty
+  seq: number
+  timeoutMs?: number
+}): Promise<GeometryQuestion | null> {
+  const { seed, difficulty, seq } = input
+  const timeoutMs = input.timeoutMs ?? 16_000
+  const diffHint =
+    difficulty === 'easy'
+      ? '简单：直接套公式，表述清楚即可。'
+      : difficulty === 'medium'
+        ? '中等：对齐教材经典真题难度（割补/长方体变正方体等）。'
+        : '困难：高于教材经典题，强调多步或组合，但数字与答案仍必须与锚定一致。'
+  try {
+    const raw = await Promise.race([
+      deepseekChatRaw(
+        [
+          `请为下列【已锚定几何题】改写材料与题干（四选一）。解析步骤已锚定，不要删减计算说明。`,
+          diffHint,
+          `【锚定】formula=${seed.formulaId}；正确答案必须是「${seed.correct}」；干扰项可用原 distractors 或等价改写但数值集合不变。`,
+          seed.anchorHint,
+          `原题材料：${seed.passage}`,
+          `原题干：${seed.stem}`,
+          `请输出 JSON：{ "term","passage","stem","correct","distractors":[3],"method","explanation" }`,
+          `correct 必须等于 ${JSON.stringify(seed.correct)}；distractors 必须是三个与 correct 不同的选项文本。`,
+          `method、explanation 请尽量沿用或扩写下列内容，不得比原文更简略：`,
+          `做法：${seed.method}`,
+          `解析：${seed.explanation}`,
+        ].join('\n'),
+        {
+          system: GEOMETRY_SYSTEM,
+          temperature: 0.35,
+          maxTokens: 1600,
+          provider: GEOMETRY_FORCE_PROVIDER,
+        },
+      ),
+      new Promise<string>((_, reject) => {
+        window.setTimeout(() => reject(new Error('timeout')), timeoutMs)
+      }),
+    ])
+    const obj = parseAiJsonObjectLenient(stripAiJsonFence(raw))
+    if (!obj || typeof obj !== 'object') return null
+    const o = obj as Record<string, unknown>
+    const passage = String(o.passage ?? seed.passage)
+    const stem = String(o.stem ?? seed.stem)
+    const term = String(o.term ?? seed.term)
+    const aiMethod = String(o.method ?? '').trim()
+    const aiExplain = String(o.explanation ?? '').trim()
+    // 解析若被写短，回退本地详解
+    const method =
+      aiMethod.length >= Math.min(12, seed.method.length) ? aiMethod : seed.method
+    const explanation =
+      aiExplain.replace(/\s/g, '').length >=
+      Math.floor(seed.explanation.replace(/\s/g, '').length * 0.7)
+        ? aiExplain
+        : seed.explanation
+    return buildGeometryQuestionFromSeed(seed, difficulty, seq, {
+      passage,
+      stem,
+      method,
+      explanation,
+      term,
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function requestGeometryMcqs(input: {
+  count?: number
+  difficulty: GeometryDifficulty
+  avoidTerms?: string[]
+  onProgress?: (msg: string) => void
+}): Promise<GeometryQuestion[]> {
+  void input.avoidTerms
+  const count = input.count ?? GEOMETRY_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const seeds = pickGeometrySeeds(difficulty)
+  const out: GeometryQuestion[] = []
+  const seen = new Set<string>()
+
+  const push = (q: GeometryQuestion | null) => {
+    if (!q) return false
+    if (seen.has(q.fingerprint)) return false
+    seen.add(q.fingerprint)
+    out.push(q)
+    return true
+  }
+
+  input.onProgress?.(
+    `豆包按几何图库出题（${difficulty === 'easy' ? '简单' : difficulty === 'medium' ? '中等' : '困难'}，共 ${count} 题）…`,
+  )
+
+  for (let i = 0; i < count && i < seeds.length; i++) {
+    const seed = seeds[i]!
+    input.onProgress?.(`第 ${i + 1}/${count} 题 · ${seed.term}（豆包改写）…`)
+    const aiQ = await requestAnchoredGeometryMcq({
+      seed,
+      difficulty,
+      seq: i,
+      timeoutMs: 14_000,
+    })
+    if (push(aiQ)) continue
+    input.onProgress?.(`第 ${i + 1} 题豆包未通过，使用同图本地题…`)
+    push(buildGeometryQuestionFromSeed(seed, difficulty, 100 + i))
+  }
+
+  if (out.length < count) {
+    for (const q of buildLocalGeometryPaper(difficulty)) {
+      if (out.length >= count) break
+      push(q)
+    }
+  }
+
+  if (out.length < count) {
+    throw new Error(`几何问题仅生成 ${out.length}/${count} 题，请重试。`)
+  }
+  return out.slice(0, count)
 }

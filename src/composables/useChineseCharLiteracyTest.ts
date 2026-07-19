@@ -10,9 +10,9 @@ import { createChineseWrongBookGate } from '@/utils/chineseWrongBookGate'
 import {
   beginChineseKeyReviewSession,
   clearChineseKeyReviewSession,
-  isChineseKeyReviewActive,
   type ChineseKeyReviewMeta,
 } from '@/utils/chineseKeyReviewSession'
+import { noteWrongOrReplaceKeyReviewVariant } from '@/utils/chineseKeyReviewWrongReplace'
 import { playMentalMathStartSound } from '@/utils/mentalMathSounds'
 import {
   CHAR_LITERACY_QUESTION_COUNT,
@@ -20,6 +20,7 @@ import {
   type CharLiteracyQuestion,
 } from '@/utils/charLiteracyPractice'
 import type { ChinesePaperSource } from '@/types/chinese-practice'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type ChineseCharLiteracyPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -205,9 +206,9 @@ export function useChineseCharLiteracyTest() {
     })
     submitted.value = true
     carelessMarked.value = false
-    if (!correct && !isChineseKeyReviewActive()) {
+    noteWrongOrReplaceKeyReviewVariant(correct, currentIndex.value, q, () => {
       wrongGate.noteWrongAnswer(q)
-    }
+    })
   }
 
   function nextQuestion() {
@@ -220,6 +221,7 @@ export function useChineseCharLiteracyTest() {
     resumeQuizTimer()
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      incrementPracticeCompletion('chinese-char-literacy')
       phase.value = 'summary'
       return
     }

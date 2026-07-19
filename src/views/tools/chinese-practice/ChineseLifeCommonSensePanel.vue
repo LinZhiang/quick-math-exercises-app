@@ -13,6 +13,7 @@ import {
 } from '@/utils/chineseLifeCommonSenseStorage'
 import { lifeCommonSenseQuestionTypeLabel } from '@/utils/lifeCommonSensePractice'
 import type { LifeCommonSenseQuestion } from '@/utils/lifeCommonSensePractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
 
 const LIFE_ASSIST_SYSTEM =
   '你是事业编联考 C 类「公共基础知识·生活科学」教练，擅长物理、化学、生物、科技与生活等高频易考点。讲解通俗浅显，紧扣高频考点，不要公式推导或过深实验细节。用简体中文，回答要具体。'
@@ -158,6 +159,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         针对事业编联考 C 类「公共基础知识」生活科学高频考点：物理、化学、生物、科技与生活基础概念与常考现象，难度中等偏易，
         每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停并公布答案，点「下一题」继续。
       </p>
+      <p class="practice-completion-line"><PracticeCompletionStat mode-id="chinese-life-common-sense" /></p>
       <div class="chinese-setup">
         <el-button
           type="primary"

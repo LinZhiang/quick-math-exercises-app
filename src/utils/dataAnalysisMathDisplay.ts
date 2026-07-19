@@ -106,6 +106,16 @@ function replaceInnermostSlashFraction(
     if (!num || !den) continue
     if (/^\d{4}$/.test(num) && /^\d{4}$/.test(den)) continue
     if (num.includes('/') || den.includes('/')) continue
+    // 跳过「真题 1/2」「第 1/2 章」等序号，勿当成数学分式
+    const prefix = s.slice(Math.max(0, leftStart - 6), leftStart)
+    if (/真题|例题|习题|[题章节类项条]\s*$/.test(prefix)) continue
+    if (
+      /[\u4e00-\u9fff]\s*$/.test(prefix) &&
+      /^\(?\d{1,2}\)?$/.test(num) &&
+      /^\(?\d{1,2}\)?$/.test(den)
+    ) {
+      continue
+    }
     const id = slots.length
     slots.push({ num: stripOuterParens(num), den: stripOuterParens(den) })
     return s.slice(0, leftStart) + `\uE000${id}\uE001` + s.slice(rightEnd)
@@ -124,6 +134,72 @@ function normalizeLatex(s: string): string {
     if (next === out) break
     out = next
   }
+  return normalizeVulgarAndUnicodeFractions(out)
+}
+
+/** ½、⅓、⁴⁄₃ 等 → (1)/(2) 形式，供上下分式渲染 */
+const VULGAR_FRACTIONS: Record<string, [string, string]> = {
+  '½': ['1', '2'],
+  '⅓': ['1', '3'],
+  '⅔': ['2', '3'],
+  '¼': ['1', '4'],
+  '¾': ['3', '4'],
+  '⅕': ['1', '5'],
+  '⅖': ['2', '5'],
+  '⅗': ['3', '5'],
+  '⅘': ['4', '5'],
+  '⅙': ['1', '6'],
+  '⅚': ['5', '6'],
+  '⅛': ['1', '8'],
+  '⅜': ['3', '8'],
+  '⅝': ['5', '8'],
+  '⅞': ['7', '8'],
+  '⅐': ['1', '7'],
+  '⅑': ['1', '9'],
+  '⅒': ['1', '10'],
+}
+
+const UNI_SUB_TO_ASCII: Record<string, string> = {
+  '₀': '0',
+  '₁': '1',
+  '₂': '2',
+  '₃': '3',
+  '₄': '4',
+  '₅': '5',
+  '₆': '6',
+  '₇': '7',
+  '₈': '8',
+  '₉': '9',
+}
+
+const UNI_TO_ASCII_SUP: Record<string, string> = {
+  '⁰': '0',
+  '¹': '1',
+  '²': '2',
+  '³': '3',
+  '⁴': '4',
+  '⁵': '5',
+  '⁶': '6',
+  '⁷': '7',
+  '⁸': '8',
+  '⁹': '9',
+  'ⁿ': 'n',
+}
+
+function normalizeVulgarAndUnicodeFractions(s: string): string {
+  let out = s
+  for (const [ch, [num, den]] of Object.entries(VULGAR_FRACTIONS)) {
+    if (out.includes(ch)) out = out.split(ch).join(`(${num})/(${den})`)
+  }
+  // ⁴⁄₃、4⁄3（分数斜线 U+2044）
+  out = out.replace(
+    /([⁰¹²³⁴⁵⁶⁷⁸⁹]+|\d+)⁄([₀₁₂₃₄₅₆₇₈₉]+|\d+)/g,
+    (_m, a: string, b: string) => {
+      const num = [...a].map((c) => UNI_TO_ASCII_SUP[c] ?? c).join('')
+      const den = [...b].map((c) => UNI_SUB_TO_ASCII[c] ?? c).join('')
+      return `(${num})/(${den})`
+    },
+  )
   return out
 }
 
@@ -179,7 +255,12 @@ export function formatDataAnalysisMathPlain(text: string): string {
     '8': '⁸',
     '9': '⁹',
   }
-  const toSup = (n: string) => [...n].map((c) => SUP[c] ?? c).join('')
+  const LETTER_SUP: Record<string, string> = {
+    n: 'ⁿ',
+    N: 'ⁿ',
+  }
+  const toSup = (n: string) =>
+    [...n].map((c) => SUP[c] ?? LETTER_SUP[c] ?? c).join('')
   for (let i = 0; i < 6; i++) {
     const next = s.replace(/\\sqrt\[(\d+)\]\{([^{}]+)\}/g, (_m, n: string, inner: string) => {
       return `${toSup(n)}√(${inner})`
@@ -192,14 +273,52 @@ export function formatDataAnalysisMathPlain(text: string): string {
     if (next === s) break
     s = next
   }
+  // a² → 先规范；再把 ^2 / ^{n} 收成上标字符
+  s = unicodeSuperscriptsToCaret(s)
+  s = s.replace(/\^\{([^{}]+)\}/g, (_m, exp: string) => toSup(String(exp)))
+  s = s.replace(/\^(-?\d+(?:\.\d+)?|[A-Za-z])/g, (_m, exp: string) => toSup(String(exp)))
   return s
 }
 
+/** a²、r³ → a^2、r^3，便于统一转成 <sup> */
+function unicodeSuperscriptsToCaret(s: string): string {
+  return s.replace(/([A-Za-z0-9π%)\]）])([⁰¹²³⁴⁵⁶⁷⁸⁹ⁿ]+)/g, (_m, base: string, supers: string) => {
+    const exp = [...supers].map((c) => UNI_TO_ASCII_SUP[c] ?? c).join('')
+    return `${base}^${exp}`
+  })
+}
+
+type PowerSlot = { exp: string }
+
+function extractCaretPowers(s: string, slots: PowerSlot[]): string {
+  let cur = s
+  cur = cur.replace(/\^\{([^{}]+)\}/g, (_m, exp: string) => {
+    const id = slots.length
+    slots.push({ exp: String(exp) })
+    return `\uE500${id}\uE501`
+  })
+  cur = cur.replace(/\^(-?\d+(?:\.\d+)?|[A-Za-z])/g, (_m, exp: string) => {
+    const id = slots.length
+    slots.push({ exp: String(exp) })
+    return `\uE500${id}\uE501`
+  })
+  return cur
+}
+
+function expandPowerTokens(html: string, slots: PowerSlot[]): string {
+  return html.replace(/\uE500(\d+)\uE501/g, (_m, id: string) => {
+    const slot = slots[Number(id)]
+    if (!slot) return ''
+    return `<sup class="da-math-sup">${escapeHtmlText(slot.exp)}</sup>`
+  })
+}
+
 /**
- * 转为可安全 v-html 的 HTML：分式上下排布；根号保留结构标签。
+ * 转为可安全 v-html 的 HTML：分式上下排布；根号带被开方数横线；^n 转成上标。
  */
 export function renderDataAnalysisMathHtml(text: string): string {
   let s = normalizeLatex(text)
+  s = unicodeSuperscriptsToCaret(s)
 
   type RootSlot = { idx?: string; inner: string }
   const roots: RootSlot[] = []
@@ -215,6 +334,9 @@ export function renderDataAnalysisMathHtml(text: string): string {
     if (next === s) break
     s = next
   }
+
+  const powers: PowerSlot[] = []
+  s = extractCaretPowers(s, powers)
 
   const fracs: FracSlot[] = []
   s = extractSlashFractions(s, fracs)
@@ -243,7 +365,7 @@ export function renderDataAnalysisMathHtml(text: string): string {
     /\uE200([\s\S]*?)\uE201([\s\S]*?)\uE202/g,
     (_m, idxHtml: string, innerRaw: string) => {
       const id = rootBlocks.length
-      const innerHtml = expandSlotsToHtml(innerRaw, fracs)
+      const innerHtml = expandPowerTokens(expandSlotsToHtml(innerRaw, fracs), powers)
       rootBlocks.push(
         `<span class="da-math-root">${idxHtml}<span class="da-math-root__sym">√</span><span class="da-math-radicand">${innerHtml}</span></span>`,
       )
@@ -252,13 +374,21 @@ export function renderDataAnalysisMathHtml(text: string): string {
   )
 
   let html = expandSlotsToHtml(withRoots, fracs)
+  html = expandPowerTokens(html, powers)
   html = html.replace(/\uE300(\d+)\uE301/g, (_m, id: string) => rootBlocks[Number(id)] ?? '')
 
+  // √3、√(…) → 带横线的根号结构（被开方数需再转义）
   html = html.replace(
-    /([⁰¹²³⁴⁵⁶⁷⁸⁹]+)?√(?:\(([^)]+)\)|(\d+(?:\.\d+)?))/g,
-    (_m, sup: string | undefined, paren: string | undefined, bare: string | undefined) => {
-      const idxHtml = sup ? `<sup class="da-math-root__idx">${sup}</sup>` : ''
-      const body = paren != null ? paren : (bare ?? '')
+    /([⁰¹²³⁴⁵⁶⁷⁸⁹]+)?√(?:\(([^)]+)\)|(\d+(?:\.\d+)?)|([A-Za-z]))/g,
+    (
+      _m,
+      sup: string | undefined,
+      paren: string | undefined,
+      bare: string | undefined,
+      letter: string | undefined,
+    ) => {
+      const idxHtml = sup ? `<sup class="da-math-root__idx">${escapeHtmlText(sup)}</sup>` : ''
+      const body = escapeHtmlText(paren ?? bare ?? letter ?? '')
       return `<span class="da-math-root">${idxHtml}<span class="da-math-root__sym">√</span><span class="da-math-radicand">${body}</span></span>`
     },
   )

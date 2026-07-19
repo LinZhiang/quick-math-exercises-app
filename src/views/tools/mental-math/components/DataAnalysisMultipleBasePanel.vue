@@ -15,6 +15,7 @@ import {
 } from '@/utils/dataAnalysisMultipleBasePractice'
 import { renderDataAnalysisMathHtml } from '@/utils/dataAnalysisMathDisplay'
 import DataAnalysisGrowthAvgAnnualTable from '@/views/tools/mental-math/components/DataAnalysisGrowthAvgAnnualTable.vue'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
 
 const selectedDifficulty = ref<MultipleBaseDifficulty | null>(null)
 const test = reactive(useDataAnalysisMultipleBaseTest(selectedDifficulty))
@@ -124,7 +125,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           class="mode-card mode-card--data-analysis"
           @click="selectDifficulty(m.id)"
         >
-          <h3 class="mode-card__title">{{ m.label }}</h3>
+          <h3 class="mode-card__title">
+            {{ m.label }}
+            <PracticeCompletionStat :mode-id="`data-analysis-multiple-base-${m.id}`" />
+          </h3>
           <p class="mode-card__desc">{{ m.desc }}</p>
           <span class="mode-card__cta">选择题型</span>
         </button>
@@ -875,6 +879,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   margin-left: 1px;
   line-height: 1.15;
 }
+
+:deep(sup.da-math-sup) {
+  font-size: 0.72em;
+  font-weight: 750;
+  line-height: 0;
+  vertical-align: super;
+}
+
 
 .chinese-quiz__explain,
 .da-result-detail__exp,

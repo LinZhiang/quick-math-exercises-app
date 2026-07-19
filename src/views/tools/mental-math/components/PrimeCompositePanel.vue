@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { renderDataAnalysisMathHtml } from '@/utils/dataAnalysisMathDisplay'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import {
   usePrimeCompositeTest,
@@ -11,6 +12,7 @@ import {
   type PrimeCompDifficulty,
   type PrimeCompQuestion,
 } from '@/utils/primeCompositePractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
 
 const selectedDifficulty = ref<PrimeCompDifficulty | null>(null)
 const test = reactive(usePrimeCompositeTest(selectedDifficulty))
@@ -74,25 +76,25 @@ function esc(text: string): string {
 
 function passageHtml(q: PrimeCompQuestion | null | undefined) {
   if (!q?.passage) return ''
-  return esc(q.passage)
+  return renderDataAnalysisMathHtml(q.passage).replace(/\n/g, '<br />')
 }
 
 function stemHtml(q: PrimeCompQuestion | null | undefined) {
   if (!q?.stem) return ''
-  return esc(q.stem)
+  return renderDataAnalysisMathHtml(q.stem)
 }
 
 function explainHtml(q: PrimeCompQuestion | null | undefined) {
   if (!q?.explanation) return ''
-  return esc(q.explanation)
+  return renderDataAnalysisMathHtml(q.explanation).replace(/\n/g, '<br />')
 }
 
 function optionHtml(opt: string): string {
-  return esc(opt)
+  return renderDataAnalysisMathHtml(opt)
 }
 
 function mathHtml(text: string): string {
-  return esc(text)
+  return renderDataAnalysisMathHtml(text)
 }
 
 function onKeydown(ev: KeyboardEvent) {
@@ -123,7 +125,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           class="mode-card mode-card--data-analysis"
           @click="selectDifficulty(m.id)"
         >
-          <h3 class="mode-card__title">{{ m.label }}</h3>
+          <h3 class="mode-card__title">
+            {{ m.label }}
+            <PracticeCompletionStat :mode-id="`op-skill-prime-comp-${m.id}`" />
+          </h3>
           <p class="mode-card__desc">{{ m.desc }}</p>
           <span class="mode-card__cta">选择题型</span>
         </button>
@@ -858,6 +863,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   margin-left: 1px;
   line-height: 1.15;
 }
+
+:deep(sup.da-math-sup) {
+  font-size: 0.72em;
+  font-weight: 750;
+  line-height: 0;
+  vertical-align: super;
+}
+
 
 .chinese-quiz__explain,
 .da-result-detail__exp,

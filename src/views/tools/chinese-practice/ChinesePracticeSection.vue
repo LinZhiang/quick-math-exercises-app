@@ -383,6 +383,12 @@ defineExpose({
     border-bottom: 1px solid var(--app-border-soft);
   }
 
+  /* 无登录提示时贴紧 Hub 一级栏，抵消 practice-main 上内边距白缝 */
+  .chinese-practice-section:not(:has(.chinese-practice-section__auth-banner))
+    .chinese-practice-section__nav {
+    margin-top: -12px;
+  }
+
   .chinese-practice-section__flat {
     display: none;
   }
@@ -402,6 +408,7 @@ defineExpose({
   }
 
   .chinese-practice-section__level2 {
+    margin-top: 0;
     padding: 8px 12px 10px;
     background: var(--app-surface);
   }

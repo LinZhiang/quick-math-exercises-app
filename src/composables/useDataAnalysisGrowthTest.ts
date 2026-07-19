@@ -19,6 +19,7 @@ import {
   type GrowthGeneralDifficulty,
   type GrowthGeneralQuestion,
 } from '@/utils/dataAnalysisGrowthPractice'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type GrowthGeneralPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -258,6 +259,7 @@ export function useDataAnalysisGrowthTest(difficulty: Ref<GrowthGeneralDifficult
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`data-analysis-growth-${difficulty.value}`)
       phase.value = 'summary'
       return
     }

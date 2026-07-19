@@ -11,6 +11,7 @@ import {
   type DivJudgeDifficulty,
   type DivJudgeQuestion,
 } from '@/utils/divisibilityJudgePractice'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type DivJudgePhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -236,6 +237,7 @@ export function useDivisibilityJudgeTest(difficulty: Ref<DivJudgeDifficulty | nu
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`op-skill-div-judge-${difficulty.value}`)
       phase.value = 'summary'
       return
     }

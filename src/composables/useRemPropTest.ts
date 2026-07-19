@@ -11,6 +11,7 @@ import {
   type RemPropDifficulty,
   type RemPropQuestion,
 } from '@/utils/remPropPractice'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type RemPropPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -236,6 +237,7 @@ export function useRemPropTest(difficulty: Ref<RemPropDifficulty | null>) {
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`op-skill-rem-prop-${difficulty.value}`)
       phase.value = 'summary'
       return
     }

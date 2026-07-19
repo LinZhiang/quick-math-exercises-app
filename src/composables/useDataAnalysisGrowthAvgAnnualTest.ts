@@ -20,6 +20,7 @@ import {
   type GrowthAvgAnnualQuestion,
 } from '@/utils/dataAnalysisGrowthAvgAnnualPractice'
 import { formatDataAnalysisMathPlain } from '@/utils/dataAnalysisMathDisplay'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type GrowthAvgAnnualPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -262,6 +263,7 @@ export function useDataAnalysisGrowthAvgAnnualTest(
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`data-analysis-growth-avg-annual-${difficulty.value}`)
       phase.value = 'summary'
       return
     }
