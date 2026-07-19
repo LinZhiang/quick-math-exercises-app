@@ -92,6 +92,75 @@ function readAtomRight(s: string, afterSlash: number): number {
 
 type FracSlot = { num: string; den: string }
 
+/**
+ * 攻略/题干里大量「公考/事业编」「整除 / 是」「提高 / 上升」是文字并列，不是分式。
+ * 仅当分子、分母都像数学量时才转成上下结构。
+ */
+const CN_MATH_FRAC_LABELS = new Set([
+  '部分',
+  '整体',
+  '总量',
+  '份数',
+  '增长量',
+  '增长率',
+  '增速',
+  '增幅',
+  '基期',
+  '现期',
+  '基期值',
+  '现期值',
+  '基期量',
+  '现期量',
+  '分子',
+  '分母',
+  '平均数',
+  '平均',
+  '比重',
+  '占比',
+  '倍数',
+  '差值',
+  '差值量',
+  '贡献率',
+  '利润率',
+  '期数',
+  '末期',
+  '初期',
+])
+
+function isMathyFractionPart(part: string): boolean {
+  const t = stripOuterParens(part).trim()
+  if (!t) return false
+  // 数字、拉丁字母、百分号、常见运算符号 → 数学量
+  if (/[0-9A-Za-z_%％+\-−–—×÷·=<>≤≥≈^√π∞]/.test(t)) return true
+  // 资料分析等攻略中的中文量名（如 部分/整体）
+  if (CN_MATH_FRAC_LABELS.has(t)) return true
+  return false
+}
+
+/** 两侧都像数学量，且不像「15/21/35」这类枚举列表 */
+function shouldConvertSlashFraction(
+  num: string,
+  den: string,
+  s: string,
+  leftStart: number,
+  rightEnd: number,
+): boolean {
+  if (!isMathyFractionPart(num) || !isMathyFractionPart(den)) return false
+
+  const bareNum = stripOuterParens(num).trim()
+  const bareDen = stripOuterParens(den).trim()
+  // 纯数字串接成列表：能被 15/21/35、选项 1/2/3
+  if (/^\d+$/.test(bareNum) && /^\d+$/.test(bareDen)) {
+    const after = s.slice(rightEnd)
+    const before = s.slice(0, leftStart)
+    if (/^\s*\/\s*\d/.test(after)) return false
+    if (/\/\s*\d+\s*$/.test(before)) return false
+    // 匹配到中间一段时：15/「21/35」——左侧紧挨着「数字/」
+    if (/\d+\s*\/\s*$/.test(before)) return false
+  }
+  return true
+}
+
 function replaceInnermostSlashFraction(
   s: string,
   slots: FracSlot[],
@@ -116,6 +185,7 @@ function replaceInnermostSlashFraction(
     ) {
       continue
     }
+    if (!shouldConvertSlashFraction(num, den, s, leftStart, rightEnd)) continue
     const id = slots.length
     slots.push({ num: stripOuterParens(num), den: stripOuterParens(den) })
     return s.slice(0, leftStart) + `\uE000${id}\uE001` + s.slice(rightEnd)
