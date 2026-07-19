@@ -16,6 +16,7 @@ import {
   type ChineseReadingQuestionType,
   type ReadingComprehensionQuestion,
 } from '@/utils/readingComprehensionPractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
 
 const READING_ASSIST_SYSTEM =
   '你是事业编与公务员考试「言语理解·阅读理解」教练，擅长主旨观点、细节判断、词句理解、推断下文、标题添加等题型。用简体中文讲解，紧扣材料、分析干扰项，回答要具体。'
@@ -205,6 +206,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           @click="selectMode(item.mode)"
         >
           {{ item.label }}
+          <PracticeCompletionStat :mode-id="`chinese-reading-${item.mode}`" />
         </el-button>
       </div>
 

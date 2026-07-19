@@ -11,6 +11,7 @@ import {
   type GcdLcmDifficulty,
   type GcdLcmQuestion,
 } from '@/utils/gcdLcmPractice'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type GcdLcmPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -236,6 +237,7 @@ export function useGcdLcmTest(difficulty: Ref<GcdLcmDifficulty | null>) {
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`op-skill-gcd-lcm-${difficulty.value}`)
       phase.value = 'summary'
       return
     }

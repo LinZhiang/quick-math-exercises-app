@@ -11,9 +11,9 @@ import { createChineseWrongBookGate } from '@/utils/chineseWrongBookGate'
 import {
   beginChineseKeyReviewSession,
   clearChineseKeyReviewSession,
-  isChineseKeyReviewActive,
   type ChineseKeyReviewMeta,
 } from '@/utils/chineseKeyReviewSession'
+import { noteWrongOrReplaceKeyReviewVariant } from '@/utils/chineseKeyReviewWrongReplace'
 import { playMentalMathStartSound } from '@/utils/mentalMathSounds'
 import {
   RHETORIC_USAGE_QUESTION_COUNT,
@@ -21,6 +21,7 @@ import {
   type RhetoricUsageQuestion,
 } from '@/utils/rhetoricUsagePractice'
 import type { ChinesePaperSource } from '@/types/chinese-practice'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 const HISTORY_KIND = 'rhetoric-usage' as ChineseGeneratedHistoryKind
 
@@ -208,9 +209,9 @@ export function useChineseRhetoricUsageTest() {
     })
     submitted.value = true
     carelessMarked.value = false
-    if (!correct && !isChineseKeyReviewActive()) {
+    noteWrongOrReplaceKeyReviewVariant(correct, currentIndex.value, q, () => {
       wrongGate.noteWrongAnswer(q)
-    }
+    })
   }
 
   function nextQuestion() {
@@ -223,6 +224,7 @@ export function useChineseRhetoricUsageTest() {
     resumeQuizTimer()
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      incrementPracticeCompletion('chinese-rhetoric-usage')
       phase.value = 'summary'
       return
     }

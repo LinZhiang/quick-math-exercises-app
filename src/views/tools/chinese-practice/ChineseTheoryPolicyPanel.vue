@@ -13,6 +13,7 @@ import {
 } from '@/utils/chineseTheoryPolicyStorage'
 import { theoryPolicyQuestionTypeLabel } from '@/utils/theoryPolicyPractice'
 import type { TheoryPolicyQuestion } from '@/utils/theoryPolicyPractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
 
 const THEORY_ASSIST_SYSTEM =
   '你是事业编与公务员考试「政治理论·政策法规」教练，擅长习近平新时代中国特色社会主义思想、党的二十大报告、二十届三中全会《决定》及政府工作报告高频考点。用简体中文讲解，表述客观准确，紧扣公开权威表述，回答要具体。'
@@ -158,6 +159,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         针对事业单位「政治理论」高频考点：习近平新时代中国特色社会主义思想、党的二十大报告、二十届三中全会《决定》及政府工作报告相关表述，
         每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停并公布答案，点「下一题」继续。
       </p>
+      <p class="practice-completion-line"><PracticeCompletionStat mode-id="chinese-theory-policy" /></p>
       <div class="chinese-setup">
         <el-button
           type="primary"

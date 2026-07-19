@@ -479,6 +479,7 @@ export const MENTAL_MATH_GUIDE_GROUPS: MentalMathGuideGroup[] = [
             type: 'ul',
             items: [
               '简单 / 普通 / 复杂：时间更紧、选项更多、干扰更接近。',
+              '抽题优先出本难度题库里还没出过的题；该难度全部出过一轮后会重置进度再随机抽。',
               '作答过程中只显示对错；详细错因可在本局结束后或错题集里看。',
             ],
           },

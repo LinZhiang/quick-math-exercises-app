@@ -20,6 +20,7 @@ import {
   type ProportionBasicQuestion,
 } from '@/utils/dataAnalysisProportionBasicPractice'
 import { formatDataAnalysisMathPlain } from '@/utils/dataAnalysisMathDisplay'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type ProportionBasicPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -262,6 +263,7 @@ export function useDataAnalysisProportionBasicTest(
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`data-analysis-proportion-basic-${difficulty.value}`)
       phase.value = 'summary'
       return
     }

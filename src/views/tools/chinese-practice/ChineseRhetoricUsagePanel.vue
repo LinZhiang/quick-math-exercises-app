@@ -13,6 +13,7 @@ import {
 } from '@/utils/chineseRhetoricUsageStorage'
 import { rhetoricUsageQuestionTypeLabel } from '@/utils/rhetoricUsagePractice'
 import type { RhetoricUsageQuestion } from '@/utils/rhetoricUsagePractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
 
 const RHETORIC_ASSIST_SYSTEM =
   '你是事业编与公务员考试「修辞运用」教练，擅长比喻、比拟、借代、夸张、对偶、排比、设问、反问等辨识与表达效果。用简体中文讲解，结合例句与易混辨析，回答要具体。'
@@ -158,6 +159,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         公考/事业编修辞高频：比喻、比拟、借代、夸张、对偶、排比、设问、反问等辨识与表达效果，四选一。
         每轮 {{ test.questionCount }} 题。正计时，提交后暂停并公布答案，点「下一题」继续。
       </p>
+      <p class="practice-completion-line"><PracticeCompletionStat mode-id="chinese-rhetoric-usage" /></p>
       <div class="chinese-setup">
         <el-button
           type="primary"

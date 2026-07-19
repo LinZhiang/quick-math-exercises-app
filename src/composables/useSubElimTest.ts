@@ -11,6 +11,7 @@ import {
   type SubElimDifficulty,
   type SubElimQuestion,
 } from '@/utils/subElimPractice'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type SubElimPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -236,6 +237,7 @@ export function useSubElimTest(difficulty: Ref<SubElimDifficulty | null>) {
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`op-skill-sub-elim-${difficulty.value}`)
       phase.value = 'summary'
       return
     }

@@ -13,6 +13,7 @@ import {
 } from '@/utils/chineseGeographyCommonSenseStorage'
 import { geographyCommonSenseQuestionTypeLabel } from '@/utils/geographyCommonSensePractice'
 import type { GeographyCommonSenseQuestion } from '@/utils/geographyCommonSensePractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
 
 const GEOGRAPHY_ASSIST_SYSTEM =
   '你是事业编联考 C 类「公共基础知识·地理常识」教练，擅长中国自然地理、人文地理、世界地理、地球与地图等高频易考点。讲解通俗浅显，紧扣高频考点，不要出模型推导或过难计算。用简体中文，回答要具体。'
@@ -158,6 +159,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         针对事业编联考 C 类「公共基础知识」地理常识高频考点：中国自然/人文地理、世界地理基础、地球与地图等，难度中等偏易，
         每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停并公布答案，点「下一题」继续。
       </p>
+      <p class="practice-completion-line"><PracticeCompletionStat mode-id="chinese-geography-common-sense" /></p>
       <div class="chinese-setup">
         <el-button
           type="primary"

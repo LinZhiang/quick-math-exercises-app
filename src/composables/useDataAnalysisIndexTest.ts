@@ -20,6 +20,7 @@ import {
   type IndexQuestion,
 } from '@/utils/dataAnalysisIndexPractice'
 import { formatDataAnalysisMathPlain } from '@/utils/dataAnalysisMathDisplay'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type IndexPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -262,6 +263,7 @@ export function useDataAnalysisIndexTest(
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`data-analysis-index-${difficulty.value}`)
       phase.value = 'summary'
       return
     }

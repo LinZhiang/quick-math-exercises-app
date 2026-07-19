@@ -11,9 +11,9 @@ import { createChineseWrongBookGate } from '@/utils/chineseWrongBookGate'
 import {
   beginChineseKeyReviewSession,
   clearChineseKeyReviewSession,
-  isChineseKeyReviewActive,
   type ChineseKeyReviewMeta,
 } from '@/utils/chineseKeyReviewSession'
+import { noteWrongOrReplaceKeyReviewVariant } from '@/utils/chineseKeyReviewWrongReplace'
 import { playMentalMathStartSound } from '@/utils/mentalMathSounds'
 import {
   CLASSICAL_CHINESE_QUESTION_COUNT,
@@ -21,6 +21,7 @@ import {
   type ClassicalChineseQuestion,
 } from '@/utils/classicalChinesePractice'
 import type { ChinesePaperSource } from '@/types/chinese-practice'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 const HISTORY_KIND = 'classical-chinese' as ChineseGeneratedHistoryKind
 
@@ -208,9 +209,9 @@ export function useChineseClassicalChineseTest() {
     })
     submitted.value = true
     carelessMarked.value = false
-    if (!correct && !isChineseKeyReviewActive()) {
+    noteWrongOrReplaceKeyReviewVariant(correct, currentIndex.value, q, () => {
       wrongGate.noteWrongAnswer(q)
-    }
+    })
   }
 
   function nextQuestion() {
@@ -223,6 +224,7 @@ export function useChineseClassicalChineseTest() {
     resumeQuizTimer()
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      incrementPracticeCompletion('chinese-classical-chinese')
       phase.value = 'summary'
       return
     }

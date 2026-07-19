@@ -20,6 +20,7 @@ import {
   type GrowthMixedQuestion,
 } from '@/utils/dataAnalysisGrowthMixedPractice'
 import { formatDataAnalysisMathPlain } from '@/utils/dataAnalysisMathDisplay'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type GrowthMixedPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -262,6 +263,7 @@ export function useDataAnalysisGrowthMixedTest(
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`data-analysis-growth-mixed-${difficulty.value}`)
       phase.value = 'summary'
       return
     }

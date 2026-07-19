@@ -27,6 +27,36 @@ export type MathOpCrossDiagramBlock = {
   formula?: string
 }
 
+export type MathOpGeoGalleryItem = {
+  kind:
+    | 'triangle'
+    | 'square'
+    | 'rectangle'
+    | 'trapezoid'
+    | 'circle'
+    | 'cube'
+    | 'cuboid'
+    | 'sphere'
+    | 'cylinder'
+    | 'cone'
+    | 'cut-fill'
+    | 'box-change'
+    | 'right-triangle'
+    | 'similar-a'
+    | 'similar-x'
+    | 'similar-measure'
+    | 'cube-paint-net'
+  labels: Record<string, string>
+  caption: string
+  note?: string
+}
+
+export type MathOpGeoGalleryBlock = {
+  type: 'geo-gallery'
+  title?: string
+  items: MathOpGeoGalleryItem[]
+}
+
 export type MathOpStrategyBlock =
   | { type: 'p'; text: string }
   | { type: 'h3'; text: string }
@@ -34,6 +64,7 @@ export type MathOpStrategyBlock =
   | { type: 'tip'; text: string }
   | { type: 'example'; title: string; text: string }
   | MathOpCrossDiagramBlock
+  | MathOpGeoGalleryBlock
 
 export type MathOpStrategyGuide = {
   id: string
@@ -771,6 +802,399 @@ export const MATH_OP_STRATEGY_GUIDES: Record<string, MathOpStrategyGuide> = {
       {
         type: 'tip',
         text: '先确认 a、b、c 各代表什么，再确认右侧比对应哪一种「分母量」；困难题常要先算 c，或交叉后再多算一步。',
+      },
+    ],
+  },
+
+  'sum-diff-ratio': {
+    id: 'sum-diff-ratio',
+    title: '和差倍比问题',
+    blocks: [
+      {
+        type: 'p',
+        text: '和差倍比问题：已知量之间的和、差、倍数、比例关系，求某一量或总量。题干往往不直接给具体数，核心是设未知数、找等量关系列方程。',
+      },
+      {
+        type: 'h3',
+        text: '考情要点',
+      },
+      {
+        type: 'ul',
+        items: [
+          '不仅要记公式，更要会读题干里的等量关系。',
+          '几乎年年考，常与工程、行程、浓度等交叉，综合性强。',
+        ],
+      },
+      {
+        type: 'h3',
+        text: '找等量关系：关键词',
+      },
+      {
+        type: 'ul',
+        items: [
+          '等于 / 相等 / 是 / 比 / 共 / 多 / 少 —— 往往就是方程的等号两边。',
+          '「多几分之几」：先设被比较量为若干份，再写出多出来的份数。',
+        ],
+      },
+      {
+        type: 'example',
+        title: '简单 · 经典真题 1（投票转移）',
+        text: '甲起初比乙多 1/4 ⇒ 乙 4x、甲 5x。6 人从甲改乙后乙比甲多 2：列 (4x+6)−(5x−6)=2 ⇒ x=10，共 90 人。',
+      },
+      {
+        type: 'h3',
+        text: '找等量关系：基本公式',
+      },
+      {
+        type: 'p',
+        text: '总量 = 平均量 × 数量。有「几分之几的人各带一名儿童」时，儿童人数也要进方程。',
+      },
+      {
+        type: 'example',
+        title: '中等 · 经典真题 2（植树加权）',
+        text: '男 x、女 y，儿童 (x+y)/3。13x+10y+6·(x+y)/3=216 ⇒ 5x+4y=72，结合整除与选项确定员工数。',
+      },
+      {
+        type: 'h3',
+        text: '困难题变式（本模块 ≥8 种）',
+      },
+      {
+        type: 'ul',
+        items: [
+          '转移后成比（加强数字）',
+          '三组加权总量',
+          '几分之几各带一件',
+          '鸡兔同笼加强',
+          '年龄和差倍',
+          '采购混合',
+          '两次转移',
+          '植树加权（男女均非零）',
+          '三方案投票',
+          '利润份数和差',
+        ],
+      },
+      {
+        type: 'tip',
+        text: '先圈出「等于/多/少/共/比」；能设份数就设份数。中等以上注意人数、件数必须是正整数，用整除筛解。',
+      },
+    ],
+  },
+
+  geometry: {
+    id: 'geometry',
+    title: '几何问题',
+    blocks: [
+      {
+        type: 'p',
+        text: '几何问题考平面图形的周长与面积、立体图形的表面积与体积，以及割补、勾股等变形。先认准图形与对应公式，再代入已知量；不规则阴影优先「割补」成规则图形。',
+      },
+      {
+        type: 'h3',
+        text: '平面图形基本公式',
+      },
+      {
+        type: 'geo-gallery',
+        title: '周长 C · 面积 S',
+        items: [
+          {
+            kind: 'triangle',
+            labels: { a: 'a', h: 'h', b: 'b', c: 'c' },
+            caption: '三角形：C=a+b+c；S=½ah（认准底与对应高）',
+          },
+          {
+            kind: 'square',
+            labels: { a: 'a' },
+            caption: '正方形：C=4a；S=a²',
+          },
+          {
+            kind: 'rectangle',
+            labels: { a: 'a', b: 'b' },
+            caption: '长方形：C=2(a+b)；S=ab',
+          },
+          {
+            kind: 'trapezoid',
+            labels: { a: 'a', b: 'b', h: 'h', c: 'c', d: 'd' },
+            caption: '梯形：C=a+b+c+d；S=½(a+b)h',
+          },
+          {
+            kind: 'circle',
+            labels: { r: 'r', d: 'd' },
+            caption: '圆形：C=2πr=πd；S=πr²',
+          },
+        ],
+      },
+      {
+        type: 'h3',
+        text: '立体图形基本公式',
+      },
+      {
+        type: 'geo-gallery',
+        title: '表面积 S · 体积 V',
+        items: [
+          {
+            kind: 'cube',
+            labels: { a: 'a' },
+            caption: '正方体：S=6a²；V=a³',
+          },
+          {
+            kind: 'cuboid',
+            labels: { a: 'a', b: 'b', c: 'c' },
+            caption: '长方体：S=2(ab+bc+ac)；V=abc',
+          },
+          {
+            kind: 'sphere',
+            labels: { r: 'r' },
+            caption: '球体：S=4πr²；V=⁴⁄₃πr³',
+          },
+          {
+            kind: 'cylinder',
+            labels: { r: 'r', h: 'h' },
+            caption: '圆柱：S=2πr²+2πrh；V=πr²h',
+          },
+          {
+            kind: 'cone',
+            labels: { r: 'r', h: 'h' },
+            caption: '圆锥：体积 V=⅓πr²h（表面积通常不考）',
+          },
+        ],
+      },
+      {
+        type: 'h3',
+        text: '割补法与直角三角形',
+      },
+      {
+        type: 'geo-gallery',
+        items: [
+          {
+            kind: 'cut-fill',
+            labels: { big: '8', small: '5' },
+            caption: '不规则阴影：补成长方形再减空白，或拆成三角形求和',
+            note: '经典真题 1 思路',
+          },
+          {
+            kind: 'right-triangle',
+            labels: { a: 'a', b: 'b', c: 'c' },
+            caption: '勾股定理 a²+b²=c²；常用勾股数 (3,4,5)(5,12,13)(6,8,10)',
+          },
+        ],
+      },
+      {
+        type: 'ul',
+        items: [
+          '30° 直角三角形三边比：1 : √3 : 2',
+          '45° 直角三角形：直角边 : 斜边 = 1 : √2',
+        ],
+      },
+      {
+        type: 'example',
+        title: '中等 · 经典真题 1（两正方形阴影）',
+        text: '边长 8 与 5 的并排正方形求阴影：补成长方形再减空白三角，或拆成两三角形，得 52.5。',
+      },
+      {
+        type: 'example',
+        title: '中等 · 经典真题 2（长方体变正方体）',
+        text: '高减 3 成正方体、表面积少 96：减少的是四个侧面，4×边长×3=96 ⇒ 边长 8，原高 11，体积 704。',
+      },
+      {
+        type: 'tip',
+        text: '先认图形、对公式；阴影不规则就割补。立体题注意「少了哪几个面」。带 π 的题答案通常保留 π。',
+      },
+    ],
+  },
+
+  'right-triangle': {
+    id: 'right-triangle',
+    title: '直角三角形常用结论',
+    blocks: [
+      {
+        type: 'p',
+        text: '直角三角形常用结论主要考勾股定理与特殊角边比。先画出直角、标清 30°/45°/60°，再决定用 a²+b²=c² 还是边比 1:√3:2、1:1:√2。行程类题把「指挥部—东西方向—正北集合点」建成两个共直角边的直角三角形。',
+      },
+      {
+        type: 'h3',
+        text: '勾股定理与常用勾股数',
+      },
+      {
+        type: 'geo-gallery',
+        title: 'a² + b² = c²',
+        items: [
+          {
+            kind: 'right-triangle',
+            labels: { a: 'a', b: 'b', c: 'c' },
+            caption: '直角三角形：两直角边平方和等于斜边平方',
+          },
+          {
+            kind: 'right-triangle',
+            labels: { a: '3', b: '4', c: '5' },
+            caption: '常用勾股数：(3,4,5)；(5,12,13)；(6,8,10) 及其倍数',
+            note: '口算优先认倍数',
+          },
+        ],
+      },
+      {
+        type: 'h3',
+        text: '特殊直角三角形三边关系',
+      },
+      {
+        type: 'geo-gallery',
+        items: [
+          {
+            kind: 'right-triangle',
+            labels: { a: '1', b: '√3', c: '2' },
+            caption: '有一个角为 30°：较短直角边 : 较长直角边 : 斜边 = 1 : √3 : 2（30° 对较短边）',
+          },
+          {
+            kind: 'right-triangle',
+            labels: { a: '1', b: '1', c: '√2' },
+            caption: '有一个角为 45°：直角边 : 直角边 : 斜边 = 1 : 1 : √2',
+          },
+        ],
+      },
+      {
+        type: 'ul',
+        items: [
+          '30° 所对直角边 = 斜边 / 2；较长直角边 = 较短边 × √3',
+          '45° 等腰：斜边 = 直角边 × √2；直角边 = 斜边 / √2',
+          '正北集合题：指挥部为直角顶点，甲西乙东，集合点在正北，常拆成两个直角三角形',
+        ],
+      },
+      {
+        type: 'example',
+        title: '中等 · 经典真题 3（正北集合 + 30°）',
+        text: '甲以 60 km/h 向西，半小时后乙向东（更慢）。指令下达时两队与正北集合点构成含 30° 的直角三角形，改向后原速同时到达。由边比与同时到达得集合距离 CD = 60×0.5/(√3−1) ≈ 41 km。',
+      },
+      {
+        type: 'tip',
+        text: '先定直角在哪、30°/45° 对哪条边；行程题统一设「乙出发后 t 小时接到指令」。困难变式可能不正北、双侧不同角、表面最短路或反射，先画图再列式。',
+      },
+    ],
+  },
+
+  'similar-triangle': {
+    id: 'similar-triangle',
+    title: '三角形相似',
+    blocks: [
+      {
+        type: 'p',
+        text: '形状相同的三角形叫做相似三角形。若 △ABC ∼ △A\'B\'C\'，则对应角相等，对应边成比例，相似比记为 m；面积比等于相似比的平方 m²。',
+      },
+      {
+        type: 'h3',
+        text: '性质速记',
+      },
+      {
+        type: 'ul',
+        items: [
+          '对应角：∠A=∠A\'，∠B=∠B\'，∠C=∠C\'',
+          '对应边：AB/A\'B\' = AC/A\'C\' = BC/B\'C\' = m',
+          '面积：S△ABC / S△A\'B\'C\' = m²',
+        ],
+      },
+      {
+        type: 'h3',
+        text: '两种高频模型',
+      },
+      {
+        type: 'geo-gallery',
+        title: 'A 型（金字塔）与 X 型（沙漏）',
+        items: [
+          {
+            kind: 'similar-a',
+            labels: { A: 'A', B: 'B', C: 'C', D: 'D', E: 'E' },
+            caption: 'A 型：DE // BC ⇒ △ADE ∼ △ABC，AD/AB = AE/AC = DE/BC',
+            note: '平行截线',
+          },
+          {
+            kind: 'similar-x',
+            labels: { A: 'A', B: 'B', C: 'C', D: 'D', E: 'E' },
+            caption: 'X 型：AB // CD，对角线交于 E ⇒ △ABE ∼ △CDE（对应边成比例）',
+            note: '沙漏型',
+          },
+        ],
+      },
+      {
+        type: 'h3',
+        text: '中位线',
+      },
+      {
+        type: 'ul',
+        items: [
+          'D、E 为 AB、AC 中点时，DE 是中位线：DE // BC 且 DE = ½ BC',
+          '此时相似比 m=1/2，面积比 S△ADE:S△ABC = 1:4',
+        ],
+      },
+      {
+        type: 'h3',
+        text: '测高（竹竿）',
+      },
+      {
+        type: 'geo-gallery',
+        items: [
+          {
+            kind: 'similar-measure',
+            labels: { A: 'A', B: 'B', C: 'C', N: 'N', M: 'M' },
+            caption: 'BN // CM，视线 A-B-C 共线 ⇒ △ABN ∼ △ACM，AN/AM = BN/CM（AM=AN+MN）',
+            note: '经典真题 4',
+          },
+        ],
+      },
+      {
+        type: 'example',
+        title: '中等 · 经典真题 4（竹竿测树）',
+        text: 'BN=1.5 m，MN=15 m，AN=1.6 m。AM=16.6，CM=1.5×16.6/1.6≈15.6 m。',
+      },
+      {
+        type: 'tip',
+        text: '先找平行线或共角，标出对应顶点再写比例。测高题务必先算 AM=AN+MN。面积题记得平方相似比。',
+      },
+    ],
+  },
+
+  coloring: {
+    id: 'coloring',
+    title: '染色问题',
+    blocks: [
+      {
+        type: 'p',
+        text: '把棱长为 n 的大正方体外表面涂色，再切成 n³ 个棱长为 1 的小正方体。按「涂到几面」分类计数；展开图上：角格=三面、棱边格（非角）=两面、面心格=一面。内部 (n−2)³ 块不在表面上，故未染色。',
+      },
+      {
+        type: 'h3',
+        text: '展开图看清三类染色',
+      },
+      {
+        type: 'geo-gallery',
+        title: '正方体表面十字展开（示意 n=4）',
+        items: [
+          {
+            kind: 'cube-paint-net',
+            labels: { n: '4' },
+            caption: '红=三面（顶角）· 橙=两面（棱上）· 黄=一面（面心）。内部未染色块不会出现在展开图上。',
+          },
+        ],
+      },
+      {
+        type: 'h3',
+        text: '数量公式（教材表）',
+      },
+      {
+        type: 'ul',
+        items: [
+          '三面染色：8（8 个顶角）',
+          '两面染色：12(n−2)（12 条棱，每棱去掉两端）',
+          '一面染色：6(n−2)²（6 个面，每面中心 (n−2)²）',
+          '未被染色：(n−2)³（内部小正方体）',
+          '有染色（至少一面）：n³ − (n−2)³ = 8 + 12(n−2) + 6(n−2)²',
+        ],
+      },
+      {
+        type: 'example',
+        title: '中等 · 经典真题 5',
+        text: '棱长 8 的大正方体涂色后切开：未染色 (8−2)³=216，有染色 8³−216=512−216=296。',
+      },
+      {
+        type: 'tip',
+        text: '先分清问的是「恰好 k 面」还是「至少一面」。至少一面优先用总数减内部。只染部分面或长方体时，不能照搬正方体六面公式。',
       },
     ],
   },

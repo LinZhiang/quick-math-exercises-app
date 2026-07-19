@@ -101,6 +101,15 @@ export function getKeyReviewOriginFingerprint(index: number): string | null {
   return t || null
 }
 
+/** 变式替换原错题后，将会话中该下标的原题指纹改为变式指纹 */
+export function updateKeyReviewOriginFingerprint(index: number, fingerprint: string): void {
+  if (!activeSession) return
+  const t = fingerprint.trim()
+  if (!t) return
+  if (index < 0 || index >= activeSession.originFingerprints.length) return
+  activeSession.originFingerprints[index] = t
+}
+
 export function isKeyReviewOriginRemoved(fingerprint: string): boolean {
   return removedOriginFingerprints.value.has(fingerprint)
 }

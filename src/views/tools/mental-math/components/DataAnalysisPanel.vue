@@ -15,6 +15,7 @@ import {
   type DataAnalysisDifficulty,
   type DataAnalysisQuestion,
 } from '@/utils/dataAnalysisPractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
 
 const selectedDifficulty = ref<DataAnalysisDifficulty | null>(null)
 const test = reactive(useDataAnalysisTest(selectedDifficulty))
@@ -122,7 +123,10 @@ watch(selectedDifficulty, () => {
           class="mode-card mode-card--data-analysis"
           @click="selectDifficulty(m.id)"
         >
-          <h3 class="mode-card__title">{{ m.label }}</h3>
+          <h3 class="mode-card__title">
+            {{ m.label }}
+            <PracticeCompletionStat :mode-id="`data-analysis-${m.id}`" />
+          </h3>
           <p class="mode-card__desc">{{ m.desc }}</p>
           <span class="mode-card__cta">选择题型</span>
         </button>

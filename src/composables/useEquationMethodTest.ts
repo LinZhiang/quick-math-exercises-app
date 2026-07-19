@@ -11,6 +11,7 @@ import {
   type EqMethodDifficulty,
   type EqMethodQuestion,
 } from '@/utils/equationMethodPractice'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type EqMethodPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -236,6 +237,7 @@ export function useEquationMethodTest(difficulty: Ref<EqMethodDifficulty | null>
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`op-skill-eq-method-${difficulty.value}`)
       phase.value = 'summary'
       return
     }

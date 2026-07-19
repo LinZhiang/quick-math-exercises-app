@@ -20,6 +20,7 @@ import {
   type AverageBaseQuestion,
 } from '@/utils/dataAnalysisAverageBasePractice'
 import { formatDataAnalysisMathPlain } from '@/utils/dataAnalysisMathDisplay'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type AverageBasePhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -262,6 +263,7 @@ export function useDataAnalysisAverageBaseTest(
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`data-analysis-average-base-${difficulty.value}`)
       phase.value = 'summary'
       return
     }

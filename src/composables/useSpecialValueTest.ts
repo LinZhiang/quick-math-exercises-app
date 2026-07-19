@@ -11,6 +11,7 @@ import {
   type SpecValDifficulty,
   type SpecValQuestion,
 } from '@/utils/specialValuePractice'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type SpecValPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -236,6 +237,7 @@ export function useSpecialValueTest(difficulty: Ref<SpecValDifficulty | null>) {
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`op-skill-spec-val-${difficulty.value}`)
       phase.value = 'summary'
       return
     }

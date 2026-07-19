@@ -20,6 +20,7 @@ import {
   type MultipleBaseQuestion,
 } from '@/utils/dataAnalysisMultipleBasePractice'
 import { formatDataAnalysisMathPlain } from '@/utils/dataAnalysisMathDisplay'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type MultipleBasePhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -262,6 +263,7 @@ export function useDataAnalysisMultipleBaseTest(
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`data-analysis-multiple-base-${difficulty.value}`)
       phase.value = 'summary'
       return
     }

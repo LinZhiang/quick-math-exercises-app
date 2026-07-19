@@ -2,6 +2,9 @@
 import { computed, ref } from 'vue'
 import { getDataAnalysisStrategyGuide } from '@/constants/dataAnalysisStrategyGuides'
 import { getMathOpStrategyGuide } from '@/constants/mathOpStrategyGuides'
+import { renderDataAnalysisMathHtml } from '@/utils/dataAnalysisMathDisplay'
+import GeometryFigureView from '@/views/tools/mental-math/components/GeometryFigureView.vue'
+import type { GeometryFigureSpec } from '@/utils/geometryPractice'
 
 const props = defineProps<{
   topicId: string
@@ -13,10 +16,26 @@ const guide = computed(
   () => getDataAnalysisStrategyGuide(props.topicId) ?? getMathOpStrategyGuide(props.topicId),
 )
 
+function mathHtml(text: string): string {
+  return renderDataAnalysisMathHtml(text)
+}
+
 function open(ev?: Event) {
   ev?.stopPropagation()
   if (!guide.value) return
   visible.value = true
+}
+
+function toFigure(item: {
+  kind: GeometryFigureSpec['kind']
+  labels: Record<string, string>
+  note?: string
+}): GeometryFigureSpec {
+  return {
+    kind: item.kind,
+    labels: item.labels,
+    note: item.note,
+  }
 }
 </script>
 
@@ -36,7 +55,14 @@ function open(ev?: Event) {
     <el-dialog
       v-model="visible"
       :title="guide ? `答题攻略 · ${guide.title}` : '答题攻略'"
-      width="min(640px, 94vw)"
+      :width="
+        topicId === 'geometry' ||
+        topicId === 'right-triangle' ||
+        topicId === 'similar-triangle' ||
+        topicId === 'coloring'
+          ? 'min(720px, 96vw)'
+          : 'min(640px, 94vw)'
+      "
       top="6vh"
       append-to-body
       destroy-on-close
@@ -45,18 +71,32 @@ function open(ev?: Event) {
     >
       <div v-if="guide" class="da-strategy__body">
         <template v-for="(block, idx) in guide.blocks" :key="idx">
-          <p v-if="block.type === 'p'" class="da-strategy__p">{{ block.text }}</p>
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <p v-if="block.type === 'p'" class="da-strategy__p" v-html="mathHtml(block.text)" />
           <h3 v-else-if="block.type === 'h3'" class="da-strategy__h3">{{ block.text }}</h3>
           <ul v-else-if="block.type === 'ul'" class="da-strategy__ul">
-            <li v-for="(item, j) in block.items" :key="j">{{ item }}</li>
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <li v-for="(item, j) in block.items" :key="j" v-html="mathHtml(item)" />
           </ul>
           <div v-else-if="block.type === 'tip'" class="da-strategy__tip">
             <span class="da-strategy__tip-label">提示</span>
-            {{ block.text }}
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <span v-html="mathHtml(block.text)" />
           </div>
           <div v-else-if="block.type === 'example'" class="da-strategy__example">
             <p class="da-strategy__example-title">{{ block.title }}</p>
-            <p class="da-strategy__example-text">{{ block.text }}</p>
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <p class="da-strategy__example-text" v-html="mathHtml(block.text)" />
+          </div>
+          <div v-else-if="block.type === 'geo-gallery'" class="geo-gallery">
+            <p v-if="block.title" class="geo-gallery__title">{{ block.title }}</p>
+            <div class="geo-gallery__grid">
+              <div v-for="(item, j) in block.items" :key="j" class="geo-gallery__card">
+                <GeometryFigureView :figure="toFigure(item)" />
+                <!-- eslint-disable-next-line vue/no-v-html -->
+                <p class="geo-gallery__caption" v-html="mathHtml(item.caption)" />
+              </div>
+            </div>
           </div>
           <div v-else-if="block.type === 'cross-diagram'" class="cross-diagram">
             <p v-if="block.title" class="cross-diagram__title">{{ block.title }}</p>
@@ -170,6 +210,38 @@ function open(ev?: Event) {
 
 .da-strategy__example-text {
   margin: 0;
+}
+
+.geo-gallery {
+  padding: 10px 12px 12px;
+  border-radius: 14px;
+  background: linear-gradient(160deg, #f0fdfa 0%, #f8fafc 55%, #eff6ff 100%);
+  border: 1px solid color-mix(in srgb, #0d9488 22%, #e2e8f0);
+}
+
+.geo-gallery__title {
+  margin: 0 0 10px;
+  font-weight: 750;
+  color: #0f766e;
+  text-align: center;
+}
+
+.geo-gallery__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.geo-gallery__card {
+  min-width: 0;
+}
+
+.geo-gallery__caption {
+  margin: 6px 0 0;
+  font-size: 0.86rem;
+  line-height: 1.75;
+  color: #334155;
+  text-align: center;
 }
 
 .cross-diagram {
@@ -314,4 +386,62 @@ function open(ev?: Event) {
   line-height: 1.55;
 }
 
+:deep(.da-math-frac) {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0 0.15em;
+  line-height: 1.15;
+  font-weight: 700;
+}
+
+:deep(.da-math-frac__num),
+:deep(.da-math-frac__den) {
+  font-size: 0.92em;
+  padding: 0 0.2em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+:deep(.da-math-frac__rule) {
+  display: block;
+  align-self: stretch;
+  border-top: 1.5px solid currentColor;
+  margin: 0.04em 0;
+}
+
+:deep(.da-math-root) {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+  font-family: 'Cambria Math', 'Times New Roman', 'Segoe UI', serif;
+  font-weight: 700;
+}
+
+:deep(.da-math-root__idx) {
+  font-size: 0.72em;
+  margin-right: 1px;
+  line-height: 1;
+}
+
+:deep(.da-math-root__sym) {
+  font-size: 1.12em;
+  line-height: 1;
+}
+
+:deep(.da-math-radicand) {
+  border-top: 1.5px solid currentColor;
+  padding: 0 2px 0 1px;
+  margin-left: 1px;
+  line-height: 1.15;
+  font-weight: 700;
+}
+
+:deep(sup.da-math-sup) {
+  font-size: 0.72em;
+  font-weight: 750;
+  line-height: 0;
+  vertical-align: super;
+}
 </style>

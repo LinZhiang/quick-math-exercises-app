@@ -13,6 +13,7 @@ import {
 } from '@/utils/chineseClassicalChineseStorage'
 import { classicalChineseQuestionTypeLabel } from '@/utils/classicalChinesePractice'
 import type { ClassicalChineseQuestion } from '@/utils/classicalChinesePractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
 
 const CLASSICAL_ASSIST_SYSTEM =
   '你是事业编与公务员考试「文言知识」教练，擅长实词虚词意义、古今异义、文言句式、通假字、一词多义等考点。用简体中文讲解，结合例句与易混辨析，回答要具体。'
@@ -159,6 +160,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         题干引文须为原文连续完整语句，禁止跨段落拼接；引文要带足语境（如「信而见疑，忠而被谤」），避免过短碎片。
         每轮 {{ test.questionCount }} 题。正计时，提交后暂停并公布答案，点「下一题」继续。
       </p>
+      <p class="practice-completion-line"><PracticeCompletionStat mode-id="chinese-classical-chinese" /></p>
       <div class="chinese-setup">
         <el-button
           type="primary"

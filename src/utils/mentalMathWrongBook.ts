@@ -33,6 +33,11 @@ export type MentalMathWrongSection =
   | 'op-skill-spec-val'
   | 'op-skill-ratio-method'
   | 'op-skill-cross-method'
+  | 'op-highfreq-sum-diff-ratio'
+  | 'op-highfreq-geometry'
+  | 'op-highfreq-right-triangle'
+  | 'op-highfreq-similar-triangle'
+  | 'op-highfreq-coloring'
 
 export type MentalMathWrongRecord = {
   fingerprint: string
@@ -112,6 +117,11 @@ export const MENTAL_MATH_WRONG_SECTION_LABELS: Record<MentalMathWrongSection, st
   'op-skill-spec-val': '运算技巧 · 特值法',
   'op-skill-ratio-method': '运算技巧 · 比例法',
   'op-skill-cross-method': '运算技巧 · 十字交叉法',
+  'op-highfreq-sum-diff-ratio': '高频运算 · 和差倍比问题',
+  'op-highfreq-geometry': '高频运算 · 几何问题',
+  'op-highfreq-right-triangle': '高频运算 · 直角三角形常用结论',
+  'op-highfreq-similar-triangle': '高频运算 · 三角形相似',
+  'op-highfreq-coloring': '高频运算 · 染色问题',
 }
 
 /** 模式 id → 错题分区；不在集合内则不记错题本 */
@@ -278,6 +288,41 @@ export function mentalMathModeToWrongSection(modeId: string): MentalMathWrongSec
     modeId === 'op-skill-cross-method-hard'
   ) {
     return 'op-skill-cross-method'
+  }
+  if (
+    modeId === 'op-highfreq-sum-diff-ratio-easy' ||
+    modeId === 'op-highfreq-sum-diff-ratio-medium' ||
+    modeId === 'op-highfreq-sum-diff-ratio-hard'
+  ) {
+    return 'op-highfreq-sum-diff-ratio'
+  }
+  if (
+    modeId === 'op-highfreq-geometry-easy' ||
+    modeId === 'op-highfreq-geometry-medium' ||
+    modeId === 'op-highfreq-geometry-hard'
+  ) {
+    return 'op-highfreq-geometry'
+  }
+  if (
+    modeId === 'op-highfreq-right-triangle-easy' ||
+    modeId === 'op-highfreq-right-triangle-medium' ||
+    modeId === 'op-highfreq-right-triangle-hard'
+  ) {
+    return 'op-highfreq-right-triangle'
+  }
+  if (
+    modeId === 'op-highfreq-similar-triangle-easy' ||
+    modeId === 'op-highfreq-similar-triangle-medium' ||
+    modeId === 'op-highfreq-similar-triangle-hard'
+  ) {
+    return 'op-highfreq-similar-triangle'
+  }
+  if (
+    modeId === 'op-highfreq-coloring-easy' ||
+    modeId === 'op-highfreq-coloring-medium' ||
+    modeId === 'op-highfreq-coloring-hard'
+  ) {
+    return 'op-highfreq-coloring'
   }
   return null
 }

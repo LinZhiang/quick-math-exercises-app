@@ -11,6 +11,7 @@ import {
   type CrossMethodDifficulty,
   type CrossMethodQuestion,
 } from '@/utils/crossMethodPractice'
+import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 export type CrossMethodPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -236,6 +237,7 @@ export function useCrossMethodTest(difficulty: Ref<CrossMethodDifficulty | null>
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
+      if (difficulty.value) incrementPracticeCompletion(`op-skill-cross-method-${difficulty.value}`)
       phase.value = 'summary'
       return
     }
