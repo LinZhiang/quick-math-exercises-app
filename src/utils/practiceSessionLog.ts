@@ -42,7 +42,7 @@ function localDateKey(d = new Date()): string {
 
 function difficultyLabel(d: string): string {
   if (d === 'easy') return '简单'
-  if (d === 'medium') return '中等'
+  if (d === 'medium') return '普通'
   if (d === 'hard') return '困难'
   if (d === 'normal') return '普通'
   return d
@@ -200,6 +200,33 @@ const HIGHFREQ_TOPIC_NAMES: Record<string, string> = {
   'right-triangle': '直角三角形',
   'similar-triangle': '三角形相似',
   coloring: '染色问题',
+  'ordinary-travel': '普通行程',
+  'meet-pursue': '相遇与追及',
+  'boat-current': '流水行船',
+  'ordinary-work': '普通工程',
+  'cooperative-work': '合作完工',
+  'profit-calc': '利润计算',
+  'profit-rate': '利润率计算',
+  concentration: '浓度问题',
+  'perm-comb-basic': '基本原理及公式',
+  'perm-comb-constraint': '限制条件型',
+  'perm-comb-classic': '排列组合经典模型',
+  probability: '概率问题',
+}
+
+const OTHER_OP_TOPIC_NAMES: Record<string, string> = {
+  'inclusion-exclusion': '容斥问题',
+  sequence: '数列问题',
+  extremum: '最值问题',
+  date: '日期问题',
+  age: '年龄问题',
+  clock: '时钟问题',
+  'ying-kui': '盈亏问题',
+  'chicken-rabbit': '鸡兔同笼问题',
+  'function-graph': '函数图象问题',
+  competition: '比赛问题',
+  reverse: '逆推问题',
+  sectional: '分段问题',
 }
 
 type PrefixRule = {
@@ -218,6 +245,16 @@ const PREFIX_RULES: PrefixRule[] = [
       const topic = HIGHFREQ_TOPIC_NAMES[mid] ?? mid
       const d = difficulty ? ` · ${difficultyLabel(difficulty)}` : ''
       return `高频运算 · ${topic}${d}`
+    },
+  },
+  {
+    prefix: 'op-other-',
+    categoryId: 'op-other',
+    categoryLabel: '其他运算',
+    labelFor: (mid, difficulty) => {
+      const topic = OTHER_OP_TOPIC_NAMES[mid] ?? mid
+      const d = difficulty ? ` · ${difficultyLabel(difficulty)}` : ''
+      return `其他运算 · ${topic}${d}`
     },
   },
   {
@@ -392,6 +429,7 @@ export const PRACTICE_LOG_CATEGORIES: { id: string; label: string }[] = [
   { id: 'data-analysis', label: '资料分析' },
   { id: 'op-skill', label: '运算技巧' },
   { id: 'op-highfreq', label: '高频运算' },
+  { id: 'op-other', label: '其他运算' },
   { id: 'chinese', label: '语文练习' },
   { id: 'other', label: '其他' },
 ]

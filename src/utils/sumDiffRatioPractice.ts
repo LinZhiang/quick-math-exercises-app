@@ -34,7 +34,7 @@ export const SUM_DIFF_RATIO_MODES: {
   },
   {
     id: 'medium',
-    label: '和差倍比 · 中等',
+    label: '和差倍比 · 普通',
     desc: '每轮 5 题 · 对齐经典真题 2（加权总量+整数约束）· 正计时停表看答案',
   },
   {
@@ -120,7 +120,7 @@ export function sumDiffRatioTopicLabel(): string {
 
 export function sumDiffRatioDifficultyLabel(d: SumDiffRatioDifficulty): string {
   if (d === 'easy') return '简单'
-  if (d === 'medium') return '中等'
+  if (d === 'medium') return '普通'
   return '困难'
 }
 

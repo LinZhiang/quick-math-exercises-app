@@ -29,7 +29,7 @@ export const DIV_JUDGE_MODES: {
   },
   {
     id: 'medium',
-    label: '整除的判定 · 中等',
+    label: '整除的判定 · 普通',
     desc: '每轮 7 题 · 7/11/14/15 与半满足干扰 · 需动笔验算 · 正计时停表看答案',
   },
   {
@@ -101,7 +101,7 @@ export function divJudgeTopicLabel(): string {
 
 export function divJudgeDifficultyLabel(d: DivJudgeDifficulty): string {
   if (d === 'easy') return '简单'
-  if (d === 'medium') return '中等'
+  if (d === 'medium') return '普通'
   return '困难'
 }
 

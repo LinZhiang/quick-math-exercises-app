@@ -29,7 +29,7 @@ export const PRIME_COMP_MODES: {
   },
   {
     id: 'medium',
-    label: '质数与合数 · 中等',
+    label: '质数与合数 · 普通',
     desc: '每轮 6 题 · 易混合数/质数 · 短除法分解 · 正计时停表看答案',
   },
   {
@@ -100,7 +100,7 @@ export function primeCompTopicLabel(): string {
 
 export function primeCompDifficultyLabel(d: PrimeCompDifficulty): string {
   if (d === 'easy') return '简单'
-  if (d === 'medium') return '中等'
+  if (d === 'medium') return '普通'
   return '困难'
 }
 

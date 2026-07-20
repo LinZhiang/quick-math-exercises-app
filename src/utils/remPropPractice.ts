@@ -31,7 +31,7 @@ export const REM_PROP_MODES: {
   },
   {
     id: 'medium',
-    label: '余数及其性质 · 中等',
+    label: '余数及其性质 · 普通',
     desc: '每轮 7 题 · 对齐经典真题（赛点同余 / 分组代入）· 正计时停表看答案',
   },
   {
@@ -112,7 +112,7 @@ export function remPropTopicLabel(): string {
 
 export function remPropDifficultyLabel(d: RemPropDifficulty): string {
   if (d === 'easy') return '简单'
-  if (d === 'medium') return '中等'
+  if (d === 'medium') return '普通'
   return '困难'
 }
 

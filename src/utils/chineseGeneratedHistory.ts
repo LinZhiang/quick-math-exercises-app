@@ -36,6 +36,8 @@ export type ChineseGeneratedHistoryKind =
   | 'data-analysis-pull'
   | 'data-analysis-surplus'
   | 'op-highfreq-geometry'
+  | 'op-highfreq-probability'
+  | 'op-other-function-graph'
 
 const STORAGE_KEYS: Record<ChineseGeneratedHistoryKind, string> = {
   idiom: 'chinese-generated-history-idiom-v1',
@@ -80,6 +82,8 @@ const STORAGE_KEYS: Record<ChineseGeneratedHistoryKind, string> = {
   'data-analysis-pull': 'chinese-generated-history-data-analysis-pull-v1',
   'data-analysis-surplus': 'chinese-generated-history-data-analysis-surplus-v1',
   'op-highfreq-geometry': 'chinese-generated-history-op-highfreq-geometry-v1',
+  'op-highfreq-probability': 'chinese-generated-history-op-highfreq-probability-v1',
+  'op-other-function-graph': 'chinese-generated-history-op-other-function-graph-v1',
 }
 
 function normalizeTerm(term: string): string {

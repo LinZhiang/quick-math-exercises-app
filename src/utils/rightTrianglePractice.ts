@@ -32,7 +32,7 @@ export const RIGHT_TRIANGLE_MODES: {
   },
   {
     id: 'medium',
-    label: '直角三角形 · 中等',
+    label: '直角三角形 · 普通',
     desc: '每轮 5 题 · 对齐经典真题 3（正北集合+30°+同时到达）· 正计时停表看答案',
   },
   {
@@ -108,7 +108,7 @@ export function rightTriangleTopicLabel(): string {
 
 export function rightTriangleDifficultyLabel(d: RightTriangleDifficulty): string {
   if (d === 'easy') return '简单'
-  if (d === 'medium') return '中等'
+  if (d === 'medium') return '普通'
   return '困难'
 }
 

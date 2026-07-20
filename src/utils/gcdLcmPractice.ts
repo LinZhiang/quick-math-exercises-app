@@ -29,7 +29,7 @@ export const GCD_LCM_MODES: {
   },
   {
     id: 'medium',
-    label: '公因数与公倍数 · 中等',
+    label: '公因数与公倍数 · 普通',
     desc: '每轮 6 题 · 多数 GCD/LCM · 周期相遇（经典真题 3）· 正计时停表看答案',
   },
   {
@@ -100,7 +100,7 @@ export function gcdLcmTopicLabel(): string {
 
 export function gcdLcmDifficultyLabel(d: GcdLcmDifficulty): string {
   if (d === 'easy') return '简单'
-  if (d === 'medium') return '中等'
+  if (d === 'medium') return '普通'
   return '困难'
 }
 

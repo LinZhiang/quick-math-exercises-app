@@ -114,7 +114,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   <div class="chinese-idiom-panel data-analysis-panel">
     <template v-if="!selectedDifficulty && (test.phase === 'idle' || test.phase === 'loading')">
       <p class="mode-section__hint">
-        考点「方程法」：设未知数列方程；中等对齐经典真题 1/2；困难对齐经典真题 3 整体代换变式。本地程序组卷（不调用
+        考点「方程法」：设未知数列方程；普通对齐经典真题 1/2；困难对齐经典真题 3 整体代换变式。本地程序组卷（不调用
         AI），每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停看答案。
       </p>
       <div class="mode-grid">

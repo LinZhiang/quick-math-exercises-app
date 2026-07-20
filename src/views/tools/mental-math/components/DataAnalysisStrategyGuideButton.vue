@@ -4,7 +4,12 @@ import { getDataAnalysisStrategyGuide } from '@/constants/dataAnalysisStrategyGu
 import { getMathOpStrategyGuide } from '@/constants/mathOpStrategyGuides'
 import { renderDataAnalysisMathHtml } from '@/utils/dataAnalysisMathDisplay'
 import GeometryFigureView from '@/views/tools/mental-math/components/GeometryFigureView.vue'
+import ProbabilityGeoDiagram from '@/views/tools/mental-math/components/ProbabilityGeoDiagram.vue'
+import InclusionExclusionVennDiagram from '@/views/tools/mental-math/components/InclusionExclusionVennDiagram.vue'
+import ClockFaceDiagram from '@/views/tools/mental-math/components/ClockFaceDiagram.vue'
+import FunctionGraphCurveView from '@/views/tools/mental-math/components/FunctionGraphCurveView.vue'
 import type { GeometryFigureSpec } from '@/utils/geometryPractice'
+import type { FunctionGraphKind } from '@/utils/functionGraphPractice'
 
 const props = defineProps<{
   topicId: string
@@ -59,7 +64,10 @@ function toFigure(item: {
         topicId === 'geometry' ||
         topicId === 'right-triangle' ||
         topicId === 'similar-triangle' ||
-        topicId === 'coloring'
+        topicId === 'coloring' ||
+        topicId === 'probability' ||
+        topicId === 'inclusion-exclusion' ||
+        topicId === 'function-graph'
           ? 'min(720px, 96vw)'
           : 'min(640px, 94vw)'
       "
@@ -100,35 +108,117 @@ function toFigure(item: {
           </div>
           <div v-else-if="block.type === 'cross-diagram'" class="cross-diagram">
             <p v-if="block.title" class="cross-diagram__title">{{ block.title }}</p>
-            <div class="cross-diagram__board" aria-hidden="true">
-              <div class="cross-diagram__cell cross-diagram__cell--a">
-                <span v-if="block.aLabel" class="cross-diagram__tag">{{ block.aLabel }}</span>
-                <span class="cross-diagram__val">{{ block.a }}</span>
+            <div class="cross-diagram__board">
+              <div class="cross-diagram__col cross-diagram__col--left">
+                <div class="cross-diagram__cell cross-diagram__cell--a">
+                  <span v-if="block.aLabel" class="cross-diagram__tag">{{ block.aLabel }}</span>
+                  <span class="cross-diagram__val">{{ block.a }}</span>
+                </div>
+                <div class="cross-diagram__cell cross-diagram__cell--b">
+                  <span v-if="block.bLabel" class="cross-diagram__tag">{{ block.bLabel }}</span>
+                  <span class="cross-diagram__val">{{ block.b }}</span>
+                </div>
               </div>
-              <div class="cross-diagram__cell cross-diagram__cell--c">
-                <span v-if="block.cLabel" class="cross-diagram__tag">{{ block.cLabel }}</span>
-                <span class="cross-diagram__val cross-diagram__val--c">{{ block.c }}</span>
+              <div class="cross-diagram__col cross-diagram__col--mid">
+                <div class="cross-diagram__cell cross-diagram__cell--c">
+                  <span v-if="block.cLabel" class="cross-diagram__tag">{{ block.cLabel }}</span>
+                  <span class="cross-diagram__val cross-diagram__val--c">{{ block.c }}</span>
+                </div>
               </div>
-              <div class="cross-diagram__cell cross-diagram__cell--x">
-                <span v-if="block.xLabel" class="cross-diagram__tag">{{ block.xLabel }}</span>
-                <span class="cross-diagram__val cross-diagram__val--x">{{ block.x }}</span>
+              <div class="cross-diagram__col cross-diagram__col--right">
+                <div class="cross-diagram__cell cross-diagram__cell--x">
+                  <span v-if="block.xLabel" class="cross-diagram__tag">{{ block.xLabel }}</span>
+                  <span class="cross-diagram__val cross-diagram__val--x">{{ block.x }}</span>
+                </div>
+                <div class="cross-diagram__cell cross-diagram__cell--y">
+                  <span v-if="block.yLabel" class="cross-diagram__tag">{{ block.yLabel }}</span>
+                  <span class="cross-diagram__val cross-diagram__val--y">{{ block.y }}</span>
+                </div>
               </div>
-              <div class="cross-diagram__cell cross-diagram__cell--b">
-                <span v-if="block.bLabel" class="cross-diagram__tag">{{ block.bLabel }}</span>
-                <span class="cross-diagram__val">{{ block.b }}</span>
-              </div>
-              <div class="cross-diagram__spacer" />
-              <div class="cross-diagram__cell cross-diagram__cell--y">
-                <span v-if="block.yLabel" class="cross-diagram__tag">{{ block.yLabel }}</span>
-                <span class="cross-diagram__val cross-diagram__val--y">{{ block.y }}</span>
-              </div>
-              <svg class="cross-diagram__xlines" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <line x1="18" y1="22" x2="82" y2="78" />
-                <line x1="18" y1="78" x2="82" y2="22" />
+              <svg
+                class="cross-diagram__xlines"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                <line x1="22" y1="18" x2="78" y2="82" />
+                <line x1="22" y1="82" x2="78" y2="18" />
               </svg>
             </div>
-            <p v-if="block.formula" class="cross-diagram__formula">{{ block.formula }}</p>
-            <p v-if="block.caption" class="cross-diagram__caption">{{ block.caption }}</p>
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <p
+              v-if="block.formula"
+              class="cross-diagram__formula"
+              v-html="mathHtml(block.formula)"
+            />
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <p
+              v-if="block.caption"
+              class="cross-diagram__caption"
+              v-html="mathHtml(block.caption)"
+            />
+          </div>
+          <div v-else-if="block.type === 'geo-prob-diagram'" class="geo-prob-diagram">
+            <p v-if="block.title" class="geo-prob-diagram__title">{{ block.title }}</p>
+            <ProbabilityGeoDiagram :preset="block.preset" />
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <p
+              v-if="block.formula"
+              class="geo-prob-diagram__formula"
+              v-html="mathHtml(block.formula)"
+            />
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <p
+              v-if="block.caption"
+              class="geo-prob-diagram__caption"
+              v-html="mathHtml(block.caption)"
+            />
+          </div>
+          <div v-else-if="block.type === 'venn-diagram'" class="venn-diagram">
+            <p v-if="block.title" class="venn-diagram__title">{{ block.title }}</p>
+            <InclusionExclusionVennDiagram :preset="block.preset" />
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <p
+              v-if="block.formula"
+              class="venn-diagram__formula"
+              v-html="mathHtml(block.formula)"
+            />
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <p
+              v-if="block.caption"
+              class="venn-diagram__caption"
+              v-html="mathHtml(block.caption)"
+            />
+          </div>
+          <div v-else-if="block.type === 'clock-diagram'" class="clock-diagram">
+            <p v-if="block.title" class="clock-diagram__title">{{ block.title }}</p>
+            <ClockFaceDiagram
+              :hour-deg="block.hourDeg"
+              :minute-deg="block.minuteDeg"
+              :time-label="block.timeLabel"
+              :caption="block.caption"
+              :show-arc="block.showArc !== false"
+            />
+          </div>
+          <div v-else-if="block.type === 'function-graph-diagram'" class="fg-diagram">
+            <p v-if="block.title" class="fg-diagram__title">{{ block.title }}</p>
+            <div class="fg-diagram__grid">
+              <div v-for="(item, j) in block.items" :key="j" class="fg-diagram__card">
+                <FunctionGraphCurveView :kind="item.kind as FunctionGraphKind" :label="''" />
+                <!-- eslint-disable-next-line vue/no-v-html -->
+                <p
+                  v-if="item.formula"
+                  class="fg-diagram__formula"
+                  v-html="mathHtml(item.formula)"
+                />
+                <!-- eslint-disable-next-line vue/no-v-html -->
+                <p
+                  v-if="item.caption"
+                  class="fg-diagram__caption"
+                  v-html="mathHtml(item.caption)"
+                />
+              </div>
+            </div>
           </div>
         </template>
       </div>
@@ -245,7 +335,7 @@ function toFigure(item: {
 }
 
 .cross-diagram {
-  padding: 12px 14px 14px;
+  padding: 14px 14px 16px;
   border-radius: 14px;
   background: linear-gradient(160deg, #f0fdfa 0%, #f8fafc 48%, #eff6ff 100%);
   border: 1px solid color-mix(in srgb, #0d9488 28%, #e2e8f0);
@@ -253,74 +343,73 @@ function toFigure(item: {
 }
 
 .cross-diagram__title {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   font-weight: 750;
   color: #0f766e;
   text-align: center;
+  font-size: 0.95rem;
 }
 
 .cross-diagram__board {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr 0.85fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 10px 12px;
-  min-height: 168px;
-  padding: 8px 4px;
+  grid-template-columns: minmax(0, 1fr) minmax(72px, 0.9fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 10px 14px;
+  min-height: 180px;
+  padding: 10px 6px 12px;
+}
+
+.cross-diagram__col {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cross-diagram__col--mid {
+  justify-content: center;
 }
 
 .cross-diagram__cell {
-  position: relative;
-  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 10px 8px;
+  padding: 12px 10px;
   border-radius: 12px;
   background: #fff;
-  border: 1.5px solid #cbd5e1;
-  box-shadow: 0 2px 8px color-mix(in srgb, #0f172a 6%, transparent);
+  border: 1.5px solid #94a3b8;
+  box-shadow: 0 2px 8px color-mix(in srgb, #0f172a 8%, transparent);
+  min-height: 64px;
 }
 
 .cross-diagram__cell--a {
-  grid-column: 1;
-  grid-row: 1;
-  border-color: color-mix(in srgb, #0d9488 45%, #cbd5e1);
+  border-color: #14b8a6;
 }
 
 .cross-diagram__cell--b {
-  grid-column: 1;
-  grid-row: 2;
-  border-color: color-mix(in srgb, #2563eb 40%, #cbd5e1);
+  border-color: #3b82f6;
 }
 
 .cross-diagram__cell--c {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: center;
-  border-color: color-mix(in srgb, #ea580c 50%, #cbd5e1);
-  background: color-mix(in srgb, #fff7ed 70%, #fff);
-  transform: scale(1.04);
+  border-color: #f97316;
+  border-width: 2px;
+  background: #fff7ed;
+  min-height: 88px;
 }
 
 .cross-diagram__cell--x {
-  grid-column: 3;
-  grid-row: 1;
-  border-color: color-mix(in srgb, #0d9488 55%, #cbd5e1);
-  background: color-mix(in srgb, #ccfbf1 45%, #fff);
+  border-color: #0d9488;
+  background: #ccfbf1;
 }
 
 .cross-diagram__cell--y {
-  grid-column: 3;
-  grid-row: 2;
-  border-color: color-mix(in srgb, #2563eb 50%, #cbd5e1);
-  background: color-mix(in srgb, #dbeafe 45%, #fff);
-}
-
-.cross-diagram__spacer {
-  display: none;
+  border-color: #2563eb;
+  background: #dbeafe;
 }
 
 .cross-diagram__tag {
@@ -328,20 +417,23 @@ function toFigure(item: {
   font-weight: 650;
   color: #64748b;
   letter-spacing: 0.02em;
+  text-align: center;
+  line-height: 1.3;
 }
 
 .cross-diagram__val {
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   font-weight: 800;
   color: #0f172a;
   font-variant-numeric: tabular-nums;
-  line-height: 1.2;
+  line-height: 1.25;
   text-align: center;
+  word-break: break-word;
 }
 
 .cross-diagram__val--c {
   color: #c2410c;
-  font-size: 1.25rem;
+  font-size: 1.28rem;
 }
 
 .cross-diagram__val--x {
@@ -354,28 +446,30 @@ function toFigure(item: {
 
 .cross-diagram__xlines {
   position: absolute;
-  inset: 12% 8%;
+  inset: 8% 6%;
   width: auto;
   height: auto;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.55;
+  overflow: visible;
 }
 
 .cross-diagram__xlines line {
   stroke: #0f766e;
-  stroke-width: 2.2;
+  stroke-width: 2.4;
   stroke-linecap: round;
-  stroke-dasharray: 5 4;
+  stroke-dasharray: 6 5;
+  opacity: 0.7;
 }
 
 .cross-diagram__formula {
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   text-align: center;
   font-weight: 750;
   font-size: 0.98rem;
   color: #0f766e;
   letter-spacing: 0.01em;
+  line-height: 1.6;
 }
 
 .cross-diagram__caption {
@@ -443,5 +537,124 @@ function toFigure(item: {
   font-weight: 750;
   line-height: 0;
   vertical-align: super;
+}
+
+.geo-prob-diagram {
+  padding: 12px 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(160deg, #f0fdfa 0%, #f8fafc 55%, #fff7ed 100%);
+  border: 1px solid color-mix(in srgb, #0d9488 22%, #e2e8f0);
+}
+
+.geo-prob-diagram__title {
+  margin: 0 0 8px;
+  font-weight: 750;
+  color: #0f766e;
+  text-align: center;
+}
+
+.geo-prob-diagram__formula {
+  margin: 8px 0 0;
+  text-align: center;
+  font-weight: 650;
+  color: #0f766e;
+}
+
+.geo-prob-diagram__caption {
+  margin: 6px 0 0;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: #334155;
+  text-align: center;
+}
+
+.venn-diagram {
+  padding: 12px 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(160deg, #eff6ff 0%, #f8fafc 55%, #f0fdf4 100%);
+  border: 1px solid color-mix(in srgb, #2563eb 18%, #e2e8f0);
+}
+
+.venn-diagram__title {
+  margin: 0 0 8px;
+  font-weight: 750;
+  color: #1d4ed8;
+  text-align: center;
+}
+
+.venn-diagram__formula {
+  margin: 8px 0 0;
+  text-align: center;
+  font-weight: 650;
+  color: #1d4ed8;
+}
+
+.venn-diagram__caption {
+  margin: 6px 0 0;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: #334155;
+  text-align: center;
+}
+
+.clock-diagram {
+  margin: 12px 0 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+}
+
+.clock-diagram__title {
+  margin: 0 0 6px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f766e;
+  text-align: center;
+}
+
+.fg-diagram {
+  margin: 12px 0 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+}
+
+.fg-diagram__title {
+  margin: 0 0 10px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f766e;
+  text-align: center;
+}
+
+.fg-diagram__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.fg-diagram__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.fg-diagram__formula {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  text-align: center;
+}
+
+.fg-diagram__caption {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #475569;
+  text-align: center;
+  line-height: 1.4;
 }
 </style>
