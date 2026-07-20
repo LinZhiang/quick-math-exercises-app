@@ -739,6 +739,7 @@ function finishSession(perfect = false) {
       totalCount: sessionRecords.value.length,
       score: score.value,
       durationMs: elapsedMs.value,
+      perfect,
     })
   }
   phase.value = 'finished'
@@ -1447,7 +1448,7 @@ onBeforeUnmount(() => {
               class="mode-card"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1467,7 +1468,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--power"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1488,7 +1489,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--square-cube"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1509,7 +1510,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--fraction"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1530,7 +1531,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--divisibility"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1551,7 +1552,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--life-sense"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1576,7 +1577,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--grammar-judgment"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1594,7 +1595,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--circle-grammar"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1611,7 +1612,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--shorten-sentence"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1632,7 +1633,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--twentyfour"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1653,7 +1654,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--sudoku"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -1673,7 +1674,7 @@ onBeforeUnmount(() => {
               class="mode-card mode-card--graphic"
               @click="startMode(m.id)"
             >
-              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" /></h3>
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" /></h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>

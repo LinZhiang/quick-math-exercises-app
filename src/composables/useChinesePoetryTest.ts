@@ -221,7 +221,13 @@ export function useChinesePoetryTest() {
     resumeQuizTimer()
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
-      incrementPracticeCompletion('chinese-poetry')
+      incrementPracticeCompletion('chinese-poetry', {
+        correctCount: correctCount.value,
+        totalCount: questions.value.length,
+        durationMs: quizElapsedMs.value,
+        perfect:
+          questions.value.length > 0 && correctCount.value === questions.value.length,
+      })
       phase.value = 'summary'
       return
     }

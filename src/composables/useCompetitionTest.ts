@@ -238,7 +238,13 @@ export function useCompetitionTest(difficulty: Ref<CompetitionDifficulty | null>
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
       if (difficulty.value) {
-        incrementPracticeCompletion(`op-other-competition-${difficulty.value}`)
+        incrementPracticeCompletion(`op-other-competition-${difficulty.value}`, {
+          correctCount: correctCount.value,
+          totalCount: questions.value.length,
+          durationMs: quizElapsedMs.value,
+          perfect:
+            questions.value.length > 0 && correctCount.value === questions.value.length,
+        })
       }
       phase.value = 'summary'
       return

@@ -223,7 +223,13 @@ export function useChineseWordMemorizationTest() {
     resumeQuizTimer()
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
-      incrementPracticeCompletion('chinese-word-memorization')
+      incrementPracticeCompletion('chinese-word-memorization', {
+        correctCount: correctCount.value,
+        totalCount: questions.value.length,
+        durationMs: quizElapsedMs.value,
+        perfect:
+          questions.value.length > 0 && correctCount.value === questions.value.length,
+      })
       phase.value = 'summary'
       return
     }
