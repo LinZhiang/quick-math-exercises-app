@@ -238,7 +238,13 @@ export function useOrdinaryWorkTest(difficulty: Ref<OrdinaryWorkDifficulty | nul
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
       if (difficulty.value) {
-        incrementPracticeCompletion(`op-highfreq-ordinary-work-${difficulty.value}`)
+        incrementPracticeCompletion(`op-highfreq-ordinary-work-${difficulty.value}`, {
+          correctCount: correctCount.value,
+          totalCount: questions.value.length,
+          durationMs: quizElapsedMs.value,
+          perfect:
+            questions.value.length > 0 && correctCount.value === questions.value.length,
+        })
       }
       phase.value = 'summary'
       return

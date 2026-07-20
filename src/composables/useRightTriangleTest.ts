@@ -238,7 +238,13 @@ export function useRightTriangleTest(difficulty: Ref<RightTriangleDifficulty | n
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
       if (difficulty.value) {
-        incrementPracticeCompletion(`op-highfreq-right-triangle-${difficulty.value}`)
+        incrementPracticeCompletion(`op-highfreq-right-triangle-${difficulty.value}`, {
+          correctCount: correctCount.value,
+          totalCount: questions.value.length,
+          durationMs: quizElapsedMs.value,
+          perfect:
+            questions.value.length > 0 && correctCount.value === questions.value.length,
+        })
       }
       phase.value = 'summary'
       return

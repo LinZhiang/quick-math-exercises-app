@@ -237,7 +237,15 @@ export function useRatioMultTest(difficulty: Ref<RatioMultDifficulty | null>) {
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
-      if (difficulty.value) incrementPracticeCompletion(`op-skill-ratio-mult-${difficulty.value}`)
+      if (difficulty.value) {
+        incrementPracticeCompletion(`op-skill-ratio-mult-${difficulty.value}`, {
+          correctCount: correctCount.value,
+          totalCount: questions.value.length,
+          durationMs: quizElapsedMs.value,
+          perfect:
+            questions.value.length > 0 && correctCount.value === questions.value.length,
+        })
+      }
       phase.value = 'summary'
       return
     }
