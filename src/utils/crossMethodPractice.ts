@@ -34,7 +34,7 @@ export const CROSS_METHOD_MODES: {
   },
   {
     id: 'medium',
-    label: '十字交叉法 · 中等',
+    label: '十字交叉法 · 普通',
     desc: '每轮 5 题 · 对齐经典真题（先算混合率再交叉，可含亏损）· 正计时停表看答案',
   },
   {
@@ -120,7 +120,7 @@ export function crossMethodTopicLabel(): string {
 
 export function crossMethodDifficultyLabel(d: CrossMethodDifficulty): string {
   if (d === 'easy') return '简单'
-  if (d === 'medium') return '中等'
+  if (d === 'medium') return '普通'
   return '困难'
 }
 

@@ -34,7 +34,7 @@ export const RATIO_MULT_MODES: {
   },
   {
     id: 'medium',
-    label: '由比例判定倍数 · 中等',
+    label: '由比例判定倍数 · 普通',
     desc: '每轮 5 题 · 对齐经典真题 5（比例筛选项）· 正计时停表看答案',
   },
   {
@@ -130,7 +130,7 @@ export function ratioMultTopicLabel(): string {
 
 export function ratioMultDifficultyLabel(d: RatioMultDifficulty): string {
   if (d === 'easy') return '简单'
-  if (d === 'medium') return '中等'
+  if (d === 'medium') return '普通'
   return '困难'
 }
 

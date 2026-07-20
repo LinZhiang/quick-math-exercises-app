@@ -21,7 +21,7 @@ export const GEOMETRY_MODES: {
   },
   {
     id: 'medium',
-    label: '几何问题 · 中等',
+    label: '几何问题 · 普通',
     desc: '每轮 10 题 · 对齐经典真题 1（割补）/真题 2（长方体变正方体）· 豆包出题+几何图 · 正计时停表看答案',
   },
   {
@@ -123,7 +123,7 @@ export function geometryTopicLabel(): string {
 
 export function geometryDifficultyLabel(d: GeometryDifficulty): string {
   if (d === 'easy') return '简单'
-  if (d === 'medium') return '中等'
+  if (d === 'medium') return '普通'
   return '困难'
 }
 

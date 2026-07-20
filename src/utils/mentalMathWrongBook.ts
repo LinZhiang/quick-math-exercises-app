@@ -38,6 +38,30 @@ export type MentalMathWrongSection =
   | 'op-highfreq-right-triangle'
   | 'op-highfreq-similar-triangle'
   | 'op-highfreq-coloring'
+  | 'op-highfreq-ordinary-travel'
+  | 'op-highfreq-meet-pursue'
+  | 'op-highfreq-boat-current'
+  | 'op-highfreq-ordinary-work'
+  | 'op-highfreq-cooperative-work'
+  | 'op-highfreq-profit-calc'
+  | 'op-highfreq-profit-rate'
+  | 'op-highfreq-concentration'
+  | 'op-highfreq-perm-comb-basic'
+  | 'op-highfreq-perm-comb-constraint'
+  | 'op-highfreq-perm-comb-classic'
+  | 'op-highfreq-probability'
+  | 'op-other-inclusion-exclusion'
+  | 'op-other-sequence'
+  | 'op-other-extremum'
+  | 'op-other-date'
+  | 'op-other-age'
+  | 'op-other-clock'
+  | 'op-other-ying-kui'
+  | 'op-other-chicken-rabbit'
+  | 'op-other-function-graph'
+  | 'op-other-competition'
+  | 'op-other-reverse'
+  | 'op-other-sectional'
 
 export type MentalMathWrongRecord = {
   fingerprint: string
@@ -122,6 +146,30 @@ export const MENTAL_MATH_WRONG_SECTION_LABELS: Record<MentalMathWrongSection, st
   'op-highfreq-right-triangle': '高频运算 · 直角三角形常用结论',
   'op-highfreq-similar-triangle': '高频运算 · 三角形相似',
   'op-highfreq-coloring': '高频运算 · 染色问题',
+  'op-highfreq-ordinary-travel': '高频运算 · 普通行程问题',
+  'op-highfreq-meet-pursue': '高频运算 · 相遇与追及问题',
+  'op-highfreq-boat-current': '高频运算 · 流水行船问题',
+  'op-highfreq-ordinary-work': '高频运算 · 普通工程问题',
+  'op-highfreq-cooperative-work': '高频运算 · 合作完工问题',
+  'op-highfreq-profit-calc': '高频运算 · 利润计算',
+  'op-highfreq-profit-rate': '高频运算 · 利润率计算',
+  'op-highfreq-concentration': '高频运算 · 浓度问题',
+  'op-highfreq-perm-comb-basic': '高频运算 · 基本原理及公式',
+  'op-highfreq-perm-comb-constraint': '高频运算 · 限制条件型问题',
+  'op-highfreq-perm-comb-classic': '高频运算 · 排列组合经典模型',
+  'op-highfreq-probability': '高频运算 · 概率问题',
+  'op-other-inclusion-exclusion': '其他运算 · 容斥问题',
+  'op-other-sequence': '其他运算 · 数列问题',
+  'op-other-extremum': '其他运算 · 最值问题',
+  'op-other-date': '其他运算 · 日期问题',
+  'op-other-age': '其他运算 · 年龄问题',
+  'op-other-clock': '其他运算 · 时钟问题',
+  'op-other-ying-kui': '其他运算 · 盈亏问题',
+  'op-other-chicken-rabbit': '其他运算 · 鸡兔同笼问题',
+  'op-other-function-graph': '其他运算 · 函数图象问题',
+  'op-other-competition': '其他运算 · 比赛问题',
+  'op-other-reverse': '其他运算 · 逆推问题',
+  'op-other-sectional': '其他运算 · 分段问题',
 }
 
 /** 模式 id → 错题分区；不在集合内则不记错题本 */
@@ -323,6 +371,169 @@ export function mentalMathModeToWrongSection(modeId: string): MentalMathWrongSec
     modeId === 'op-highfreq-coloring-hard'
   ) {
     return 'op-highfreq-coloring'
+  }
+  if (
+    modeId === 'op-highfreq-ordinary-travel-easy' ||
+    modeId === 'op-highfreq-ordinary-travel-medium' ||
+    modeId === 'op-highfreq-ordinary-travel-hard'
+  ) {
+    return 'op-highfreq-ordinary-travel'
+  }
+  if (
+    modeId === 'op-highfreq-meet-pursue-easy' ||
+    modeId === 'op-highfreq-meet-pursue-medium' ||
+    modeId === 'op-highfreq-meet-pursue-hard'
+  ) {
+    return 'op-highfreq-meet-pursue'
+  }
+  if (
+    modeId === 'op-highfreq-boat-current-easy' ||
+    modeId === 'op-highfreq-boat-current-hard'
+  ) {
+    return 'op-highfreq-boat-current'
+  }
+  if (
+    modeId === 'op-highfreq-ordinary-work-easy' ||
+    modeId === 'op-highfreq-ordinary-work-hard'
+  ) {
+    return 'op-highfreq-ordinary-work'
+  }
+  if (
+    modeId === 'op-highfreq-cooperative-work-easy' ||
+    modeId === 'op-highfreq-cooperative-work-hard'
+  ) {
+    return 'op-highfreq-cooperative-work'
+  }
+  if (
+    modeId === 'op-highfreq-profit-calc-easy' ||
+    modeId === 'op-highfreq-profit-calc-hard'
+  ) {
+    return 'op-highfreq-profit-calc'
+  }
+  if (
+    modeId === 'op-highfreq-profit-rate-easy' ||
+    modeId === 'op-highfreq-profit-rate-hard'
+  ) {
+    return 'op-highfreq-profit-rate'
+  }
+  if (
+    modeId === 'op-highfreq-concentration-easy' ||
+    modeId === 'op-highfreq-concentration-medium' ||
+    modeId === 'op-highfreq-concentration-hard'
+  ) {
+    return 'op-highfreq-concentration'
+  }
+  if (
+    modeId === 'op-highfreq-perm-comb-basic-easy' ||
+    modeId === 'op-highfreq-perm-comb-basic-medium' ||
+    modeId === 'op-highfreq-perm-comb-basic-hard'
+  ) {
+    return 'op-highfreq-perm-comb-basic'
+  }
+  if (
+    modeId === 'op-highfreq-perm-comb-constraint-easy' ||
+    modeId === 'op-highfreq-perm-comb-constraint-medium' ||
+    modeId === 'op-highfreq-perm-comb-constraint-hard'
+  ) {
+    return 'op-highfreq-perm-comb-constraint'
+  }
+  if (
+    modeId === 'op-highfreq-perm-comb-classic-easy' ||
+    modeId === 'op-highfreq-perm-comb-classic-medium' ||
+    modeId === 'op-highfreq-perm-comb-classic-hard'
+  ) {
+    return 'op-highfreq-perm-comb-classic'
+  }
+  if (
+    modeId === 'op-highfreq-probability-easy' ||
+    modeId === 'op-highfreq-probability-medium' ||
+    modeId === 'op-highfreq-probability-hard'
+  ) {
+    return 'op-highfreq-probability'
+  }
+  if (
+    modeId === 'op-other-inclusion-exclusion-easy' ||
+    modeId === 'op-other-inclusion-exclusion-medium' ||
+    modeId === 'op-other-inclusion-exclusion-hard'
+  ) {
+    return 'op-other-inclusion-exclusion'
+  }
+  if (
+    modeId === 'op-other-sequence-easy' ||
+    modeId === 'op-other-sequence-medium' ||
+    modeId === 'op-other-sequence-hard'
+  ) {
+    return 'op-other-sequence'
+  }
+  if (
+    modeId === 'op-other-extremum-easy' ||
+    modeId === 'op-other-extremum-medium' ||
+    modeId === 'op-other-extremum-hard'
+  ) {
+    return 'op-other-extremum'
+  }
+  if (
+    modeId === 'op-other-date-easy' ||
+    modeId === 'op-other-date-medium' ||
+    modeId === 'op-other-date-hard'
+  ) {
+    return 'op-other-date'
+  }
+  if (
+    modeId === 'op-other-age-easy' ||
+    modeId === 'op-other-age-medium' ||
+    modeId === 'op-other-age-hard'
+  ) {
+    return 'op-other-age'
+  }
+  if (
+    modeId === 'op-other-clock-easy' ||
+    modeId === 'op-other-clock-medium' ||
+    modeId === 'op-other-clock-hard'
+  ) {
+    return 'op-other-clock'
+  }
+  if (
+    modeId === 'op-other-ying-kui-easy' ||
+    modeId === 'op-other-ying-kui-medium' ||
+    modeId === 'op-other-ying-kui-hard'
+  ) {
+    return 'op-other-ying-kui'
+  }
+  if (
+    modeId === 'op-other-chicken-rabbit-easy' ||
+    modeId === 'op-other-chicken-rabbit-medium' ||
+    modeId === 'op-other-chicken-rabbit-hard'
+  ) {
+    return 'op-other-chicken-rabbit'
+  }
+  if (
+    modeId === 'op-other-function-graph-easy' ||
+    modeId === 'op-other-function-graph-medium' ||
+    modeId === 'op-other-function-graph-hard'
+  ) {
+    return 'op-other-function-graph'
+  }
+  if (
+    modeId === 'op-other-competition-easy' ||
+    modeId === 'op-other-competition-medium' ||
+    modeId === 'op-other-competition-hard'
+  ) {
+    return 'op-other-competition'
+  }
+  if (
+    modeId === 'op-other-reverse-easy' ||
+    modeId === 'op-other-reverse-medium' ||
+    modeId === 'op-other-reverse-hard'
+  ) {
+    return 'op-other-reverse'
+  }
+  if (
+    modeId === 'op-other-sectional-easy' ||
+    modeId === 'op-other-sectional-medium' ||
+    modeId === 'op-other-sectional-hard'
+  ) {
+    return 'op-other-sectional'
   }
   return null
 }

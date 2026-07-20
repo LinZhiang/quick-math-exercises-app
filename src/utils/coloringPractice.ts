@@ -39,7 +39,7 @@ export const COLORING_MODES: {
   },
   {
     id: 'medium',
-    label: '染色问题 · 中等',
+    label: '染色问题 · 普通',
     desc: '每轮 4 题 · 对齐经典真题 5（有染色= n³−(n−2)³）· 正计时停表看答案',
   },
   {
@@ -115,7 +115,7 @@ export function coloringTopicLabel(): string {
 
 export function coloringDifficultyLabel(d: ColoringDifficulty): string {
   if (d === 'easy') return '简单'
-  if (d === 'medium') return '中等'
+  if (d === 'medium') return '普通'
   return '困难'
 }
 

@@ -47,6 +47,30 @@ import GeometryPanel from '@/views/tools/mental-math/components/GeometryPanel.vu
 import RightTrianglePanel from '@/views/tools/mental-math/components/RightTrianglePanel.vue'
 import SimilarTrianglePanel from '@/views/tools/mental-math/components/SimilarTrianglePanel.vue'
 import ColoringPanel from '@/views/tools/mental-math/components/ColoringPanel.vue'
+import OrdinaryTravelPanel from '@/views/tools/mental-math/components/OrdinaryTravelPanel.vue'
+import MeetPursuePanel from '@/views/tools/mental-math/components/MeetPursuePanel.vue'
+import BoatCurrentPanel from '@/views/tools/mental-math/components/BoatCurrentPanel.vue'
+import OrdinaryWorkPanel from '@/views/tools/mental-math/components/OrdinaryWorkPanel.vue'
+import CooperativeWorkPanel from '@/views/tools/mental-math/components/CooperativeWorkPanel.vue'
+import ProfitCalcPanel from '@/views/tools/mental-math/components/ProfitCalcPanel.vue'
+import ProfitRatePanel from '@/views/tools/mental-math/components/ProfitRatePanel.vue'
+import ConcentrationPanel from '@/views/tools/mental-math/components/ConcentrationPanel.vue'
+import PermCombBasicPanel from '@/views/tools/mental-math/components/PermCombBasicPanel.vue'
+import PermCombConstraintPanel from '@/views/tools/mental-math/components/PermCombConstraintPanel.vue'
+import PermCombClassicPanel from '@/views/tools/mental-math/components/PermCombClassicPanel.vue'
+import ProbabilityPanel from '@/views/tools/mental-math/components/ProbabilityPanel.vue'
+import InclusionExclusionPanel from '@/views/tools/mental-math/components/InclusionExclusionPanel.vue'
+import SequencePanel from '@/views/tools/mental-math/components/SequencePanel.vue'
+import ExtremumPanel from '@/views/tools/mental-math/components/ExtremumPanel.vue'
+import DatePanel from '@/views/tools/mental-math/components/DatePanel.vue'
+import AgePanel from '@/views/tools/mental-math/components/AgePanel.vue'
+import ClockPanel from '@/views/tools/mental-math/components/ClockPanel.vue'
+import YingKuiPanel from '@/views/tools/mental-math/components/YingKuiPanel.vue'
+import ChickenRabbitPanel from '@/views/tools/mental-math/components/ChickenRabbitPanel.vue'
+import FunctionGraphPanel from '@/views/tools/mental-math/components/FunctionGraphPanel.vue'
+import CompetitionPanel from '@/views/tools/mental-math/components/CompetitionPanel.vue'
+import ReversePanel from '@/views/tools/mental-math/components/ReversePanel.vue'
+import SectionalPanel from '@/views/tools/mental-math/components/SectionalPanel.vue'
 import GraphicReasoningCell from '@/views/tools/graphic-reasoning/components/GraphicReasoningCell.vue'
 import {
   clampGraphicReasoningScore,
@@ -225,6 +249,30 @@ const geometryPanelRef = ref<InstanceType<typeof GeometryPanel> | null>(null)
 const rightTrianglePanelRef = ref<InstanceType<typeof RightTrianglePanel> | null>(null)
 const similarTrianglePanelRef = ref<InstanceType<typeof SimilarTrianglePanel> | null>(null)
 const coloringPanelRef = ref<InstanceType<typeof ColoringPanel> | null>(null)
+const ordinaryTravelPanelRef = ref<InstanceType<typeof OrdinaryTravelPanel> | null>(null)
+const meetPursuePanelRef = ref<InstanceType<typeof MeetPursuePanel> | null>(null)
+const boatCurrentPanelRef = ref<InstanceType<typeof BoatCurrentPanel> | null>(null)
+const ordinaryWorkPanelRef = ref<InstanceType<typeof OrdinaryWorkPanel> | null>(null)
+const cooperativeWorkPanelRef = ref<InstanceType<typeof CooperativeWorkPanel> | null>(null)
+const profitCalcPanelRef = ref<InstanceType<typeof ProfitCalcPanel> | null>(null)
+const profitRatePanelRef = ref<InstanceType<typeof ProfitRatePanel> | null>(null)
+const concentrationPanelRef = ref<InstanceType<typeof ConcentrationPanel> | null>(null)
+const permCombBasicPanelRef = ref<InstanceType<typeof PermCombBasicPanel> | null>(null)
+const permCombConstraintPanelRef = ref<InstanceType<typeof PermCombConstraintPanel> | null>(null)
+const permCombClassicPanelRef = ref<InstanceType<typeof PermCombClassicPanel> | null>(null)
+const probabilityPanelRef = ref<InstanceType<typeof ProbabilityPanel> | null>(null)
+const inclusionExclusionPanelRef = ref<InstanceType<typeof InclusionExclusionPanel> | null>(null)
+const sequencePanelRef = ref<InstanceType<typeof SequencePanel> | null>(null)
+const extremumPanelRef = ref<InstanceType<typeof ExtremumPanel> | null>(null)
+const datePanelRef = ref<InstanceType<typeof DatePanel> | null>(null)
+const agePanelRef = ref<InstanceType<typeof AgePanel> | null>(null)
+const clockPanelRef = ref<InstanceType<typeof ClockPanel> | null>(null)
+const yingKuiPanelRef = ref<InstanceType<typeof YingKuiPanel> | null>(null)
+const chickenRabbitPanelRef = ref<InstanceType<typeof ChickenRabbitPanel> | null>(null)
+const functionGraphPanelRef = ref<InstanceType<typeof FunctionGraphPanel> | null>(null)
+const competitionPanelRef = ref<InstanceType<typeof CompetitionPanel> | null>(null)
+const reversePanelRef = ref<InstanceType<typeof ReversePanel> | null>(null)
+const sectionalPanelRef = ref<InstanceType<typeof SectionalPanel> | null>(null)
 /** 资料分析「增长」子模块折叠：默认收起 */
 const dataAnalysisGrowthFoldOpen = ref(false)
 /** 资料分析「比重」子模块折叠：默认收起 */
@@ -249,9 +297,11 @@ const opSkillRatioMethodFoldOpen = ref(false)
 const opSkillCrossMethodFoldOpen = ref(false)
 const opHighfreqSumDiffRatioFoldOpen = ref(false)
 const opHighfreqGeometryFoldOpen = ref(false)
-const opHighfreqRightTriangleFoldOpen = ref(false)
-const opHighfreqSimilarTriangleFoldOpen = ref(false)
-const opHighfreqColoringFoldOpen = ref(false)
+const opHighfreqTravelFoldOpen = ref(false)
+const opHighfreqWorkFoldOpen = ref(false)
+const opHighfreqProfitFoldOpen = ref(false)
+const opHighfreqConcentrationFoldOpen = ref(false)
+const opHighfreqPermCombFoldOpen = ref(false)
 const questionSeq = ref(0)
 const records = ref<MentalMathAnswerRecord[]>([])
 const graphicRecords = ref<GraphicReasoningAnswerRecord[]>([])
@@ -465,7 +515,31 @@ const chineseSessionActive = computed(
     (geometryPanelRef.value?.isRunningOrLoading ?? false) ||
     (rightTrianglePanelRef.value?.isRunningOrLoading ?? false) ||
     (similarTrianglePanelRef.value?.isRunningOrLoading ?? false) ||
-    (coloringPanelRef.value?.isRunningOrLoading ?? false),
+    (coloringPanelRef.value?.isRunningOrLoading ?? false) ||
+    (ordinaryTravelPanelRef.value?.isRunningOrLoading ?? false) ||
+    (meetPursuePanelRef.value?.isRunningOrLoading ?? false) ||
+    (boatCurrentPanelRef.value?.isRunningOrLoading ?? false) ||
+    (ordinaryWorkPanelRef.value?.isRunningOrLoading ?? false) ||
+    (cooperativeWorkPanelRef.value?.isRunningOrLoading ?? false) ||
+    (profitCalcPanelRef.value?.isRunningOrLoading ?? false) ||
+    (profitRatePanelRef.value?.isRunningOrLoading ?? false) ||
+    (concentrationPanelRef.value?.isRunningOrLoading ?? false) ||
+    (permCombBasicPanelRef.value?.isRunningOrLoading ?? false) ||
+    (permCombConstraintPanelRef.value?.isRunningOrLoading ?? false) ||
+    (permCombClassicPanelRef.value?.isRunningOrLoading ?? false) ||
+    (probabilityPanelRef.value?.isRunningOrLoading ?? false) ||
+    (inclusionExclusionPanelRef.value?.isRunningOrLoading ?? false) ||
+    (sequencePanelRef.value?.isRunningOrLoading ?? false) ||
+    (extremumPanelRef.value?.isRunningOrLoading ?? false) ||
+    (datePanelRef.value?.isRunningOrLoading ?? false) ||
+    (agePanelRef.value?.isRunningOrLoading ?? false) ||
+    (clockPanelRef.value?.isRunningOrLoading ?? false) ||
+    (yingKuiPanelRef.value?.isRunningOrLoading ?? false) ||
+    (chickenRabbitPanelRef.value?.isRunningOrLoading ?? false) ||
+    (functionGraphPanelRef.value?.isRunningOrLoading ?? false) ||
+    (competitionPanelRef.value?.isRunningOrLoading ?? false) ||
+    (reversePanelRef.value?.isRunningOrLoading ?? false) ||
+    (sectionalPanelRef.value?.isRunningOrLoading ?? false),
 )
 
 const mcqOptionCount = computed(() => {
@@ -1898,7 +1972,7 @@ onBeforeUnmount(() => {
                 <DataAnalysisStrategyGuideButton topic-id="div-judge" />
               </div>
               <p class="mode-section__hint">
-                3/9/7/11/6/14 等整除判定；中等含半满足干扰与结论辨析；困难对标/难于经典真题，7
+                3/9/7/11/6/14 等整除判定；普通含半满足干扰与结论辨析；困难对标/难于经典真题，7
                 类考点各一题。本地组卷，每轮 7 题。
               </p>
               <DivisibilityJudgePanel ref="divisibilityJudgePanelRef" />
@@ -1920,7 +1994,7 @@ onBeforeUnmount(() => {
                 <DataAnalysisStrategyGuideButton topic-id="gcd-lcm" />
               </div>
               <p class="mode-section__hint">
-                最大公因数 / 最小公倍数；中等含周期相遇（经典真题 3）；困难对齐经典真题 4（等差连乘末尾
+                最大公因数 / 最小公倍数；普通含周期相遇（经典真题 3）；困难对齐经典真题 4（等差连乘末尾
                 0），7 类变式每轮抽 6 题且题型不重复。本地组卷，每轮 6 题。
               </p>
               <GcdLcmPanel ref="gcdLcmPanelRef" />
@@ -1931,7 +2005,7 @@ onBeforeUnmount(() => {
                 <DataAnalysisStrategyGuideButton topic-id="ratio-mult" />
               </div>
               <p class="mode-section__hint">
-                最简比判定倍数；中等对齐经典真题 5；困难为难于真题的 12 类变式，每轮抽 5
+                最简比判定倍数；普通对齐经典真题 5；困难为难于真题的 12 类变式，每轮抽 5
                 题且题型不重复。本地组卷，每轮 5 题。
               </p>
               <RatioMultPanel ref="ratioMultPanelRef" />
@@ -1958,7 +2032,7 @@ onBeforeUnmount(() => {
                 <DataAnalysisStrategyGuideButton topic-id="rem-prop" />
               </div>
               <p class="mode-section__hint">
-                同余三大性质；中等对齐经典真题（赛点同余 / 分组代入）；困难为难于真题的 9
+                同余三大性质；普通对齐经典真题（赛点同余 / 分组代入）；困难为难于真题的 9
                 类变式，每轮 7 题且题型不重复。本地组卷。
               </p>
               <RemPropPanel ref="remPropPanelRef" />
@@ -1985,7 +2059,7 @@ onBeforeUnmount(() => {
                 <DataAnalysisStrategyGuideButton topic-id="sub-elim" />
               </div>
               <p class="mode-section__hint">
-                直接/选择代入；中等对齐经典真题 1（分组余数）、真题 2（百分数筛选项）；困难为难于真题的
+                直接/选择代入；普通对齐经典真题 1（分组余数）、真题 2（百分数筛选项）；困难为难于真题的
                 10 类变式，每轮 5 题且题型不重复。本地组卷。
               </p>
               <SubElimPanel ref="subElimPanelRef" />
@@ -2012,7 +2086,7 @@ onBeforeUnmount(() => {
                 <DataAnalysisStrategyGuideButton topic-id="eq-method" />
               </div>
               <p class="mode-section__hint">
-                设未知数列方程；中等对齐经典真题 1（行程）、真题 2（年龄）；困难对齐经典真题
+                设未知数列方程；普通对齐经典真题 1（行程）、真题 2（年龄）；困难对齐经典真题
                 3（整体代换），10 类变式每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
               </p>
               <EquationMethodPanel ref="equationMethodPanelRef" />
@@ -2069,7 +2143,7 @@ onBeforeUnmount(() => {
                 <DataAnalysisStrategyGuideButton topic-id="ratio-method" />
               </div>
               <p class="mode-section__hint">
-                简单对齐示例（份数差）；中等对齐经典真题 1（调动后人比 / 比例统一）；困难对齐经典真题
+                简单对齐示例（份数差）；普通对齐经典真题 1（调动后人比 / 比例统一）；困难对齐经典真题
                 2（行程正比例），10 类变式每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
               </p>
               <RatioMethodPanel ref="ratioMethodPanelRef" />
@@ -2099,7 +2173,7 @@ onBeforeUnmount(() => {
                 <DataAnalysisStrategyGuideButton topic-id="cross-method" />
               </div>
               <p class="mode-section__hint">
-                简单对齐示例（已知 a、b、c 直接交叉）；中等对齐经典真题（先算混合率，可含亏损）；困难为
+                简单对齐示例（已知 a、b、c 直接交叉）；普通对齐经典真题（先算混合率，可含亏损）；困难为
                 10 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
               </p>
               <CrossMethodPanel ref="crossMethodPanelRef" />
@@ -2111,7 +2185,7 @@ onBeforeUnmount(() => {
         <section v-if="showOpHighfreqSection" class="mode-section" id="practice-op-highfreq">
           <h3 class="mode-section__title">高频运算</h3>
           <p class="mode-section__hint">
-            公考数量关系高频题型。当前开放「和差倍比问题」「几何问题」「直角三角形常用结论」「三角形相似」「染色问题」；流程同资料分析（正计时、提交后看解析）。
+            公考数量关系高频题型。当前开放「和差倍比问题」「几何问题」（含直角三角形、三角形相似、染色）「行程问题」（普通行程、相遇与追及、流水行船）「工程问题」（普通工程、合作完工）「利润问题」（利润计算、利润率计算）「浓度问题」「排列组合问题」（基本原理及公式、限制条件型、经典模型）「概率问题」；流程同资料分析（正计时、提交后暂停看解析）。
           </p>
 
           <div class="da-growth-fold">
@@ -2136,7 +2210,7 @@ onBeforeUnmount(() => {
                 <DataAnalysisStrategyGuideButton topic-id="sum-diff-ratio" />
               </div>
               <p class="mode-section__hint">
-                简单对齐经典真题 1（份数+转移）；中等对齐经典真题 2（加权总量+整除）；困难为 10
+                简单对齐经典真题 1（份数+转移）；普通对齐经典真题 2（加权总量+整除）；困难为 10
                 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
               </p>
               <SumDiffRatioPanel ref="sumDiffRatioPanelRef" />
@@ -2152,7 +2226,9 @@ onBeforeUnmount(() => {
               @click="opHighfreqGeometryFoldOpen = !opHighfreqGeometryFoldOpen"
             >
               <span class="da-growth-fold__title">几何问题</span>
-              <span class="da-growth-fold__meta">周长 · 面积 · 表面积 · 体积 · 割补</span>
+              <span class="da-growth-fold__meta"
+                >周长 · 面积 · 直角三角形 · 相似 · 染色</span
+              >
               <span
                 class="da-growth-fold__chevron"
                 :class="{ 'is-open': opHighfreqGeometryFoldOpen }"
@@ -2166,107 +2242,417 @@ onBeforeUnmount(() => {
                 <DataAnalysisStrategyGuideButton topic-id="geometry" />
               </div>
               <p class="mode-section__hint">
-                简单略低于经典真题（直接套公式）；中等对齐经典真题 1（割补）/真题 2（长方体变正方体）；困难更高（组合割补/勾股/多步立体）。豆包出题干，几何图按参数渲染，每轮 10 题。
+                简单略低于经典真题（直接套公式）；普通对齐经典真题 1（割补）/真题 2（长方体变正方体）；困难更高（组合割补/勾股/多步立体）。豆包出题干，几何图按参数渲染，每轮 10 题。
               </p>
               <GeometryPanel ref="geometryPanelRef" />
               <MentalMathWrongBookPanel section="op-highfreq-geometry" />
-            </div>
-          </div>
 
-          <div class="da-growth-fold">
-            <button
-              type="button"
-              class="da-growth-fold__toggle"
-              :aria-expanded="opHighfreqRightTriangleFoldOpen"
-              @click="opHighfreqRightTriangleFoldOpen = !opHighfreqRightTriangleFoldOpen"
-            >
-              <span class="da-growth-fold__title">直角三角形常用结论</span>
-              <span class="da-growth-fold__meta">勾股 · 30°/45° 边比 · 正北集合</span>
-              <span
-                class="da-growth-fold__chevron"
-                :class="{ 'is-open': opHighfreqRightTriangleFoldOpen }"
-              >
-                ▾
-              </span>
-            </button>
-            <div v-show="opHighfreqRightTriangleFoldOpen" class="da-growth-fold__body">
               <div class="da-topic-head">
                 <h4 class="mode-section__subtitle">直角三角形常用结论</h4>
                 <DataAnalysisStrategyGuideButton topic-id="right-triangle" />
               </div>
               <p class="mode-section__hint">
-                简单：勾股数与 30°/45° 边比直接求边；中等对齐经典真题 3（正北集合+30°+同时到达）；困难为
+                简单：勾股数与 30°/45° 边比直接求边；普通对齐经典真题 3（正北集合+30°+同时到达）；困难为
                 8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
               </p>
               <RightTrianglePanel ref="rightTrianglePanelRef" />
               <MentalMathWrongBookPanel section="op-highfreq-right-triangle" />
-            </div>
-          </div>
 
-          <div class="da-growth-fold">
-            <button
-              type="button"
-              class="da-growth-fold__toggle"
-              :aria-expanded="opHighfreqSimilarTriangleFoldOpen"
-              @click="opHighfreqSimilarTriangleFoldOpen = !opHighfreqSimilarTriangleFoldOpen"
-            >
-              <span class="da-growth-fold__title">三角形相似</span>
-              <span class="da-growth-fold__meta">A 型 · X 型 · 中位线 · 测高</span>
-              <span
-                class="da-growth-fold__chevron"
-                :class="{ 'is-open': opHighfreqSimilarTriangleFoldOpen }"
-              >
-                ▾
-              </span>
-            </button>
-            <div v-show="opHighfreqSimilarTriangleFoldOpen" class="da-growth-fold__body">
               <div class="da-topic-head">
                 <h4 class="mode-section__subtitle">三角形相似</h4>
                 <DataAnalysisStrategyGuideButton topic-id="similar-triangle" />
               </div>
               <p class="mode-section__hint">
-                简单：相似比/A·X 型/中位线直接求边或面积比；中等对齐经典真题 4（竹竿测树高）；困难为
+                简单：相似比/A·X 型/中位线直接求边或面积比；普通对齐经典真题 4（竹竿测树高）；困难为
                 8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
               </p>
               <SimilarTrianglePanel ref="similarTrianglePanelRef" />
               <MentalMathWrongBookPanel section="op-highfreq-similar-triangle" />
-            </div>
-          </div>
 
-          <div class="da-growth-fold">
-            <button
-              type="button"
-              class="da-growth-fold__toggle"
-              :aria-expanded="opHighfreqColoringFoldOpen"
-              @click="opHighfreqColoringFoldOpen = !opHighfreqColoringFoldOpen"
-            >
-              <span class="da-growth-fold__title">染色问题</span>
-              <span class="da-growth-fold__meta">三面 · 两面 · 一面 · 未染色</span>
-              <span
-                class="da-growth-fold__chevron"
-                :class="{ 'is-open': opHighfreqColoringFoldOpen }"
-              >
-                ▾
-              </span>
-            </button>
-            <div v-show="opHighfreqColoringFoldOpen" class="da-growth-fold__body">
               <div class="da-topic-head">
                 <h4 class="mode-section__subtitle">染色问题</h4>
                 <DataAnalysisStrategyGuideButton topic-id="coloring" />
               </div>
               <p class="mode-section__hint">
-                简单：直接套表中三面/两面/一面/未染色公式；中等对齐经典真题 5（有染色=n³−(n−2)³）；困难为
+                简单：直接套表中三面/两面/一面/未染色公式；普通对齐经典真题 5（有染色=n³−(n−2)³）；困难为
                 更高阶变式，每轮 4 题且题型不重复。本地组卷，每轮 4 题。
               </p>
               <ColoringPanel ref="coloringPanelRef" />
               <MentalMathWrongBookPanel section="op-highfreq-coloring" />
             </div>
           </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opHighfreqTravelFoldOpen"
+              @click="opHighfreqTravelFoldOpen = !opHighfreqTravelFoldOpen"
+            >
+              <span class="da-growth-fold__title">行程问题</span>
+              <span class="da-growth-fold__meta">普通行程 · 相遇追及 · 流水行船</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opHighfreqTravelFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opHighfreqTravelFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">普通行程问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="ordinary-travel" />
+              </div>
+              <p class="mode-section__hint">
+                简单略低于经典真题 1～3（直接套公式）；普通对齐真题 1（迟到早到）/真题 2（提速）/真题
+                3（等距平均速度）；困难为 10 类更高阶变式，每轮抽 6 题且题型不重复。本地组卷，每轮 6 题。
+              </p>
+              <OrdinaryTravelPanel ref="ordinaryTravelPanelRef" />
+              <MentalMathWrongBookPanel section="op-highfreq-ordinary-travel" />
+
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">相遇与追及问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="meet-pursue" />
+              </div>
+              <p class="mode-section__hint">
+                简单对齐经典真题 4（先出发）/真题 5（火车过行人）；普通对齐真题 6（往返二次相遇）/真题
+                7（环形正反）。困难为 12 类更高阶变式，每轮抽 6 题且题型不重复。本地组卷，每轮 6 题。
+              </p>
+              <MeetPursuePanel ref="meetPursuePanelRef" />
+              <MentalMathWrongBookPanel section="op-highfreq-meet-pursue" />
+
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">流水行船问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="boat-current" />
+              </div>
+              <p class="mode-section__hint">
+                仅简单/困难两档。简单对齐经典真题 8（往返时差求水速再算另一船）；困难为 6
+                类更高阶变式，每轮抽 6 题且题型不重复。本地组卷，每轮 6 题。
+              </p>
+              <BoatCurrentPanel ref="boatCurrentPanelRef" />
+              <MentalMathWrongBookPanel section="op-highfreq-boat-current" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opHighfreqWorkFoldOpen"
+              @click="opHighfreqWorkFoldOpen = !opHighfreqWorkFoldOpen"
+            >
+              <span class="da-growth-fold__title">工程问题</span>
+              <span class="da-growth-fold__meta">普通工程 · 合作完工</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opHighfreqWorkFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opHighfreqWorkFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">普通工程问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="ordinary-work" />
+              </div>
+              <p class="mode-section__hint">
+                仅简单/困难两档。简单对齐或略低于经典真题 1（总量=效率×时间、提效省时、正反比）；困难为 6
+                类更高阶变式，每轮抽 4 题且题型不重复。本地组卷，每轮 4 题。
+              </p>
+              <OrdinaryWorkPanel ref="ordinaryWorkPanelRef" />
+              <MentalMathWrongBookPanel section="op-highfreq-ordinary-work" />
+
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">合作完工问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="cooperative-work" />
+              </div>
+              <p class="mode-section__hint">
+                仅简单/困难两档。简单对齐或略低于经典真题 2（效率和、分段合作、工时上限求最少）；困难为 6
+                类更高阶变式，每轮抽 4 题且题型不重复。本地组卷，每轮 4 题。
+              </p>
+              <CooperativeWorkPanel ref="cooperativeWorkPanelRef" />
+              <MentalMathWrongBookPanel section="op-highfreq-cooperative-work" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opHighfreqProfitFoldOpen"
+              @click="opHighfreqProfitFoldOpen = !opHighfreqProfitFoldOpen"
+            >
+              <span class="da-growth-fold__title">利润问题</span>
+              <span class="da-growth-fold__meta">利润计算 · 利润率计算</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opHighfreqProfitFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opHighfreqProfitFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">利润计算</h4>
+                <DataAnalysisStrategyGuideButton topic-id="profit-calc" />
+              </div>
+              <p class="mode-section__hint">
+                仅简单/困难两档。简单对齐或略低于经典真题 1（利润=收入−支出；囤货涨价+仓储+损耗）；困难为 6
+                类更高阶变式，每轮抽 4 题且题型不重复。本地组卷，每轮 4 题。不考利润率。
+              </p>
+              <ProfitCalcPanel ref="profitCalcPanelRef" />
+              <MentalMathWrongBookPanel section="op-highfreq-profit-calc" />
+
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">利润率计算</h4>
+                <DataAnalysisStrategyGuideButton topic-id="profit-rate" />
+              </div>
+              <p class="mode-section__hint">
+                仅简单/困难两档。简单对齐或略低于经典真题 2（利润率三式；成本/售价变动导致利润率百分点变化）；困难为 6
+                类更高阶变式，每轮抽 4 题且题型不重复。本地组卷，每轮 4 题。答案多为利润率或百分点。
+              </p>
+              <ProfitRatePanel ref="profitRatePanelRef" />
+              <MentalMathWrongBookPanel section="op-highfreq-profit-rate" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opHighfreqConcentrationFoldOpen"
+              @click="opHighfreqConcentrationFoldOpen = !opHighfreqConcentrationFoldOpen"
+            >
+              <span class="da-growth-fold__title">浓度问题</span>
+              <span class="da-growth-fold__meta">基本公式 · 十字交叉 · 倒水加水</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opHighfreqConcentrationFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opHighfreqConcentrationFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">浓度问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="concentration" />
+              </div>
+              <p class="mode-section__hint">
+                简单/普通/困难三档。简单对齐或略低于经典真题 1、2；普通对齐真题 1（分段加水加盐）与真题
+                2（十字交叉）；困难含真题 3（倒水加水）等 7 类变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+              </p>
+              <ConcentrationPanel ref="concentrationPanelRef" />
+              <MentalMathWrongBookPanel section="op-highfreq-concentration" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opHighfreqPermCombFoldOpen"
+              @click="opHighfreqPermCombFoldOpen = !opHighfreqPermCombFoldOpen"
+            >
+              <span class="da-growth-fold__title">排列组合问题</span>
+              <span class="da-growth-fold__meta">基本原理及公式 · 限制条件型 · 经典模型 · 概率</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opHighfreqPermCombFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opHighfreqPermCombFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">基本原理及公式</h4>
+                <DataAnalysisStrategyGuideButton topic-id="perm-comb-basic" />
+              </div>
+              <p class="mode-section__hint">
+                简单/普通/困难三档。简单对齐示例 1～4（加法、乘法、排列、组合）；普通对齐经典真题
+                1（枚举）与真题 2（间接法 2^n−2）；困难为 7 类更高阶变式，每轮抽 5
+                题且题型不重复。本地组卷，每轮 5 题。
+              </p>
+              <PermCombBasicPanel ref="permCombBasicPanelRef" />
+              <MentalMathWrongBookPanel section="op-highfreq-perm-comb-basic" />
+
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">限制条件型问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="perm-comb-constraint" />
+              </div>
+              <p class="mode-section__hint">
+                简单/普通/困难三档。简单对齐经典真题 3（优限首尾）、真题 4（捆绑+居中）；普通对齐真题
+                5（插空）、真题 6（归一法）；困难为 7 类更高阶变式（含环形、错位），每轮抽 6
+                题且题型不重复。本地组卷，每轮 6 题。
+              </p>
+              <PermCombConstraintPanel ref="permCombConstraintPanelRef" />
+              <MentalMathWrongBookPanel section="op-highfreq-perm-comb-constraint" />
+
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">排列组合经典模型</h4>
+                <DataAnalysisStrategyGuideButton topic-id="perm-comb-classic" />
+              </div>
+              <p class="mode-section__hint">
+                简单/普通/困难三档。简单对齐经典真题 7（环形排列）；普通对齐真题 8（错位重排）、真题
+                9（同素分堆插板）；困难为 7 类更高阶变式，每轮抽 6 题且题型不重复。本地组卷，每轮 6 题。
+              </p>
+              <PermCombClassicPanel ref="permCombClassicPanelRef" />
+              <MentalMathWrongBookPanel section="op-highfreq-perm-comb-classic" />
+
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">概率问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="probability" />
+              </div>
+              <p class="mode-section__hint">
+                简单/普通/困难三档。简单对齐经典真题 1（枚举 + 古典概率，本地组卷）；普通对齐真题
+                2（分类相加 + 分步相乘，本地组卷）；困难对齐真题 3（几何概率，豆包改写题干），10
+                类变式中每轮抽 6 题且题型不重复。每轮 6 题。
+              </p>
+              <ProbabilityPanel ref="probabilityPanelRef" />
+              <MentalMathWrongBookPanel section="op-highfreq-probability" />
+            </div>
+          </div>
         </section>
 
         <section v-if="showOpOtherSection" class="mode-section" id="practice-op-other">
           <h3 class="mode-section__title">其他运算</h3>
-          <p class="mode-section__hint">题型筹备中，稍后开放。</p>
+          <p class="mode-section__hint">
+            教材「数学运算其他题型」。当前开放容斥、数列、最值、日期、年龄、时钟、盈亏、鸡兔同笼、函数图象、比赛、逆推、分段；各子类均为简单/普通/困难三档（流程同资料分析：正计时、提交后暂停看解析）。
+          </p>
+
+          <div class="da-topic-head">
+            <h4 class="mode-section__subtitle">容斥问题</h4>
+            <DataAnalysisStrategyGuideButton topic-id="inclusion-exclusion" />
+          </div>
+          <p class="mode-section__hint">
+            简单/普通/困难三档。简单对齐经典真题 1（两集合 + 都不）；普通对齐真题 2（三集合求恰好两项）；困难对齐真题
+            3（多集合交最小值），10 类变式中每轮抽 6 题且题型不重复。本地组卷，每轮 6 题。
+          </p>
+          <InclusionExclusionPanel ref="inclusionExclusionPanelRef" />
+          <MentalMathWrongBookPanel section="op-other-inclusion-exclusion" />
+
+          <div class="da-topic-head">
+            <h4 class="mode-section__subtitle">数列问题</h4>
+            <DataAnalysisStrategyGuideButton topic-id="sequence" />
+          </div>
+          <p class="mode-section__hint">
+            简单/普通/困难三档。简单比经典真题 1、2 略易（直接通项/短求和/翻倍）；普通对齐真题 1（等差座位求和）、真题
+            2（等比细菌翻倍）；困难为 10 类更高阶变式，每轮抽 6 题且题型不重复。本地组卷，每轮 6 题。
+          </p>
+          <SequencePanel ref="sequencePanelRef" />
+          <MentalMathWrongBookPanel section="op-other-sequence" />
+
+          <div class="da-topic-head">
+            <h4 class="mode-section__subtitle">最值问题</h4>
+            <DataAnalysisStrategyGuideButton topic-id="extremum" />
+          </div>
+          <p class="mode-section__hint">
+            简单/普通/困难三档。简单对齐真题 2（最不利）、示例 1/2（和定相等/不等）；普通对齐真题
+            1（二次利润）、真题 3（双约束分配）；困难为 10 类更高阶变式，每轮抽 6
+            题且题型不重复。本地组卷，每轮 6 题。
+          </p>
+          <ExtremumPanel ref="extremumPanelRef" />
+          <MentalMathWrongBookPanel section="op-other-extremum" />
+
+          <div class="da-topic-head">
+            <h4 class="mode-section__subtitle">日期问题</h4>
+            <DataAnalysisStrategyGuideButton topic-id="date" />
+          </div>
+          <p class="mode-section__hint">
+            简单/普通/困难三档。简单对齐示例 1/2/3（同年推星期、月历次数、休息日反推）；普通对齐真题
+            1（跨年闰日）、真题 2（轮值）；困难为 8 类更高阶变式，每轮抽 6
+            题且题型不重复。本地组卷，每轮 6 题。
+          </p>
+          <DatePanel ref="datePanelRef" />
+          <MentalMathWrongBookPanel section="op-other-date" />
+
+          <div class="da-topic-head">
+            <h4 class="mode-section__subtitle">年龄问题</h4>
+            <DataAnalysisStrategyGuideButton topic-id="age" />
+          </div>
+          <p class="mode-section__hint">
+            简单/普通/困难三档。简单比经典真题更直接（差不变、出生年、和差、简单倍数）；普通对齐经典真题（数轴三段）及定比题；困难为
+            8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+          </p>
+          <AgePanel ref="agePanelRef" />
+          <MentalMathWrongBookPanel section="op-other-age" />
+
+          <div class="da-topic-head">
+            <h4 class="mode-section__subtitle">时钟问题</h4>
+            <DataAnalysisStrategyGuideButton topic-id="clock" />
+          </div>
+          <p class="mode-section__hint">
+            简单/普通/困难三档。简单对齐真题 1（已知时刻求夹角，解析含钟面图）；普通对齐真题
+            2（坏钟比例）及重合/垂直/直线；困难为 8 类更高阶变式，每轮抽 5
+            题且题型不重复。本地组卷，每轮 5 题。
+          </p>
+          <ClockPanel ref="clockPanelRef" />
+          <MentalMathWrongBookPanel section="op-other-clock" />
+
+          <div class="da-topic-head">
+            <h4 class="mode-section__subtitle">盈亏问题</h4>
+            <DataAnalysisStrategyGuideButton topic-id="ying-kui" />
+          </div>
+          <p class="mode-section__hint">
+            简单/普通/困难三档。简单比经典真题更易（一盈一尽、一亏一尽、两次皆盈/亏）；普通对齐经典真题（一盈一亏，末组不足化亏）；困难为
+            8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+          </p>
+          <YingKuiPanel ref="yingKuiPanelRef" />
+          <MentalMathWrongBookPanel section="op-other-ying-kui" />
+
+          <div class="da-topic-head">
+            <h4 class="mode-section__subtitle">鸡兔同笼问题</h4>
+            <DataAnalysisStrategyGuideButton topic-id="chicken-rabbit" />
+          </div>
+          <p class="mode-section__hint">
+            简单/普通/困难三档。简单比经典真题更易（直接鸡兔/鹤龟假设法）；普通对齐经典真题（大中客车座位）；困难为
+            8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+          </p>
+          <ChickenRabbitPanel ref="chickenRabbitPanelRef" />
+          <MentalMathWrongBookPanel section="op-other-chicken-rabbit" />
+
+          <div class="da-topic-head">
+            <h4 class="mode-section__subtitle">函数图象问题</h4>
+            <DataAnalysisStrategyGuideButton topic-id="function-graph" />
+          </div>
+          <p class="mode-section__hint">
+            简单/普通/困难三档。简单比经典真题更易（常速直线、反比例认图）；普通对齐经典真题（库存加速下降→越来越陡）；困难为
+            8 类更高阶变式，每轮抽 5 题且题型不重复。豆包改写题干+曲线四选一，每轮 5 题。
+          </p>
+          <FunctionGraphPanel ref="functionGraphPanelRef" />
+          <MentalMathWrongBookPanel section="op-other-function-graph" />
+
+          <div class="da-topic-head">
+            <h4 class="mode-section__subtitle">比赛问题</h4>
+            <DataAnalysisStrategyGuideButton topic-id="competition" />
+          </div>
+          <p class="mode-section__hint">
+            简单/普通/困难三档。简单比经典真题更易（直接套淘汰/单双循环公式）；普通对齐经典真题（五人握手连线）；困难为
+            8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+          </p>
+          <CompetitionPanel ref="competitionPanelRef" />
+          <MentalMathWrongBookPanel section="op-other-competition" />
+
+          <div class="da-topic-head">
+            <h4 class="mode-section__subtitle">逆推问题</h4>
+            <DataAnalysisStrategyGuideButton topic-id="reverse" />
+          </div>
+          <p class="mode-section__hint">
+            简单/普通/困难三档。简单比经典真题更易（整步加减乘除还原）；普通对齐经典真题（多日修路分数剩量±常数）；困难为
+            8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+          </p>
+          <ReversePanel ref="reversePanelRef" />
+          <MentalMathWrongBookPanel section="op-other-reverse" />
+
+          <div class="da-topic-head">
+            <h4 class="mode-section__subtitle">分段问题</h4>
+            <DataAnalysisStrategyGuideButton topic-id="sectional" />
+          </div>
+          <p class="mode-section__hint">
+            简单/普通/困难三档。简单比经典真题更易（两段电费/水费）；普通对齐经典真题（阶梯气价求最大用量）；困难为
+            8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+          </p>
+          <SectionalPanel ref="sectionalPanelRef" />
+          <MentalMathWrongBookPanel section="op-other-sectional" />
         </section>
 
         <section v-if="showChineseSection" class="mode-section" id="practice-chinese">

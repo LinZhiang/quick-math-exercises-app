@@ -99,6 +99,23 @@ import {
   type GeometrySeed,
 } from '@/utils/geometryPractice'
 import {
+  buildLocalProbabilityHardPaper,
+  buildProbabilityQuestionFromSeed,
+  pickProbabilityHardSeeds,
+  PROBABILITY_QUESTION_COUNT,
+  type ProbabilityQuestion,
+  type ProbabilitySeed,
+} from '@/utils/probabilityPractice'
+import {
+  FUNCTION_GRAPH_QUESTION_COUNT,
+  buildFunctionGraphQuestionFromSeed,
+  buildLocalFunctionGraphPaper,
+  pickFunctionGraphSeeds,
+  type FunctionGraphDifficulty,
+  type FunctionGraphQuestion,
+  type FunctionGraphSeed,
+} from '@/utils/functionGraphPractice'
+import {
   buildDataAnalysisQuestionFromMcq,
   DATA_ANALYSIS_QUESTION_COUNT,
   parseDataAnalysisMcqAiObject,
@@ -6645,6 +6662,250 @@ export async function requestGeometryMcqs(input: {
 
   if (out.length < count) {
     throw new Error(`几何问题仅生成 ${out.length}/${count} 题，请重试。`)
+  }
+  return out.slice(0, count)
+}
+
+/** 概率问题·困难：强制豆包；几何概率数字由本地种子锚定 */
+const PROBABILITY_FORCE_PROVIDER: AiProvider = 'doubao'
+
+const PROBABILITY_SYSTEM = `
+你是公务员/事业编「数量关系·概率问题」命题专家，专攻几何概率。
+正确答案、数字参数与解析步骤已由系统锚定：你只改写材料与题干表述，不得改动数字、答案与关键计算步骤。
+method/explanation 必须分步写清（建样本空间→标出有利区域→算面积或长度比），用中文具体数字，禁止出现英文占位词如 side。
+只输出合法 JSON 对象，不要 markdown 围栏。
+${CHINESE_MCQ_CORRECTNESS_RULES}
+`.trim()
+
+async function requestAnchoredProbabilityMcq(input: {
+  seed: ProbabilitySeed
+  seq: number
+  timeoutMs?: number
+}): Promise<ProbabilityQuestion | null> {
+  const { seed, seq } = input
+  const timeoutMs = input.timeoutMs ?? 16_000
+  try {
+    const raw = await Promise.race([
+      deepseekChatRaw(
+        [
+          `请为下列【已锚定几何概率题】改写材料与题干（四选一）。解析步骤已锚定，不要删减计算说明。`,
+          `难度对齐教材经典真题 3（几何概率·面积/线段比），可换生活场景，但数字与答案必须与锚定一致。`,
+          `【锚定】题型=${seed.hardTypeId}；正确答案必须是「${seed.correct}」；干扰项可用原 distractors 或等价改写但数值集合不变。`,
+          seed.anchorHint,
+          `原题材料：${seed.passage}`,
+          `原题干：${seed.stem}`,
+          `请输出 JSON：{ "term","passage","stem","correct","distractors":[3],"method","explanation" }`,
+          `correct 必须等于 ${JSON.stringify(seed.correct)}；distractors 必须是三个与 correct 不同的选项文本。`,
+          `method、explanation 必须保留分步结构（可用换行），不得比原文更简略；禁止把数字改成英文单词 side：`,
+          `做法：${seed.method}`,
+          `解析：${seed.explanation}`,
+        ].join('\n'),
+        {
+          system: PROBABILITY_SYSTEM,
+          temperature: 0.35,
+          maxTokens: 2000,
+          provider: PROBABILITY_FORCE_PROVIDER,
+        },
+      ),
+      new Promise<string>((_, reject) => {
+        window.setTimeout(() => reject(new Error('timeout')), timeoutMs)
+      }),
+    ])
+    const obj = parseAiJsonObjectLenient(stripAiJsonFence(raw))
+    if (!obj || typeof obj !== 'object') return null
+    const o = obj as Record<string, unknown>
+    const passage = String(o.passage ?? seed.passage)
+    const stem = String(o.stem ?? seed.stem)
+    const term = String(o.term ?? seed.term)
+    const aiMethod = String(o.method ?? '').trim()
+    const aiExplain = String(o.explanation ?? '').trim()
+    const method =
+      aiMethod.length >= Math.min(12, seed.method.length) ? aiMethod : seed.method
+    const explanation =
+      aiExplain.replace(/\s/g, '').length >=
+      Math.floor(seed.explanation.replace(/\s/g, '').length * 0.7)
+        ? aiExplain
+        : seed.explanation
+    return buildProbabilityQuestionFromSeed(seed, 'hard', seq, {
+      passage,
+      stem,
+      method,
+      explanation,
+      term,
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function requestProbabilityHardMcqs(input: {
+  count?: number
+  avoidTerms?: string[]
+  onProgress?: (msg: string) => void
+}): Promise<ProbabilityQuestion[]> {
+  void input.avoidTerms
+  const count = input.count ?? PROBABILITY_QUESTION_COUNT
+  const seeds = pickProbabilityHardSeeds(count)
+  const out: ProbabilityQuestion[] = []
+  const seen = new Set<string>()
+
+  const push = (q: ProbabilityQuestion | null) => {
+    if (!q) return false
+    if (seen.has(q.fingerprint)) return false
+    seen.add(q.fingerprint)
+    out.push(q)
+    return true
+  }
+
+  input.onProgress?.(`豆包按几何概率题库出题（困难，共 ${count} 题）…`)
+
+  for (let i = 0; i < count && i < seeds.length; i++) {
+    const seed = seeds[i]!
+    input.onProgress?.(`第 ${i + 1}/${count} 题 · ${seed.term}（豆包改写）…`)
+    const aiQ = await requestAnchoredProbabilityMcq({
+      seed,
+      seq: i,
+      timeoutMs: 14_000,
+    })
+    if (push(aiQ)) continue
+    input.onProgress?.(`第 ${i + 1} 题豆包未通过，使用同型本地题…`)
+    push(buildProbabilityQuestionFromSeed(seed, 'hard', 100 + i))
+  }
+
+  if (out.length < count) {
+    for (const q of buildLocalProbabilityHardPaper(count)) {
+      if (out.length >= count) break
+      push(q)
+    }
+  }
+
+  if (out.length < count) {
+    throw new Error(`概率问题仅生成 ${out.length}/${count} 题，请重试。`)
+  }
+  return out.slice(0, count)
+}
+
+/** 函数图象问题：强制豆包改写；曲线种类由本地种子锚定 */
+const FUNCTION_GRAPH_FORCE_PROVIDER: AiProvider = 'doubao'
+
+const FUNCTION_GRAPH_SYSTEM = `
+你是公务员/事业编「数量关系·函数图象问题」命题专家。
+正确答案对应的曲线类型已由系统锚定：你只改写材料与题干表述，不得改动曲线结论与关键推理。
+method/explanation 必须结合教材四点（增减、周期、直线/曲线、状态变化点）分步说明。
+只输出合法 JSON 对象，不要 markdown 围栏。
+${CHINESE_MCQ_CORRECTNESS_RULES}
+`.trim()
+
+async function requestAnchoredFunctionGraphMcq(input: {
+  seed: FunctionGraphSeed
+  seq: number
+  timeoutMs?: number
+}): Promise<FunctionGraphQuestion | null> {
+  const { seed, seq } = input
+  const timeoutMs = input.timeoutMs ?? 14_000
+  const correctKind = seed.optionKinds[seed.correctIndex]
+  try {
+    const raw = await Promise.race([
+      deepseekChatRaw(
+        [
+          `请为下列【已锚定函数图象题】改写材料与题干（四选一选图）。曲线类型已锚定，不要改变应选图形态。`,
+          `难度：${seed.difficulty}；正确曲线类型标识=${correctKind}（解析中用中文描述形态即可）。`,
+          seed.anchorHint,
+          `原题材料：${seed.passage}`,
+          `原题干：${seed.stem}`,
+          `请输出 JSON：{ "term","passage","stem","method","explanation" }`,
+          `method、explanation 必须保留分步结构：`,
+          `做法：${seed.method}`,
+          `解析：${seed.explanation}`,
+        ].join('\n'),
+        {
+          system: FUNCTION_GRAPH_SYSTEM,
+          temperature: 0.35,
+          maxTokens: 1800,
+          provider: FUNCTION_GRAPH_FORCE_PROVIDER,
+        },
+      ),
+      new Promise<string>((_, reject) => {
+        window.setTimeout(() => reject(new Error('timeout')), timeoutMs)
+      }),
+    ])
+    const obj = parseAiJsonObjectLenient(stripAiJsonFence(raw))
+    if (!obj || typeof obj !== 'object') return null
+    const o = obj as Record<string, unknown>
+    const passage = String(o.passage ?? seed.passage)
+    const stem = String(o.stem ?? seed.stem)
+    const term = String(o.term ?? seed.term)
+    const aiMethod = String(o.method ?? '').trim()
+    const aiExplain = String(o.explanation ?? '').trim()
+    const method =
+      aiMethod.length >= Math.min(12, seed.method.length) ? aiMethod : seed.method
+    const explanation =
+      aiExplain.replace(/\s/g, '').length >=
+      Math.floor(seed.explanation.replace(/\s/g, '').length * 0.65)
+        ? aiExplain
+        : seed.explanation
+    return buildFunctionGraphQuestionFromSeed(seed, seq, {
+      passage,
+      stem,
+      method,
+      explanation,
+      term,
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function requestFunctionGraphMcqs(input: {
+  count?: number
+  difficulty: FunctionGraphDifficulty
+  avoidTerms?: string[]
+  onProgress?: (msg: string) => void
+}): Promise<FunctionGraphQuestion[]> {
+  void input.avoidTerms
+  const count = input.count ?? FUNCTION_GRAPH_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const seeds = pickFunctionGraphSeeds(difficulty)
+  const out: FunctionGraphQuestion[] = []
+  const seen = new Set<string>()
+
+  const push = (q: FunctionGraphQuestion | null) => {
+    if (!q) return false
+    if (seen.has(q.fingerprint)) return false
+    if (difficulty === 'hard' && q.hardTypeId && out.some((x) => x.hardTypeId === q.hardTypeId)) {
+      return false
+    }
+    seen.add(q.fingerprint)
+    out.push(q)
+    return true
+  }
+
+  input.onProgress?.(
+    `豆包按函数图象题库出题（${difficulty === 'easy' ? '简单' : difficulty === 'medium' ? '普通' : '困难'}，共 ${count} 题）…`,
+  )
+
+  for (let i = 0; i < count && i < seeds.length; i++) {
+    const seed = seeds[i]!
+    input.onProgress?.(`第 ${i + 1}/${count} 题 · ${seed.term}（豆包改写）…`)
+    const aiQ = await requestAnchoredFunctionGraphMcq({
+      seed,
+      seq: i,
+      timeoutMs: 14_000,
+    })
+    if (push(aiQ)) continue
+    input.onProgress?.(`第 ${i + 1} 题豆包未通过，使用同型本地题…`)
+    push(buildFunctionGraphQuestionFromSeed(seed, 100 + i))
+  }
+
+  if (out.length < count) {
+    for (const q of buildLocalFunctionGraphPaper(difficulty)) {
+      if (out.length >= count) break
+      push(q)
+    }
+  }
+
+  if (out.length < count) {
+    throw new Error(`函数图象问题仅生成 ${out.length}/${count} 题，请重试。`)
   }
   return out.slice(0, count)
 }

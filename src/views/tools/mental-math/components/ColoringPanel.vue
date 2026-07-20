@@ -114,7 +114,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   <div class="chinese-idiom-panel data-analysis-panel">
     <template v-if="!selectedDifficulty && (test.phase === 'idle' || test.phase === 'loading')">
       <p class="mode-section__hint">
-        考点「染色问题」：大正方体外表面涂色后切开；三面 8、两面 12(n−2)、一面 6(n−2)²、未染色 (n−2)³；中等对齐经典真题 5（有染色=n³−(n−2)³）。本地程序组卷（不调用
+        考点「染色问题」：大正方体外表面涂色后切开；三面 8、两面 12(n−2)、一面 6(n−2)²、未染色 (n−2)³；普通对齐经典真题 5（有染色=n³−(n−2)³）。本地程序组卷（不调用
         AI），每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停看答案。
       </p>
       <div class="mode-grid">

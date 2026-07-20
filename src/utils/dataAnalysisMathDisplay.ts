@@ -51,17 +51,21 @@ function readAtomLeft(s: string, slashIdx: number): number {
     }
     return depth === 0 ? i + 1 : -1
   }
-  if (/[\d.%％]/.test(s[i]!)) {
-    while (i >= 0 && /[\d.%％]/.test(s[i]!)) i--
-    // A1、q2 等：数字左侧的字母前缀一并纳入
-    while (i >= 0 && /[A-Za-z_]/.test(s[i]!)) i--
-    return i + 1
-  }
+  if (!/[\d.%％A-Za-z_\u4e00-\u9fff]/.test(s[i]!)) return -1
+
+  // 从右往左：先吃掉字母/数字标识（如 5x、A1），再并入左侧小数（如 0.5x 的 0.）
   if (/[A-Za-z_\u4e00-\u9fff]/.test(s[i]!)) {
     while (i >= 0 && /[A-Za-z0-9_\u4e00-\u9fff]/.test(s[i]!)) i--
-    return i + 1
+  } else {
+    while (i >= 0 && /[\d.%％]/.test(s[i]!)) i--
+    while (i >= 0 && /[A-Za-z_]/.test(s[i]!)) i--
   }
-  return -1
+  // 0.5x、12.5% 等：小数点左侧整数部分
+  while (i >= 0 && s[i] === '.' && i > 0 && /\d/.test(s[i - 1]!)) {
+    i--
+    while (i >= 0 && /\d/.test(s[i]!)) i--
+  }
+  return i + 1
 }
 
 function readAtomRight(s: string, afterSlash: number): number {
@@ -80,11 +84,16 @@ function readAtomRight(s: string, afterSlash: number): number {
   }
   if (/\d/.test(s[i]!)) {
     while (i < s.length && /[\d.]/.test(s[i]!)) i++
+    // 0.5x：小数后紧跟字母系数
+    while (i < s.length && /[A-Za-z_]/.test(s[i]!)) i++
     if (s[i] === '%' || s[i] === '％') i++
+    // 阶乘 n!
+    if (s[i] === '!') i++
     return i
   }
   if (/[A-Za-z_\u4e00-\u9fff]/.test(s[i]!)) {
     while (i < s.length && /[A-Za-z0-9_\u4e00-\u9fff]/.test(s[i]!)) i++
+    if (s[i] === '!') i++
     return i
   }
   return -1

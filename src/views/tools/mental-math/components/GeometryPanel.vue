@@ -105,7 +105,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   <div class="chinese-idiom-panel data-analysis-panel">
     <template v-if="!selectedDifficulty && (test.phase === 'idle' || test.phase === 'loading')">
       <p class="mode-section__hint">
-        考点「几何问题」：套用教材平面/立体基本公式；简单略低于经典真题，中等对齐经典真题
+        考点「几何问题」：套用教材平面/立体基本公式；简单略低于经典真题，普通对齐经典真题
         1/2，困难更高。豆包出题干，几何图由系统按参数渲染，每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停看答案。
       </p>
       <div class="mode-grid">

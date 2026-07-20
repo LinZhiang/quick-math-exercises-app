@@ -114,7 +114,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   <div class="chinese-idiom-panel data-analysis-panel">
     <template v-if="!selectedDifficulty && (test.phase === 'idle' || test.phase === 'loading')">
       <p class="mode-section__hint">
-        考点「十字交叉法」：混合比例速算；中等对齐经典真题（先算混合率再交叉）；困难为更高阶变式。本地程序组卷（不调用
+        考点「十字交叉法」：混合比例速算；普通对齐经典真题（先算混合率再交叉）；困难为更高阶变式。本地程序组卷（不调用
         AI），每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停看答案。
       </p>
       <div class="mode-grid">
