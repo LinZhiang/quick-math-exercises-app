@@ -22,8 +22,12 @@ const regenerating = ref(false)
 const detailRow = ref<PullResultRow | null>(null)
 const detailVisible = ref(false)
 
-const isRunningOrLoading = computed(() =>
-  test.phase === 'running' || test.phase === 'loading' || test.phase === 'summary',
+const isRunningOrLoading = computed(
+  () =>
+    selectedDifficulty.value != null ||
+    test.phase === 'running' ||
+    test.phase === 'loading' ||
+    test.phase === 'summary',
 )
 
 defineExpose({ isRunningOrLoading })
