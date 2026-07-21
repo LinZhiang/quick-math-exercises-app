@@ -30,6 +30,16 @@ export type MentalMathMode =
   | 'easy-distractor'
   | 'normal'
   | 'hard'
+  | 'cumsum-easy'
+  | 'cumsum-hard'
+  | 'threedigit-easy'
+  | 'threedigit-hard'
+  | 'pct-addsub-easy'
+  | 'pct-addsub-hard'
+  | 'mulcalc-easy'
+  | 'mulcalc-hard'
+  | 'mixchain-easy'
+  | 'mixchain-hard'
   | 'power-easy'
   | 'power-hard'
   | 'square-cube-easy'
@@ -110,6 +120,116 @@ export const MENTAL_MATH_ARITHMETIC_MODES: MentalMathModeConfig[] = [
     wrongDelta: -28,
     maxScore: 100,
     desc: '40 秒 · 多因子组合速算（容量估算、连乘连除等）· 考场风格选项 · 对 +14 / 错 -28 · 对 +1 秒 / 错 -1 秒',
+  },
+  {
+    id: 'cumsum-easy',
+    category: 'arithmetic',
+    label: '累加/减数 · 简单题',
+    durationSec: 30,
+    optionCount: 4,
+    correctDelta: 10,
+    wrongDelta: -20,
+    maxScore: 100,
+    desc: '30 秒 · 个位连加减（3～4 个数，如 7+2−5+1）· 4 选项 · 对 +10 / 错 -20 · 对 +1 秒 / 错 -1 秒',
+  },
+  {
+    id: 'cumsum-hard',
+    category: 'arithmetic',
+    label: '累加/减数 · 复杂题',
+    durationSec: 40,
+    optionCount: 5,
+    correctDelta: 15,
+    wrongDelta: -30,
+    maxScore: 100,
+    desc: '40 秒 · 个位连加减（4～5 个数）· 强干扰（错位加减/近邻）· 5 选项 · 对 +15 / 错 -30 · 对 +1 秒 / 错 -1 秒',
+  },
+  {
+    id: 'threedigit-easy',
+    category: 'arithmetic',
+    label: '三位数加减法 · 简单题',
+    durationSec: 30,
+    optionCount: 4,
+    correctDelta: 8,
+    wrongDelta: -16,
+    maxScore: 100,
+    desc: '30 秒 · 三位数加减 · 干扰项个位与正解一致 · 4 选项 · 对 +8 / 错 -16 · 对 +1 秒 / 错 -1 秒',
+  },
+  {
+    id: 'threedigit-hard',
+    category: 'arithmetic',
+    label: '三位数加减法 · 复杂题',
+    durationSec: 40,
+    optionCount: 5,
+    correctDelta: 16,
+    wrongDelta: -32,
+    maxScore: 100,
+    desc: '40 秒 · 三位数加减（含进退位）· 强干扰且个位一致 · 5 选项 · 对 +16 / 错 -32 · 对 +1 秒 / 错 -1 秒',
+  },
+  {
+    id: 'pct-addsub-easy',
+    category: 'arithmetic',
+    label: '百分比加减运算 · 简单题',
+    durationSec: 30,
+    optionCount: 4,
+    correctDelta: 8,
+    wrongDelta: -16,
+    maxScore: 100,
+    desc: '30 秒 · 百分数加减（如 35%+28%）· 近邻/错位加减干扰 · 4 选项 · 对 +8 / 错 -16 · 对 +1 秒 / 错 -1 秒',
+  },
+  {
+    id: 'pct-addsub-hard',
+    category: 'arithmetic',
+    label: '百分比加减运算 · 复杂题',
+    durationSec: 40,
+    optionCount: 5,
+    correctDelta: 16,
+    wrongDelta: -32,
+    maxScore: 100,
+    desc: '40 秒 · 百分数加减（更大数字/易错位）· 强干扰 · 5 选项 · 对 +16 / 错 -32 · 对 +1 秒 / 错 -1 秒',
+  },
+  {
+    id: 'mulcalc-easy',
+    category: 'arithmetic',
+    label: '乘法计算 · 简单题',
+    durationSec: 30,
+    optionCount: 4,
+    correctDelta: 8,
+    wrongDelta: -16,
+    maxScore: 100,
+    desc: '30 秒 · 两位数 × 一位数 · 干扰项个位与正解一致 · 4 选项 · 对 +8 / 错 -16 · 对 +1 秒 / 错 -1 秒',
+  },
+  {
+    id: 'mulcalc-hard',
+    category: 'arithmetic',
+    label: '乘法计算 · 复杂题',
+    durationSec: 40,
+    optionCount: 5,
+    correctDelta: 13,
+    wrongDelta: -26,
+    maxScore: 100,
+    desc: '40 秒 · 三位数 × 一位数 · 强干扰且个位一致 · 5 选项 · 对 +13 / 错 -26 · 对 +1 秒 / 错 -1 秒',
+  },
+  {
+    id: 'mixchain-easy',
+    category: 'arithmetic',
+    label: '累加/减数（乘除）· 简单题',
+    durationSec: 30,
+    optionCount: 4,
+    correctDelta: 12,
+    wrongDelta: -24,
+    maxScore: 100,
+    desc: '30 秒 · 个位乘 + 十位÷个位，再连加减（如 3×4−24÷6+2）· 4 选项 · 对 +12 / 错 −24 · 对 +1 秒 / 错 −1 秒',
+  },
+  {
+    id: 'mixchain-hard',
+    category: 'arithmetic',
+    label: '累加/减数（乘除）· 复杂题',
+    durationSec: 40,
+    optionCount: 5,
+    correctDelta: 16,
+    wrongDelta: -32,
+    maxScore: 100,
+    desc: '40 秒 · 两组乘+一组除 或 两组除+一组乘，再连加减 · 强干扰 · 5 选项 · 对 +16 / 错 −32 · 对 +1 秒 / 错 −1 秒',
   },
 ]
 
@@ -350,6 +470,716 @@ function pickHardMulPair(): [number, number] {
 
 function isEasyArithmeticMode(mode: MentalMathMode): boolean {
   return mode === 'easy' || mode === 'easy-distractor'
+}
+
+function isCumsumMode(mode: MentalMathMode): mode is 'cumsum-easy' | 'cumsum-hard' {
+  return mode === 'cumsum-easy' || mode === 'cumsum-hard'
+}
+
+function isThreeDigitMode(mode: MentalMathMode): mode is 'threedigit-easy' | 'threedigit-hard' {
+  return mode === 'threedigit-easy' || mode === 'threedigit-hard'
+}
+
+function isPctAddSubMode(mode: MentalMathMode): mode is 'pct-addsub-easy' | 'pct-addsub-hard' {
+  return mode === 'pct-addsub-easy' || mode === 'pct-addsub-hard'
+}
+
+function isMulCalcMode(mode: MentalMathMode): mode is 'mulcalc-easy' | 'mulcalc-hard' {
+  return mode === 'mulcalc-easy' || mode === 'mulcalc-hard'
+}
+
+function isMixChainMode(mode: MentalMathMode): mode is 'mixchain-easy' | 'mixchain-hard' {
+  return mode === 'mixchain-easy' || mode === 'mixchain-hard'
+}
+
+/** 强制与正解相同的个位（负值按绝对值改个位后再还原符号） */
+function forceSameOnesDigit(value: number, onesDigit: number): number {
+  const ones = ((onesDigit % 10) + 10) % 10
+  const neg = value < 0
+  const abs = Math.trunc(Math.abs(value) / 10) * 10 + ones
+  return neg ? -abs : abs
+}
+
+function pickThreeDigit(hard: boolean): number {
+  if (hard) return randInt(100, 999)
+  // 简单：偏小、少极端进退位
+  return randInt(100, 599)
+}
+
+/** 三位数加减；干扰项个位与正确答案保持一致 */
+function generateThreeDigitQuestion(
+  mode: 'threedigit-easy' | 'threedigit-hard',
+  id: number,
+  optionCount: number,
+): MentalMathQuestion {
+  const hard = mode === 'threedigit-hard'
+  let a = 0
+  let b = 0
+  let op: '+' | '-' = '+'
+  let correctAnswer = 0
+
+  for (let attempt = 0; attempt < 40; attempt++) {
+    a = pickThreeDigit(hard)
+    b = pickThreeDigit(hard)
+    op = Math.random() < 0.55 ? '+' : '-'
+    if (op === '-') {
+      if (a === b) continue
+      if (a < b) {
+        const t = a
+        a = b
+        b = t
+      }
+      // 复杂题提高「需退位」比例
+      if (hard && a % 10 >= b % 10 && Math.random() < 0.55) {
+        const onesA = a % 10
+        const onesB = randInt(onesA + 1, 9)
+        b = Math.trunc(b / 10) * 10 + onesB
+        if (b < 100 || b > 999 || a <= b) continue
+      }
+    } else if (hard && a % 10 + (b % 10) < 10 && Math.random() < 0.5) {
+      // 复杂题提高「个位进位」比例
+      const onesA = a % 10
+      const onesB = randInt(10 - onesA, 9)
+      b = Math.trunc(b / 10) * 10 + onesB
+      if (b < 100 || b > 999) continue
+    }
+    correctAnswer = op === '+' ? a + b : a - b
+    if (correctAnswer < 0) continue
+    break
+  }
+
+  const expression = op === '+' ? `${a} + ${b} = ?` : `${a} − ${b} = ?`
+  const wrong = distinctThreeDigitWrongAnswers(a, b, op, correctAnswer, optionCount - 1)
+  const options: number[] = [...wrong, correctAnswer]
+  shuffleInPlace(options)
+  const correctIndex = options.findIndex((v) => v === correctAnswer)
+  return {
+    id,
+    expression,
+    correctAnswer,
+    options,
+    correctIndex: correctIndex >= 0 ? correctIndex : 0,
+  }
+}
+
+function distinctThreeDigitWrongAnswers(
+  a: number,
+  b: number,
+  op: '+' | '-',
+  correct: number,
+  count: number,
+): number[] {
+  const ones = ((correct % 10) + 10) % 10
+  const scored: { value: number; priority: number }[] = []
+  const seen = new Set<number>([correct])
+
+  const offer = (raw: number, priority: number) => {
+    if (!Number.isFinite(raw) || !Number.isInteger(raw)) return
+    const value = forceSameOnesDigit(raw, ones)
+    if (value === correct || seen.has(value)) return
+    // 结果量级仍像三位数加减，避免离谱
+    if (value < 0 || value > 1998) return
+    seen.add(value)
+    scored.push({ value, priority })
+  }
+
+  // 加减错位
+  if (op === '+') offer(a - b, 0)
+  else offer(a + b, 0)
+  offer(b - a, 1)
+  offer(Math.abs(a - b), 1)
+
+  // 进退位常见错：±10 / ±100（个位强制对齐后仍很近）
+  for (const d of [10, 20, 30, 100, 200, 110, 90]) {
+    offer(correct + d, d <= 30 ? 0 : 1)
+    offer(correct - d, d <= 30 ? 0 : 1)
+  }
+
+  // 某一位算错：十位或百位 ±1（再对齐个位）
+  offer(correct + 10, 0)
+  offer(correct - 10, 0)
+  offer(correct + 100, 1)
+  offer(correct - 100, 1)
+
+  // 交换加减数再算
+  if (op === '+') offer(b + a, 2)
+  else if (b > a) offer(b - a, 1)
+
+  scored.sort((x, y) => {
+    if (x.priority !== y.priority) return x.priority - y.priority
+    return Math.abs(x.value - correct) - Math.abs(y.value - correct)
+  })
+
+  const wrong: number[] = []
+  for (const item of scored) {
+    if (wrong.length >= count) break
+    wrong.push(item.value)
+  }
+
+  for (let step = 1; wrong.length < count && step <= 40; step++) {
+    for (const sign of [-1, 1]) {
+      const raw = correct + sign * step * 10
+      const value = forceSameOnesDigit(raw, ones)
+      if (value === correct || seen.has(value) || value < 0 || value > 1998) continue
+      seen.add(value)
+      wrong.push(value)
+      if (wrong.length >= count) break
+    }
+  }
+
+  return wrong
+}
+
+/** 百分比加减：选项带 %；干扰为近邻与加减错位 */
+function generatePctAddSubQuestion(
+  mode: 'pct-addsub-easy' | 'pct-addsub-hard',
+  id: number,
+  optionCount: number,
+): MentalMathQuestion {
+  const hard = mode === 'pct-addsub-hard'
+  let a = 0
+  let b = 0
+  let op: '+' | '-' = '+'
+  let correct = 0
+
+  for (let attempt = 0; attempt < 40; attempt++) {
+    if (hard) {
+      a = randInt(15, 95)
+      b = randInt(8, 85)
+    } else {
+      a = randInt(5, 60)
+      b = randInt(3, 45)
+    }
+    op = Math.random() < 0.55 ? '+' : '-'
+    if (op === '-') {
+      if (a === b) continue
+      if (a < b) {
+        const t = a
+        a = b
+        b = t
+      }
+      correct = a - b
+    } else {
+      correct = a + b
+      // 简单题结果别过大；复杂题允许超过 100 以增加干扰
+      if (!hard && correct > 100) continue
+      if (hard && correct > 160) continue
+    }
+    if (correct < 0) continue
+    break
+  }
+
+  const expression = op === '+' ? `${a}% + ${b}% = ?` : `${a}% − ${b}% = ?`
+  const wrongNums = distinctPctAddSubWrongAnswers(a, b, op, correct, optionCount - 1)
+  const correctLabel = `${correct}%`
+  const options: string[] = [...wrongNums.map((n) => `${n}%`), correctLabel]
+  shuffleInPlace(options)
+  const correctIndex = options.findIndex((v) => v === correctLabel)
+  return {
+    id,
+    expression,
+    correctAnswer: correctLabel,
+    options,
+    correctIndex: correctIndex >= 0 ? correctIndex : 0,
+  }
+}
+
+function distinctPctAddSubWrongAnswers(
+  a: number,
+  b: number,
+  op: '+' | '-',
+  correct: number,
+  count: number,
+): number[] {
+  const scored: { value: number; priority: number }[] = []
+  const seen = new Set<number>([correct])
+
+  const offer = (value: number, priority: number) => {
+    if (!Number.isFinite(value) || !Number.isInteger(value)) return
+    if (value === correct || seen.has(value)) return
+    if (value < 0 || value > 200) return
+    seen.add(value)
+    scored.push({ value, priority })
+  }
+
+  // 加减错位
+  if (op === '+') offer(a - b, 0)
+  else offer(a + b, 0)
+  offer(Math.abs(a - b), 1)
+  offer(b - a, 2)
+
+  // 近邻百分数
+  for (const d of [1, 2, 3, 5, 10]) {
+    offer(correct + d, d <= 2 ? 0 : 1)
+    offer(correct - d, d <= 2 ? 0 : 1)
+  }
+
+  // 把其中一个百分数算错 ±1 / ±2 / ±5 / ±10
+  for (const d of [1, 2, 5, 10]) {
+    if (op === '+') {
+      offer(a + d + b, 1)
+      offer(a + (b + d), 1)
+      offer(a - d + b, 1)
+      offer(a + (b - d), 1)
+    } else {
+      offer(a - d - b, 1)
+      offer(a - (b + d), 1)
+      offer(a + d - b, 1)
+      offer(a - (b - d), 1)
+    }
+  }
+
+  scored.sort((x, y) => {
+    if (x.priority !== y.priority) return x.priority - y.priority
+    return Math.abs(x.value - correct) - Math.abs(y.value - correct)
+  })
+
+  const wrong: number[] = []
+  for (const item of scored) {
+    if (wrong.length >= count) break
+    wrong.push(item.value)
+  }
+
+  for (let d = 4; wrong.length < count && d <= 30; d++) {
+    for (const sign of [-1, 1]) {
+      const v = correct + sign * d
+      if (v === correct || seen.has(v) || v < 0 || v > 200) continue
+      seen.add(v)
+      wrong.push(v)
+      if (wrong.length >= count) break
+    }
+  }
+
+  return wrong
+}
+
+/** 乘法计算：简单两位数×一位数，复杂三位数×一位数；干扰个位与正解一致 */
+function generateMulCalcQuestion(
+  mode: 'mulcalc-easy' | 'mulcalc-hard',
+  id: number,
+  optionCount: number,
+): MentalMathQuestion {
+  const hard = mode === 'mulcalc-hard'
+  const multiplicant = hard ? randInt(100, 999) : randInt(12, 99)
+  const multiplier = randInt(2, 9)
+  const correctAnswer = multiplicant * multiplier
+  const expression = `${multiplicant} × ${multiplier} = ?`
+  const wrong = distinctMulCalcWrongAnswers(
+    multiplicant,
+    multiplier,
+    correctAnswer,
+    optionCount - 1,
+    hard,
+  )
+  const options: number[] = [...wrong, correctAnswer]
+  shuffleInPlace(options)
+  const correctIndex = options.findIndex((v) => v === correctAnswer)
+  return {
+    id,
+    expression,
+    correctAnswer,
+    options,
+    correctIndex: correctIndex >= 0 ? correctIndex : 0,
+  }
+}
+
+function distinctMulCalcWrongAnswers(
+  a: number,
+  b: number,
+  correct: number,
+  count: number,
+  hard: boolean,
+): number[] {
+  const ones = ((correct % 10) + 10) % 10
+  const maxVal = hard ? 999 * 9 : 99 * 9
+  const scored: { value: number; priority: number }[] = []
+  const seen = new Set<number>([correct])
+
+  const offer = (raw: number, priority: number) => {
+    if (!Number.isFinite(raw) || !Number.isInteger(raw)) return
+    const value = forceSameOnesDigit(raw, ones)
+    if (value === correct || seen.has(value)) return
+    if (value <= 0 || value > maxVal + 200) return
+    seen.add(value)
+    scored.push({ value, priority })
+  }
+
+  // 乘数 ±1
+  for (const db of [-1, 1, -2, 2]) {
+    const nb = b + db
+    if (nb >= 2 && nb <= 9) offer(a * nb, Math.abs(db) === 1 ? 0 : 1)
+  }
+
+  // 被乘数 ±1 / ±10 / ±100（常见口算位移错）
+  for (const da of [-1, 1, -2, 2, -10, 10, -20, 20]) {
+    const na = a + da
+    if (hard ? na >= 100 && na <= 999 : na >= 10 && na <= 99) {
+      offer(na * b, Math.abs(da) <= 2 ? 0 : 1)
+    }
+  }
+  if (hard) {
+    for (const da of [-100, 100, -200, 200]) {
+      const na = a + da
+      if (na >= 100 && na <= 999) offer(na * b, 1)
+    }
+  }
+
+  // 只乘个位 / 只乘十位（漏乘另一位）
+  const onesA = a % 10
+  const tensA = Math.trunc(a / 10) % 10
+  const hundredsA = hard ? Math.trunc(a / 100) : 0
+  offer(onesA * b, 2)
+  offer(tensA * b * 10, 1)
+  if (hard) offer(hundredsA * b * 100, 1)
+  offer((Math.trunc(a / 10) * 10) * b, 1) // 个位当 0
+  offer((a - onesA + ((onesA + 1) % 10)) * b, 1)
+
+  // 进位相关近邻：±10 / ±20 / ±100（再对齐个位）
+  for (const d of [10, 20, 30, 100, 200]) {
+    offer(correct + d, d <= 30 ? 0 : 1)
+    offer(correct - d, d <= 30 ? 0 : 1)
+  }
+
+  scored.sort((x, y) => {
+    if (x.priority !== y.priority) return x.priority - y.priority
+    return Math.abs(x.value - correct) - Math.abs(y.value - correct)
+  })
+
+  const wrong: number[] = []
+  for (const item of scored) {
+    if (wrong.length >= count) break
+    wrong.push(item.value)
+  }
+
+  for (let step = 1; wrong.length < count && step <= 50; step++) {
+    for (const sign of [-1, 1]) {
+      const value = forceSameOnesDigit(correct + sign * step * 10, ones)
+      if (value === correct || seen.has(value) || value <= 0 || value > maxVal + 200) continue
+      seen.add(value)
+      wrong.push(value)
+      if (wrong.length >= count) break
+    }
+  }
+
+  return wrong
+}
+
+type MixChainPiece =
+  | { kind: 'mul'; text: string; value: number; factors: [number, number] }
+  | { kind: 'div'; text: string; value: number; dividend: number; divisor: number }
+  | { kind: 'ones'; text: string; value: number }
+
+function pickOnesDigit(): number {
+  return randInt(2, 9)
+}
+
+function pickMulPiece(): MixChainPiece {
+  const a = pickOnesDigit()
+  const b = pickOnesDigit()
+  return { kind: 'mul', text: `${a} × ${b}`, value: a * b, factors: [a, b] }
+}
+
+/** 十位数 ÷ 个位数，整除 */
+function pickDivPiece(): MixChainPiece {
+  for (let t = 0; t < 40; t++) {
+    const d = pickOnesDigit()
+    const q = randInt(2, Math.min(12, Math.floor(99 / d)))
+    const c = d * q
+    if (c >= 10 && c <= 99) {
+      return { kind: 'div', text: `${c} ÷ ${d}`, value: q, dividend: c, divisor: d }
+    }
+  }
+  return { kind: 'div', text: `36 ÷ 6`, value: 6, dividend: 36, divisor: 6 }
+}
+
+function pickOnesPiece(): MixChainPiece {
+  const e = pickOnesDigit()
+  return { kind: 'ones', text: String(e), value: e }
+}
+
+function evalSignedPieces(pieces: MixChainPiece[], ops: Array<'+' | '-'>): number {
+  let acc = pieces[0]!.value
+  for (let i = 0; i < ops.length; i++) {
+    const v = pieces[i + 1]!.value
+    acc = ops[i] === '+' ? acc + v : acc - v
+  }
+  return acc
+}
+
+function formatMixChainExpression(pieces: MixChainPiece[], ops: Array<'+' | '-'>): string {
+  let expr = pieces[0]!.text
+  for (let i = 0; i < ops.length; i++) {
+    expr += ops[i] === '+' ? ` + ${pieces[i + 1]!.text}` : ` − ${pieces[i + 1]!.text}`
+  }
+  return `${expr} = ?`
+}
+
+/** 累加/减数（乘除）：个位乘、十位÷个位，再连加减 */
+function generateMixChainQuestion(
+  mode: 'mixchain-easy' | 'mixchain-hard',
+  id: number,
+  optionCount: number,
+): MentalMathQuestion {
+  const hard = mode === 'mixchain-hard'
+  let pieces: MixChainPiece[] = []
+
+  if (!hard) {
+    // 简单：乘法一组 + 除法一组 + 个位一项（对齐 a×b−c÷d−e）
+    pieces = [pickMulPiece(), pickDivPiece(), pickOnesPiece()]
+  } else if (Math.random() < 0.5) {
+    // 复杂：乘法两组 + 除法一组
+    pieces = [pickMulPiece(), pickMulPiece(), pickDivPiece()]
+  } else {
+    // 复杂：除法两组 + 乘法一组
+    pieces = [pickMulPiece(), pickDivPiece(), pickDivPiece()]
+  }
+
+  shuffleInPlace(pieces)
+
+  const ops: Array<'+' | '-'> = []
+  for (let i = 1; i < pieces.length; i++) {
+    ops.push(Math.random() < 0.5 ? '+' : '-')
+  }
+  if (ops.length >= 2 && ops.every((o) => o === ops[0])) {
+    ops[randInt(0, ops.length - 1)] = ops[0] === '+' ? '-' : '+'
+  }
+
+  const correctAnswer = evalSignedPieces(pieces, ops)
+  const wrong = distinctMixChainWrongAnswers(pieces, ops, correctAnswer, optionCount - 1)
+  const options: number[] = [...wrong, correctAnswer]
+  shuffleInPlace(options)
+  const correctIndex = options.findIndex((v) => v === correctAnswer)
+  return {
+    id,
+    expression: formatMixChainExpression(pieces, ops),
+    correctAnswer,
+    options,
+    correctIndex: correctIndex >= 0 ? correctIndex : 0,
+  }
+}
+
+function distinctMixChainWrongAnswers(
+  pieces: MixChainPiece[],
+  ops: Array<'+' | '-'>,
+  correct: number,
+  count: number,
+): number[] {
+  const scored: { value: number; priority: number }[] = []
+  const seen = new Set<number>([correct])
+
+  const offer = (value: number, priority: number) => {
+    if (!Number.isFinite(value) || !Number.isInteger(value)) return
+    if (value === correct || seen.has(value)) return
+    if (Math.abs(value) > 400) return
+    seen.add(value)
+    scored.push({ value, priority })
+  }
+
+  // 单步加减错位
+  for (let i = 0; i < ops.length; i++) {
+    const flipped = ops.map((o, j) => (j === i ? (o === '+' ? '-' : '+') : o))
+    offer(evalSignedPieces(pieces, flipped), 0)
+  }
+
+  // 某一乘积/商算错 ±1、±2
+  for (let i = 0; i < pieces.length; i++) {
+    const p = pieces[i]!
+    for (const delta of [-2, -1, 1, 2]) {
+      const alt = pieces.map((x, j) =>
+        j === i ? ({ ...x, value: x.value + delta } as MixChainPiece) : x,
+      )
+      offer(evalSignedPieces(alt, ops), Math.abs(delta) === 1 ? 0 : 1)
+    }
+    if (p.kind === 'mul') {
+      const [a, b] = p.factors
+      // 加减错位成 a+b / a−b
+      for (const wrongVal of [a + b, Math.abs(a - b), a * (b + 1), (a + 1) * b]) {
+        const alt = pieces.map((x, j) =>
+          j === i ? ({ ...x, value: wrongVal } as MixChainPiece) : x,
+        )
+        offer(evalSignedPieces(alt, ops), 1)
+      }
+    }
+    if (p.kind === 'div') {
+      // 商差 1，或误用余数/除数
+      for (const wrongVal of [p.value + 1, p.value - 1, p.divisor, p.dividend % 10]) {
+        const alt = pieces.map((x, j) =>
+          j === i ? ({ ...x, value: wrongVal } as MixChainPiece) : x,
+        )
+        offer(evalSignedPieces(alt, ops), 1)
+      }
+    }
+  }
+
+  // 近邻
+  for (const d of [1, 2, 3, 4, 5]) {
+    offer(correct + d, d <= 2 ? 0 : 1)
+    offer(correct - d, d <= 2 ? 0 : 1)
+  }
+
+  scored.sort((x, y) => {
+    if (x.priority !== y.priority) return x.priority - y.priority
+    return Math.abs(x.value - correct) - Math.abs(y.value - correct)
+  })
+
+  const wrong: number[] = []
+  for (const item of scored) {
+    if (wrong.length >= count) break
+    wrong.push(item.value)
+  }
+
+  for (let d = 6; wrong.length < count && d <= 40; d++) {
+    for (const sign of [-1, 1]) {
+      const v = correct + sign * d
+      if (seen.has(v)) continue
+      seen.add(v)
+      wrong.push(v)
+      if (wrong.length >= count) break
+    }
+  }
+
+  return wrong
+}
+
+function evalCumsumChain(digits: number[], ops: Array<'+' | '-'>): number {
+  let acc = digits[0]!
+  for (let i = 0; i < ops.length; i++) {
+    const d = digits[i + 1]!
+    acc = ops[i] === '+' ? acc + d : acc - d
+  }
+  return acc
+}
+
+function formatCumsumExpression(digits: number[], ops: Array<'+' | '-'>): string {
+  let expr = String(digits[0])
+  for (let i = 0; i < ops.length; i++) {
+    expr += ops[i] === '+' ? ` + ${digits[i + 1]}` : ` − ${digits[i + 1]}`
+  }
+  return `${expr} = ?`
+}
+
+/** 累加/减数：个位连加减；干扰侧重近邻与单步符号错位 */
+function generateCumsumQuestion(
+  mode: 'cumsum-easy' | 'cumsum-hard',
+  id: number,
+  optionCount: number,
+): MentalMathQuestion {
+  const termCount =
+    mode === 'cumsum-easy' ? randInt(3, 4) : randInt(4, 5)
+  const digits: number[] = []
+  for (let i = 0; i < termCount; i++) digits.push(randInt(1, 9))
+
+  const ops: Array<'+' | '-'> = []
+  for (let i = 1; i < termCount; i++) {
+    ops.push(Math.random() < 0.5 ? '+' : '-')
+  }
+  // 至少含一种加、一种减，避免变成纯连加/连减
+  if (ops.length >= 2 && ops.every((o) => o === ops[0])) {
+    ops[randInt(0, ops.length - 1)] = ops[0] === '+' ? '-' : '+'
+  }
+
+  const correctAnswer = evalCumsumChain(digits, ops)
+  const wrong = distinctCumsumWrongAnswers(digits, ops, correctAnswer, optionCount - 1)
+  const options: number[] = [...wrong, correctAnswer]
+  shuffleInPlace(options)
+  const correctIndex = options.findIndex((v) => v === correctAnswer)
+  return {
+    id,
+    expression: formatCumsumExpression(digits, ops),
+    correctAnswer,
+    options,
+    correctIndex: correctIndex >= 0 ? correctIndex : 0,
+  }
+}
+
+function distinctCumsumWrongAnswers(
+  digits: number[],
+  ops: Array<'+' | '-'>,
+  correct: number,
+  count: number,
+): number[] {
+  const scored: { value: number; priority: number }[] = []
+  const seen = new Set<number>([correct])
+
+  const offer = (value: number, priority: number) => {
+    if (!Number.isFinite(value) || !Number.isInteger(value)) return
+    if (seen.has(value)) return
+    seen.add(value)
+    scored.push({ value, priority })
+  }
+
+  // 单步加减错位：某一处 +/− 反了（等价于答案偏移 ±2×该数）
+  for (let i = 0; i < ops.length; i++) {
+    const flipped = ops.map((o, j) => (j === i ? (o === '+' ? '-' : '+') : o))
+    offer(evalCumsumChain(digits, flipped), 0)
+  }
+
+  // 连续两步同时反号（更易误判）
+  if (ops.length >= 2) {
+    for (let i = 0; i < ops.length - 1; i++) {
+      const flipped = ops.map((o, j) =>
+        j === i || j === i + 1 ? (o === '+' ? '-' : '+') : o,
+      )
+      offer(evalCumsumChain(digits, flipped), 1)
+    }
+  }
+
+  // 全加 / 全减
+  offer(
+    digits.reduce((a, b) => a + b, 0),
+    2,
+  )
+  offer(
+    digits.slice(1).reduce((a, b) => a - b, digits[0]!),
+    2,
+  )
+
+  // 漏算最后一项 / 多算最后一项
+  if (digits.length >= 3) {
+    const last = digits[digits.length - 1]!
+    const lastOp = ops[ops.length - 1]!
+    offer(lastOp === '+' ? correct - last : correct + last, 1)
+  }
+
+  // 某一位数 ±1 后按原符号重算
+  for (let i = 0; i < digits.length; i++) {
+    for (const delta of [-1, 1]) {
+      const next = digits[i]! + delta
+      if (next < 1 || next > 9) continue
+      const alt = digits.slice()
+      alt[i] = next
+      offer(evalCumsumChain(alt, ops), 2)
+    }
+  }
+
+  // 近邻答案（强干扰）
+  for (let d = 1; d <= 4; d++) {
+    offer(correct + d, d === 1 ? 0 : 1)
+    offer(correct - d, d === 1 ? 0 : 1)
+  }
+
+  scored.sort((a, b) => {
+    if (a.priority !== b.priority) return a.priority - b.priority
+    return Math.abs(a.value - correct) - Math.abs(b.value - correct)
+  })
+
+  const wrong: number[] = []
+  for (const item of scored) {
+    if (wrong.length >= count) break
+    wrong.push(item.value)
+  }
+
+  for (let d = 5; wrong.length < count && d <= 12; d++) {
+    for (const sign of [-1, 1]) {
+      const v = correct + sign * d
+      if (seen.has(v)) continue
+      seen.add(v)
+      wrong.push(v)
+      if (wrong.length >= count) break
+    }
+  }
+
+  return wrong
 }
 
 function pickOperands(mode: MentalMathMode, op: ArithmeticOpKind): [number, number] {
@@ -1087,6 +1917,26 @@ function buildMentalMathQuestionOnce(
       generateSquareCubeQuestion(mode, id, optionCount, avoidFingerprints) ??
       generateSquareCubeQuestion(mode, id, optionCount, new Set())!
     )
+  }
+
+  if (isCumsumMode(mode)) {
+    return generateCumsumQuestion(mode, id, optionCount)
+  }
+
+  if (isThreeDigitMode(mode)) {
+    return generateThreeDigitQuestion(mode, id, optionCount)
+  }
+
+  if (isPctAddSubMode(mode)) {
+    return generatePctAddSubQuestion(mode, id, optionCount)
+  }
+
+  if (isMulCalcMode(mode)) {
+    return generateMulCalcQuestion(mode, id, optionCount)
+  }
+
+  if (isMixChainMode(mode)) {
+    return generateMixChainQuestion(mode, id, optionCount)
   }
 
   if (mode === 'hard' && Math.random() < 0.65) {

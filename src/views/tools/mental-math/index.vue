@@ -1464,6 +1464,9 @@ onBeforeUnmount(() => {
         />
         <section v-if="showArithmeticSection" class="mode-section" id="practice-arithmetic">
           <h3 class="mode-section__title">四则口算</h3>
+          <p class="mode-section__hint">
+            含简单/干扰/普通/高难，「累加/减数」「累加/减数（乘除）」「三位数加减法」「百分比加减运算」「乘法计算」。答错记入错题本；对 +1 秒 / 错 −1 秒，满分 100。
+          </p>
           <div class="mode-grid">
             <button
               v-for="m in MENTAL_MATH_ARITHMETIC_MODES"
@@ -1545,7 +1548,7 @@ onBeforeUnmount(() => {
         <section v-if="showDivisibilitySection" class="mode-section" id="practice-divisibility">
           <h3 class="mode-section__title">整除及其性质</h3>
           <p class="mode-section__hint">
-            整除判定、质数与合数、公因数与公倍数（由浅入深，适合口算速练；不含质因数分解）。答错会记入下方错题集。计分同四则（对 +1 秒 / 错 −1 秒，分 0～100）。
+            只练两类题：「下列哪个数是质数/合数」「下列哪个数能被 3～12 整除」。答错记入下方错题集。计分同四则（对 +1 秒 / 错 −1 秒，分 0～100）。
           </p>
           <div class="mode-grid">
             <button

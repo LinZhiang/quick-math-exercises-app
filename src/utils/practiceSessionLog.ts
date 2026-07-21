@@ -62,6 +62,16 @@ const ARITHMETIC_LABELS: Record<string, string> = {
   'easy-distractor': '简单模式（干扰型）',
   normal: '普通模式',
   hard: '高难模式',
+  'cumsum-easy': '累加/减数 · 简单题',
+  'cumsum-hard': '累加/减数 · 复杂题',
+  'threedigit-easy': '三位数加减法 · 简单题',
+  'threedigit-hard': '三位数加减法 · 复杂题',
+  'pct-addsub-easy': '百分比加减运算 · 简单题',
+  'pct-addsub-hard': '百分比加减运算 · 复杂题',
+  'mulcalc-easy': '乘法计算 · 简单题',
+  'mulcalc-hard': '乘法计算 · 复杂题',
+  'mixchain-easy': '累加/减数（乘除）· 简单题',
+  'mixchain-hard': '累加/减数（乘除）· 复杂题',
 }
 
 const KNOWN_ITEM_LABELS: Record<string, { categoryId: string; categoryLabel: string; itemLabel: string }> =
@@ -74,6 +84,56 @@ const KNOWN_ITEM_LABELS: Record<string, { categoryId: string; categoryLabel: str
     },
     normal: { categoryId: 'arithmetic', categoryLabel: '四则口算', itemLabel: '四则口算 · 普通模式' },
     hard: { categoryId: 'arithmetic', categoryLabel: '四则口算', itemLabel: '四则口算 · 高难模式' },
+    'cumsum-easy': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 累加/减数 · 简单题',
+    },
+    'cumsum-hard': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 累加/减数 · 复杂题',
+    },
+    'threedigit-easy': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 三位数加减法 · 简单题',
+    },
+    'threedigit-hard': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 三位数加减法 · 复杂题',
+    },
+    'pct-addsub-easy': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 百分比加减运算 · 简单题',
+    },
+    'pct-addsub-hard': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 百分比加减运算 · 复杂题',
+    },
+    'mulcalc-easy': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 乘法计算 · 简单题',
+    },
+    'mulcalc-hard': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 乘法计算 · 复杂题',
+    },
+    'mixchain-easy': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 累加/减数（乘除）· 简单题',
+    },
+    'mixchain-hard': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 累加/减数（乘除）· 复杂题',
+    },
     'power-easy': { categoryId: 'power', categoryLabel: '2 的 n 次幂', itemLabel: '2 的 n 次幂 · 简单题' },
     'power-hard': { categoryId: 'power', categoryLabel: '2 的 n 次幂', itemLabel: '2 的 n 次幂 · 复杂题' },
     'square-cube-easy': {
