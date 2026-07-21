@@ -22,7 +22,9 @@ const regenerating = ref(false)
 const detailRow = ref<AverageBaseResultRow | null>(null)
 const detailVisible = ref(false)
 
-const isRunningOrLoading = computed(() => test.phase === 'running' || test.phase === 'loading')
+const isRunningOrLoading = computed(() =>
+  test.phase === 'running' || test.phase === 'loading' || test.phase === 'summary',
+)
 
 defineExpose({ isRunningOrLoading })
 
@@ -109,7 +111,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <div class="chinese-idiom-panel data-analysis-panel">
+  <div
+  class="chinese-idiom-panel data-analysis-panel"
+  :data-session-active="isRunningOrLoading ? '' : undefined"
+>
     <template v-if="!selectedDifficulty && (test.phase === 'idle' || test.phase === 'loading')">
       <p class="mode-section__hint">
         考点「平均数——基期平均数」：基期平均数、平均数增长量/增长率与升降判断。简单/复杂均为纯文字；复杂对齐教材货运/快递真题。本模块

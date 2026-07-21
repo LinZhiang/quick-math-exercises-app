@@ -24,7 +24,9 @@ const regenerating = ref(false)
 const detailRow = ref<GrowthAvgAnnualResultRow | null>(null)
 const detailVisible = ref(false)
 
-const isRunningOrLoading = computed(() => test.phase === 'running' || test.phase === 'loading')
+const isRunningOrLoading = computed(() =>
+  test.phase === 'running' || test.phase === 'loading' || test.phase === 'summary',
+)
 
 defineExpose({ isRunningOrLoading })
 
@@ -111,7 +113,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <div class="chinese-idiom-panel data-analysis-panel">
+  <div
+  class="chinese-idiom-panel data-analysis-panel"
+  :data-session-active="isRunningOrLoading ? '' : undefined"
+>
     <template v-if="!selectedDifficulty && (test.phase === 'idle' || test.phase === 'loading')">
       <p class="mode-section__hint">
         考点「增长——年均增长」：年均增长量/增长率、多期连乘、初期判定（一般/这n年/五年规划）、特征数字与近似估、(1+r)^n

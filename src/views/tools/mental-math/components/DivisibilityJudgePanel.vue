@@ -20,7 +20,9 @@ const regenerating = ref(false)
 const detailRow = ref<DivJudgeResultRow | null>(null)
 const detailVisible = ref(false)
 
-const isRunningOrLoading = computed(() => test.phase === 'running' || test.phase === 'loading')
+const isRunningOrLoading = computed(() =>
+  test.phase === 'running' || test.phase === 'loading' || test.phase === 'summary',
+)
 
 defineExpose({ isRunningOrLoading })
 
@@ -111,7 +113,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <div class="chinese-idiom-panel data-analysis-panel">
+  <div
+  class="chinese-idiom-panel data-analysis-panel"
+  :data-session-active="isRunningOrLoading ? '' : undefined"
+>
     <template v-if="!selectedDifficulty && (test.phase === 'idle' || test.phase === 'loading')">
       <p class="mode-section__hint">
         考点「整除的判定」：能被 3/9/7/11/6/14 等整除的判定口诀，以及「谁能被整除 / 能被谁整除」。本地程序组卷（不调用

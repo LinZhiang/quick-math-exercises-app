@@ -22,7 +22,9 @@ const regenerating = ref(false)
 const detailRow = ref<GrowthMixedResultRow | null>(null)
 const detailVisible = ref(false)
 
-const isRunningOrLoading = computed(() => test.phase === 'running' || test.phase === 'loading')
+const isRunningOrLoading = computed(() =>
+  test.phase === 'running' || test.phase === 'loading' || test.phase === 'summary',
+)
 
 defineExpose({ isRunningOrLoading })
 
@@ -109,7 +111,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <div class="chinese-idiom-panel data-analysis-panel">
+  <div
+  class="chinese-idiom-panel data-analysis-panel"
+  :data-session-active="isRunningOrLoading ? '' : undefined"
+>
     <template v-if="!selectedDifficulty && (test.phase === 'idle' || test.phase === 'loading')">
       <p class="mode-section__hint">
         考点「增长——混合增长」：整体增速介于部分之间、偏向基期较大部分、十字交叉法、精确混合公式、反推另一部分增速等。简单/复杂均为纯文字；复杂题选项贴近，须十字交叉/精确算/估权，对齐书上难题。本模块

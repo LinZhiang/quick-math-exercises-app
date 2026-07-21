@@ -20,7 +20,9 @@ const regenerating = ref(false)
 const detailRow = ref<ProfitRateResultRow | null>(null)
 const detailVisible = ref(false)
 
-const isRunningOrLoading = computed(() => test.phase === 'running' || test.phase === 'loading')
+const isRunningOrLoading = computed(() =>
+  test.phase === 'running' || test.phase === 'loading' || test.phase === 'summary',
+)
 
 defineExpose({ isRunningOrLoading })
 
@@ -111,7 +113,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <div class="chinese-idiom-panel data-analysis-panel">
+  <div
+  class="chinese-idiom-panel data-analysis-panel"
+  :data-session-active="isRunningOrLoading ? '' : undefined"
+>
     <template v-if="!selectedDifficulty && (test.phase === 'idle' || test.phase === 'loading')">
       <p class="mode-section__hint">
         考点「利润率计算」：利润率=利润/成本=(售价−成本)/成本=售价/成本−1。对齐经典真题 2（成本/售价变动与百分点）；答案为利润率或百分点，不考「赚了多少元」。仅简单/困难两档。本地程序组卷（不调用

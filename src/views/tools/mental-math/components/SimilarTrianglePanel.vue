@@ -20,7 +20,9 @@ const regenerating = ref(false)
 const detailRow = ref<SimilarTriangleResultRow | null>(null)
 const detailVisible = ref(false)
 
-const isRunningOrLoading = computed(() => test.phase === 'running' || test.phase === 'loading')
+const isRunningOrLoading = computed(() =>
+  test.phase === 'running' || test.phase === 'loading' || test.phase === 'summary',
+)
 
 defineExpose({ isRunningOrLoading })
 
@@ -111,7 +113,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <div class="chinese-idiom-panel data-analysis-panel">
+  <div
+  class="chinese-idiom-panel data-analysis-panel"
+  :data-session-active="isRunningOrLoading ? '' : undefined"
+>
     <template v-if="!selectedDifficulty && (test.phase === 'idle' || test.phase === 'loading')">
       <p class="mode-section__hint">
         考点「三角形相似」：对应边成比例、面积比=相似比²；A 型平行截线、X 型沙漏、中位线；普通对齐经典真题 4（竹竿测树高）；困难为更高阶变式（每题题型不同）。本地程序组卷（不调用

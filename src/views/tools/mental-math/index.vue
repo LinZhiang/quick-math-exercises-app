@@ -287,6 +287,21 @@ const dataAnalysisIndexFoldOpen = ref(false)
 const dataAnalysisPullFoldOpen = ref(false)
 /** 资料分析「顺差与逆差」子模块折叠：默认收起 */
 const dataAnalysisSurplusFoldOpen = ref(false)
+/** 资料分析「百分数与百分点」折叠：默认收起 */
+const dataAnalysisPercentFoldOpen = ref(false)
+/** 其他运算各子模块折叠：默认收起 */
+const opOtherInclusionFoldOpen = ref(false)
+const opOtherSequenceFoldOpen = ref(false)
+const opOtherExtremumFoldOpen = ref(false)
+const opOtherDateFoldOpen = ref(false)
+const opOtherAgeFoldOpen = ref(false)
+const opOtherClockFoldOpen = ref(false)
+const opOtherYingKuiFoldOpen = ref(false)
+const opOtherChickenRabbitFoldOpen = ref(false)
+const opOtherFunctionGraphFoldOpen = ref(false)
+const opOtherCompetitionFoldOpen = ref(false)
+const opOtherReverseFoldOpen = ref(false)
+const opOtherSectionalFoldOpen = ref(false)
 /** 运算技巧「整除及其性质」折叠：默认收起 */
 const opSkillDivFoldOpen = ref(false)
 const opSkillRemFoldOpen = ref(false)
@@ -1358,19 +1373,24 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="mental-math-page">
-    <header v-if="phase === 'select'" class="page-hero">
+    <header v-if="phase === 'select' && !chineseSessionActive" class="page-hero">
       <h2 class="page-title">口算练习</h2>
       <p class="page-subtitle page-subtitle--full">
         限时口算、次幂、平方与立方、估算分数、整除、生活常识；数学推理含二十四点、数独、图形推理、资料分析、运算技巧、高频运算、其他运算；左侧「语文练习」含成语识记、词语识记、阅读理解等。
-        口算/图形结果仅在本页展示；语文练习多子模块四选一、正计时，依赖 AI 出题（DeepSeek / 豆包，需在「导览 → 安装」登录），错题与收藏在「关键题练习」。
+        口算/图形结果仅在本页展示；语文练习多子模块四选一、正计时，依赖 AI 出题（DeepSeek / 豆包，需在「导览 → 安装」登录），错题与收藏在「关题练习」。
       </p>
       <p class="page-subtitle page-subtitle--compact">
         点上方分类找模式，点卡片开始练习。
       </p>
     </header>
 
-    <div v-if="phase === 'select'" class="practice-shell">
+    <div
+      v-if="phase === 'select'"
+      class="practice-shell"
+      :class="{ 'practice-shell--session-focus': chineseSessionActive }"
+    >
       <aside
+        v-show="!chineseSessionActive"
         ref="practiceSidebarRef"
         class="practice-sidebar"
         aria-label="练习大纲"
@@ -1431,7 +1451,11 @@ onBeforeUnmount(() => {
         </div>
       </aside>
 
-      <div ref="practiceMainRef" class="practice-main mode-select">
+      <div
+        ref="practiceMainRef"
+        class="practice-main mode-select"
+        :class="{ 'practice-main--session-focus': chineseSessionActive }"
+      >
         <PracticeSessionLogPanel v-if="showLogSection" />
         <MentalMathPracticeGuide
           v-if="showGuideSection"
@@ -1684,14 +1708,34 @@ onBeforeUnmount(() => {
         <section v-if="showDataAnalysisSection" class="mode-section" id="practice-data-analysis">
           <h3 class="mode-section__title">资料分析</h3>
           <p class="mode-section__hint">
-            公考/事业编资料分析考点。开放「百分数与百分点」、「增长」「比重」「平均数」「倍数与翻番」「指数」「拉动增长和比例」「顺差与逆差」（后七者默认折叠）；各模块错题集分开。正计时，提交后停表看答案再下一题。
+            公考/事业编资料分析考点。开放「百分数与百分点」「增长」「比重」「平均数」「倍数与翻番」「指数」「拉动增长和比例」「顺差与逆差」（均默认折叠）；各模块错题集分开。正计时，提交后停表看答案再下一题。
           </p>
-          <div class="da-topic-head">
-            <h4 class="mode-section__subtitle">百分数与百分点</h4>
-            <DataAnalysisStrategyGuideButton topic-id="percent-point" />
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="dataAnalysisPercentFoldOpen"
+              @click="dataAnalysisPercentFoldOpen = !dataAnalysisPercentFoldOpen"
+            >
+              <span class="da-growth-fold__title">百分数与百分点</span>
+              <span class="da-growth-fold__meta">百分数 · 百分点 · 换算</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': dataAnalysisPercentFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="dataAnalysisPercentFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">百分数与百分点</h4>
+                <DataAnalysisStrategyGuideButton topic-id="percent-point" />
+              </div>
+              <DataAnalysisPanel ref="dataAnalysisPanelRef" />
+              <MentalMathWrongBookPanel section="data-analysis" />
+            </div>
           </div>
-          <DataAnalysisPanel ref="dataAnalysisPanelRef" />
-          <MentalMathWrongBookPanel section="data-analysis" />
 
           <div class="da-growth-fold">
             <button
@@ -2517,143 +2561,371 @@ onBeforeUnmount(() => {
         <section v-if="showOpOtherSection" class="mode-section" id="practice-op-other">
           <h3 class="mode-section__title">其他运算</h3>
           <p class="mode-section__hint">
-            教材「数学运算其他题型」。当前开放容斥、数列、最值、日期、年龄、时钟、盈亏、鸡兔同笼、函数图象、比赛、逆推、分段；各子类均为简单/普通/困难三档（流程同资料分析：正计时、提交后暂停看解析）。
+            教材「数学运算其他题型」。当前开放容斥、数列、最值、日期、年龄、时钟、盈亏、鸡兔同笼、函数图象、比赛、逆推、分段（均默认折叠）；各子类均为简单/普通/困难三档（流程同资料分析：正计时、提交后暂停看解析）。
           </p>
 
-          <div class="da-topic-head">
-            <h4 class="mode-section__subtitle">容斥问题</h4>
-            <DataAnalysisStrategyGuideButton topic-id="inclusion-exclusion" />
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opOtherInclusionFoldOpen"
+              @click="opOtherInclusionFoldOpen = !opOtherInclusionFoldOpen"
+            >
+              <span class="da-growth-fold__title">容斥问题</span>
+              <span class="da-growth-fold__meta">两集合 · 三集合 · 最值</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opOtherInclusionFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opOtherInclusionFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">容斥问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="inclusion-exclusion" />
+              </div>
+              <p class="mode-section__hint">
+                简单/普通/困难三档。简单对齐经典真题 1（两集合 + 都不）；普通对齐真题 2（三集合求恰好两项）；困难对齐真题
+                3（多集合交最小值），10 类变式中每轮抽 6 题且题型不重复。本地组卷，每轮 6 题。
+              </p>
+              <InclusionExclusionPanel ref="inclusionExclusionPanelRef" />
+              <MentalMathWrongBookPanel section="op-other-inclusion-exclusion" />
+            </div>
           </div>
-          <p class="mode-section__hint">
-            简单/普通/困难三档。简单对齐经典真题 1（两集合 + 都不）；普通对齐真题 2（三集合求恰好两项）；困难对齐真题
-            3（多集合交最小值），10 类变式中每轮抽 6 题且题型不重复。本地组卷，每轮 6 题。
-          </p>
-          <InclusionExclusionPanel ref="inclusionExclusionPanelRef" />
-          <MentalMathWrongBookPanel section="op-other-inclusion-exclusion" />
 
-          <div class="da-topic-head">
-            <h4 class="mode-section__subtitle">数列问题</h4>
-            <DataAnalysisStrategyGuideButton topic-id="sequence" />
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opOtherSequenceFoldOpen"
+              @click="opOtherSequenceFoldOpen = !opOtherSequenceFoldOpen"
+            >
+              <span class="da-growth-fold__title">数列问题</span>
+              <span class="da-growth-fold__meta">等差 · 等比 · 通项求和</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opOtherSequenceFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opOtherSequenceFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">数列问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="sequence" />
+              </div>
+              <p class="mode-section__hint">
+                简单/普通/困难三档。简单比经典真题 1、2 略易（直接通项/短求和/翻倍）；普通对齐真题 1（等差座位求和）、真题
+                2（等比细菌翻倍）；困难为 10 类更高阶变式，每轮抽 6 题且题型不重复。本地组卷，每轮 6 题。
+              </p>
+              <SequencePanel ref="sequencePanelRef" />
+              <MentalMathWrongBookPanel section="op-other-sequence" />
+            </div>
           </div>
-          <p class="mode-section__hint">
-            简单/普通/困难三档。简单比经典真题 1、2 略易（直接通项/短求和/翻倍）；普通对齐真题 1（等差座位求和）、真题
-            2（等比细菌翻倍）；困难为 10 类更高阶变式，每轮抽 6 题且题型不重复。本地组卷，每轮 6 题。
-          </p>
-          <SequencePanel ref="sequencePanelRef" />
-          <MentalMathWrongBookPanel section="op-other-sequence" />
 
-          <div class="da-topic-head">
-            <h4 class="mode-section__subtitle">最值问题</h4>
-            <DataAnalysisStrategyGuideButton topic-id="extremum" />
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opOtherExtremumFoldOpen"
+              @click="opOtherExtremumFoldOpen = !opOtherExtremumFoldOpen"
+            >
+              <span class="da-growth-fold__title">最值问题</span>
+              <span class="da-growth-fold__meta">最不利 · 和定分配 · 约束</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opOtherExtremumFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opOtherExtremumFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">最值问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="extremum" />
+              </div>
+              <p class="mode-section__hint">
+                简单/普通/困难三档。简单对齐真题 2（最不利）、示例 1/2（和定相等/不等）；普通对齐真题
+                1（二次利润）、真题 3（双约束分配）；困难为 10 类更高阶变式，每轮抽 6
+                题且题型不重复。本地组卷，每轮 6 题。
+              </p>
+              <ExtremumPanel ref="extremumPanelRef" />
+              <MentalMathWrongBookPanel section="op-other-extremum" />
+            </div>
           </div>
-          <p class="mode-section__hint">
-            简单/普通/困难三档。简单对齐真题 2（最不利）、示例 1/2（和定相等/不等）；普通对齐真题
-            1（二次利润）、真题 3（双约束分配）；困难为 10 类更高阶变式，每轮抽 6
-            题且题型不重复。本地组卷，每轮 6 题。
-          </p>
-          <ExtremumPanel ref="extremumPanelRef" />
-          <MentalMathWrongBookPanel section="op-other-extremum" />
 
-          <div class="da-topic-head">
-            <h4 class="mode-section__subtitle">日期问题</h4>
-            <DataAnalysisStrategyGuideButton topic-id="date" />
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opOtherDateFoldOpen"
+              @click="opOtherDateFoldOpen = !opOtherDateFoldOpen"
+            >
+              <span class="da-growth-fold__title">日期问题</span>
+              <span class="da-growth-fold__meta">星期 · 月历 · 轮值</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opOtherDateFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opOtherDateFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">日期问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="date" />
+              </div>
+              <p class="mode-section__hint">
+                简单/普通/困难三档。简单对齐示例 1/2/3（同年推星期、月历次数、休息日反推）；普通对齐真题
+                1（跨年闰日）、真题 2（轮值）；困难为 8 类更高阶变式，每轮抽 6
+                题且题型不重复。本地组卷，每轮 6 题。
+              </p>
+              <DatePanel ref="datePanelRef" />
+              <MentalMathWrongBookPanel section="op-other-date" />
+            </div>
           </div>
-          <p class="mode-section__hint">
-            简单/普通/困难三档。简单对齐示例 1/2/3（同年推星期、月历次数、休息日反推）；普通对齐真题
-            1（跨年闰日）、真题 2（轮值）；困难为 8 类更高阶变式，每轮抽 6
-            题且题型不重复。本地组卷，每轮 6 题。
-          </p>
-          <DatePanel ref="datePanelRef" />
-          <MentalMathWrongBookPanel section="op-other-date" />
 
-          <div class="da-topic-head">
-            <h4 class="mode-section__subtitle">年龄问题</h4>
-            <DataAnalysisStrategyGuideButton topic-id="age" />
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opOtherAgeFoldOpen"
+              @click="opOtherAgeFoldOpen = !opOtherAgeFoldOpen"
+            >
+              <span class="da-growth-fold__title">年龄问题</span>
+              <span class="da-growth-fold__meta">差不变 · 倍数 · 数轴</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opOtherAgeFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opOtherAgeFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">年龄问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="age" />
+              </div>
+              <p class="mode-section__hint">
+                简单/普通/困难三档。简单比经典真题更直接（差不变、出生年、和差、简单倍数）；普通对齐经典真题（数轴三段）及定比题；困难为
+                8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+              </p>
+              <AgePanel ref="agePanelRef" />
+              <MentalMathWrongBookPanel section="op-other-age" />
+            </div>
           </div>
-          <p class="mode-section__hint">
-            简单/普通/困难三档。简单比经典真题更直接（差不变、出生年、和差、简单倍数）；普通对齐经典真题（数轴三段）及定比题；困难为
-            8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
-          </p>
-          <AgePanel ref="agePanelRef" />
-          <MentalMathWrongBookPanel section="op-other-age" />
 
-          <div class="da-topic-head">
-            <h4 class="mode-section__subtitle">时钟问题</h4>
-            <DataAnalysisStrategyGuideButton topic-id="clock" />
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opOtherClockFoldOpen"
+              @click="opOtherClockFoldOpen = !opOtherClockFoldOpen"
+            >
+              <span class="da-growth-fold__title">时钟问题</span>
+              <span class="da-growth-fold__meta">夹角 · 坏钟 · 重合垂直</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opOtherClockFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opOtherClockFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">时钟问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="clock" />
+              </div>
+              <p class="mode-section__hint">
+                简单/普通/困难三档。简单对齐真题 1（已知时刻求夹角，解析含钟面图）；普通对齐真题
+                2（坏钟比例）及重合/垂直/直线；困难为 8 类更高阶变式，每轮抽 5
+                题且题型不重复。本地组卷，每轮 5 题。
+              </p>
+              <ClockPanel ref="clockPanelRef" />
+              <MentalMathWrongBookPanel section="op-other-clock" />
+            </div>
           </div>
-          <p class="mode-section__hint">
-            简单/普通/困难三档。简单对齐真题 1（已知时刻求夹角，解析含钟面图）；普通对齐真题
-            2（坏钟比例）及重合/垂直/直线；困难为 8 类更高阶变式，每轮抽 5
-            题且题型不重复。本地组卷，每轮 5 题。
-          </p>
-          <ClockPanel ref="clockPanelRef" />
-          <MentalMathWrongBookPanel section="op-other-clock" />
 
-          <div class="da-topic-head">
-            <h4 class="mode-section__subtitle">盈亏问题</h4>
-            <DataAnalysisStrategyGuideButton topic-id="ying-kui" />
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opOtherYingKuiFoldOpen"
+              @click="opOtherYingKuiFoldOpen = !opOtherYingKuiFoldOpen"
+            >
+              <span class="da-growth-fold__title">盈亏问题</span>
+              <span class="da-growth-fold__meta">盈亏 · 尽 · 差量</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opOtherYingKuiFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opOtherYingKuiFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">盈亏问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="ying-kui" />
+              </div>
+              <p class="mode-section__hint">
+                简单/普通/困难三档。简单比经典真题更易（一盈一尽、一亏一尽、两次皆盈/亏）；普通对齐经典真题（一盈一亏，末组不足化亏）；困难为
+                8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+              </p>
+              <YingKuiPanel ref="yingKuiPanelRef" />
+              <MentalMathWrongBookPanel section="op-other-ying-kui" />
+            </div>
           </div>
-          <p class="mode-section__hint">
-            简单/普通/困难三档。简单比经典真题更易（一盈一尽、一亏一尽、两次皆盈/亏）；普通对齐经典真题（一盈一亏，末组不足化亏）；困难为
-            8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
-          </p>
-          <YingKuiPanel ref="yingKuiPanelRef" />
-          <MentalMathWrongBookPanel section="op-other-ying-kui" />
 
-          <div class="da-topic-head">
-            <h4 class="mode-section__subtitle">鸡兔同笼问题</h4>
-            <DataAnalysisStrategyGuideButton topic-id="chicken-rabbit" />
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opOtherChickenRabbitFoldOpen"
+              @click="opOtherChickenRabbitFoldOpen = !opOtherChickenRabbitFoldOpen"
+            >
+              <span class="da-growth-fold__title">鸡兔同笼问题</span>
+              <span class="da-growth-fold__meta">假设法 · 头脚 · 座位</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opOtherChickenRabbitFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opOtherChickenRabbitFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">鸡兔同笼问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="chicken-rabbit" />
+              </div>
+              <p class="mode-section__hint">
+                简单/普通/困难三档。简单比经典真题更易（直接鸡兔/鹤龟假设法）；普通对齐经典真题（大中客车座位）；困难为
+                8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+              </p>
+              <ChickenRabbitPanel ref="chickenRabbitPanelRef" />
+              <MentalMathWrongBookPanel section="op-other-chicken-rabbit" />
+            </div>
           </div>
-          <p class="mode-section__hint">
-            简单/普通/困难三档。简单比经典真题更易（直接鸡兔/鹤龟假设法）；普通对齐经典真题（大中客车座位）；困难为
-            8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
-          </p>
-          <ChickenRabbitPanel ref="chickenRabbitPanelRef" />
-          <MentalMathWrongBookPanel section="op-other-chicken-rabbit" />
 
-          <div class="da-topic-head">
-            <h4 class="mode-section__subtitle">函数图象问题</h4>
-            <DataAnalysisStrategyGuideButton topic-id="function-graph" />
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opOtherFunctionGraphFoldOpen"
+              @click="opOtherFunctionGraphFoldOpen = !opOtherFunctionGraphFoldOpen"
+            >
+              <span class="da-growth-fold__title">函数图象问题</span>
+              <span class="da-growth-fold__meta">认图 · 斜率 · 反比例</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opOtherFunctionGraphFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opOtherFunctionGraphFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">函数图象问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="function-graph" />
+              </div>
+              <p class="mode-section__hint">
+                简单/普通/困难三档。简单比经典真题更易（常速直线、反比例认图）；普通对齐经典真题（库存加速下降→越来越陡）；困难为
+                8 类更高阶变式，每轮抽 5 题且题型不重复。豆包改写题干+曲线四选一，每轮 5 题。
+              </p>
+              <FunctionGraphPanel ref="functionGraphPanelRef" />
+              <MentalMathWrongBookPanel section="op-other-function-graph" />
+            </div>
           </div>
-          <p class="mode-section__hint">
-            简单/普通/困难三档。简单比经典真题更易（常速直线、反比例认图）；普通对齐经典真题（库存加速下降→越来越陡）；困难为
-            8 类更高阶变式，每轮抽 5 题且题型不重复。豆包改写题干+曲线四选一，每轮 5 题。
-          </p>
-          <FunctionGraphPanel ref="functionGraphPanelRef" />
-          <MentalMathWrongBookPanel section="op-other-function-graph" />
 
-          <div class="da-topic-head">
-            <h4 class="mode-section__subtitle">比赛问题</h4>
-            <DataAnalysisStrategyGuideButton topic-id="competition" />
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opOtherCompetitionFoldOpen"
+              @click="opOtherCompetitionFoldOpen = !opOtherCompetitionFoldOpen"
+            >
+              <span class="da-growth-fold__title">比赛问题</span>
+              <span class="da-growth-fold__meta">淘汰 · 循环 · 握手</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opOtherCompetitionFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opOtherCompetitionFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">比赛问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="competition" />
+              </div>
+              <p class="mode-section__hint">
+                简单/普通/困难三档。简单比经典真题更易（直接套淘汰/单双循环公式）；普通对齐经典真题（五人握手连线）；困难为
+                8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+              </p>
+              <CompetitionPanel ref="competitionPanelRef" />
+              <MentalMathWrongBookPanel section="op-other-competition" />
+            </div>
           </div>
-          <p class="mode-section__hint">
-            简单/普通/困难三档。简单比经典真题更易（直接套淘汰/单双循环公式）；普通对齐经典真题（五人握手连线）；困难为
-            8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
-          </p>
-          <CompetitionPanel ref="competitionPanelRef" />
-          <MentalMathWrongBookPanel section="op-other-competition" />
 
-          <div class="da-topic-head">
-            <h4 class="mode-section__subtitle">逆推问题</h4>
-            <DataAnalysisStrategyGuideButton topic-id="reverse" />
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opOtherReverseFoldOpen"
+              @click="opOtherReverseFoldOpen = !opOtherReverseFoldOpen"
+            >
+              <span class="da-growth-fold__title">逆推问题</span>
+              <span class="da-growth-fold__meta">还原 · 分数剩量</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opOtherReverseFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opOtherReverseFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">逆推问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="reverse" />
+              </div>
+              <p class="mode-section__hint">
+                简单/普通/困难三档。简单比经典真题更易（整步加减乘除还原）；普通对齐经典真题（多日修路分数剩量±常数）；困难为
+                8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+              </p>
+              <ReversePanel ref="reversePanelRef" />
+              <MentalMathWrongBookPanel section="op-other-reverse" />
+            </div>
           </div>
-          <p class="mode-section__hint">
-            简单/普通/困难三档。简单比经典真题更易（整步加减乘除还原）；普通对齐经典真题（多日修路分数剩量±常数）；困难为
-            8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
-          </p>
-          <ReversePanel ref="reversePanelRef" />
-          <MentalMathWrongBookPanel section="op-other-reverse" />
 
-          <div class="da-topic-head">
-            <h4 class="mode-section__subtitle">分段问题</h4>
-            <DataAnalysisStrategyGuideButton topic-id="sectional" />
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="opOtherSectionalFoldOpen"
+              @click="opOtherSectionalFoldOpen = !opOtherSectionalFoldOpen"
+            >
+              <span class="da-growth-fold__title">分段问题</span>
+              <span class="da-growth-fold__meta">阶梯计价 · 分段求量</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': opOtherSectionalFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="opOtherSectionalFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">分段问题</h4>
+                <DataAnalysisStrategyGuideButton topic-id="sectional" />
+              </div>
+              <p class="mode-section__hint">
+                简单/普通/困难三档。简单比经典真题更易（两段电费/水费）；普通对齐经典真题（阶梯气价求最大用量）；困难为
+                8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
+              </p>
+              <SectionalPanel ref="sectionalPanelRef" />
+              <MentalMathWrongBookPanel section="op-other-sectional" />
+            </div>
           </div>
-          <p class="mode-section__hint">
-            简单/普通/困难三档。简单比经典真题更易（两段电费/水费）；普通对齐经典真题（阶梯气价求最大用量）；困难为
-            8 类更高阶变式，每轮抽 5 题且题型不重复。本地组卷，每轮 5 题。
-          </p>
-          <SectionalPanel ref="sectionalPanelRef" />
-          <MentalMathWrongBookPanel section="op-other-sectional" />
         </section>
 
         <section v-if="showChineseSection" class="mode-section" id="practice-chinese">
@@ -3205,6 +3477,49 @@ onBeforeUnmount(() => {
 
 .da-growth-fold__body .mode-section__subtitle:first-child {
   margin-top: 12px;
+}
+
+/* 答题中：对齐四则运算，隐藏侧栏/页头/其它折叠与错题等干扰 */
+.practice-shell--session-focus {
+  grid-template-columns: 1fr;
+}
+
+.practice-main--session-focus > .mode-section > .mode-section__title,
+.practice-main--session-focus > .mode-section > .mode-section__hint {
+  display: none;
+}
+
+.practice-main--session-focus .da-growth-fold:not(:has([data-session-active])) {
+  display: none;
+}
+
+.practice-main--session-focus .da-growth-fold:has([data-session-active]) {
+  margin-top: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.practice-main--session-focus .da-growth-fold:has([data-session-active]) .da-growth-fold__toggle,
+.practice-main--session-focus .da-growth-fold:has([data-session-active]) .da-growth-fold__toggle-row {
+  display: none;
+}
+
+.practice-main--session-focus .da-growth-fold:has([data-session-active]) .da-growth-fold__body {
+  display: block !important;
+  padding: 0;
+  border-top: 0;
+}
+
+.practice-main--session-focus .da-growth-fold:has([data-session-active]) .da-topic-head,
+.practice-main--session-focus .da-growth-fold:has([data-session-active]) .mode-section__hint,
+.practice-main--session-focus .mm-wrong {
+  display: none;
+}
+
+.practice-main--session-focus .chinese-idiom-panel:not([data-session-active]) {
+  display: none;
 }
 
 .mode-card--circle-grammar {

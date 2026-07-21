@@ -20,7 +20,9 @@ const regenerating = ref(false)
 const detailRow = ref<ExtremumResultRow | null>(null)
 const detailVisible = ref(false)
 
-const isRunningOrLoading = computed(() => test.phase === 'running' || test.phase === 'loading')
+const isRunningOrLoading = computed(() =>
+  test.phase === 'running' || test.phase === 'loading' || test.phase === 'summary',
+)
 
 defineExpose({ isRunningOrLoading })
 
@@ -120,7 +122,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <div class="chinese-idiom-panel data-analysis-panel">
+  <div
+  class="chinese-idiom-panel data-analysis-panel"
+  :data-session-active="isRunningOrLoading ? '' : undefined"
+>
     <template v-if="!selectedDifficulty && (test.phase === 'idle' || test.phase === 'loading')">
       <p class="mode-section__hint">
         考点「其他运算·最值问题」：二次函数最值、最不利原则、和定最值。简单对齐真题 2 与示例；普通对齐真题 1、3；困难为更高阶变式。本地组卷，每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停看答案。
