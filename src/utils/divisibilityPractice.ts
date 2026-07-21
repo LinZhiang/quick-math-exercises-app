@@ -1,4 +1,4 @@
-/** 整除及其性质：整除判定、质数与合数、公因数与公倍数（本地出题；不含质因数分解） */
+/** 整除及其性质：仅「哪个是质数/合数」与「哪个能被 3～12 整除」 */
 
 export type DivisibilityMode =
   | 'divisibility-easy'
@@ -26,7 +26,7 @@ export const DIVISIBILITY_MODES: DivisibilityModeConfig[] = [
     correctDelta: 5,
     wrongDelta: -10,
     maxScore: 100,
-    desc: '35 秒 · 整除入门（2/3/5/6/9）· 小数内质合数 · GCD/LCM 数字≤20 · 3 选项 · 对 +5 / 错 -10 · 对 +1 秒 / 错 -1 秒',
+    desc: '35 秒 · 质数/合数（小数）· 能被 3～12 整除 · 3 选项 · 对 +5 / 错 -10 · 对 +1 秒 / 错 -1 秒',
   },
   {
     id: 'divisibility-distractor',
@@ -36,7 +36,7 @@ export const DIVISIBILITY_MODES: DivisibilityModeConfig[] = [
     correctDelta: 7,
     wrongDelta: -14,
     maxScore: 100,
-    desc: '35 秒 · 与简单题同量级 · 干扰更强（易混陷阱、GCD/LCM 对调等）· 数字仍偏小 · 3 选项 · 对 +7 / 错 -14 · 对 +1 秒 / 错 -1 秒',
+    desc: '35 秒 · 与简单题同量级 · 易混陷阱干扰更强 · 3 选项 · 对 +7 / 错 -14 · 对 +1 秒 / 错 -1 秒',
   },
   {
     id: 'divisibility-normal',
@@ -46,7 +46,7 @@ export const DIVISIBILITY_MODES: DivisibilityModeConfig[] = [
     correctDelta: 8,
     wrongDelta: -15,
     maxScore: 100,
-    desc: '40 秒 · 中等整除（含少量 7）· 质合数与 GCD/LCM · 4 选项 · 对 +8 / 错 -15 · 对 +1 秒 / 错 -1 秒',
+    desc: '40 秒 · 质数/合数 · 能被 3～12 整除 · 4 选项 · 对 +8 / 错 -15 · 对 +1 秒 / 错 -1 秒',
   },
   {
     id: 'divisibility-hard',
@@ -56,7 +56,7 @@ export const DIVISIBILITY_MODES: DivisibilityModeConfig[] = [
     correctDelta: 10,
     wrongDelta: -20,
     maxScore: 100,
-    desc: '50 秒 · 稍大数整除（含 11）· 质合数与 GCD/LCM · 仍控制在速算可及 · 5 选项 · 对 +10 / 错 -20 · 对 +1 秒 / 错 -1 秒',
+    desc: '50 秒 · 稍大数质合数 · 能被 3～12 整除 · 5 选项 · 对 +10 / 错 -20 · 对 +1 秒 / 错 -1 秒',
   },
 ]
 
@@ -67,6 +67,9 @@ export type DivisibilityQuestion = {
   options: (string | number)[]
   correctIndex: number
 }
+
+/** 题目只考 3～12 的整除判定 */
+const DIVISORS_3_TO_12 = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const
 
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min
@@ -81,30 +84,6 @@ function shuffle<T>(arr: T[]): T[] {
     a[j] = t
   }
   return a
-}
-
-function gcd(a: number, b: number): number {
-  let x = Math.abs(a)
-  let y = Math.abs(b)
-  while (y !== 0) {
-    const t = y
-    y = x % y
-    x = t
-  }
-  return x || 1
-}
-
-function lcm(a: number, b: number): number {
-  return Math.abs(a * b) / gcd(a, b)
-}
-
-function isPrime(n: number): boolean {
-  if (n < 2) return false
-  if (n % 2 === 0) return n === 2
-  for (let i = 3; i * i <= n; i += 2) {
-    if (n % i === 0) return false
-  }
-  return true
 }
 
 function digitSum(n: number): number {
@@ -193,7 +172,7 @@ function makeNumberDivisibleBy(d: number, min: number, max: number, wantDivisibl
   return wantDivisible ? d * randInt(Math.ceil(min / d), Math.floor(max / d)) : min + 1
 }
 
-/** 强干扰：满足整除判定中某一条、却不满足完整条件（尤其 6=2∧3） */
+/** 强干扰：满足整除判定中某一条、却不满足完整条件 */
 function makeNearMissNotDivisibleBy(d: number, min: number, max: number): number {
   for (let t = 0; t < 60; t++) {
     const n = randInt(min, max)
@@ -201,16 +180,29 @@ function makeNearMissNotDivisibleBy(d: number, min: number, max: number): number
     if (d === 6) {
       const even = n % 2 === 0
       const by3 = digitSum(n) % 3 === 0
-      if (even !== by3) return n // 只满足一半
+      if (even !== by3) return n
+    } else if (d === 4) {
+      // 末一位是偶数但不被 4 整除
+      if (n % 2 === 0 && n % 4 !== 0) return n
+    } else if (d === 8) {
+      if (n % 4 === 0 && n % 8 !== 0) return n
     } else if (d === 9) {
-      if (digitSum(n) % 3 === 0 && digitSum(n) % 9 !== 0) return n // 能被 3 不能被 9
+      if (digitSum(n) % 3 === 0 && digitSum(n) % 9 !== 0) return n
     } else if (d === 3) {
-      if (Math.abs(digitSum(n) % 3 - 0) === 1 || n % 9 === 0) return n
+      if (digitSum(n) % 9 === 0 && n % 3 !== 0) continue
+      if (digitSum(n) % 3 !== 0) return n
+    } else if (d === 10) {
+      if (n % 5 === 0 && n % 2 !== 0) return n
+      if (n % 2 === 0 && n % 5 !== 0) return n
+    } else if (d === 12) {
+      const by3 = digitSum(n) % 3 === 0
+      const by4 = n % 4 === 0
+      if (by3 !== by4) return n
     } else if (d === 11) {
       const alt = Math.abs(altDigitSum(n))
-      if (alt === 1 || alt === 10 || alt === 12) return n // 交替和接近 0/11
+      if (alt === 1 || alt === 10 || alt === 12) return n
     } else if (d === 7) {
-      if (n % 7 === 1 || n % 7 === 6) return n // 余 1 或接近
+      if (n % 7 === 1 || n % 7 === 6) return n
     }
   }
   return makeNumberDivisibleBy(d, min, max, false)
@@ -223,9 +215,10 @@ function isStrongDistract(mode: DivisibilityMode): boolean {
 function modeBand(mode: DivisibilityMode): 'easy' | 'normal' | 'hard' {
   if (mode === 'divisibility-hard') return 'hard'
   if (mode === 'divisibility-normal') return 'normal'
-  return 'easy' // easy + distractor 用量纲接近简单/略扩
+  return 'easy'
 }
 
+/** 下列哪个数能被 3～12 整除？ */
 function genDivisibilityCheck(
   id: number,
   optionCount: number,
@@ -233,111 +226,36 @@ function genDivisibilityCheck(
 ): DivisibilityQuestion {
   const strong = isStrongDistract(mode)
   const band = modeBand(mode)
-  // 简单/干扰：先练 2/3/5/6/9；普通才加 7；高难才加 11
-  const divisors =
-    band === 'easy'
-      ? ([2, 3, 5, 6, 9] as const)
-      : band === 'normal'
-        ? ([2, 3, 5, 6, 7, 9] as const)
-        : ([3, 6, 7, 9, 11] as const)
-  const d = pickFrom([...divisors])
+  const d = pickFrom([...DIVISORS_3_TO_12])
   const range =
-    band === 'easy' ? [10, 60] : band === 'normal' ? [20, 120] : [40, 200]
+    band === 'easy' ? [12, 72] : band === 'normal' ? [20, 144] : [36, 240]
 
-  const style = Math.random()
-  if (style < 0.55) {
-    const correct = makeNumberDivisibleBy(d, range[0]!, range[1]!, true)
-    const wrongs: number[] = []
-    while (wrongs.length < optionCount - 1) {
-      const w = strong
-        ? makeNearMissNotDivisibleBy(d, range[0]!, range[1]!)
-        : makeNumberDivisibleBy(d, range[0]!, range[1]!, false)
-      if (!wrongs.includes(w) && w !== correct) wrongs.push(w)
-    }
-    return buildMcq({
-      id,
-      expression: `下列哪个数能被 ${d} 整除？`,
-      correct,
-      distractors: wrongs,
-    })
-  }
-
-  if (style < 0.82) {
-    const yes = Math.random() < 0.5
-    const n = strong && !yes
+  const correct = makeNumberDivisibleBy(d, range[0]!, range[1]!, true)
+  const wrongs: number[] = []
+  let guard = 0
+  while (wrongs.length < optionCount - 1 && guard < 80) {
+    guard++
+    const w = strong
       ? makeNearMissNotDivisibleBy(d, range[0]!, range[1]!)
-      : makeNumberDivisibleBy(d, range[0]!, range[1]!, yes)
-    const actually = n % d === 0
-    const correct = actually ? '能' : '不能'
-    const distractors = strong
-      ? fillDistractors(correct, optionCount - 1, [
-          actually ? '不能' : '能',
-          d === 6 ? '能被 2 整除即可' : '看个位即可',
-          d === 9 ? '能被 3 整除即可' : '余数不为 0 也能整除',
-          '无法判断',
-        ])
-      : fillDistractors(correct, optionCount - 1, ['能', '不能', '无法判断', '不一定'])
-    return buildMcq({
-      id,
-      expression: `${n} 能否被 ${d} 整除？`,
-      correct,
-      distractors,
-    })
+      : makeNumberDivisibleBy(d, range[0]!, range[1]!, false)
+    if (!wrongs.includes(w) && w !== correct && w % d !== 0) wrongs.push(w)
   }
-
-  if (d === 3 || d === 9) {
-    const n = makeNumberDivisibleBy(d, range[0]!, range[1]!, Math.random() < 0.5)
-    const sum = digitSum(n)
-    const correct = sum
-    const distractors = fillDistractors(
-      correct,
-      optionCount - 1,
-      strong
-        ? [sum + 9, sum - 9 || sum + 3, n % 10, digitSum(n + 9), Math.floor(n / 10) % 10 + (n % 10)]
-        : [sum + 1, sum - 1, sum + 3, sum + 9, digitSum(n + 1), n % 10],
-    )
-    return buildMcq({
-      id,
-      expression: `判断 ${n} 能否被 ${d} 整除时，各位数字之和是？`,
-      correct,
-      distractors,
-    })
-  }
-
-  if (d === 11 && band === 'hard') {
-    const n = makeNumberDivisibleBy(11, Math.max(100, range[0]!), range[1]!, Math.random() < 0.55)
-    const correct = n % 11 === 0 ? '能' : '不能'
-    return buildMcq({
-      id,
-      expression: `用「奇偶位数字交替和」法判断：${n} 能否被 11 整除？`,
-      correct,
-      distractors: fillDistractors(correct, optionCount - 1, [
-        correct === '能' ? '不能' : '能',
-        '交替和为 1 就能整除',
-        '看个位是 1 即可',
-        '无法判断',
-      ]),
-    })
-  }
-
-  const n = makeNumberDivisibleBy(d, range[0]!, range[1]!, true)
   return buildMcq({
     id,
-    expression: `${n} ÷ ${d} 的商是整数。下列说法正确的是？`,
-    correct: `${n} 能被 ${d} 整除`,
-    distractors: fillDistractors(`${n} 能被 ${d} 整除`, optionCount - 1, [
-      `${n} 不能被 ${d} 整除`,
-      `${d} 能被 ${n} 整除`,
-      `${n} 是 ${d} 的约数`,
-      strong ? `${n} 与 ${d} 互质` : `${n + d} 不能被 ${d} 整除`,
-    ]),
+    expression: `下列哪个数能被 ${d} 整除？`,
+    correct,
+    distractors: wrongs,
   })
 }
 
-function genPrimeComposite(id: number, optionCount: number, mode: DivisibilityMode): DivisibilityQuestion {
+/** 下列哪个数是质数 / 合数？ */
+function genPrimeComposite(
+  id: number,
+  optionCount: number,
+  mode: DivisibilityMode,
+): DivisibilityQuestion {
   const strong = isStrongDistract(mode)
   const band = modeBand(mode)
-  const style = Math.random()
 
   const primePool =
     band === 'easy'
@@ -349,7 +267,7 @@ function genPrimeComposite(id: number, optionCount: number, mode: DivisibilityMo
     band === 'easy' ? EASY_COMPOSITES : band === 'normal' ? NORMAL_COMPOSITES : HARD_COMPOSITES
   const strongCompositeWrongs = [1, 9, 15, 21, 25, 27, 33, 35, 39, 45, 49]
 
-  if (style < 0.42) {
+  if (Math.random() < 0.5) {
     const correct = pickFrom(primePool)
     const wrongPool = strong
       ? band === 'easy'
@@ -364,131 +282,13 @@ function genPrimeComposite(id: number, optionCount: number, mode: DivisibilityMo
     })
   }
 
-  if (style < 0.78) {
-    const correct = pickFrom(compositePool)
-    const wrongPool = strong ? [...primePool, 1] : [...primePool, 1]
-    return buildMcq({
-      id,
-      expression: '下列哪个数是合数？',
-      correct,
-      distractors: fillDistractors(correct, optionCount - 1, wrongPool),
-    })
-  }
-
-  if (style < 0.9 || band === 'hard') {
-    const n = pickFrom(
-      shuffle([...primePool, ...compositePool, 1]).slice(0, Math.min(12, primePool.length + 4)),
-    )
-    // 单数判断：质数 / 合数 / 既不是
-    let correct: string
-    if (n === 1) correct = '既不是质数也不是合数'
-    else if (isPrime(n)) correct = '质数'
-    else correct = '合数'
-    return buildMcq({
-      id,
-      expression: `${n} 是？`,
-      correct,
-      distractors: fillDistractors(correct, optionCount - 1, [
-        '质数',
-        '合数',
-        '既不是质数也不是合数',
-        '既是质数又是合数',
-        strong ? '偶数' : '奇数',
-      ]),
-    })
-  }
-
+  const correct = pickFrom(compositePool)
+  const wrongPool = strong ? [...primePool, 1] : [...primePool, 1]
   return buildMcq({
     id,
-    expression: '关于数字 1，下列说法正确的是？',
-    correct: '既不是质数也不是合数',
-    distractors: fillDistractors('既不是质数也不是合数', optionCount - 1, [
-      '是质数',
-      '是合数',
-      '既是质数又是合数',
-      '是偶数质数',
-    ]),
-  })
-}
-
-function genGcdLcm(id: number, optionCount: number, mode: DivisibilityMode): DivisibilityQuestion {
-  const strong = isStrongDistract(mode)
-  const band = modeBand(mode)
-
-  let a: number
-  let b: number
-  if (band === 'easy') {
-    // 简单题：参与运算的两数都不超过 20
-    const g = pickFrom([2, 3, 4, 5])
-    const maxK = Math.floor(20 / g)
-    a = g * randInt(1, maxK)
-    b = g * randInt(1, maxK)
-    let guard = 0
-    while ((a === b || a > 20 || b > 20) && guard++ < 30) {
-      a = g * randInt(1, maxK)
-      b = g * randInt(1, maxK)
-      if (a === b && maxK >= 2) b = g * (a / g === maxK ? maxK - 1 : a / g + 1)
-    }
-    if (a === b) {
-      a = 12
-      b = 18
-    }
-  } else if (band === 'normal') {
-    const g = pickFrom([2, 3, 4, 5, 6])
-    a = g * randInt(2, 6)
-    b = g * randInt(2, 6)
-    if (a === b) b += g
-    // 普通题大致控制在 36 以内
-    if (a > 36) a = g * 5
-    if (b > 36) b = g * 4
-  } else {
-    const g = pickFrom([2, 3, 4, 5, 6, 7, 8])
-    a = g * randInt(2, 8)
-    b = g * randInt(2, 8)
-    if (a === b) b += g
-    // 高难题仍控制在约 60 内，避免 LCM 过大难口算
-    if (a > 60) a = g * 7
-    if (b > 60) b = g * 6
-  }
-
-  const askGcd = Math.random() < 0.55
-  const g = gcd(a, b)
-  const l = lcm(a, b)
-  const properFactors: number[] = []
-  for (let i = 1; i < g; i++) {
-    if (a % i === 0 && b % i === 0) properFactors.push(i)
-  }
-
-  if (askGcd) {
-    const correct = g
-    const distractors = fillDistractors(
-      correct,
-      optionCount - 1,
-      strong
-        ? [l, a * b, Math.min(a, b), ...properFactors, Math.floor(l / 2) || l + a]
-        : [l, a, b, correct + 1, Math.max(1, correct - 1), gcd(a, b + 1), a + b, Math.min(a, b)],
-    )
-    return buildMcq({
-      id,
-      expression: `${a} 和 ${b} 的最大公约数是？`,
-      correct,
-      distractors,
-    })
-  }
-
-  const correct = l
-  const distractors = fillDistractors(
+    expression: '下列哪个数是合数？',
     correct,
-    optionCount - 1,
-    strong
-      ? [g, a * b, Math.max(a, b), a + b, Math.floor((a * b) / Math.max(1, g * 2))]
-      : [g, a * b, a + b, Math.max(a, b), correct + a, correct - b, (a * b) / Math.max(1, g * 2)],
-  )
-  return buildMcq({
-    id,
-    expression: `${a} 和 ${b} 的最小公倍数是？`,
-    correct,
-    distractors,
+    distractors: fillDistractors(correct, optionCount - 1, wrongPool),
   })
 }
 
@@ -497,17 +297,9 @@ export function generateDivisibilityQuestion(
   id: number,
   optionCount: number,
 ): DivisibilityQuestion {
-  const band = modeBand(mode)
-  const roll = Math.random()
-  // 简单题：整除判定为主；其余为质合数、GCD/LCM（不含质因数分解）
-  if (band === 'easy') {
-    if (roll < 0.55) return genDivisibilityCheck(id, optionCount, mode)
-    if (roll < 0.8) return genPrimeComposite(id, optionCount, mode)
-    return genGcdLcm(id, optionCount, mode)
-  }
-  if (roll < 0.42) return genDivisibilityCheck(id, optionCount, mode)
-  if (roll < 0.72) return genPrimeComposite(id, optionCount, mode)
-  return genGcdLcm(id, optionCount, mode)
+  // 两类题约各半
+  if (Math.random() < 0.5) return genDivisibilityCheck(id, optionCount, mode)
+  return genPrimeComposite(id, optionCount, mode)
 }
 
 export function isDivisibilityMode(mode: string): mode is DivisibilityMode {
