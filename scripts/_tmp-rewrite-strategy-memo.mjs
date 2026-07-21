@@ -1,4 +1,13 @@
-<script setup lang="ts">
+import fs from 'node:fs'
+
+const path = 'src/views/tools/mental-math/components/DataAnalysisStrategyGuideButton.vue'
+const old = fs.readFileSync(path, 'utf8')
+const styleStart = old.indexOf('.da-strategy__p {')
+const styleEnd = old.lastIndexOf('</style>')
+if (styleStart < 0 || styleEnd < 0) throw new Error('style markers not found')
+const keptStyles = old.slice(styleStart, styleEnd)
+
+const content = `<script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getDataAnalysisStrategyGuide } from '@/constants/dataAnalysisStrategyGuides'
@@ -125,7 +134,7 @@ loadNote()
       <template #header="{ titleId, titleClass }">
         <div class="da-strategy__header">
           <h4 :id="titleId" :class="titleClass" class="da-strategy__header-title">
-            {{ guide ? `答题攻略 · ${guide.title}` : '答题攻略' }}
+            {{ guide ? \`答题攻略 · \${guide.title}\` : '答题攻略' }}
           </h4>
           <button
             type="button"
@@ -304,7 +313,7 @@ loadNote()
 
     <el-dialog
       v-model="memoVisible"
-      :title="guide ? `备忘录 · ${guide.title}` : '备忘录'"
+      :title="guide ? \`备忘录 · \${guide.title}\` : '备忘录'"
       width="min(640px, 94vw)"
       top="8vh"
       append-to-body
@@ -350,10 +359,8 @@ loadNote()
   align-items: center;
   gap: 10px;
   width: 100%;
-  /* 给 Element Plus 右上角关闭按钮留位，图标紧挨其左侧 */
-  padding-right: 36px;
+  padding-right: 8px;
   min-width: 0;
-  box-sizing: border-box;
 }
 
 .da-strategy__header-title {
@@ -431,410 +438,8 @@ loadNote()
   line-height: 1.5;
 }
 
-.da-strategy__p {
-  margin: 0;
-}
+${keptStyles}</style>
+`
 
-.da-strategy__h3 {
-  margin: 4px 0 0;
-  font-size: 1.02rem;
-  font-weight: 750;
-  color: #0f766e;
-}
-
-.da-strategy__ul {
-  margin: 0;
-  padding-left: 1.25em;
-}
-
-.da-strategy__ul li + li {
-  margin-top: 8px;
-}
-
-.da-strategy__tip {
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: color-mix(in srgb, #0d9488 10%, #f8fafc);
-  border: 1px solid color-mix(in srgb, #0d9488 22%, #e2e8f0);
-}
-
-.da-strategy__tip-label {
-  display: inline-block;
-  margin-right: 6px;
-  font-weight: 750;
-  color: #0f766e;
-}
-
-.da-strategy__example {
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-}
-
-.da-strategy__example-title {
-  margin: 0 0 6px;
-  font-weight: 750;
-  color: #334155;
-}
-
-.da-strategy__example-text {
-  margin: 0;
-}
-
-.geo-gallery {
-  padding: 10px 12px 12px;
-  border-radius: 14px;
-  background: linear-gradient(160deg, #f0fdfa 0%, #f8fafc 55%, #eff6ff 100%);
-  border: 1px solid color-mix(in srgb, #0d9488 22%, #e2e8f0);
-}
-
-.geo-gallery__title {
-  margin: 0 0 10px;
-  font-weight: 750;
-  color: #0f766e;
-  text-align: center;
-}
-
-.geo-gallery__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 10px;
-}
-
-.geo-gallery__card {
-  min-width: 0;
-}
-
-.geo-gallery__caption {
-  margin: 6px 0 0;
-  font-size: 0.86rem;
-  line-height: 1.75;
-  color: #334155;
-  text-align: center;
-}
-
-.cross-diagram {
-  padding: 14px 14px 16px;
-  border-radius: 14px;
-  background: linear-gradient(160deg, #f0fdfa 0%, #f8fafc 48%, #eff6ff 100%);
-  border: 1px solid color-mix(in srgb, #0d9488 28%, #e2e8f0);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 70%, transparent);
-}
-
-.cross-diagram__title {
-  margin: 0 0 12px;
-  font-weight: 750;
-  color: #0f766e;
-  text-align: center;
-  font-size: 0.95rem;
-}
-
-.cross-diagram__board {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(72px, 0.9fr) minmax(0, 1fr);
-  align-items: stretch;
-  gap: 10px 14px;
-  min-height: 180px;
-  padding: 10px 6px 12px;
-}
-
-.cross-diagram__col {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
-}
-
-.cross-diagram__col--mid {
-  justify-content: center;
-}
-
-.cross-diagram__cell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 12px 10px;
-  border-radius: 12px;
-  background: #fff;
-  border: 1.5px solid #94a3b8;
-  box-shadow: 0 2px 8px color-mix(in srgb, #0f172a 8%, transparent);
-  min-height: 64px;
-}
-
-.cross-diagram__cell--a {
-  border-color: #14b8a6;
-}
-
-.cross-diagram__cell--b {
-  border-color: #3b82f6;
-}
-
-.cross-diagram__cell--c {
-  border-color: #f97316;
-  border-width: 2px;
-  background: #fff7ed;
-  min-height: 88px;
-}
-
-.cross-diagram__cell--x {
-  border-color: #0d9488;
-  background: #ccfbf1;
-}
-
-.cross-diagram__cell--y {
-  border-color: #2563eb;
-  background: #dbeafe;
-}
-
-.cross-diagram__tag {
-  font-size: 11px;
-  font-weight: 650;
-  color: #64748b;
-  letter-spacing: 0.02em;
-  text-align: center;
-  line-height: 1.3;
-}
-
-.cross-diagram__val {
-  font-size: 1.2rem;
-  font-weight: 800;
-  color: #0f172a;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.25;
-  text-align: center;
-  word-break: break-word;
-}
-
-.cross-diagram__val--c {
-  color: #c2410c;
-  font-size: 1.28rem;
-}
-
-.cross-diagram__val--x {
-  color: #0f766e;
-}
-
-.cross-diagram__val--y {
-  color: #1d4ed8;
-}
-
-.cross-diagram__xlines {
-  position: absolute;
-  inset: 8% 6%;
-  width: auto;
-  height: auto;
-  pointer-events: none;
-  z-index: 0;
-  overflow: visible;
-}
-
-.cross-diagram__xlines line {
-  stroke: #0f766e;
-  stroke-width: 2.4;
-  stroke-linecap: round;
-  stroke-dasharray: 6 5;
-  opacity: 0.7;
-}
-
-.cross-diagram__formula {
-  margin: 12px 0 0;
-  text-align: center;
-  font-weight: 750;
-  font-size: 0.98rem;
-  color: #0f766e;
-  letter-spacing: 0.01em;
-  line-height: 1.6;
-}
-
-.cross-diagram__caption {
-  margin: 8px 0 0;
-  font-size: 0.88rem;
-  color: #475569;
-  text-align: center;
-  line-height: 1.55;
-}
-
-:deep(.da-math-frac) {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  vertical-align: middle;
-  margin: 0 0.15em;
-  line-height: 1.15;
-  font-weight: 700;
-}
-
-:deep(.da-math-frac__num),
-:deep(.da-math-frac__den) {
-  font-size: 0.92em;
-  padding: 0 0.2em;
-  text-align: center;
-  white-space: nowrap;
-}
-
-:deep(.da-math-frac__rule) {
-  display: block;
-  align-self: stretch;
-  border-top: 1.5px solid currentColor;
-  margin: 0.04em 0;
-}
-
-:deep(.da-math-root) {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0;
-  font-family: 'Cambria Math', 'Times New Roman', 'Segoe UI', serif;
-  font-weight: 700;
-}
-
-:deep(.da-math-root__idx) {
-  font-size: 0.72em;
-  margin-right: 1px;
-  line-height: 1;
-}
-
-:deep(.da-math-root__sym) {
-  font-size: 1.12em;
-  line-height: 1;
-}
-
-:deep(.da-math-radicand) {
-  border-top: 1.5px solid currentColor;
-  padding: 0 2px 0 1px;
-  margin-left: 1px;
-  line-height: 1.15;
-  font-weight: 700;
-}
-
-:deep(sup.da-math-sup) {
-  font-size: 0.72em;
-  font-weight: 750;
-  line-height: 0;
-  vertical-align: super;
-}
-
-.geo-prob-diagram {
-  padding: 12px 12px 14px;
-  border-radius: 14px;
-  background: linear-gradient(160deg, #f0fdfa 0%, #f8fafc 55%, #fff7ed 100%);
-  border: 1px solid color-mix(in srgb, #0d9488 22%, #e2e8f0);
-}
-
-.geo-prob-diagram__title {
-  margin: 0 0 8px;
-  font-weight: 750;
-  color: #0f766e;
-  text-align: center;
-}
-
-.geo-prob-diagram__formula {
-  margin: 8px 0 0;
-  text-align: center;
-  font-weight: 650;
-  color: #0f766e;
-}
-
-.geo-prob-diagram__caption {
-  margin: 6px 0 0;
-  font-size: 0.88rem;
-  line-height: 1.65;
-  color: #334155;
-  text-align: center;
-}
-
-.venn-diagram {
-  padding: 12px 12px 14px;
-  border-radius: 14px;
-  background: linear-gradient(160deg, #eff6ff 0%, #f8fafc 55%, #f0fdf4 100%);
-  border: 1px solid color-mix(in srgb, #2563eb 18%, #e2e8f0);
-}
-
-.venn-diagram__title {
-  margin: 0 0 8px;
-  font-weight: 750;
-  color: #1d4ed8;
-  text-align: center;
-}
-
-.venn-diagram__formula {
-  margin: 8px 0 0;
-  text-align: center;
-  font-weight: 650;
-  color: #1d4ed8;
-}
-
-.venn-diagram__caption {
-  margin: 6px 0 0;
-  font-size: 0.88rem;
-  line-height: 1.65;
-  color: #334155;
-  text-align: center;
-}
-
-.clock-diagram {
-  margin: 12px 0 4px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: #f0fdfa;
-  border: 1px solid #99f6e4;
-}
-
-.clock-diagram__title {
-  margin: 0 0 6px;
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: #0f766e;
-  text-align: center;
-}
-
-.fg-diagram {
-  margin: 12px 0 4px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: #f0fdfa;
-  border: 1px solid #99f6e4;
-}
-
-.fg-diagram__title {
-  margin: 0 0 10px;
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: #0f766e;
-  text-align: center;
-}
-
-.fg-diagram__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-}
-
-.fg-diagram__card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.fg-diagram__formula {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #0f172a;
-  text-align: center;
-}
-
-.fg-diagram__caption {
-  margin: 0;
-  font-size: 0.8rem;
-  color: #475569;
-  text-align: center;
-  line-height: 1.4;
-}
-</style>
+fs.writeFileSync(path, content)
+console.log('rewrote', path, 'bytes', content.length)
