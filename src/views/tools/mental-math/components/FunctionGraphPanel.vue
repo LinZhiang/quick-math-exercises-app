@@ -23,7 +23,9 @@ const regenerating = ref(false)
 const detailRow = ref<FunctionGraphResultRow | null>(null)
 const detailVisible = ref(false)
 
-const isRunningOrLoading = computed(() => test.phase === 'running' || test.phase === 'loading')
+const isRunningOrLoading = computed(() =>
+  test.phase === 'running' || test.phase === 'loading' || test.phase === 'summary',
+)
 
 defineExpose({ isRunningOrLoading })
 
@@ -111,7 +113,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <div class="chinese-idiom-panel data-analysis-panel">
+  <div
+  class="chinese-idiom-panel data-analysis-panel"
+  :data-session-active="isRunningOrLoading ? '' : undefined"
+>
     <template v-if="!selectedDifficulty && (test.phase === 'idle' || test.phase === 'loading')">
       <p class="mode-section__hint">
         考点「其他运算·函数图象问题」：增减、周期、直线/曲线（y=kx+b、y=k/x）、状态变化点。豆包改写题干，选项为曲线图。简单比经典真题更易；普通对齐经典真题；困难为更高阶变式。每轮 {{ test.questionCount }} 题四选一。正计时，提交后暂停看答案。

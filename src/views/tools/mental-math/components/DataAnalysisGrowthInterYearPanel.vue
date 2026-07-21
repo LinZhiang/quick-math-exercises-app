@@ -23,7 +23,9 @@ const regenerating = ref(false)
 const detailRow = ref<GrowthInterYearResultRow | null>(null)
 const detailVisible = ref(false)
 
-const isRunningOrLoading = computed(() => test.phase === 'running' || test.phase === 'loading')
+const isRunningOrLoading = computed(() =>
+  test.phase === 'running' || test.phase === 'loading' || test.phase === 'summary',
+)
 
 defineExpose({ isRunningOrLoading })
 
@@ -106,7 +108,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 </script>
 
 <template>
-  <div class="chinese-idiom-panel data-analysis-panel">
+  <div
+  class="chinese-idiom-panel data-analysis-panel"
+  :data-session-active="isRunningOrLoading ? '' : undefined"
+>
     <template v-if="!selectedDifficulty && (test.phase === 'idle' || test.phase === 'loading')">
       <p class="mode-section__hint">
         考点「增长——隔年增长」：隔年增速 q=(1+q₁)(1+q₂)−1；隔年基期 A/((1+q₁)(1+q₂))。简单题纯文字（常先用百分点还原上年增速）；复杂题为两年累计增速双折线图。本模块
