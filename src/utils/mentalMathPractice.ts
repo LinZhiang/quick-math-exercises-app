@@ -127,10 +127,10 @@ export const MENTAL_MATH_ARITHMETIC_MODES: MentalMathModeConfig[] = [
     label: '累加/减数 · 简单题',
     durationSec: 30,
     optionCount: 4,
-    correctDelta: 10,
-    wrongDelta: -20,
+    correctDelta: 8,
+    wrongDelta: -16,
     maxScore: 100,
-    desc: '30 秒 · 个位连加减（3～4 个数，如 7+2−5+1）· 4 选项 · 对 +10 / 错 -20 · 对 +1 秒 / 错 -1 秒',
+    desc: '30 秒 · 个位连加减（3～4 个数，如 7+2−5+1）· 4 选项 · 对 +8 / 错 -16 · 对 +1 秒 / 错 -1 秒',
   },
   {
     id: 'cumsum-hard',
@@ -141,7 +141,7 @@ export const MENTAL_MATH_ARITHMETIC_MODES: MentalMathModeConfig[] = [
     correctDelta: 15,
     wrongDelta: -30,
     maxScore: 100,
-    desc: '40 秒 · 个位连加减（4～5 个数）· 强干扰（错位加减/近邻）· 5 选项 · 对 +15 / 错 -30 · 对 +1 秒 / 错 -1 秒',
+    desc: '40 秒 · 个位连加减（5～6 个数）· 强干扰（错位加减/近邻）· 5 选项 · 对 +15 / 错 -30 · 对 +1 秒 / 错 -1 秒',
   },
   {
     id: 'threedigit-easy',
@@ -174,7 +174,7 @@ export const MENTAL_MATH_ARITHMETIC_MODES: MentalMathModeConfig[] = [
     correctDelta: 8,
     wrongDelta: -16,
     maxScore: 100,
-    desc: '30 秒 · 百分数加减（如 35%+28%）· 近邻/错位加减干扰 · 4 选项 · 对 +8 / 错 -16 · 对 +1 秒 / 错 -1 秒',
+    desc: '30 秒 · 百分数加减（约 30% 带一位小数）· 近邻/错位加减干扰 · 4 选项 · 对 +8 / 错 -16 · 对 +1 秒 / 错 -1 秒',
   },
   {
     id: 'pct-addsub-hard',
@@ -185,7 +185,7 @@ export const MENTAL_MATH_ARITHMETIC_MODES: MentalMathModeConfig[] = [
     correctDelta: 16,
     wrongDelta: -32,
     maxScore: 100,
-    desc: '40 秒 · 百分数加减（更大数字/易错位）· 强干扰 · 5 选项 · 对 +16 / 错 -32 · 对 +1 秒 / 错 -1 秒',
+    desc: '40 秒 · 百分数加减（含一位/两位小数）· 强干扰 · 5 选项 · 对 +16 / 错 -32 · 对 +1 秒 / 错 -1 秒',
   },
   {
     id: 'mulcalc-easy',
@@ -630,37 +630,64 @@ function distinctThreeDigitWrongAnswers(
   return wrong
 }
 
-/** 百分比加减：选项带 %；干扰为近邻与加减错位 */
+/** 将百分数数值规范到指定小数位 */
+function roundPctValue(n: number, places: number): number {
+  if (places <= 0) return Math.round(n)
+  const f = 10 ** places
+  return Math.round(n * f) / f
+}
+
+function formatPctLabel(n: number, places: number): string {
+  if (places <= 0) return `${Math.round(n)}%`
+  return `${roundPctValue(n, places).toFixed(places)}%`
+}
+
+/** 生成带指定小数位的百分数；places>0 时保证至少有一位非零小数 */
+function randomPctOperand(hard: boolean, places: number): number {
+  if (places <= 0) {
+    return hard ? randInt(15, 95) : randInt(5, 60)
+  }
+  if (places === 1) {
+    const min = hard ? 151 : 51
+    const max = hard ? 949 : 599
+    let v = randInt(min, max) / 10
+    if (Math.round(v * 10) % 10 === 0) v = roundPctValue(v + 0.1, 1)
+    return v
+  }
+  const min = hard ? 1501 : 501
+  const max = hard ? 9499 : 5999
+  let v = randInt(min, max) / 100
+  if (Math.round(v * 100) % 100 === 0) v = roundPctValue(v + 0.01, 2)
+  return v
+}
+
+/** 百分比加减：选项带 %；复杂题必带小数，简单题约 30% 带一位小数 */
 function generatePctAddSubQuestion(
   mode: 'pct-addsub-easy' | 'pct-addsub-hard',
   id: number,
   optionCount: number,
 ): MentalMathQuestion {
   const hard = mode === 'pct-addsub-hard'
+  const places = hard ? (Math.random() < 0.5 ? 1 : 2) : Math.random() < 0.3 ? 1 : 0
   let a = 0
   let b = 0
   let op: '+' | '-' = '+'
   let correct = 0
 
   for (let attempt = 0; attempt < 40; attempt++) {
-    if (hard) {
-      a = randInt(15, 95)
-      b = randInt(8, 85)
-    } else {
-      a = randInt(5, 60)
-      b = randInt(3, 45)
-    }
+    a = randomPctOperand(hard, places)
+    b = randomPctOperand(hard, places)
     op = Math.random() < 0.55 ? '+' : '-'
     if (op === '-') {
-      if (a === b) continue
+      if (Math.abs(a - b) < 1e-9) continue
       if (a < b) {
         const t = a
         a = b
         b = t
       }
-      correct = a - b
+      correct = roundPctValue(a - b, places)
     } else {
-      correct = a + b
+      correct = roundPctValue(a + b, places)
       // 简单题结果别过大；复杂题允许超过 100 以增加干扰
       if (!hard && correct > 100) continue
       if (hard && correct > 160) continue
@@ -669,10 +696,14 @@ function generatePctAddSubQuestion(
     break
   }
 
-  const expression = op === '+' ? `${a}% + ${b}% = ?` : `${a}% − ${b}% = ?`
-  const wrongNums = distinctPctAddSubWrongAnswers(a, b, op, correct, optionCount - 1)
-  const correctLabel = `${correct}%`
-  const options: string[] = [...wrongNums.map((n) => `${n}%`), correctLabel]
+  const fmt = (n: number) =>
+    places <= 0 ? String(Math.round(n)) : roundPctValue(n, places).toFixed(places)
+  const expression =
+    op === '+' ? `${fmt(a)}% + ${fmt(b)}% = ?` : `${fmt(a)}% − ${fmt(b)}% = ?`
+
+  const wrongNums = distinctPctAddSubWrongAnswers(a, b, op, correct, optionCount - 1, places)
+  const correctLabel = formatPctLabel(correct, places)
+  const options: string[] = [...wrongNums.map((n) => formatPctLabel(n, places)), correctLabel]
   shuffleInPlace(options)
   const correctIndex = options.findIndex((v) => v === correctLabel)
   return {
@@ -690,16 +721,21 @@ function distinctPctAddSubWrongAnswers(
   op: '+' | '-',
   correct: number,
   count: number,
+  places: number,
 ): number[] {
   const scored: { value: number; priority: number }[] = []
-  const seen = new Set<number>([correct])
+  const seen = new Set<string>([formatPctLabel(correct, places)])
+  const eps = places <= 0 ? 0 : 0.5 / 10 ** places
 
   const offer = (value: number, priority: number) => {
-    if (!Number.isFinite(value) || !Number.isInteger(value)) return
-    if (value === correct || seen.has(value)) return
-    if (value < 0 || value > 200) return
-    seen.add(value)
-    scored.push({ value, priority })
+    if (!Number.isFinite(value)) return
+    const rounded = roundPctValue(value, places)
+    if (Math.abs(rounded - correct) <= eps) return
+    if (rounded < 0 || rounded > 200) return
+    const key = formatPctLabel(rounded, places)
+    if (seen.has(key)) return
+    seen.add(key)
+    scored.push({ value: rounded, priority })
   }
 
   // 加减错位
@@ -708,14 +744,23 @@ function distinctPctAddSubWrongAnswers(
   offer(Math.abs(a - b), 1)
   offer(b - a, 2)
 
-  // 近邻百分数
-  for (const d of [1, 2, 3, 5, 10]) {
-    offer(correct + d, d <= 2 ? 0 : 1)
-    offer(correct - d, d <= 2 ? 0 : 1)
+  // 近邻百分数（整数近邻 + 小数近邻）
+  const neighborSteps =
+    places === 2
+      ? [0.01, 0.02, 0.1, 0.2, 1, 2, 5]
+      : places === 1
+        ? [0.1, 0.2, 0.5, 1, 2, 3, 5]
+        : [1, 2, 3, 5, 10]
+  for (const d of neighborSteps) {
+    const near = places === 0 ? d <= 2 : places === 1 ? d <= 0.2 : d <= 0.02
+    offer(correct + d, near ? 0 : 1)
+    offer(correct - d, near ? 0 : 1)
   }
 
-  // 把其中一个百分数算错 ±1 / ±2 / ±5 / ±10
-  for (const d of [1, 2, 5, 10]) {
+  // 把其中一个百分数算错
+  const mistypeSteps =
+    places === 2 ? [0.01, 0.1, 1, 2, 5] : places === 1 ? [0.1, 0.5, 1, 2, 5] : [1, 2, 5, 10]
+  for (const d of mistypeSteps) {
     if (op === '+') {
       offer(a + d + b, 1)
       offer(a + (b + d), 1)
@@ -740,17 +785,22 @@ function distinctPctAddSubWrongAnswers(
     wrong.push(item.value)
   }
 
-  for (let d = 4; wrong.length < count && d <= 30; d++) {
-    for (const sign of [-1, 1]) {
-      const v = correct + sign * d
-      if (v === correct || seen.has(v) || v < 0 || v > 200) continue
-      seen.add(v)
-      wrong.push(v)
+  // 兜底：近邻填充
+  let step = places === 2 ? 0.01 : places === 1 ? 0.1 : 1
+  let k = 1
+  while (wrong.length < count && k < 80) {
+    offer(correct + k * step, 9)
+    offer(correct - k * step, 9)
+    for (const item of scored) {
       if (wrong.length >= count) break
+      if (!wrong.includes(item.value) && Math.abs(item.value - correct) > eps) {
+        wrong.push(item.value)
+      }
     }
+    k++
   }
 
-  return wrong
+  return wrong.slice(0, count)
 }
 
 /** 乘法计算：简单两位数×一位数，复杂三位数×一位数；干扰个位与正解一致 */
@@ -1065,7 +1115,7 @@ function generateCumsumQuestion(
   optionCount: number,
 ): MentalMathQuestion {
   const termCount =
-    mode === 'cumsum-easy' ? randInt(3, 4) : randInt(4, 5)
+    mode === 'cumsum-easy' ? randInt(3, 4) : randInt(5, 6)
   const digits: number[] = []
   for (let i = 0; i < termCount; i++) digits.push(randInt(1, 9))
 
