@@ -869,20 +869,20 @@ type MixChainPiece =
   | { kind: 'div'; text: string; value: number; dividend: number; divisor: number }
   | { kind: 'ones'; text: string; value: number }
 
-function pickOnesDigit(): number {
+function pickMixChainOnesDigit(): number {
   return randInt(2, 9)
 }
 
 function pickMulPiece(): MixChainPiece {
-  const a = pickOnesDigit()
-  const b = pickOnesDigit()
+  const a = pickMixChainOnesDigit()
+  const b = pickMixChainOnesDigit()
   return { kind: 'mul', text: `${a} × ${b}`, value: a * b, factors: [a, b] }
 }
 
 /** 十位数 ÷ 个位数，整除 */
 function pickDivPiece(): MixChainPiece {
   for (let t = 0; t < 40; t++) {
-    const d = pickOnesDigit()
+    const d = pickMixChainOnesDigit()
     const q = randInt(2, Math.min(12, Math.floor(99 / d)))
     const c = d * q
     if (c >= 10 && c <= 99) {
@@ -893,7 +893,7 @@ function pickDivPiece(): MixChainPiece {
 }
 
 function pickOnesPiece(): MixChainPiece {
-  const e = pickOnesDigit()
+  const e = pickMixChainOnesDigit()
   return { kind: 'ones', text: String(e), value: e }
 }
 
