@@ -1,5 +1,6 @@
-/** 口算·生活常识：短题干快速判断；本地题库（约 900×3）
- * 抽题：优先出本难度尚未出过的题；该难度题库出完后清空已用状态，再随机重抽，循环往复。
+/** 口算·生活常识：短题干快速判断；本地题库
+ * 抽题：优先出本难度尚未出过的知识点（题干+答案）；该难度出完后清空已用状态再循环。
+ * 本局避免重复题干；仅在真正选出一题后记入已用，避免重试误记。
  */
 
 import {
@@ -29,7 +30,7 @@ export const LIFE_SENSE_MODES: LifeSenseModeConfig[] = [
     correctDelta: 5,
     wrongDelta: -10,
     maxScore: 100,
-    desc: '30 秒 · 校对题库快判 · 未出题优先，出完重置再抽 · 对 +5 / 错 -10',
+    desc: '30 秒 · 去重题库快判 · 按知识点未出优先，出完重置再循环 · 对 +5 / 错 -10',
   },
   {
     id: 'life-sense-normal',
@@ -39,7 +40,7 @@ export const LIFE_SENSE_MODES: LifeSenseModeConfig[] = [
     correctDelta: 8,
     wrongDelta: -15,
     maxScore: 100,
-    desc: '40 秒 · 校对题库易混快判 · 未出题优先，出完重置再抽 · 对 +8 / 错 -15',
+    desc: '40 秒 · 去重题库易混快判 · 按知识点未出优先，出完重置再循环 · 对 +8 / 错 -15',
   },
   {
     id: 'life-sense-hard',
@@ -49,7 +50,7 @@ export const LIFE_SENSE_MODES: LifeSenseModeConfig[] = [
     correctDelta: 10,
     wrongDelta: -20,
     maxScore: 100,
-    desc: '50 秒 · 校对题库高频易混 · 未出题优先，出完重置再抽 · 对 +10 / 错 -20',
+    desc: '50 秒 · 去重题库高频易混 · 按知识点未出优先，出完重置再循环 · 对 +10 / 错 -20',
   },
 ]
 
@@ -65,14 +66,20 @@ export type LifeSenseQuestion = {
 type LifeSenseDifficulty = 'easy' | 'normal' | 'hard'
 
 /** 按难度记录已出过的知识点；出完该难度题库后清空再循环 */
-const USED_KEYS_STORAGE = 'mental-life-sense-used-keys-v2'
-/** 旧版近 90 题滑动窗口，读取时迁移一次后可忽略 */
+const USED_KEYS_STORAGE = 'mental-life-sense-used-keys-v3'
+/** 旧版 key，迁移后删除 */
+const LEGACY_USED_V2 = 'mental-life-sense-used-keys-v2'
 const LEGACY_RECENT_KEY = 'mental-life-sense-recent-keys-v1'
 
 type UsedMap = Record<LifeSenseDifficulty, string[]>
 
 function normalizeKey(key: string): string {
   return key.trim().replace(/\s+/g, '')
+}
+
+/** 知识点身份：同一题干+答案只算一题，避免干扰项变体被当成「未出」 */
+function knowledgeKey(item: Pick<LifeSenseBankItem, 'stem' | 'correct'>): string {
+  return normalizeKey(`${item.stem}|${item.correct}`)
 }
 
 function emptyUsedMap(): UsedMap {
@@ -114,7 +121,16 @@ function difficultyOf(mode: LifeSenseMode): LifeSenseDifficulty {
 
 function poolFor(mode: LifeSenseMode): LifeSenseBankItem[] {
   const d = difficultyOf(mode)
-  return LIFE_SENSE_BANK.filter((q) => q.difficulty === d)
+  const seen = new Set<string>()
+  const out: LifeSenseBankItem[] = []
+  for (const item of LIFE_SENSE_BANK) {
+    if (item.difficulty !== d) continue
+    const k = knowledgeKey(item)
+    if (seen.has(k)) continue
+    seen.add(k)
+    out.push(item)
+  }
+  return out
 }
 
 function listUsedKeys(diff: LifeSenseDifficulty): string[] {
@@ -154,7 +170,6 @@ export function listRecentLifeSenseKeys(): string[] {
 
 /** @deprecated 请使用抽题流程内的 markUsedKey */
 export function appendLifeSenseKey(key: string) {
-  // 无法判断难度时写入 easy，仅兼容旧调用
   markUsedKey('easy', key)
 }
 
@@ -201,8 +216,24 @@ function buildMcq(
   }
 }
 
-function itemKey(item: LifeSenseBankItem): string {
-  return normalizeKey(item.key || `${item.stem}|${item.correct}`)
+/** 本局 avoid 指纹：题干（与 getMentalMathQuestionFingerprint 一致） */
+function avoidStemSet(avoidFingerprints: Set<string>): Set<string> {
+  const out = new Set<string>()
+  for (const raw of avoidFingerprints) {
+    const s = String(raw || '')
+    if (!s) continue
+    out.add(normalizeKey(s.split('\u001e')[0] || s))
+  }
+  return out
+}
+
+function migrateLegacyUsedKeys() {
+  try {
+    if (localStorage.getItem(LEGACY_RECENT_KEY)) localStorage.removeItem(LEGACY_RECENT_KEY)
+    if (localStorage.getItem(LEGACY_USED_V2)) localStorage.removeItem(LEGACY_USED_V2)
+  } catch {
+    /* ignore */
+  }
 }
 
 export function generateLifeSenseQuestion(
@@ -211,12 +242,7 @@ export function generateLifeSenseQuestion(
   optionCount: number,
   avoidFingerprints: Set<string> = new Set(),
 ): LifeSenseQuestion {
-  // 一次性清理旧滑动窗口 key（不再使用）
-  try {
-    if (localStorage.getItem(LEGACY_RECENT_KEY)) localStorage.removeItem(LEGACY_RECENT_KEY)
-  } catch {
-    /* ignore */
-  }
+  migrateLegacyUsedKeys()
 
   const diff = difficultyOf(mode)
   const pool = poolFor(mode)
@@ -224,29 +250,31 @@ export function generateLifeSenseQuestion(
     throw new Error('生活常识题库为空')
   }
 
+  const avoidStems = avoidStemSet(avoidFingerprints)
+
   const pickFrom = (candidates: LifeSenseBankItem[]): LifeSenseQuestion | null => {
     for (const item of shuffle(candidates)) {
+      if (avoidStems.has(normalizeKey(item.stem))) continue
       const q = buildMcq(id, item, optionCount)
-      const fp = `${q.expression}\u001e${[...q.options].sort().join('\u001f')}`
-      if (avoidFingerprints.has(fp)) continue
-      markUsedKey(diff, itemKey(item))
+      markUsedKey(diff, knowledgeKey(item))
       return q
     }
     return null
   }
 
   const used = new Set(listUsedKeys(diff))
-  let unused = pool.filter((item) => !used.has(itemKey(item)))
+  let unused = pool.filter((item) => !used.has(knowledgeKey(item)))
 
-  // 本难度题库已全部出过 → 重置状态后再随机
   if (unused.length === 0) {
     clearUsedKeys(diff)
     unused = [...pool]
   }
 
+  const poolFreshInSession = pool.filter((item) => !avoidStems.has(normalizeKey(item.stem)))
+
   return (
     pickFrom(unused) ??
-    // 本局指纹把未用题都挡住时：仍优先未用失败则放宽到全池（不立刻重置，避免同局重复清空）
+    pickFrom(poolFreshInSession) ??
     pickFrom(pool) ??
     buildMcq(id, shuffle(pool)[0]!, optionCount)
   )
@@ -260,4 +288,14 @@ export function getLifeSenseModeConfig(mode: LifeSenseMode): LifeSenseModeConfig
   const hit = LIFE_SENSE_MODES.find((m) => m.id === mode)
   if (!hit) throw new Error(`未知生活常识模式: ${mode}`)
   return hit
+}
+
+/** 题库去重后各难度知识点数量（调试用） */
+export function countLifeSenseKnowledge(mode?: LifeSenseMode): number {
+  if (mode) return poolFor(mode).length
+  return (
+    poolFor('life-sense-easy').length +
+    poolFor('life-sense-normal').length +
+    poolFor('life-sense-hard').length
+  )
 }
