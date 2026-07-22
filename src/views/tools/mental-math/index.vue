@@ -349,6 +349,35 @@ let countdownTimer: ReturnType<typeof setTimeout> | null = null
 let sessionStartMs = 0
 /** 本局是否已记入「完成一轮」统计，防止 finishSession 重复调用 */
 let sessionCompletionRecorded = false
+/** 倒计时得分局：本局是否出现过错题（有过错则满分封顶 99，不计满分） */
+let sessionHadWrongAnswer = false
+
+/**
+ * 更新得分；若本局有过错则封顶 maxScore-1。
+ * 返回值：本次是否触及满分上限（用于提前结束；有过错时仍结束但非满分）。
+ */
+function applySessionScore(
+  ok: boolean,
+  delta: number,
+  maxScore: number,
+  clampFn: (n: number, max?: number) => number,
+): boolean {
+  if (!ok) sessionHadWrongAnswer = true
+  let next = clampFn(score.value + delta, maxScore)
+  const reachedCeiling = next >= maxScore
+  if (sessionHadWrongAnswer && next >= maxScore) {
+    next = Math.max(0, maxScore - 1)
+  }
+  score.value = next
+  return reachedCeiling
+}
+
+/** 得分触及上限时结束；仅从未答错才算满分 */
+function finishIfReachedMaxScore(reachedCeiling: boolean): boolean {
+  if (!reachedCeiling) return false
+  finishSession(!sessionHadWrongAnswer)
+  return true
+}
 
 function isGraphicMode(mode: PracticeMode): mode is GraphicReasoningMode {
   return mode === 'graphic'
@@ -732,6 +761,14 @@ function nextQuestion() {
 function finishSession(perfect = false) {
   clearTimers()
   acceptingInput.value = false
+  // 有过错题：不计满分，且分数字面封顶为 maxScore-1（通常为 99）
+  if (sessionHadWrongAnswer) {
+    perfect = false
+    const max = modeConfig.value?.maxScore ?? 100
+    if (score.value >= max) {
+      score.value = Math.max(0, max - 1)
+    }
+  }
   finishedByPerfect.value = perfect
   if (isElapsedOnlySession.value) {
     elapsedMs.value = circleAccumulatedMs
@@ -792,6 +829,7 @@ function beginPlaying(mode: PracticeMode) {
   countdownValue.value = null
   activeMode.value = mode
   sessionCompletionRecorded = false
+  sessionHadWrongAnswer = false
   const cfg = isGraphicMode(mode)
     ? getGraphicReasoningModeConfig(mode)
     : isTwentyFourPointMode(mode)
@@ -896,7 +934,12 @@ function finishTwentyFourAnswer(expression: string) {
   const ok = check.ok
   const elapsedMs = Date.now() - sessionStartMs
 
-  score.value = clampTwentyFourPointScore(score.value + (ok ? cfg.correctDelta : cfg.wrongDelta))
+  const reachedCeiling = applySessionScore(
+    ok,
+    ok ? cfg.correctDelta : cfg.wrongDelta,
+    cfg.maxScore,
+    clampTwentyFourPointScore,
+  )
   records.value.push({
     questionId: q.id,
     expression: q.prompt,
@@ -924,8 +967,7 @@ function finishTwentyFourAnswer(expression: string) {
 
   acceptingInput.value = false
 
-  if (score.value >= cfg.maxScore) {
-    finishSession(true)
+  if (finishIfReachedMaxScore(reachedCeiling)) {
     return
   }
   if (remainingMs.value <= 0) {
@@ -958,7 +1000,12 @@ function finishSudokuAnswer(grid: number[][]) {
   const elapsedMs = Date.now() - sessionStartMs
   const chosenAnswer = formatSudokuGrid(grid)
 
-  score.value = clampSudokuScore(score.value + (ok ? cfg.correctDelta : cfg.wrongDelta))
+  const reachedCeiling = applySessionScore(
+    ok,
+    ok ? cfg.correctDelta : cfg.wrongDelta,
+    cfg.maxScore,
+    clampSudokuScore,
+  )
   records.value.push({
     questionId: q.id,
     expression: q.prompt,
@@ -977,8 +1024,7 @@ function finishSudokuAnswer(grid: number[][]) {
 
   acceptingInput.value = false
 
-  if (score.value >= cfg.maxScore) {
-    finishSession(true)
+  if (finishIfReachedMaxScore(reachedCeiling)) {
     return
   }
   if (remainingMs.value <= 0) {
@@ -1023,6 +1069,7 @@ function finishCircleGrammarAnswer(marks: CircleGrammarMark[]) {
   const correctAnswer = formatCircleGrammarExpected(q.expected)
 
   score.value = clampCircleGrammarScore(score.value + (ok ? cfg.correctDelta : cfg.wrongDelta))
+  if (!ok) sessionHadWrongAnswer = true
   records.value.push({
     questionId: q.id,
     expression: q.sentence.sentence,
@@ -1067,7 +1114,7 @@ function advanceCircleGrammar() {
   feedback.value = null
 
   if (done) {
-    const perfect = score.value >= cfg.maxScore
+    const perfect = !sessionHadWrongAnswer && score.value >= cfg.maxScore
     finishSession(perfect)
     return
   }
@@ -1104,6 +1151,7 @@ function finishShortenSentenceAnswer(answer: string) {
 
   shortenSentenceLastAnswer.value = answer.trim() || '（空）'
   score.value = clampShortenSentenceScore(score.value + (ok ? cfg.correctDelta : cfg.wrongDelta))
+  if (!ok) sessionHadWrongAnswer = true
   records.value.push({
     questionId: q.id,
     expression: q.item.sentence,
@@ -1146,7 +1194,7 @@ function advanceShortenSentence() {
   feedback.value = null
 
   if (done) {
-    finishSession(score.value >= cfg.maxScore)
+    finishSession(!sessionHadWrongAnswer && score.value >= cfg.maxScore)
     return
   }
 
@@ -1180,7 +1228,12 @@ function applyAnswer(choiceIndex: number) {
   if (isGraphicSession.value && graphicQuestion.value) {
     const q = graphicQuestion.value
     ok = choiceIndex === q.correctIndex
-    score.value = clampGraphicReasoningScore(score.value + (ok ? cfg.correctDelta : cfg.wrongDelta))
+    const reachedCeiling = applySessionScore(
+      ok,
+      ok ? cfg.correctDelta : cfg.wrongDelta,
+      cfg.maxScore,
+      clampGraphicReasoningScore,
+    )
     graphicRecords.value.push({
       questionId: q.id,
       ruleLabel: q.ruleLabel,
@@ -1190,13 +1243,27 @@ function applyAnswer(choiceIndex: number) {
       scoreAfter: score.value,
       elapsedMs,
     })
+    applyTimeDeltaForAnswer(ok)
+    feedback.value = ok ? 'correct' : 'wrong'
+    if (ok) playMentalMathCorrectSound()
+    else playMentalMathWrongSound()
+
+    if (finishIfReachedMaxScore(reachedCeiling)) {
+      return
+    }
   } else if (question.value) {
     const q = question.value
     const chosenAnswer = q.options[choiceIndex] ?? q.correctAnswer
     ok = choiceIndex === q.correctIndex
-    score.value = isTwentyFourSession.value
-      ? clampTwentyFourPointScore(score.value + (ok ? cfg.correctDelta : cfg.wrongDelta))
-      : clampMentalMathScore(score.value + (ok ? cfg.correctDelta : cfg.wrongDelta))
+    const clampFn = isTwentyFourSession.value
+      ? clampTwentyFourPointScore
+      : clampMentalMathScore
+    const reachedCeiling = applySessionScore(
+      ok,
+      ok ? cfg.correctDelta : cfg.wrongDelta,
+      cfg.maxScore,
+      clampFn,
+    )
     records.value.push({
       questionId: q.id,
       expression: q.expression,
@@ -1218,16 +1285,19 @@ function applyAnswer(choiceIndex: number) {
         explanation: q.explanation,
       })
     }
-  }
+    applyTimeDeltaForAnswer(ok)
+    feedback.value = ok ? 'correct' : 'wrong'
+    if (ok) playMentalMathCorrectSound()
+    else playMentalMathWrongSound()
 
-  applyTimeDeltaForAnswer(ok)
-  feedback.value = ok ? 'correct' : 'wrong'
-  if (ok) playMentalMathCorrectSound()
-  else playMentalMathWrongSound()
-
-  if (score.value >= cfg.maxScore) {
-    finishSession(true)
-    return
+    if (finishIfReachedMaxScore(reachedCeiling)) {
+      return
+    }
+  } else {
+    applyTimeDeltaForAnswer(ok)
+    feedback.value = ok ? 'correct' : 'wrong'
+    if (ok) playMentalMathCorrectSound()
+    else playMentalMathWrongSound()
   }
 
   if (remainingMs.value <= 0) {
@@ -1465,7 +1535,7 @@ onBeforeUnmount(() => {
         <section v-if="showArithmeticSection" class="mode-section" id="practice-arithmetic">
           <h3 class="mode-section__title">四则口算</h3>
           <p class="mode-section__hint">
-            含简单/干扰/普通/高难，「累加/减数」「累加/减数（乘除）」「三位数加减法」「百分比加减运算」「乘法计算」。答错记入错题本；对 +1 秒 / 错 −1 秒，满分 100。
+            含简单/干扰/普通/高难，「累加/减数」「累加/减数（乘除）」「三位数加减法」「百分比加减运算」「乘法计算」。答错记入错题本；对 +1 秒 / 错 −1 秒，满分 100（本局有过错则最高显示 99、不计满分）。
           </p>
           <div class="mode-grid">
             <button
