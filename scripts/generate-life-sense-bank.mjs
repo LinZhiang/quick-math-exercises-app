@@ -1,6 +1,6 @@
 /**
- * 生成口算·生活常识题库（每难度尽量逼近 900：原约 500 + 关系类约 400）
- * 硬性规则：只使用人工校对的「名称→答案」配对，禁止按索引乱搭。
+ * 生成口算·生活常识题库（每难度：去重后的校对知识点 + 扩展快判 ≥200）
+ * 硬性规则：只使用人工校对的「名称→答案」配对，禁止按索引乱搭；同题干不灌干扰项变体。
  * 运行：node scripts/generate-life-sense-bank.mjs
  */
 import fs from 'node:fs'
@@ -19,6 +19,7 @@ import {
   PROVINCE_DISTRACTORS,
 } from './life-sense-relations-data.mjs'
 import { getNatureQaByDifficulty } from './life-sense-nature-data.mjs'
+import { getExtraQaByDifficulty } from './life-sense-extra-data.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const outJson = path.join(__dirname, '../src/utils/lifeSenseBank.generated.json')
@@ -75,23 +76,20 @@ function push(difficulty, stem, correct, distractorsIn, explanation, keyExtra = 
     throw new Error(`干扰项不足: ${st} / ${c}`)
   }
 
-  // 同一题干可因干扰组合不同多条，正确答案必须一致（用于凑足练习量，不编造错误配对）
-  const packs = difficulty === 'easy' ? 5 : difficulty === 'normal' ? 8 : 10
-  for (let pack = 0; pack < packs; pack++) {
-    const key = `${st}|${c}|${difficulty}|p${pack}|${keyExtra}`
-    if (seenKey.has(key)) continue
-    const distractors = pickDistractors(st.length * 97 + c.length * 13 + pack * 31, structured, 8)
-    if (distractors.length < 2) continue
-    seenKey.add(key)
-    items.push({
-      difficulty,
-      stem: st,
-      correct: c,
-      distractors,
-      explanation,
-      key,
-    })
-  }
+  // 每题干只保留 1 条，避免同知识点干扰项变体占满「未出」循环
+  const key = `${st}|${c}|${difficulty}|p0|${keyExtra}`
+  if (seenKey.has(key)) return false
+  const distractors = pickDistractors(st.length * 97 + c.length * 13 + 31, structured, 8)
+  if (distractors.length < 2) return false
+  seenKey.add(key)
+  items.push({
+    difficulty,
+    stem: st,
+    correct: c,
+    distractors,
+    explanation,
+    key,
+  })
   return true
 }
 
@@ -158,6 +156,37 @@ function addNatureKnowledge(diff) {
   if (n !== 120) {
     throw new Error(`自然地理专题 ${diff} 应为 120 题，实际 ${n}`)
   }
+}
+
+function addExtraKnowledge(diff) {
+  const topicLabel = {
+    traffic: '交通出行',
+    safety: '安全防护',
+    health: '健康卫生',
+    food: '饮食安全',
+    civic: '公民常识',
+    appliance: '家用电器',
+    env: '环境保护',
+    unit: '生活计量',
+    sport: '体育常识',
+    digital: '数字生活',
+  }
+  let n = 0
+  for (const [stem, correct, distractors, topic] of getExtraQaByDifficulty(diff)) {
+    const ok = pushOnce(
+      diff,
+      stem,
+      correct,
+      distractors,
+      `【${topicLabel[topic] || topic || '生活常识'}】正确答案是「${correct}」。`,
+      `extra-${topic || 'life'}`,
+    )
+    if (ok) n += 1
+  }
+  if (n < 200) {
+    throw new Error(`扩展生活常识 ${diff} 至少 200 题，实际入库 ${n}`)
+  }
+  console.log(`[extra] ${diff}: +${n}`)
 }
 
 // ========== 校对词库：只写确定关系 ==========
@@ -728,7 +757,6 @@ const WHOLE_DOMAIN = {
   变速机构: '机电',
   轮轴: '机电',
   水龙头: '五金',
-  止回阀: '五金',
   压力开关: '五金',
   继电器: '电气',
   电磁阀: '电气',
@@ -1389,6 +1417,7 @@ function addRelations(diff) {
 
 for (const d of ['easy', 'normal', 'hard']) {
   addNatureKnowledge(d) // 天气/节日/天文/山川：每难度精确 120 题，优先入库
+  addExtraKnowledge(d) // 各难度再补 ≥200 道生活快判
   addMaterials(d)
   addMaterialReverse(d)
   addKinds(d)
@@ -1542,51 +1571,33 @@ function validateAll() {
 
 validateAll()
 
-/** 先保证每个题干至少保留 1 条，再按包填充到 target，避免后半段词库被截断 */
-function take(diff, target) {
+/** 每题干只保留 1 条；不再用干扰项变体灌水 */
+function take(diff) {
   const list = items.filter((x) => x.difficulty === diff)
   const byStem = new Map()
   for (const q of list) {
-    if (!byStem.has(q.stem)) byStem.set(q.stem, [])
-    byStem.get(q.stem).push(q)
+    if (!byStem.has(q.stem)) byStem.set(q.stem, q)
   }
-
-  const out = []
-  const stems = [...byStem.keys()]
-  // 第一轮：每题干取第一条（覆盖全部校对条目）
-  for (const stem of stems) {
-    out.push(byStem.get(stem)[0])
-  }
-  // 第二轮：继续追加其它包直到 target
-  let guard = 0
-  while (out.length < target && guard < 100000) {
-    guard++
-    let added = false
-    for (const stem of stems) {
-      if (out.length >= target) break
-      const variants = byStem.get(stem)
-      const have = out.filter((x) => x.stem === stem).length
-      if (have < variants.length) {
-        out.push(variants[have])
-        added = true
-      }
-    }
-    if (!added) break
-  }
-
-  if (out.length < target) {
-    console.warn(`[warn] ${diff} 仅 ${out.length} 题（校对词库上限），不足 ${target}`)
-  }
-  // 若超过（不应），截到 target，但仍保留「每题干至少 1」——上面逻辑不会超太多且先覆盖
-  return out.slice(0, Math.max(out.length, 0) >= target ? target : out.length)
+  const out = [...byStem.values()]
+  console.log(`[take] ${diff}: ${out.length} 道不重复题干（生成池 ${list.length}）`)
+  return out
 }
 
-// 每难度目标：原校对题库约 500 + 关系类补充约 400
-const TARGET = 900
-const easy = take('easy', TARGET)
-const normal = take('normal', TARGET)
-const hard = take('hard', TARGET)
+const easy = take('easy')
+const normal = take('normal')
+const hard = take('hard')
 const final = [...easy, ...normal, ...hard]
+
+for (const [label, arr] of [
+  ['easy', easy],
+  ['normal', normal],
+  ['hard', hard],
+]) {
+  // 相对旧库约 300+ 独特题干，再补 ≥200 后应明显超过 500
+  if (arr.length < 500) {
+    console.warn(`[warn] ${label} 独特题仅 ${arr.length}，预期扩库后 ≥500`)
+  }
+}
 
 const payload = {
   easy: easy.length,

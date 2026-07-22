@@ -1,10 +1,10 @@
 {
   "counts": {
-    "easy": 900,
-    "normal": 900,
-    "hard": 900
+    "easy": 569,
+    "normal": 513,
+    "hard": 516
   },
-  "uniqueStems": 945,
+  "uniqueStems": 1580,
   "errorCount": 0,
   "warningCount": 0,
   "errors": [],
