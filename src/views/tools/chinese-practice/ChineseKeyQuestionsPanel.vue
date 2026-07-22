@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   CHINESE_KEY_QUESTION_SOURCES,
   readingSubModeFromKeySource,
@@ -179,6 +179,9 @@ import { buildKeyPracticeQuestionsWithVariants } from '@/utils/chineseKeyQuestio
 import { isAiChatConfigured } from '@/services/deepseek'
 import { getKeyQuestionNote, setKeyQuestionNote } from '@/utils/chineseKeyQuestionNotes'
 import { markdownToDisplaySafeHtml } from '@/utils/markdownToHtml'
+import WrongBookImmersivePreview, {
+  type WrongBookPreviewItem,
+} from '@/views/tools/mental-math/components/WrongBookImmersivePreview.vue'
 
 type StoredRow =
   | StoredIdiomRecord
@@ -234,8 +237,38 @@ const detailDialogVisible = ref(false)
 const noteDraft = ref('')
 const noteEditing = ref(false)
 const noteSaving = ref(false)
+const previewOpen = ref(false)
+const previewIndex = ref(0)
 
 const activeRows = computed(() => (keyTab.value === 'wrong' ? wrongRows.value : favoriteRows.value))
+
+const previewTitle = computed(() => {
+  const src = CHINESE_KEY_QUESTION_SOURCES.find((s) => s.id === source.value)
+  const tab = keyTab.value === 'wrong' ? '错题' : '收藏'
+  return `${src?.title ?? '关题'} · ${tab}`
+})
+
+const previewItems = computed((): WrongBookPreviewItem[] => {
+  void chinesePracticeDataTick.value
+  return activeRows.value.map((row) => {
+    const passage = rowPassage(row)
+    const expression = passage
+      ? `${passage}\n\n${row.stem}`
+      : row.stem || row.term
+    return {
+      key: row.fingerprint,
+      expression,
+      correctAnswer: storedCorrectLabel(row),
+      explanation: row.explanation,
+      note: getKeyQuestionNote(source.value, row.fingerprint),
+      prose: true,
+      options: row.options.map((opt, idx) => ({
+        text: opt,
+        isCorrect: idx === row.correctIndex,
+      })),
+    }
+  })
+})
 
 const detailRow = computed(
   () => activeRows.value.find((r) => r.fingerprint === expandedFingerprint.value) ?? null,
@@ -327,6 +360,19 @@ function hintDetailLabel(): string {
 
 function rowPassage(row: StoredRow): string {
   return 'passage' in row && typeof row.passage === 'string' ? row.passage.trim() : ''
+}
+
+function openPreview(startFp?: string) {
+  if (!activeRows.value.length) {
+    ElMessage.info(keyTab.value === 'wrong' ? '暂无错题可预览' : '暂无收藏可预览')
+    return
+  }
+  const idx = startFp
+    ? activeRows.value.findIndex((r) => r.fingerprint === startFp)
+    : 0
+  previewIndex.value = idx >= 0 ? idx : 0
+  detailDialogVisible.value = false
+  previewOpen.value = true
 }
 
 function loadRows() {
@@ -461,6 +507,11 @@ function onSaveNote(fp: string) {
   } finally {
     noteSaving.value = false
   }
+}
+
+function onPreviewSaveNote(fp: string, note: string) {
+  setKeyQuestionNote(source.value, fp, note)
+  ElMessage.success(note.trim() ? '备注已保存' : '已清空备注')
 }
 
 function selectAll() {
@@ -618,7 +669,18 @@ async function onPractice() {
   } as KeyPracticePayload)
 }
 
-function onRemove(fp: string) {
+async function onRemove(fp: string) {
+  try {
+    await ElMessageBox.confirm(
+      keyTab.value === 'wrong' ? '确定从错题中删除这道题？' : '确定从收藏中删除这道题？',
+      '删除题目',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  const wasPreview = previewOpen.value
+  const idx = activeRows.value.findIndex((r) => r.fingerprint === fp)
   const readingMode = readingSubModeFromKeySource(source.value)
   if (source.value === 'idiom-memorization') {
     if (keyTab.value === 'wrong') removeChineseWrong(fp)
@@ -663,8 +725,19 @@ function onRemove(fp: string) {
     if (keyTab.value === 'wrong') removeChineseGeographyCommonSenseWrong(fp)
     else removeChineseGeographyCommonSenseFavorite(fp)
   }
+  // 清备注（指纹级）
+  setKeyQuestionNote(source.value, fp, '')
   selected.value.delete(fp)
+  if (expandedFingerprint.value === fp) {
+    detailDialogVisible.value = false
+    expandedFingerprint.value = null
+  }
   refresh()
+  if (wasPreview) {
+    const left = activeRows.value.length
+    if (!left) previewOpen.value = false
+    else if (idx >= 0) previewIndex.value = Math.min(idx, left - 1)
+  }
   ElMessage.success('已删除')
 }
 
@@ -679,6 +752,8 @@ watch(source, () => {
   expandedFingerprint.value = null
   noteDraft.value = ''
   noteEditing.value = false
+  previewOpen.value = false
+  previewIndex.value = 0
   keyTab.value = 'wrong'
   refresh()
 })
@@ -688,6 +763,8 @@ watch(keyTab, () => {
   expandedFingerprint.value = null
   noteDraft.value = ''
   noteEditing.value = false
+  previewOpen.value = false
+  previewIndex.value = 0
   syncSelectAll()
 })
 
@@ -737,7 +814,18 @@ defineExpose({ refresh })
       >
         收藏（{{ favoriteRows.length }}）
       </button>
-      <el-button size="small" plain :loading="loading" @click="refresh">刷新</el-button>
+      <div class="chinese-key__tabs-actions">
+        <el-button
+          size="small"
+          plain
+          type="primary"
+          :disabled="!activeRows.length"
+          @click="openPreview()"
+        >
+          预览
+        </el-button>
+        <el-button size="small" plain :loading="loading" @click="refresh">刷新</el-button>
+      </div>
     </div>
 
     <p v-if="!activeRows.length" class="chinese-key__empty">
@@ -954,9 +1042,34 @@ defineExpose({ refresh })
         </section>
       </div>
       <template #footer>
+        <el-button
+          v-if="detailRow"
+          type="primary"
+          plain
+          @click="detailRow && openPreview(detailRow.fingerprint)"
+        >
+          预览
+        </el-button>
+        <el-button
+          v-if="detailRow"
+          type="danger"
+          plain
+          @click="detailRow && onRemove(detailRow.fingerprint)"
+        >
+          删除本题
+        </el-button>
         <el-button @click="closeDetailDialog">关闭</el-button>
       </template>
     </el-dialog>
+
+    <WrongBookImmersivePreview
+      v-model:open="previewOpen"
+      v-model:index="previewIndex"
+      :title="previewTitle"
+      :items="previewItems"
+      @save-note="onPreviewSaveNote"
+      @delete="onRemove"
+    />
 
     <div v-if="activeRows.length" class="chinese-key__actions">
       <el-button
@@ -1006,6 +1119,13 @@ defineExpose({ refresh })
   align-items: center;
   gap: 8px;
   margin: 14px 0;
+}
+
+.chinese-key__tabs-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .chinese-key__tab {

@@ -11,6 +11,16 @@ import {
   type MentalMathWrongRecord,
   type MentalMathWrongSection,
 } from '@/utils/mentalMathWrongBook'
+import {
+  clearMentalMathWrongNotesForSection,
+  getMentalMathWrongNote,
+  removeMentalMathWrongNote,
+  setMentalMathWrongNote,
+} from '@/utils/mentalMathWrongNotes'
+import { markdownToDisplaySafeHtml } from '@/utils/markdownToHtml'
+import WrongBookImmersivePreview, {
+  type WrongBookPreviewItem,
+} from './WrongBookImmersivePreview.vue'
 
 const props = defineProps<{
   section: MentalMathWrongSection
@@ -19,6 +29,11 @@ const props = defineProps<{
 const open = ref(false)
 const detail = ref<MentalMathWrongRecord | null>(null)
 const detailVisible = ref(false)
+const previewOpen = ref(false)
+const previewIndex = ref(0)
+const noteDraft = ref('')
+const noteEditing = ref(false)
+const noteSaving = ref(false)
 
 const title = computed(() => MENTAL_MATH_WRONG_SECTION_LABELS[props.section])
 
@@ -32,14 +47,48 @@ const count = computed(() => {
   return countMentalMathWrongRecords(props.section)
 })
 
+const previewItems = computed((): WrongBookPreviewItem[] => {
+  void mentalMathWrongBookTick.value
+  return rows.value.map((row) => ({
+    key: row.fingerprint,
+    expression: row.expression,
+    correctAnswer: row.correctAnswer,
+    chosenAnswer: row.chosenAnswer,
+    explanation: row.explanation,
+    note: getMentalMathWrongNote(props.section, row.fingerprint),
+    options: row.options?.map((opt) => {
+      const text = String(opt)
+      return {
+        text,
+        isCorrect: text === row.correctAnswer,
+        isChosen: text === row.chosenAnswer,
+      }
+    }),
+  }))
+})
+
 watch(
   () => props.section,
   () => {
     open.value = false
     detailVisible.value = false
     detail.value = null
+    previewOpen.value = false
+    previewIndex.value = 0
+    noteDraft.value = ''
+    noteEditing.value = false
   },
 )
+
+function rowNote(fp: string): string {
+  void mentalMathWrongBookTick.value
+  return getMentalMathWrongNote(props.section, fp)
+}
+
+function noteHtml(fp: string): string {
+  const note = rowNote(fp)
+  return note ? markdownToDisplaySafeHtml(note) : ''
+}
 
 function toggleOpen() {
   open.value = !open.value
@@ -47,11 +96,56 @@ function toggleOpen() {
 
 function openDetail(row: MentalMathWrongRecord) {
   detail.value = row
+  noteDraft.value = getMentalMathWrongNote(props.section, row.fingerprint)
+  noteEditing.value = false
   detailVisible.value = true
 }
 
 function onDetailClosed() {
   detail.value = null
+  noteDraft.value = ''
+  noteEditing.value = false
+}
+
+function openPreview(startFp?: string) {
+  if (!count.value) {
+    ElMessage.info('暂无错题可预览')
+    return
+  }
+  const idx = startFp
+    ? rows.value.findIndex((r) => r.fingerprint === startFp)
+    : 0
+  previewIndex.value = idx >= 0 ? idx : 0
+  detailVisible.value = false
+  previewOpen.value = true
+}
+
+function onEditNote() {
+  if (!detail.value) return
+  noteDraft.value = getMentalMathWrongNote(props.section, detail.value.fingerprint)
+  noteEditing.value = true
+}
+
+function onCancelNoteEdit() {
+  if (!detail.value) return
+  noteDraft.value = getMentalMathWrongNote(props.section, detail.value.fingerprint)
+  noteEditing.value = false
+}
+
+function onSaveNote(fp: string) {
+  noteSaving.value = true
+  try {
+    setMentalMathWrongNote(props.section, fp, noteDraft.value)
+    noteEditing.value = false
+    ElMessage.success(noteDraft.value.trim() ? '备注已保存' : '已清空备注')
+  } finally {
+    noteSaving.value = false
+  }
+}
+
+function onPreviewSaveNote(fp: string, note: string) {
+  setMentalMathWrongNote(props.section, fp, note)
+  ElMessage.success(note.trim() ? '备注已保存' : '已清空备注')
 }
 
 async function onRemove(fp: string) {
@@ -64,10 +158,20 @@ async function onRemove(fp: string) {
   } catch {
     return
   }
+  const wasPreview = previewOpen.value
+  const idx = rows.value.findIndex((r) => r.fingerprint === fp)
   removeMentalMathWrong(fp)
+  removeMentalMathWrongNote(props.section, fp)
   if (detail.value?.fingerprint === fp) {
     detailVisible.value = false
     detail.value = null
+  }
+  if (wasPreview) {
+    if (!count.value) {
+      previewOpen.value = false
+    } else if (idx >= 0) {
+      previewIndex.value = Math.min(idx, count.value - 1)
+    }
   }
   ElMessage.success('已删除')
 }
@@ -84,8 +188,10 @@ async function onClearAll() {
     return
   }
   clearMentalMathWrongSection(props.section)
+  clearMentalMathWrongNotesForSection(props.section)
   detailVisible.value = false
   detail.value = null
+  previewOpen.value = false
   ElMessage.success('已清空')
 }
 
@@ -108,15 +214,26 @@ function formatTime(iso: string): string {
         <strong>{{ count }}</strong>
         <span class="mm-wrong__chevron" :class="{ 'is-open': open }">▾</span>
       </button>
-      <el-button
-        v-if="open && count > 0"
-        size="small"
-        text
-        type="danger"
-        @click="onClearAll"
-      >
-        清空
-      </el-button>
+      <div class="mm-wrong__bar-actions">
+        <el-button
+          size="small"
+          plain
+          type="primary"
+          :disabled="!count"
+          @click="openPreview()"
+        >
+          预览
+        </el-button>
+        <el-button
+          v-if="open && count > 0"
+          size="small"
+          text
+          type="danger"
+          @click="onClearAll"
+        >
+          清空
+        </el-button>
+      </div>
     </div>
 
     <div v-if="open" class="mm-wrong__panel">
@@ -130,6 +247,7 @@ function formatTime(iso: string): string {
             <p class="mm-wrong__meta">
               错 {{ row.wrongCount }} 次
               <template v-if="formatTime(row.updatedAt)"> · {{ formatTime(row.updatedAt) }}</template>
+              <template v-if="rowNote(row.fingerprint)"> · 有备注</template>
               · 点看详情
             </p>
           </button>
@@ -178,8 +296,56 @@ function formatTime(iso: string): string {
           <h4>说明</h4>
           <p class="mm-wrong-detail__exp">{{ detail.explanation }}</p>
         </section>
+        <section class="mm-wrong-detail__note">
+          <div class="mm-wrong-detail__note-head">
+            <h4>备注</h4>
+            <el-button
+              v-if="!noteEditing"
+              size="small"
+              text
+              type="primary"
+              @click="onEditNote"
+            >
+              {{ rowNote(detail.fingerprint) ? '编辑' : '添加备注' }}
+            </el-button>
+          </div>
+          <template v-if="noteEditing">
+            <el-input
+              v-model="noteDraft"
+              type="textarea"
+              :rows="3"
+              maxlength="500"
+              show-word-limit
+              placeholder="支持 Markdown，如标题、列表、加粗等"
+            />
+            <div class="mm-wrong-detail__note-actions">
+              <el-button
+                size="small"
+                type="primary"
+                :loading="noteSaving"
+                @click="onSaveNote(detail.fingerprint)"
+              >
+                保存
+              </el-button>
+              <el-button size="small" plain @click="onCancelNoteEdit">取消</el-button>
+            </div>
+          </template>
+          <template v-else-if="rowNote(detail.fingerprint)">
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <div class="mm-wrong-detail__note-md deepseek-md" v-html="noteHtml(detail.fingerprint)" />
+          </template>
+          <p v-else class="mm-wrong-detail__note-empty">暂无备注</p>
+        </section>
       </div>
       <template #footer>
+        <el-button
+          v-if="detail"
+          type="primary"
+          plain
+          @click="detail && openPreview(detail.fingerprint)"
+        >
+          预览
+        </el-button>
         <el-button
           v-if="detail"
           type="danger"
@@ -191,6 +357,15 @@ function formatTime(iso: string): string {
         <el-button @click="detailVisible = false">关闭</el-button>
       </template>
     </el-dialog>
+
+    <WrongBookImmersivePreview
+      v-model:open="previewOpen"
+      v-model:index="previewIndex"
+      :title="title"
+      :items="previewItems"
+      @save-note="onPreviewSaveNote"
+      @delete="onRemove"
+    />
   </div>
 </template>
 
@@ -203,6 +378,13 @@ function formatTime(iso: string): string {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.mm-wrong__bar-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .mm-wrong__toggle {
@@ -346,5 +528,35 @@ function formatTime(iso: string): string {
   border-color: var(--el-color-success);
   color: var(--el-color-success);
   background: color-mix(in srgb, var(--el-color-success-light-9) 55%, transparent);
+}
+
+.mm-wrong-detail__note-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mm-wrong-detail__note-head h4 {
+  margin: 0;
+}
+
+.mm-wrong-detail__note-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.mm-wrong-detail__note-md {
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.mm-wrong-detail__note-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--app-text-muted);
 }
 </style>
