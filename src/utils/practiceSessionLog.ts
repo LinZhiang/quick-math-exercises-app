@@ -24,6 +24,8 @@ export type PracticeSessionLogEntry = {
   totalCount?: number
   score?: number
   durationMs?: number
+  /** 本轮是否满分/全对 */
+  perfect?: boolean
 }
 
 export type PracticeSessionLogStats = {
@@ -31,13 +33,33 @@ export type PracticeSessionLogStats = {
   totalCount?: number
   score?: number
   durationMs?: number
+  perfect?: boolean
+  /** 覆盖默认归类标签（错题复盘等） */
+  categoryId?: string
+  categoryLabel?: string
+  itemLabel?: string
 }
 
-function localDateKey(d = new Date()): string {
+export function localDateKey(d = new Date()): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
+}
+
+/** 是否视为满分日志（兼容旧记录：无 perfect 字段时用对题数推断） */
+export function isPracticeLogPerfect(row: PracticeSessionLogEntry): boolean {
+  if (row.perfect === true) return true
+  if (row.perfect === false) return false
+  if (
+    typeof row.correctCount === 'number' &&
+    typeof row.totalCount === 'number' &&
+    row.totalCount > 0 &&
+    row.correctCount === row.totalCount
+  ) {
+    return true
+  }
+  return false
 }
 
 function difficultyLabel(d: string): string {
@@ -445,6 +467,26 @@ export function resolvePracticeLogMeta(modeId: string): {
     return { categoryId: 'other', categoryLabel: '其他', itemLabel: '未知项目' }
   }
 
+  // 错题复盘：wb-review:mm:… / wb-review:cn-wrong:…（细标题可由写入方覆盖 itemLabel）
+  if (id.startsWith('wb-review:')) {
+    const scope = id.slice('wb-review:'.length)
+    let itemLabel = `错题复盘 · ${scope.replace(/:/g, ' · ').replace(/-/g, ' · ')}`
+    if (scope.startsWith('mm-favorite:')) {
+      itemLabel = `口算收藏复盘 · ${scope.slice('mm-favorite:'.length).replace(/-/g, ' · ')}`
+    } else if (scope.startsWith('mm:')) {
+      itemLabel = `口算错题复盘 · ${scope.slice(3).replace(/-/g, ' · ')}`
+    } else if (scope.startsWith('cn-wrong:')) {
+      itemLabel = `关题错题复盘 · ${scope.slice('cn-wrong:'.length).replace(/-/g, ' · ')}`
+    } else if (scope.startsWith('cn-favorite:')) {
+      itemLabel = `关题收藏复盘 · ${scope.slice('cn-favorite:'.length).replace(/-/g, ' · ')}`
+    }
+    return {
+      categoryId: 'wrong-review',
+      categoryLabel: '错题复盘',
+      itemLabel,
+    }
+  }
+
   const known = KNOWN_ITEM_LABELS[id]
   if (known) return known
 
@@ -491,6 +533,7 @@ export const PRACTICE_LOG_CATEGORIES: { id: string; label: string }[] = [
   { id: 'op-highfreq', label: '高频运算' },
   { id: 'op-other', label: '其他运算' },
   { id: 'chinese', label: '语文练习' },
+  { id: 'wrong-review', label: '错题复盘' },
   { id: 'other', label: '其他' },
 ]
 
@@ -537,13 +580,14 @@ export function appendPracticeSessionLog(
     finishedAt: now.toISOString(),
     dateKey: localDateKey(now),
     modeId: id,
-    categoryId: meta.categoryId,
-    categoryLabel: meta.categoryLabel,
-    itemLabel: meta.itemLabel,
+    categoryId: stats?.categoryId ?? meta.categoryId,
+    categoryLabel: stats?.categoryLabel ?? meta.categoryLabel,
+    itemLabel: stats?.itemLabel ?? meta.itemLabel,
     correctCount: stats?.correctCount,
     totalCount: stats?.totalCount,
     score: stats?.score,
     durationMs: stats?.durationMs,
+    perfect: stats?.perfect,
   }
   const rows = readLogs()
   rows.unshift(entry)

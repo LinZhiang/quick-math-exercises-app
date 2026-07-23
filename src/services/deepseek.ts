@@ -85,6 +85,8 @@ import {
   buildReadingComprehensionQuestionFromMcq,
   READING_COMPREHENSION_QUESTION_COUNT,
   parseReadingComprehensionMcqAiObject,
+  readingModeNeedsAbsoluteCorrectSlot,
+  readingQuestionHasGroundedAbsoluteCorrect,
   type ChineseReadingQuestionType,
   type ReadingComprehensionQuestion,
   readingComprehensionQuestionTypeLabel,
@@ -2053,10 +2055,25 @@ const READING_COMPREHENSION_SYSTEM = [
   '你是公务员考试与事业单位考试「言语理解·阅读理解」命题专家，熟悉主旨观点、细节判断、词句理解、推断下文、标题添加等高频题型。',
   '命题必须对标国考/联考真题难度：正确项不可一眼可辨，干扰项须「真假参半」、有迷惑力。',
   '选项表面必须齐整：禁止正确项独最长（多1字也不行），标点风格一致；禁止正确项标点独多或独含逗号/顿号。',
-  '严禁「只需/唯一/全部」等绝对化低级错项；干扰项要信息密度高、读来像正确答案。',
+  '干扰项禁止用「只需/唯一/全部」等绝对化词语做成一眼可排除的低级错项；正确项若含绝对表述，必须能被材料原文明确支撑。',
   '解析必须结构化：explanationFocus + explanationCorrect + explanationDistractors[3]（与 distractors 同序）；禁止用 A/B/C 指代选项；语句完整，禁止残缺断句。',
   '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
 ].join('\n')
+
+function readingAbsoluteCorrectBatchRule(mode: ChineseReadingQuestionType): string {
+  if (!readingModeNeedsAbsoluteCorrectSlot(mode)) {
+    return [
+      '【标题添加·绝对化】标题宜克制，勿用「必须/绝对/完全」等口号式绝对词硬凑正确项；本批不强制绝对性正确项。',
+    ].join('\n')
+  }
+  return [
+    '【绝对性正确项·硬性·除标题添加外每批至少 1 题】',
+    '1. 本批题目中**至少有 1 道**的 correct（正确选项）必须包含以下绝对性词语之一：必须、务必、绝对、完全、一定、一律、全部、始终、绝不能、绝不、必不可少、不可或缺。',
+    '2. **对照命题（最重要）**：材料 passage 中必须原样出现与正确项相同的绝对词（或同句明确写出该绝对要求），keySentence 须摘录支撑该绝对判断的原文连续子串；禁止材料语气柔和、正确项却擅自升格为「必须/绝对」等。',
+    '3. 正确项是对该绝对表述的准确概括或同义转述，不得歪曲材料；干扰项仍半真半假，**不要**把「绝对词」当廉价错项（忌干扰项独用极端词却一眼假）。',
+    '4. 其余题目可不用绝对词；仅保证本批至少 1 道满足上述对照。',
+  ].join('\n')
+}
 
 function readingComprehensionModeGuidance(mode: ChineseReadingQuestionType): string {
   switch (mode) {
@@ -2064,22 +2081,26 @@ function readingComprehensionModeGuidance(mode: ChineseReadingQuestionType): str
       return [
         '【本题型专属】考主旨/意图/观点：问这段文字主要说明什么、意在强调什么、核心观点是？',
         '正确项：全面准确概括文意重点（可含侧重+统筹），语气克制，避免堆砌材料原句。',
-        '干扰项优先：①以偏概全（只抓次要信息当主旨）；②程度/侧重偷换（把「重点」改成「更重要/取代」）；③范围扩大或缩小；④对策类偷换（文中未说的绝对方案）。四类都应读来「像那么回事」。',
+        '干扰项优先：①以偏概全（只抓次要信息当主旨）；②程度/侧重偷换（把「重点」改成「更重要/取代」）；③范围扩大或缩小；④对策类偷换（文中未说的方案）。四类都应读来「像那么回事」。',
+        '若本批指定某题作「绝对性正确项」：材料须明确写「必须/绝对/完全…」，正确项忠实概括该绝对要求，勿另造材料未说的绝对结论。',
       ].join('\n')
     case 'detail':
       return [
         '【本题型专属】考细节判断：哪项正确/错误或能从文中推出。',
-        '干扰项优先：偷换概念、无中生有但表述像材料语气、混淆充分/必要、张冠李戴；忌一眼假的绝对句。',
+        '干扰项优先：偷换概念、无中生有但表述像材料语气、混淆充分/必要、张冠李戴。',
+        '若本批指定某题作「绝对性正确项」：宜出「下列说法正确的是」，正确项复述材料中的必须/绝对/完全等要求；干扰项可把绝对范围偷换或弱化，但勿做成小学生级假句。',
       ].join('\n')
     case 'word-sentence':
       return [
         '【本题型专属】考词句理解：stem 标出需理解的词句。',
         '干扰项优先：字面义、超语境引申、邻句意思串位；正确项结合语境，勿比其它项明显更「正确腔」。',
+        '若本批指定某题作「绝对性正确项」：所考词句或正确释义须落实材料中的绝对语气（如「完全」「必须」），正确项不得脱离该语境另加绝对词。',
       ].join('\n')
     case 'infer-next':
       return [
         '【本题型专属】考推断下文：下文最可能写什么。',
         '干扰项优先：上文已写完的内容、无关新话题、跳跃过大但措辞正式的续写；正确项紧扣末句衔接。',
+        '若本批指定某题作「绝对性正确项」：末句或上文须出现必须/绝对/完全等，正确续写项须承接该绝对要求（如将写如何落实「必须…」），且 absolute 词可出现在正确项中并与上文一致。',
       ].join('\n')
     case 'title':
       return [
@@ -2096,13 +2117,17 @@ function readingComprehensionFormat(mode: ChineseReadingQuestionType): string {
 
 ${readingComprehensionModeGuidance(mode)}
 
+${readingAbsoluteCorrectBatchRule(mode)}
+
 【干扰项质量·必须遵守】
 1. **字数与标点齐整（硬性·系统会拒收）**：
    - **禁止正确项独最长**（哪怕只多 1 字也不行）；须有干扰项同长或更长。
    - 标点风格须一致：禁止正确项标点独多，禁止只有正确项带逗号/顿号/分号。
    - 禁止「正确项最完整、干扰项残缺短句」的反差；宁可四项都稍短或都稍长。
 2. **半真半假**：每个错项都要包含材料中出现过的关键词或半对信息，再在「侧重、范围、程度、逻辑关系」上出错；读起来像合理概括，细辨才错。
-3. **禁止低级错项**：不要用「只需」「仅仅」「唯一」「全部」「一定」「绝对」等极端词把选项做死；不要写与材料明文直接相反、小学生也能排除的句子。
+3. **绝对词用法**：
+   - 干扰项不要用「只需」「仅仅」「唯一」等极端词做成一眼假的低级错项。
+   - 正确项若含「必须/绝对/完全」等，材料必须先有对应绝对表述，正确项与材料对照成立。
 4. **禁止形式泄题**：不要让正确项独用「统筹/既要又要/重点是…同时…」这类最周全句式，而错项全是片面短句。四个选项句式风格应同类。
 5. **自检**：数四项字数与逗号——若「选最长」或「选标点最多」能稳中正确项，必须改到分不出。
 
@@ -2115,12 +2140,13 @@ ${readingComprehensionModeGuidance(mode)}
 【解析字段·硬性·禁止混乱】
 系统会打乱选项顺序，界面显示为「选项1～4」。你**不要**在解析里写 A/B/C 或「干扰项A」。必须输出结构化字段，由系统按最终题面序号拼接：
 - explanationFocus：主旨/解题依据在文中的位置（完整短句，如「文末结论句强调通过制度创新推动内部一体化」）
-- explanationCorrect：正确项为何正确（完整短句，不要写「选项几」，不要残缺）
+- explanationCorrect：正确项为何正确（完整短句，不要写「选项几」，不要残缺）；若正确项含绝对词，须点明材料何处支撑该绝对判断
 - explanationDistractors：字符串数组，长度必须为 3，且与 distractors 数组**一一对应**（第 i 条解释第 i 个干扰项为何错）
+- keySentence：**硬性**。从 passage **原样摘录**支撑正确选项的一句或连续短句（须为材料连续子串；勿改写、勿加省略号、勿拼接不相邻句）。界面据此高亮关键句。含绝对词的正确项，keySentence 须覆盖材料中的绝对表述。
 - 可选再给 explanation 作备份长文，但仍禁止使用 A/B/C；语句须完整收尾（以句号结束），禁止半截话如「且字数比…」
 
-【JSON 示例】（实际内容勿照抄；注意 explanationDistractors 与 distractors 同序）
-{"questionType":"${mode}","term":"乡村振兴","passage":"……","stem":"这段文字旨在强调：","correct":"产业振兴是乡村振兴的重点任务","distractors":["完善乡村基础设施应作为当前首要着力点","吸引人才回流即可自然带动乡村产业全面升级","组织建设应重新排定产业与人才工作次序"],"explanationFocus":"文末收束句点明产业振兴是乡村振兴的重点","explanationCorrect":"准确概括文意重点，与结尾结论一致","explanationDistractors":["把基础设施写成首要着力点，主次颠倒","夸大人才回流作用，属于过度推断","把组织建设抬到统领一切，偏离文意重心"],"explanation":"主旨在文末。正确项概括产业振兴重点；三个干扰项分别主次颠倒、过度推断、重心偏移。"}
+【JSON 示例】（实际内容勿照抄；keySentence 必须能在 passage 中原样找到；explanationDistractors 与 distractors 同序）
+{"questionType":"${mode}","term":"乡村振兴","passage":"……产业振兴是乡村振兴的重点任务。","stem":"这段文字旨在强调：","correct":"产业振兴是乡村振兴的重点任务","distractors":["完善乡村基础设施应作为当前首要着力点","吸引人才回流即可自然带动乡村产业全面升级","组织建设应重新排定产业与人才工作次序"],"keySentence":"产业振兴是乡村振兴的重点任务。","explanationFocus":"文末收束句点明产业振兴是乡村振兴的重点","explanationCorrect":"准确概括文意重点，与结尾结论一致","explanationDistractors":["把基础设施写成首要着力点，主次颠倒","夸大人才回流作用，属于过度推断","把组织建设抬到统领一切，偏离文意重心"],"explanation":"主旨在文末。正确项概括产业振兴重点；三个干扰项分别主次颠倒、过度推断、重心偏移。"}
 `.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 }
 
@@ -2151,16 +2177,21 @@ export async function requestReadingComprehensionMcqs(input: {
   const mode = input.mode
   const modeLabel = readingComprehensionQuestionTypeLabel(mode)
   const format = readingComprehensionFormat(mode)
+  const needAbsoluteSlot = readingModeNeedsAbsoluteCorrectSlot(mode)
   const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
   input.onProgress?.(aiRequestProgressText(`阅读理解（${modeLabel}）题目`))
 
   const historyHint = buildAvoidTermsHint('阅读材料主题', [...blocked])
+  const absoluteBatchHint = needAbsoluteSlot
+    ? `**批次硬性**：除标题添加外，本批 ${count} 题中**至少 1 道**的 correct 须含「必须/绝对/完全/一定」等绝对词，且 passage/keySentence 原文须出现同一绝对词，正确项与材料对照成立；禁止材料无绝对语气却硬加绝对正确项。`
+    : ''
   const user = [
     `请生成 **${count} 道** 事业编/公考「言语理解·阅读理解」四选一练习题，题型固定为 **${modeLabel}**（questionType=\`${mode}\`）。`,
     format,
     historyHint,
     `本批 ${count} 道的 term 必须互不相同；每题须含独立 passage。`,
-    `**务必做到**：选项字数/标点齐整（禁止正确项独最长或独含逗号）；干扰半真半假；禁止绝对化低级错项；解析必须含 explanationFocus、explanationCorrect、explanationDistractors[3]（与 distractors 同序），禁止 A/B/C，语句完整。`,
+    absoluteBatchHint,
+    `**务必做到**：选项字数/标点齐整（禁止正确项独最长或独含逗号）；干扰半真半假；解析必须含 explanationFocus、explanationCorrect、explanationDistractors[3]（与 distractors 同序），以及 keySentence（passage 原句子串）；禁止 A/B/C，语句完整。`,
     `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
   ]
     .filter(Boolean)
@@ -2198,7 +2229,9 @@ export async function requestReadingComprehensionMcqs(input: {
           `请生成第 ${slot} 道阅读理解四选一题，题型固定为 **${modeLabel}**（questionType=\`${mode}\`）。`,
           `字数/标点必须齐整，禁止正确项独最长。干扰半真半假。`,
           `解析硬性：explanationFocus、explanationCorrect、explanationDistractors[3]（与 distractors 一一对应）；禁止 A/B/C；语句完整收尾。`,
-          `禁止「只需/唯一」类低级错项。`,
+          needAbsoluteSlot && !deduped.some(readingQuestionHasGroundedAbsoluteCorrect)
+            ? `本题**必须**作为批次中的「绝对性正确项」：correct 含必须/绝对/完全等，passage 原文须出现同一绝对词，keySentence 覆盖该绝对表述。`
+            : `干扰项禁止「只需/唯一」类一眼假的低级错项。`,
           format,
           avoidHint,
           `仅返回一个 JSON 对象。`,
@@ -2233,6 +2266,60 @@ export async function requestReadingComprehensionMcqs(input: {
   if (deduped.length < count) {
     throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
   }
+
+  // 非标题添加：强制保证至少 1 道「材料对照成立」的绝对性正确项
+  if (needAbsoluteSlot && !deduped.some(readingQuestionHasGroundedAbsoluteCorrect)) {
+    input.onProgress?.('补生成「绝对性正确项」对照题…')
+    let injected = false
+    for (let attempt = 0; attempt < 6 && !injected; attempt++) {
+      try {
+        const oneRaw = await deepseekChatRaw(
+          [
+            `请生成 1 道阅读理解四选一题，题型固定为 **${modeLabel}**（questionType=\`${mode}\`）。`,
+            `【本题专属硬性】这是批次中唯一的「绝对性正确项」题：`,
+            `- correct 必须含「必须 / 绝对 / 完全 / 一定 / 务必 / 一律」等绝对词之一；`,
+            `- passage 原文必须出现与 correct 相同的绝对词（同句写出该绝对要求）；`,
+            `- keySentence 必须原样摘录含该绝对词的材料连续子串；`,
+            `- explanationCorrect 须点明材料何处支撑该绝对判断；`,
+            `- 禁止材料语气柔和却把正确项擅自升格为绝对结论。`,
+            `字数/标点齐整；干扰半真半假，勿用绝对词做一眼假错项。`,
+            format,
+            buildAvoidTermsHint('阅读材料主题', avoidTerms),
+            `仅返回一个 JSON 对象。`,
+          ].join('\n'),
+          { system: READING_COMPREHENSION_SYSTEM, temperature: 0.55, maxTokens: 1800 },
+        )
+        const oneObj = parseAiJsonObjectLenient(oneRaw)
+        const fields = parseReadingComprehensionMcqAiObject(oneObj)
+        if (!fields) continue
+        const q = buildReadingComprehensionQuestionFromMcq({
+          ...fields,
+          questionType: mode,
+          seq: count,
+        })
+        if (!q || !isPlayableFourChoiceMcq(q)) continue
+        if (!readingQuestionHasGroundedAbsoluteCorrect(q)) continue
+        const termKey = normalizeAvoidTerm(q.term)
+        if (
+          deduped.some((x) => x.fingerprint === q.fingerprint) ||
+          (termKey && avoidTerms.includes(termKey))
+        ) {
+          continue
+        }
+        // 替换最后一题，保证总数不变且至少一题达标
+        deduped[deduped.length - 1] = q
+        injected = true
+      } catch {
+        /* retry */
+      }
+    }
+    if (!injected) {
+      throw new Error(
+        '本批未能生成「正确项含绝对表述且材料对照成立」的题目，请重试生成（标题添加除外）',
+      )
+    }
+  }
+
   return deduped.slice(0, count)
 }
 

@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { markdownToDisplaySafeHtml } from '@/utils/markdownToHtml'
+import {
+  acquireWrongBookOverlayLock,
+  releaseWrongBookOverlayLock,
+} from '@/utils/wrongBookOverlayLock'
 
 export type WrongBookPreviewOption = {
   text: string
@@ -11,6 +15,8 @@ export type WrongBookPreviewOption = {
 export type WrongBookPreviewItem = {
   key: string
   expression: string
+  /** 若提供则优先用 HTML 渲染题面（如阅读理解关键句高亮） */
+  expressionHtml?: string
   correctAnswer: string
   chosenAnswer?: string
   options?: WrongBookPreviewOption[]
@@ -134,18 +140,23 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
-let prevOverflow = ''
+let overlayLocked = false
 
 watch(
   () => props.open,
   (open) => {
     if (typeof document === 'undefined') return
     if (open) {
-      prevOverflow = document.body.style.overflow
-      document.body.style.overflow = 'hidden'
+      if (!overlayLocked) {
+        acquireWrongBookOverlayLock()
+        overlayLocked = true
+      }
       syncNoteDraftFromCurrent()
     } else {
-      document.body.style.overflow = prevOverflow
+      if (overlayLocked) {
+        releaseWrongBookOverlayLock()
+        overlayLocked = false
+      }
       noteEditing.value = false
     }
   },
@@ -179,8 +190,9 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown)
-  if (typeof document !== 'undefined') {
-    document.body.style.overflow = prevOverflow
+  if (overlayLocked) {
+    releaseWrongBookOverlayLock()
+    overlayLocked = false
   }
 })
 </script>
@@ -219,11 +231,25 @@ onUnmounted(() => {
         </div>
 
         <div class="question-block">
+          <!-- eslint-disable-next-line vue/no-v-html -->
           <p
+            v-if="current.expressionHtml"
+            class="question-expression"
+            :class="{ 'question-expression--prose': expressionProse }"
+            v-html="current.expressionHtml"
+          />
+          <p
+            v-else
             class="question-expression"
             :class="{ 'question-expression--prose': expressionProse }"
           >
             {{ current.expression }}
+          </p>
+          <p
+            v-if="current.expressionHtml?.includes('reading-key-sentence')"
+            class="wb-preview__key-hint"
+          >
+            黄底标记为正确选项依据句
           </p>
         </div>
 
@@ -395,6 +421,26 @@ onUnmounted(() => {
 .question-expression--prose {
   font-size: clamp(1.05rem, 2.8vw, 1.35rem);
   font-weight: 650;
+  text-align: left;
+  max-width: 36em;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.question-expression :deep(mark.reading-key-sentence) {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: color-mix(in srgb, #fde68a 88%, #fff);
+  color: inherit;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.wb-preview__key-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--app-text-muted);
   text-align: left;
   max-width: 36em;
   margin-left: auto;

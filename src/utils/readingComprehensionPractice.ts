@@ -28,6 +28,11 @@ export type ReadingComprehensionQuestion = {
   correctIndex: number
   explanation: string
   fingerprint: string
+  /**
+   * 支撑正确选项的文中原句（须为 passage 子串）。
+   * 提交后在材料中高亮，便于定位。
+   */
+  keySentence?: string
 }
 
 /** AI 解析的结构化片段（打乱选项后再拼成带「选项1～4」的完整解析） */
@@ -69,6 +74,54 @@ export function readingComprehensionHistoryKind(
     title: 'reading-title',
   } as const
   return map[mode]
+}
+
+/**
+ * 除「标题添加」外，批次中至少一道题的正确项须含绝对性表述，
+ * 且材料原文须出现同类绝对词，避免正确项悬空。
+ */
+export const READING_ABSOLUTE_MARKERS = [
+  '必须',
+  '务必',
+  '绝对',
+  '完全',
+  '一定',
+  '一律',
+  '全部',
+  '始终',
+  '绝不能',
+  '绝不',
+  '必不可少',
+  '不可或缺',
+] as const
+
+const READING_ABSOLUTE_RE = new RegExp(READING_ABSOLUTE_MARKERS.join('|'))
+
+export function textHasReadingAbsoluteMarker(text: string): boolean {
+  return READING_ABSOLUTE_RE.test(String(text ?? ''))
+}
+
+/** 正确项含绝对词，且材料中至少出现同一类绝对词（对照命题） */
+export function readingQuestionHasGroundedAbsoluteCorrect(
+  q: Pick<ReadingComprehensionQuestion, 'passage' | 'options' | 'correctIndex' | 'keySentence'>,
+): boolean {
+  const correct = String(q.options[q.correctIndex] ?? '')
+  if (!textHasReadingAbsoluteMarker(correct)) return false
+  const passage = String(q.passage ?? '')
+  const key = String(q.keySentence ?? '')
+  // 正确项里出现的每个绝对标记，至少有一个能在材料或关键句中找到
+  for (const marker of READING_ABSOLUTE_MARKERS) {
+    if (!correct.includes(marker)) continue
+    if (passage.includes(marker) || key.includes(marker)) return true
+  }
+  return false
+}
+
+/** 标题添加不要求绝对性正确项 */
+export function readingModeNeedsAbsoluteCorrectSlot(
+  mode: ChineseReadingQuestionType,
+): boolean {
+  return mode !== 'title'
 }
 
 export function getReadingComprehensionQuestionFingerprint(input: {
@@ -221,6 +274,73 @@ function extractReadingExplanationParts(o: Record<string, unknown>): ReadingExpl
   return null
 }
 
+function escapeReadingHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/**
+ * 把 AI 给出的关键句对齐到材料原文子串（允许空白差异）。
+ * 对不上则返回 undefined，题目仍可作答，只是不高亮。
+ */
+export function resolveReadingKeySentence(
+  passage: string,
+  raw: string | undefined | null,
+): string | undefined {
+  const text = String(passage ?? '')
+  const key = String(raw ?? '').trim()
+  if (!text || !key || key.length < 4) return undefined
+  if (text.includes(key)) return key
+
+  const compact = (s: string) => s.replace(/\s+/g, '')
+  const tn = compact(text)
+  const kn = compact(key)
+  if (!kn || kn.length < 4) return undefined
+  const ti = tn.indexOf(kn)
+  if (ti < 0) return undefined
+
+  let i = 0
+  let j = 0
+  while (j < ti && i < text.length) {
+    if (!/\s/.test(text[i]!)) j++
+    i++
+  }
+  const start = i
+  let need = kn.length
+  let end = start
+  while (need > 0 && end < text.length) {
+    if (!/\s/.test(text[end]!)) need--
+    end++
+  }
+  const sliced = text.slice(start, end).trim()
+  return sliced.length >= 4 ? sliced : undefined
+}
+
+/**
+ * 材料 HTML：提交/回顾时可高亮支撑正确选项的关键句。
+ */
+export function renderReadingPassageHtml(
+  passage: string,
+  keySentence: string | undefined,
+  highlight: boolean,
+): string {
+  const text = String(passage ?? '')
+  if (!text) return ''
+  if (!highlight) return escapeReadingHtml(text)
+  const key = resolveReadingKeySentence(text, keySentence)
+  if (!key) return escapeReadingHtml(text)
+  const idx = text.indexOf(key)
+  if (idx < 0) return escapeReadingHtml(text)
+  return (
+    escapeReadingHtml(text.slice(0, idx)) +
+    `<mark class="reading-key-sentence">${escapeReadingHtml(key)}</mark>` +
+    escapeReadingHtml(text.slice(idx + key.length))
+  )
+}
+
 export function buildReadingComprehensionQuestionFromMcq(input: {
   questionType: ChineseReadingQuestionType
   term: string
@@ -230,6 +350,7 @@ export function buildReadingComprehensionQuestionFromMcq(input: {
   distractors: string[]
   explanation?: string
   explanationParts?: ReadingExplanationParts | null
+  keySentence?: string
   seq: number
 }): ReadingComprehensionQuestion | null {
   const term = input.term.trim()
@@ -272,6 +393,8 @@ export function buildReadingComprehensionQuestionFromMcq(input: {
   }
   if (!explanation || !readingExplanationQualityOk(explanation)) return null
 
+  const keySentence = resolveReadingKeySentence(passage, input.keySentence)
+
   const fingerprint = getReadingComprehensionQuestionFingerprint({
     questionType: input.questionType,
     term,
@@ -290,6 +413,7 @@ export function buildReadingComprehensionQuestionFromMcq(input: {
     correctIndex,
     explanation,
     fingerprint,
+    ...(keySentence ? { keySentence } : {}),
   }
   if (!isPlayableFourChoiceMcq(q)) return null
   return q
@@ -315,6 +439,7 @@ export function parseReadingComprehensionMcqAiObject(item: unknown): {
   distractors: string[]
   explanation: string
   explanationParts: ReadingExplanationParts | null
+  keySentence: string
 } | null {
   if (!item || typeof item !== 'object') return null
   const o = item as Record<string, unknown>
@@ -346,6 +471,9 @@ export function parseReadingComprehensionMcqAiObject(item: unknown): {
   const { correct, distractors } = picked
   const explanation = String(o.explanation ?? o.analysis ?? '').trim()
   const explanationParts = extractReadingExplanationParts(o)
+  const keySentence = String(
+    o.keySentence ?? o.keySentences ?? o.evidenceSentence ?? o.supportSentence ?? o.原文关键句 ?? '',
+  ).trim()
   if (!term || !passage || !stem) return null
   // 结构化解析优先；若无结构则至少要有可重写的 explanation 文本
   if (!explanationParts && !explanation) return null
@@ -358,5 +486,6 @@ export function parseReadingComprehensionMcqAiObject(item: unknown): {
     distractors,
     explanation,
     explanationParts,
+    keySentence,
   }
 }

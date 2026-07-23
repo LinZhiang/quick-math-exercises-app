@@ -167,7 +167,9 @@ import ChinesePracticeSection from '@/views/tools/chinese-practice/ChinesePracti
 import PwaInstallPanel from '@/components/PwaInstallPanel.vue'
 import { clearWenguSessionOnAiLeave } from '@/utils/wenguAuthStore'
 import MentalMathWrongBookPanel from '@/views/tools/mental-math/components/MentalMathWrongBookPanel.vue'
+import MentalMathFavoriteButton from '@/views/tools/mental-math/components/MentalMathFavoriteButton.vue'
 import { upsertMentalMathWrong } from '@/utils/mentalMathWrongBook'
+import { wrongBookWorkspaceActive } from '@/utils/wrongBookWorkspaceGate'
 import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 
 type Phase = 'select' | 'countdown' | 'playing' | 'finished'
@@ -530,6 +532,7 @@ const showLogSection = computed(() => activeOutlineSection.value === 'log')
 
 const chineseSessionActive = computed(
   () =>
+    wrongBookWorkspaceActive.value ||
     (chinesePracticeRef.value?.isRunningOrLoading ?? false) ||
     (dataAnalysisPanelRef.value?.isRunningOrLoading ?? false) ||
     (dataAnalysisGrowthPanelRef.value?.isRunningOrLoading ?? false) ||
@@ -3057,6 +3060,40 @@ onBeforeUnmount(() => {
             <span class="play-score">得分 <strong>{{ score }}</strong> / {{ modeConfig.maxScore }}</span>
           </div>
           <div class="session-actions session-actions--inline">
+            <MentalMathFavoriteButton
+              v-if="
+                feedback &&
+                activeMode &&
+                !graphicQuestion &&
+                (question ||
+                  twentyFourQuestion ||
+                  circleGrammarQuestion ||
+                  shortenSentenceQuestion)
+              "
+              :mode-id="String(activeMode)"
+              :expression="
+                question?.expression ||
+                twentyFourQuestion?.prompt ||
+                circleGrammarQuestion?.sentence.sentence ||
+                shortenSentenceQuestion?.item.sentence ||
+                ''
+              "
+              :correct-answer="
+                question?.correctAnswer ??
+                twentyFourQuestion?.sampleSolution ??
+                (circleGrammarQuestion
+                  ? formatCircleGrammarExpected(circleGrammarQuestion.expected)
+                  : undefined) ??
+                shortenSentenceQuestion?.item.shortened ??
+                ''
+              "
+              :options="question?.options"
+              :explanation="
+                question?.explanation ||
+                circleGrammarQuestion?.explanation ||
+                shortenSentenceQuestion?.explanation
+              "
+            />
             <el-button size="small" plain @click="retryCurrentMode">重来</el-button>
             <el-button size="small" @click="backToSelect">返回</el-button>
           </div>

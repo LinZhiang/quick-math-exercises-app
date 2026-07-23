@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   CHINESE_KEY_QUESTION_SOURCES,
@@ -179,9 +179,27 @@ import { buildKeyPracticeQuestionsWithVariants } from '@/utils/chineseKeyQuestio
 import { isAiChatConfigured } from '@/services/deepseek'
 import { getKeyQuestionNote, setKeyQuestionNote } from '@/utils/chineseKeyQuestionNotes'
 import { markdownToDisplaySafeHtml } from '@/utils/markdownToHtml'
+import {
+  filterWrongBookByMeta,
+  recordDateKey,
+  WRONG_BOOK_BATCH_SIZE,
+} from '@/utils/mentalMathWrongQuiz'
+import {
+  enterWrongBookWorkspace,
+  leaveWrongBookWorkspace,
+} from '@/utils/wrongBookWorkspaceGate'
+import {
+  acquireWrongBookOverlayLock,
+  releaseWrongBookOverlayLock,
+} from '@/utils/wrongBookOverlayLock'
+import {
+  chineseWrongReviewScope,
+} from '@/utils/wrongBookReviewStats'
+import WrongBookReviewStat from '@/views/tools/mental-math/components/WrongBookReviewStat.vue'
 import WrongBookImmersivePreview, {
   type WrongBookPreviewItem,
 } from '@/views/tools/mental-math/components/WrongBookImmersivePreview.vue'
+import { renderReadingPassageHtml } from '@/utils/readingComprehensionPractice'
 
 type StoredRow =
   | StoredIdiomRecord
@@ -239,8 +257,54 @@ const noteEditing = ref(false)
 const noteSaving = ref(false)
 const previewOpen = ref(false)
 const previewIndex = ref(0)
+const workspaceOpen = ref(false)
+const filterMinWrong = ref<number | null>(null)
+const filterDate = ref('')
 
 const activeRows = computed(() => (keyTab.value === 'wrong' ? wrongRows.value : favoriteRows.value))
+
+const displayRows = computed(() => {
+  const rows = activeRows.value
+  if (keyTab.value === 'wrong') {
+    return filterWrongBookByMeta(
+      rows as Array<StoredRow & { wrongCount: number; updatedAt: string }>,
+      {
+        minWrongCount: filterMinWrong.value ?? undefined,
+        dateKey: filterDate.value || undefined,
+      },
+    )
+  }
+  if (!filterDate.value) return rows
+  return rows.filter((row) => {
+    const iso =
+      'savedAt' in row && typeof row.savedAt === 'string'
+        ? row.savedAt
+        : 'updatedAt' in row && typeof row.updatedAt === 'string'
+          ? row.updatedAt
+          : ''
+    return iso ? recordDateKey(iso) === filterDate.value : false
+  })
+})
+
+const practicePool = computed(() => {
+  if (selected.value.size === 0) return displayRows.value
+  return displayRows.value.filter((r) => selected.value.has(r.fingerprint))
+})
+
+const practiceBatches = computed(() => {
+  const n = practicePool.value.length
+  if (n <= 0) return [] as { index: number; from: number; to: number; size: number }[]
+  const out: { index: number; from: number; to: number; size: number }[] = []
+  for (let i = 0; i < n; i += WRONG_BOOK_BATCH_SIZE) {
+    const to = Math.min(i + WRONG_BOOK_BATCH_SIZE, n)
+    out.push({ index: out.length, from: i + 1, to, size: to - i })
+  }
+  return out
+})
+
+const reviewScope = computed(() =>
+  chineseWrongReviewScope(source.value, keyTab.value),
+)
 
 const previewTitle = computed(() => {
   const src = CHINESE_KEY_QUESTION_SOURCES.find((s) => s.id === source.value)
@@ -250,14 +314,19 @@ const previewTitle = computed(() => {
 
 const previewItems = computed((): WrongBookPreviewItem[] => {
   void chinesePracticeDataTick.value
-  return activeRows.value.map((row) => {
+  return displayRows.value.map((row) => {
     const passage = rowPassage(row)
+    const keySentence = rowKeySentence(row)
     const expression = passage
       ? `${passage}\n\n${row.stem}`
       : row.stem || row.term
+    const expressionHtml = passage
+      ? `${renderReadingPassageHtml(passage, keySentence, true)}\n\n${escapePreviewText(row.stem)}`
+      : undefined
     return {
       key: row.fingerprint,
       expression,
+      expressionHtml,
       correctAnswer: storedCorrectLabel(row),
       explanation: row.explanation,
       note: getKeyQuestionNote(source.value, row.fingerprint),
@@ -269,6 +338,23 @@ const previewItems = computed((): WrongBookPreviewItem[] => {
     }
   })
 })
+
+function escapePreviewText(s: string): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function rowKeySentence(row: StoredRow): string | undefined {
+  return 'keySentence' in row && typeof row.keySentence === 'string' && row.keySentence.trim()
+    ? row.keySentence.trim()
+    : undefined
+}
+
+function detailPassageHtml(row: StoredRow): string {
+  return renderReadingPassageHtml(rowPassage(row), rowKeySentence(row), true)
+}
 
 const detailRow = computed(
   () => activeRows.value.find((r) => r.fingerprint === expandedFingerprint.value) ?? null,
@@ -363,12 +449,12 @@ function rowPassage(row: StoredRow): string {
 }
 
 function openPreview(startFp?: string) {
-  if (!activeRows.value.length) {
+  if (!displayRows.value.length) {
     ElMessage.info(keyTab.value === 'wrong' ? '暂无错题可预览' : '暂无收藏可预览')
     return
   }
   const idx = startFp
-    ? activeRows.value.findIndex((r) => r.fingerprint === startFp)
+    ? displayRows.value.findIndex((r) => r.fingerprint === startFp)
     : 0
   previewIndex.value = idx >= 0 ? idx : 0
   detailDialogVisible.value = false
@@ -426,7 +512,7 @@ function loadRows() {
 }
 
 function syncSelectAll() {
-  selected.value = new Set(activeRows.value.map((r) => r.fingerprint))
+  selected.value = new Set(displayRows.value.map((r) => r.fingerprint))
 }
 
 function refresh() {
@@ -515,7 +601,7 @@ function onPreviewSaveNote(fp: string, note: string) {
 }
 
 function selectAll() {
-  selected.value = new Set(activeRows.value.map((r) => r.fingerprint))
+  selected.value = new Set(displayRows.value.map((r) => r.fingerprint))
 }
 
 function buildOriginalQuestions(rows: StoredRow[]): KeyPracticePayload['questions'] {
@@ -621,11 +707,16 @@ function buildOriginalQuestions(rows: StoredRow[]): KeyPracticePayload['question
   return []
 }
 
-async function onPractice() {
-  const fps = selected.value
-  const rows = activeRows.value.filter((r) => fps.has(r.fingerprint))
+async function onPractice(batchIndex = 0) {
+  const pool = practicePool.value
+  if (!pool.length) {
+    ElMessage.warning(selected.value.size ? '勾选题目不在当前筛选结果中' : '当前没有可练习题目')
+    return
+  }
+  const from = batchIndex * WRONG_BOOK_BATCH_SIZE
+  const rows = pool.slice(from, from + WRONG_BOOK_BATCH_SIZE)
   if (!rows.length) {
-    ElMessage.warning('请先勾选题目')
+    ElMessage.warning('该批次没有题目')
     return
   }
   const originals = buildOriginalQuestions(rows)
@@ -658,6 +749,7 @@ async function onPractice() {
       variantProgress.value = ''
     }
   }
+  workspaceOpen.value = false
   emit('practice', {
     source: source.value,
     questions,
@@ -667,6 +759,25 @@ async function onPractice() {
       originFingerprints,
     },
   } as KeyPracticePayload)
+}
+
+function openWorkspace() {
+  if (!activeRows.value.length) {
+    ElMessage.info(keyTab.value === 'wrong' ? '暂无错题' : '暂无收藏')
+    return
+  }
+  previewOpen.value = false
+  detailDialogVisible.value = false
+  workspaceOpen.value = true
+}
+
+function closeWorkspace() {
+  workspaceOpen.value = false
+}
+
+function resetFilters() {
+  filterMinWrong.value = null
+  filterDate.value = ''
 }
 
 async function onRemove(fp: string) {
@@ -680,7 +791,7 @@ async function onRemove(fp: string) {
     return
   }
   const wasPreview = previewOpen.value
-  const idx = activeRows.value.findIndex((r) => r.fingerprint === fp)
+  const idx = displayRows.value.findIndex((r) => r.fingerprint === fp)
   const readingMode = readingSubModeFromKeySource(source.value)
   if (source.value === 'idiom-memorization') {
     if (keyTab.value === 'wrong') removeChineseWrong(fp)
@@ -734,7 +845,7 @@ async function onRemove(fp: string) {
   }
   refresh()
   if (wasPreview) {
-    const left = activeRows.value.length
+    const left = displayRows.value.length
     if (!left) previewOpen.value = false
     else if (idx >= 0) previewIndex.value = Math.min(idx, left - 1)
   }
@@ -754,6 +865,9 @@ watch(source, () => {
   noteEditing.value = false
   previewOpen.value = false
   previewIndex.value = 0
+  workspaceOpen.value = false
+  filterMinWrong.value = null
+  filterDate.value = ''
   keyTab.value = 'wrong'
   refresh()
 })
@@ -765,7 +879,19 @@ watch(keyTab, () => {
   noteEditing.value = false
   previewOpen.value = false
   previewIndex.value = 0
+  filterMinWrong.value = null
+  filterDate.value = ''
   syncSelectAll()
+})
+
+watch(workspaceOpen, (v) => {
+  if (v) {
+    enterWrongBookWorkspace()
+    acquireWrongBookOverlayLock()
+  } else {
+    leaveWrongBookWorkspace()
+    releaseWrongBookOverlayLock()
+  }
 })
 
 watch(
@@ -774,6 +900,10 @@ watch(
     if (v) refresh()
   },
 )
+
+onUnmounted(() => {
+  if (workspaceOpen.value) workspaceOpen.value = false
+})
 
 defineExpose({ refresh })
 </script>
@@ -815,11 +945,20 @@ defineExpose({ refresh })
         收藏（{{ favoriteRows.length }}）
       </button>
       <div class="chinese-key__tabs-actions">
+        <WrongBookReviewStat :scope="reviewScope" />
+        <el-button
+          size="small"
+          type="primary"
+          :disabled="!activeRows.length"
+          @click="openWorkspace"
+        >
+          进入
+        </el-button>
         <el-button
           size="small"
           plain
           type="primary"
-          :disabled="!activeRows.length"
+          :disabled="!displayRows.length"
           @click="openPreview()"
         >
           预览
@@ -828,13 +967,44 @@ defineExpose({ refresh })
       </div>
     </div>
 
-    <p v-if="!activeRows.length" class="chinese-key__empty">
-      暂无{{ keyTab === 'wrong' ? '错题' : '收藏' }}。
+    <form v-if="activeRows.length" class="chinese-key__filter" @submit.prevent>
+      <label v-if="keyTab === 'wrong'" class="chinese-key__filter-field">
+        <span>错题次数 ≥</span>
+        <el-input-number
+          v-model="filterMinWrong"
+          :min="1"
+          :max="99"
+          controls-position="right"
+          placeholder="不限"
+        />
+      </label>
+      <label class="chinese-key__filter-field">
+        <span>{{ keyTab === 'wrong' ? '错题日期' : '收藏日期' }}</span>
+        <el-date-picker
+          v-model="filterDate"
+          type="date"
+          value-format="YYYY-MM-DD"
+          placeholder="某一天"
+          clearable
+        />
+      </label>
+      <el-button size="small" plain @click="resetFilters">重置</el-button>
+      <span class="chinese-key__filter-count">
+        显示 {{ displayRows.length }} / {{ activeRows.length }}
+      </span>
+    </form>
+
+    <p v-if="!displayRows.length" class="chinese-key__empty">
+      {{
+        activeRows.length
+          ? '当前筛选下没有题目'
+          : `暂无${keyTab === 'wrong' ? '错题' : '收藏'}。`
+      }}
     </p>
 
     <ul v-else class="chinese-key__list">
       <li
-        v-for="row in activeRows"
+        v-for="row in displayRows"
         :key="row.fingerprint"
         class="chinese-key__row"
         :class="{ 'chinese-key__row--expanded': expandedFingerprint === row.fingerprint }"
@@ -970,7 +1140,11 @@ defineExpose({ refresh })
         </section>
         <section v-if="rowPassage(detailRow)" class="chinese-key-dialog__block">
           <h4 class="chinese-key-dialog__label">阅读原文</h4>
-          <div class="chinese-key-dialog__passage">{{ rowPassage(detailRow) }}</div>
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <div class="chinese-key-dialog__passage" v-html="detailPassageHtml(detailRow)" />
+          <p v-if="rowKeySentence(detailRow)" class="chinese-key-dialog__passage-hint">
+            黄底标记为正确选项依据句
+          </p>
         </section>
         <section class="chinese-key-dialog__block">
           <h4 class="chinese-key-dialog__label">选项</h4>
@@ -1071,21 +1245,147 @@ defineExpose({ refresh })
       @delete="onRemove"
     />
 
-    <div v-if="activeRows.length" class="chinese-key__actions">
-      <el-button
-        type="primary"
-        :disabled="selected.size === 0 || variantLoading"
-        :loading="variantLoading"
-        @click="onPractice"
-      >
-        练习所选（{{ selected.size }} 题）
-      </el-button>
+    <div v-if="displayRows.length" class="chinese-key__actions">
+      <div v-if="practiceBatches.length" class="chinese-key__batches">
+        <p class="chinese-key__batches-label">
+          分批测验（每组最多 {{ WRONG_BOOK_BATCH_SIZE }} 题；未勾选则练当前筛选全部）
+        </p>
+        <div class="chinese-key__batches-btns">
+          <el-button
+            v-for="b in practiceBatches"
+            :key="b.index"
+            type="primary"
+            size="small"
+            :disabled="variantLoading"
+            :loading="variantLoading"
+            @click="onPractice(b.index)"
+          >
+            第 {{ b.index + 1 }} 组（{{ b.from }}–{{ b.to }}）
+          </el-button>
+        </div>
+      </div>
       <p v-if="variantProgress" class="chinese-key__variant-progress">{{ variantProgress }}</p>
       <p class="chinese-key__variant-hint">
-        变式测验：答错不进错题本；答对后可删除对应的错题/收藏原题。
+        变式测验：答错不进错题本；答对后可删除对应的错题/收藏原题。已勾选
+        {{ selected.size }} 题。
       </p>
-      <el-button plain @click="selectAll">全选</el-button>
+      <el-button plain @click="selectAll">全选当前筛选</el-button>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="workspaceOpen"
+        class="chinese-key-workspace"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="`${previewTitle} · 关题本`"
+      >
+        <div class="chinese-key-workspace__panel">
+          <div class="chinese-key-workspace__top">
+            <div>
+              <p class="chinese-key-workspace__title">{{ previewTitle }}</p>
+              <p class="chinese-key-workspace__sub">
+                显示 {{ displayRows.length }} / {{ activeRows.length }} 题
+              </p>
+            </div>
+            <div class="chinese-key-workspace__top-actions">
+              <WrongBookReviewStat :scope="reviewScope" />
+              <el-button
+                size="small"
+                plain
+                type="primary"
+                :disabled="!displayRows.length"
+                @click="openPreview()"
+              >
+                预览
+              </el-button>
+              <el-button size="small" @click="closeWorkspace">退出</el-button>
+            </div>
+          </div>
+
+          <form class="chinese-key__filter" @submit.prevent>
+            <label v-if="keyTab === 'wrong'" class="chinese-key__filter-field">
+              <span>错题次数 ≥</span>
+              <el-input-number
+                v-model="filterMinWrong"
+                :min="1"
+                :max="99"
+                controls-position="right"
+                placeholder="不限"
+              />
+            </label>
+            <label class="chinese-key__filter-field">
+              <span>{{ keyTab === 'wrong' ? '错题日期' : '收藏日期' }}</span>
+              <el-date-picker
+                v-model="filterDate"
+                type="date"
+                value-format="YYYY-MM-DD"
+                placeholder="某一天"
+                clearable
+              />
+            </label>
+            <el-button size="small" plain @click="resetFilters">重置</el-button>
+          </form>
+
+          <div v-if="practiceBatches.length" class="chinese-key__batches">
+            <p class="chinese-key__batches-label">
+              分批测验（每组最多 {{ WRONG_BOOK_BATCH_SIZE }} 题，优先 AI 变式）
+            </p>
+            <div class="chinese-key__batches-btns">
+              <el-button
+                v-for="b in practiceBatches"
+                :key="`ws-${b.index}`"
+                type="primary"
+                size="small"
+                :disabled="variantLoading"
+                :loading="variantLoading"
+                @click="onPractice(b.index)"
+              >
+                第 {{ b.index + 1 }} 组（{{ b.from }}–{{ b.to }}）
+              </el-button>
+            </div>
+            <p v-if="variantProgress" class="chinese-key__variant-progress">{{ variantProgress }}</p>
+          </div>
+
+          <p v-if="!displayRows.length" class="chinese-key__empty">当前筛选下没有题目</p>
+          <ul v-else class="chinese-key__list chinese-key-workspace__list">
+            <li
+              v-for="row in displayRows"
+              :key="`ws-row-${row.fingerprint}`"
+              class="chinese-key__row"
+            >
+              <label class="chinese-key__check" @click.stop>
+                <input
+                  type="checkbox"
+                  :checked="selected.has(row.fingerprint)"
+                  @change="toggleSelect(row.fingerprint)"
+                />
+              </label>
+              <button
+                type="button"
+                class="chinese-key__body"
+                @click="toggleRowDetail(row.fingerprint)"
+              >
+                <p class="chinese-key__term">
+                  <template v-if="source === 'poetry-practice'">《{{ row.term }}》</template>
+                  <template v-else>{{ row.term }}</template>
+                </p>
+                <p class="chinese-key__stem">{{ row.stem }}</p>
+                <p class="chinese-key__meta">
+                  {{ typeLabel(row) }}
+                  <template v-if="keyTab === 'wrong' && 'wrongCount' in row">
+                    · 错 {{ row.wrongCount }} 次
+                  </template>
+                </p>
+              </button>
+              <el-button size="small" text type="danger" @click="onRemove(row.fingerprint)">
+                删除
+              </el-button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -1126,6 +1426,104 @@ defineExpose({ refresh })
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.chinese-key__filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--app-border-soft);
+  border-radius: 12px;
+  background: var(--app-surface-alt);
+}
+
+.chinese-key__filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-text-muted);
+}
+
+.chinese-key__filter-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+
+.chinese-key__batches {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.chinese-key__batches-label {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.chinese-key__batches-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chinese-key-workspace {
+  position: fixed;
+  inset: 0;
+  z-index: 3200;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--app-bg, #f5f7fb) 92%, #0f172a 8%);
+}
+
+.chinese-key-workspace__panel {
+  width: min(720px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  margin: 0 auto;
+  padding: 16px 18px 28px;
+  border-radius: 16px;
+  background: var(--app-surface, #fff);
+  border: 1px solid var(--app-border-soft);
+  box-shadow: 0 12px 40px rgb(15 23 42 / 12%);
+}
+
+.chinese-key-workspace__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.chinese-key-workspace__title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.chinese-key-workspace__sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--app-text-muted);
+}
+
+.chinese-key-workspace__top-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chinese-key-workspace__list {
+  max-height: none;
 }
 
 .chinese-key__tab {
@@ -1345,8 +1743,23 @@ defineExpose({ refresh })
   background: var(--app-surface-alt);
   font-size: 14px;
   line-height: 1.8;
-  white-space: pre-line;
+  white-space: pre-wrap;
   word-break: break-word;
+}
+
+.chinese-key-dialog__passage :deep(mark.reading-key-sentence) {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: color-mix(in srgb, #fde68a 88%, #fff);
+  color: inherit;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.chinese-key-dialog__passage-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--app-text-muted);
 }
 
 .chinese-key-dialog__options {

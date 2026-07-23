@@ -4,6 +4,7 @@ import 'element-plus/dist/index.css'
 import App from './App.vue'
 import router from './router'
 import './style.css'
+import { applyPullToRefreshPreference } from '@/utils/appUiSettings'
 
 /** 防止调试日志意外输出 sk- 密钥 */
 function installSecretLogGuard() {
@@ -20,6 +21,9 @@ function installSecretLogGuard() {
   }
 }
 installSecretLogGuard()
+
+// 默认关闭手势刷新，避免练习时误触丢进度
+applyPullToRefreshPreference()
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
