@@ -258,8 +258,33 @@ const noteSaving = ref(false)
 const previewOpen = ref(false)
 const previewIndex = ref(0)
 const workspaceOpen = ref(false)
-const filterMinWrong = ref<number | null>(null)
+const filterWrongCount = ref<number | null>(null)
 const filterDate = ref('')
+
+const wrongCountFilterOptions = computed(() => {
+  const set = new Set<number>()
+  for (const row of wrongRows.value) {
+    if (!('wrongCount' in row)) continue
+    const n = Math.max(1, Math.floor(Number((row as { wrongCount?: number }).wrongCount) || 1))
+    set.add(n)
+  }
+  return [...set].sort((a, b) => a - b)
+})
+
+const dateFilterOptions = computed(() => {
+  const set = new Set<string>()
+  for (const row of activeRows.value) {
+    const iso =
+      keyTab.value === 'wrong' && 'updatedAt' in row
+        ? String((row as { updatedAt?: string }).updatedAt ?? '')
+        : 'savedAt' in row
+          ? String((row as { savedAt?: string }).savedAt ?? '')
+          : ''
+    const d = iso ? recordDateKey(iso) : ''
+    if (d) set.add(d)
+  }
+  return [...set].sort((a, b) => b.localeCompare(a))
+})
 
 const activeRows = computed(() => (keyTab.value === 'wrong' ? wrongRows.value : favoriteRows.value))
 
@@ -269,7 +294,7 @@ const displayRows = computed(() => {
     return filterWrongBookByMeta(
       rows as Array<StoredRow & { wrongCount: number; updatedAt: string }>,
       {
-        minWrongCount: filterMinWrong.value ?? undefined,
+        wrongCount: filterWrongCount.value ?? undefined,
         dateKey: filterDate.value || undefined,
       },
     )
@@ -543,7 +568,8 @@ function onDetailDialogClosed() {
 }
 
 function toggleRowDetail(fp: string) {
-  if (isReadingSource(source.value)) {
+  // 沉浸工作区 / 阅读理解：弹窗详情（提高 z-index，避免被遮挡）
+  if (workspaceOpen.value || isReadingSource(source.value)) {
     if (detailDialogVisible.value && expandedFingerprint.value === fp) {
       closeDetailDialog()
       return
@@ -776,7 +802,7 @@ function closeWorkspace() {
 }
 
 function resetFilters() {
-  filterMinWrong.value = null
+  filterWrongCount.value = null
   filterDate.value = ''
 }
 
@@ -866,7 +892,7 @@ watch(source, () => {
   previewOpen.value = false
   previewIndex.value = 0
   workspaceOpen.value = false
-  filterMinWrong.value = null
+  filterWrongCount.value = null
   filterDate.value = ''
   keyTab.value = 'wrong'
   refresh()
@@ -879,7 +905,7 @@ watch(keyTab, () => {
   noteEditing.value = false
   previewOpen.value = false
   previewIndex.value = 0
-  filterMinWrong.value = null
+  filterWrongCount.value = null
   filterDate.value = ''
   syncSelectAll()
 })
@@ -945,7 +971,6 @@ defineExpose({ refresh })
         收藏（{{ favoriteRows.length }}）
       </button>
       <div class="chinese-key__tabs-actions">
-        <WrongBookReviewStat :scope="reviewScope" />
         <el-button
           size="small"
           type="primary"
@@ -969,24 +994,36 @@ defineExpose({ refresh })
 
     <form v-if="activeRows.length" class="chinese-key__filter" @submit.prevent>
       <label v-if="keyTab === 'wrong'" class="chinese-key__filter-field">
-        <span>错题次数 ≥</span>
-        <el-input-number
-          v-model="filterMinWrong"
-          :min="1"
-          :max="99"
-          controls-position="right"
+        <span>错题次数</span>
+        <el-select
+          v-model="filterWrongCount"
+          clearable
           placeholder="不限"
-        />
+          style="width: 120px"
+        >
+          <el-option
+            v-for="n in wrongCountFilterOptions"
+            :key="n"
+            :label="`${n} 次`"
+            :value="n"
+          />
+        </el-select>
       </label>
       <label class="chinese-key__filter-field">
         <span>{{ keyTab === 'wrong' ? '错题日期' : '收藏日期' }}</span>
-        <el-date-picker
+        <el-select
           v-model="filterDate"
-          type="date"
-          value-format="YYYY-MM-DD"
-          placeholder="某一天"
           clearable
-        />
+          placeholder="不限"
+          style="width: 150px"
+        >
+          <el-option
+            v-for="d in dateFilterOptions"
+            :key="d"
+            :label="d"
+            :value="d"
+          />
+        </el-select>
       </label>
       <el-button size="small" plain @click="resetFilters">重置</el-button>
       <span class="chinese-key__filter-count">
@@ -1121,10 +1158,14 @@ defineExpose({ refresh })
         </el-button>
       </li>
     </ul>
+    <div v-if="activeRows.length" class="chinese-key__footer-stat">
+      <WrongBookReviewStat :scope="reviewScope" />
+    </div>
 
     <el-dialog
       v-model="detailDialogVisible"
       class="chinese-key-detail-dialog"
+      :z-index="workspaceOpen ? 4300 : 2100"
       :title="detailRow ? `${typeLabel(detailRow)} · ${detailRow.term}` : '题目详情'"
       width="860px"
       top="4vh"
@@ -1289,7 +1330,6 @@ defineExpose({ refresh })
               </p>
             </div>
             <div class="chinese-key-workspace__top-actions">
-              <WrongBookReviewStat :scope="reviewScope" />
               <el-button
                 size="small"
                 plain
@@ -1305,24 +1345,36 @@ defineExpose({ refresh })
 
           <form class="chinese-key__filter" @submit.prevent>
             <label v-if="keyTab === 'wrong'" class="chinese-key__filter-field">
-              <span>错题次数 ≥</span>
-              <el-input-number
-                v-model="filterMinWrong"
-                :min="1"
-                :max="99"
-                controls-position="right"
+              <span>错题次数</span>
+              <el-select
+                v-model="filterWrongCount"
+                clearable
                 placeholder="不限"
-              />
+                style="width: 120px"
+              >
+                <el-option
+                  v-for="n in wrongCountFilterOptions"
+                  :key="n"
+                  :label="`${n} 次`"
+                  :value="n"
+                />
+              </el-select>
             </label>
             <label class="chinese-key__filter-field">
               <span>{{ keyTab === 'wrong' ? '错题日期' : '收藏日期' }}</span>
-              <el-date-picker
+              <el-select
                 v-model="filterDate"
-                type="date"
-                value-format="YYYY-MM-DD"
-                placeholder="某一天"
                 clearable
-              />
+                placeholder="不限"
+                style="width: 150px"
+              >
+                <el-option
+                  v-for="d in dateFilterOptions"
+                  :key="d"
+                  :label="d"
+                  :value="d"
+                />
+              </el-select>
             </label>
             <el-button size="small" plain @click="resetFilters">重置</el-button>
           </form>
@@ -1383,6 +1435,9 @@ defineExpose({ refresh })
               </el-button>
             </li>
           </ul>
+          <div class="chinese-key-workspace__footer-stat">
+            <WrongBookReviewStat :scope="reviewScope" />
+          </div>
         </div>
       </div>
     </Teleport>
@@ -1426,6 +1481,21 @@ defineExpose({ refresh })
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.chinese-key__footer-stat,
+.chinese-key-workspace__footer-stat {
+  display: flex;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 0 4px;
+}
+
+.chinese-key-workspace__footer-stat {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--app-border-soft);
 }
 
 .chinese-key__filter {

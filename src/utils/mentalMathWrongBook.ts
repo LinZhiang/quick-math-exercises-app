@@ -618,6 +618,95 @@ export function removeMentalMathWrong(fingerprint: string) {
   writeAll(rows)
 }
 
+export function getMentalMathWrongByFingerprint(
+  fingerprint: string,
+): MentalMathWrongRecord | null {
+  return readAll().find((r) => r.fingerprint === fingerprint) ?? null
+}
+
+/** 原错题次数 +1（保留题面） */
+export function bumpMentalMathWrongCount(fingerprint: string): boolean {
+  const rows = readAll()
+  const hit = rows.find((r) => r.fingerprint === fingerprint)
+  if (!hit) return false
+  hit.wrongCount = (hit.wrongCount ?? 0) + 1
+  hit.updatedAt = new Date().toISOString()
+  writeAll(rows)
+  return true
+}
+
+/**
+ * 用变式题替换原错题：wrongCount = 原次数 + 1。
+ * 若指纹相同则仅累加次数。
+ */
+export function replaceMentalMathWrongWithVariant(input: {
+  originFingerprint: string
+  modeId: string
+  section: MentalMathWrongSection
+  expression: string
+  correctAnswer: string
+  chosenAnswer: string
+  options?: string[]
+  explanation?: string
+}): { ok: boolean; newFingerprint: string } {
+  const origin = getMentalMathWrongByFingerprint(input.originFingerprint)
+  if (!origin) return { ok: false, newFingerprint: input.originFingerprint }
+
+  const expression = input.expression.trim()
+  const correctAnswer = String(input.correctAnswer).trim()
+  if (!expression || !correctAnswer) {
+    return { ok: false, newFingerprint: input.originFingerprint }
+  }
+
+  const nextCount = (origin.wrongCount > 0 ? origin.wrongCount : 1) + 1
+  const newFingerprint = buildMentalMathWrongFingerprint({
+    section: input.section,
+    modeId: input.modeId,
+    expression,
+    correctAnswer,
+  })
+  const now = new Date().toISOString()
+  let rows = readAll()
+
+  if (newFingerprint === input.originFingerprint) {
+    const hit = rows.find((r) => r.fingerprint === newFingerprint)
+    if (hit) {
+      hit.wrongCount = nextCount
+      hit.updatedAt = now
+      hit.chosenAnswer = String(input.chosenAnswer)
+      if (input.explanation) hit.explanation = input.explanation
+      if (input.options?.length) hit.options = input.options.map(String)
+      writeAll(rows)
+    }
+    return { ok: true, newFingerprint }
+  }
+
+  rows = rows.filter((r) => r.fingerprint !== input.originFingerprint)
+  const existing = rows.find((r) => r.fingerprint === newFingerprint)
+  if (existing) {
+    existing.wrongCount = Math.max(existing.wrongCount ?? 0, nextCount)
+    existing.updatedAt = now
+    existing.chosenAnswer = String(input.chosenAnswer)
+    if (input.explanation) existing.explanation = input.explanation
+    if (input.options?.length) existing.options = input.options.map(String)
+  } else {
+    rows.unshift({
+      fingerprint: newFingerprint,
+      section: input.section,
+      modeId: input.modeId,
+      expression,
+      correctAnswer,
+      chosenAnswer: String(input.chosenAnswer),
+      options: input.options?.map(String),
+      explanation: input.explanation?.trim() || undefined,
+      wrongCount: nextCount,
+      updatedAt: now,
+    })
+  }
+  writeAll(rows)
+  return { ok: true, newFingerprint }
+}
+
 export function clearMentalMathWrongSection(section: MentalMathWrongSection) {
   const rows = readAll().filter((r) => r.section !== section)
   writeAll(rows)

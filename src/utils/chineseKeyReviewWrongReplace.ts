@@ -5,7 +5,7 @@
 import { ElMessage } from 'element-plus'
 import type { ChineseKeyQuestionSource } from '@/constants/chinese-practice-tabs'
 import { readingSubModeFromKeySource } from '@/constants/chinese-practice-tabs'
-import { getKeyQuestionNote } from '@/utils/chineseKeyQuestionNotes'
+import { migrateKeyQuestionNote } from '@/utils/chineseKeyQuestionNotes'
 import {
   getChineseKeyReviewSession,
   getKeyReviewOriginFingerprint,
@@ -253,23 +253,18 @@ function storageKeyFor(source: ChineseKeyQuestionSource): string | null {
 }
 
 /**
- * 重点题错题本变式答错时：
- * - 原题有备注 → 保留原错题，不写入变式
- * - 原题无备注 → 用变式替换原错题，wrongCount = 原次数 + 1
+ * 重点题错题本变式答错时：用变式替换原错题，wrongCount = 原次数 + 1；备注迁到新指纹。
  */
 export function handleKeyReviewVariantWrong(
   questionIndex: number,
   variant: KeyReviewVariantQuestion,
-): 'replaced' | 'kept-note' | 'skipped' {
+): 'replaced' | 'bumped' | 'skipped' {
   if (!isChineseKeyReviewActive()) return 'skipped'
   const session = getChineseKeyReviewSession()
   if (!session || session.bank !== 'wrong') return 'skipped'
 
   const originFp = getKeyReviewOriginFingerprint(questionIndex)
   if (!originFp) return 'skipped'
-
-  const note = getKeyQuestionNote(session.source, originFp).trim()
-  if (note) return 'kept-note'
 
   const variantFp = typeof variant.fingerprint === 'string' ? variant.fingerprint.trim() : ''
   if (!variantFp) return 'skipped'
@@ -278,15 +273,19 @@ export function handleKeyReviewVariantWrong(
   // 无论原次数是几，都在原有基础上 +1（原记录缺失时按 1 起算再 +1）
   const nextCount = (originCount > 0 ? originCount : 1) + 1
 
-  if (variantFp !== originFp) {
-    removeWrong(session.source, originFp)
+  if (variantFp === originFp) {
+    writeWrongWithCount(session.source, variant, nextCount)
+    return 'bumped'
   }
+
+  removeWrong(session.source, originFp)
   writeWrongWithCount(session.source, variant, nextCount)
+  migrateKeyQuestionNote(session.source, originFp, variantFp)
   updateKeyReviewOriginFingerprint(questionIndex, variantFp)
   return 'replaced'
 }
 
-/** 供 submitCurrent 一行调用：普通答错入闸；变式答错按备注决定是否替换 */
+/** 供 submitCurrent 一行调用：普通答错入闸；变式答错用变式替换原错题并计入复盘统计 */
 export function noteWrongOrReplaceKeyReviewVariant(
   isCorrect: boolean,
   questionIndex: number,
@@ -305,7 +304,7 @@ export function noteWrongOrReplaceKeyReviewVariant(
     if (isCorrect) return
     const r = handleKeyReviewVariantWrong(questionIndex, question)
     if (r === 'replaced') {
-      ElMessage.info('原错题无备注，已用本变式题替换错题本记录（错题次数已累加）')
+      ElMessage.info('已用本变式题替换错题本记录，并累加错题次数')
     }
     return
   }

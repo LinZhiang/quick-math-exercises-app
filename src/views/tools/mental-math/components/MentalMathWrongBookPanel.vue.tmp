@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -50,10 +50,6 @@ import {
   recordWrongBookReviewAttempt,
   recordWrongBookReviewComplete,
 } from '@/utils/wrongBookReviewStats'
-import {
-  handleMentalMathWrongQuizMiss,
-  notifyMentalMathWrongQuizMissResult,
-} from '@/utils/mentalMathWrongQuizReplace'
 import WrongBookReviewStat from './WrongBookReviewStat.vue'
 import WrongBookImmersivePreview, {
   type WrongBookPreviewItem,
@@ -77,11 +73,11 @@ const noteDraft = ref('')
 const noteEditing = ref(false)
 const noteSaving = ref(false)
 
-/** ?? */
-const filterWrongCount = ref<number | null>(null)
+/** 绛涢€?*/
+const filterMinWrong = ref<number | null>(null)
 const filterDate = ref('')
 
-/** ?? */
+/** 娴嬮獙 */
 const quizLoading = ref(false)
 const quizProgress = ref('')
 const quizPhase = ref<'idle' | 'playing' | 'result'>('idle')
@@ -125,38 +121,13 @@ const count = computed(() =>
 const filteredRows = computed((): DisplayRow[] => {
   if (bookTab.value === 'wrong') {
     return filterMentalMathWrongRecords(wrongRows.value, {
-      wrongCount: filterWrongCount.value ?? undefined,
+      minWrongCount: filterMinWrong.value ?? undefined,
       dateKey: filterDate.value || undefined,
     })
   }
   const rows = favoriteRows.value
   if (!filterDate.value) return rows
   return rows.filter((r) => recordDateKey(r.savedAt) === filterDate.value)
-})
-
-const wrongCountFilterOptions = computed(() => {
-  const set = new Set<number>()
-  for (const row of wrongRows.value) {
-    const n = Math.max(1, Math.floor(row.wrongCount ?? 1))
-    set.add(n)
-  }
-  return [...set].sort((a, b) => a - b)
-})
-
-const dateFilterOptions = computed(() => {
-  const set = new Set<string>()
-  if (bookTab.value === 'wrong') {
-    for (const row of wrongRows.value) {
-      const d = recordDateKey(row.updatedAt)
-      if (d) set.add(d)
-    }
-  } else {
-    for (const row of favoriteRows.value) {
-      const d = recordDateKey(row.savedAt)
-      if (d) set.add(d)
-    }
-  }
-  return [...set].sort((a, b) => b.localeCompare(a))
 })
 
 function isWrongRow(row: DisplayRow): row is MentalMathWrongRecord {
@@ -232,7 +203,7 @@ watch(
     previewIndex.value = 0
     noteDraft.value = ''
     noteEditing.value = false
-    filterWrongCount.value = null
+    filterMinWrong.value = null
     filterDate.value = ''
     bookTab.value = 'wrong'
   },
@@ -243,7 +214,7 @@ watch(bookTab, () => {
   detail.value = null
   previewOpen.value = false
   previewIndex.value = 0
-  filterWrongCount.value = null
+  filterMinWrong.value = null
   filterDate.value = ''
   resetQuiz()
 })
@@ -283,7 +254,7 @@ function toggleOpen() {
 
 function openWorkspace() {
   if (!wrongCount.value && !favoriteCount.value) {
-    ElMessage.info('???????')
+    ElMessage.info('鏆傛棤閿欓鎴栨敹钘?)
     return
   }
   open.value = false
@@ -299,7 +270,7 @@ function closeWorkspace() {
 }
 
 function resetFilters() {
-  filterWrongCount.value = null
+  filterMinWrong.value = null
   filterDate.value = ''
 }
 
@@ -319,7 +290,7 @@ function onDetailClosed() {
 function openPreview(startFp?: string) {
   const list = filteredRows.value
   if (!list.length) {
-    ElMessage.info('????????????')
+    ElMessage.info('褰撳墠绛涢€変笅鏆傛棤鍙瑙堥鐩?)
     return
   }
   const idx = startFp ? list.findIndex((r) => r.fingerprint === startFp) : 0
@@ -345,7 +316,7 @@ function onSaveNote(fp: string) {
   try {
     setMentalMathWrongNote(props.section, fp, noteDraft.value)
     noteEditing.value = false
-    ElMessage.success(noteDraft.value.trim() ? '?????' : '?????')
+    ElMessage.success(noteDraft.value.trim() ? '澶囨敞宸蹭繚瀛? : '宸叉竻绌哄娉?)
   } finally {
     noteSaving.value = false
   }
@@ -353,18 +324,18 @@ function onSaveNote(fp: string) {
 
 function onPreviewSaveNote(fp: string, note: string) {
   setMentalMathWrongNote(props.section, fp, note)
-  ElMessage.success(note.trim() ? '?????' : '?????')
+  ElMessage.success(note.trim() ? '澶囨敞宸蹭繚瀛? : '宸叉竻绌哄娉?)
 }
 
 async function onRemove(fp: string) {
   try {
     await ElMessageBox.confirm(
-      bookTab.value === 'wrong' ? '?????????????' : '????????????',
-      bookTab.value === 'wrong' ? '????' : '????',
+      bookTab.value === 'wrong' ? '纭畾浠庨敊棰橀泦涓垹闄よ繖閬撻锛? : '纭畾浠庢敹钘忎腑鍒犻櫎杩欓亾棰橈紵',
+      bookTab.value === 'wrong' ? '鍒犻櫎閿欓' : '鍒犻櫎鏀惰棌',
       {
         type: 'warning',
-        confirmButtonText: '??',
-        cancelButtonText: '??',
+        confirmButtonText: '鍒犻櫎',
+        cancelButtonText: '鍙栨秷',
       },
     )
   } catch {
@@ -390,7 +361,7 @@ async function onRemove(fp: string) {
       previewIndex.value = Math.min(idx, filteredRows.value.length - 1)
     }
   }
-  ElMessage.success('???')
+  ElMessage.success('宸插垹闄?)
 }
 
 function onToggleFavoriteRow(row: DisplayRow) {
@@ -403,17 +374,17 @@ function onToggleFavoriteRow(row: DisplayRow) {
     options: row.options,
     explanation: row.explanation,
   })
-  ElMessage.success(r === 'added' ? '?????' : '?????')
+  ElMessage.success(r === 'added' ? '宸插姞鍏ユ敹钘? : '宸插彇娑堟敹钘?)
 }
 
 async function onClearAll() {
   if (!count.value) return
-  const label = bookTab.value === 'wrong' ? '??' : '??'
+  const label = bookTab.value === 'wrong' ? '閿欓' : '鏀惰棌'
   try {
     await ElMessageBox.confirm(
-      `?????${title.value}??? ${count.value} ?${label}?`,
-      `??${label}`,
-      { type: 'warning', confirmButtonText: '??', cancelButtonText: '??' },
+      `纭畾娓呯┖銆?{title.value}銆嶅叏閮?${count.value} 閬?{label}锛焋,
+      `娓呯┖${label}`,
+      { type: 'warning', confirmButtonText: '娓呯┖', cancelButtonText: '鍙栨秷' },
     )
   } catch {
     return
@@ -428,7 +399,7 @@ async function onClearAll() {
   detail.value = null
   previewOpen.value = false
   closeWorkspace()
-  ElMessage.success('???')
+  ElMessage.success('宸叉竻绌?)
 }
 
 function formatTime(iso: string): string {
@@ -461,25 +432,25 @@ async function startBatchQuiz(batchIndex: number) {
   if (!batch) return
   const slice = toQuizSourceRows(filteredRows.value.slice(batch.from - 1, batch.to))
   if (!slice.length) {
-    ElMessage.info('???????')
+    ElMessage.info('璇ユ壒娆℃病鏈夐鐩?)
     return
   }
   quizLoading.value = true
-  quizProgress.value = '????????'
+  quizProgress.value = '姝ｅ湪鍑嗗鍙樺紡棰樷€?
   quizPhase.value = 'idle'
   try {
     const items = await buildWrongBookQuizItems(slice, (msg) => {
       quizProgress.value = msg
     })
     if (!items.length) {
-      ElMessage.warning('???????????????')
+      ElMessage.warning('鏃犳硶鐢熸垚鍙祴楠岄鐩紙缂哄皯绛旀锛?)
       return
     }
     const variantN = items.filter((i) => i.isVariant).length
     if (variantN > 0) {
-      ElMessage.success(`??? ${variantN}/${items.length} ???`)
+      ElMessage.success(`宸茬敓鎴?${variantN}/${items.length} 閬撳彉寮廯)
     } else {
-      ElMessage.info('???????? AI ???????')
+      ElMessage.info('宸茬敤鍘熼缁勫嵎锛堟棤 AI 鎴栧彉寮忓け璐ユ椂锛?)
     }
     quizBatchIndex.value = batchIndex
     quizItems.value = chunkWrongBookQuizItems(items, WRONG_BOOK_BATCH_SIZE)[0] ?? items
@@ -501,34 +472,23 @@ function submitQuizAnswer() {
   const q = currentQuiz.value
   if (!q || quizRevealed.value) return
   let ok = false
-  let chosenAnswer = ''
   if (q.kind === 'mcq') {
     if (quizChoice.value == null) {
-      ElMessage.warning('??????')
+      ElMessage.warning('璇峰厛閫夋嫨閫夐」')
       return
     }
     ok = quizChoice.value === q.correctIndex
-    chosenAnswer = String(q.options[quizChoice.value] ?? '')
   } else {
     if (!quizFill.value.trim()) {
-      ElMessage.warning('??????')
+      ElMessage.warning('璇峰厛濉啓绛旀')
       return
     }
-    chosenAnswer = quizFill.value.trim()
     ok = isFillAnswerMatch(quizFill.value, q.fillAnswer ?? '')
   }
   quizRevealed.value = true
   if (ok) quizCorrectCount.value += 1
   quizAnswered.value += 1
   recordWrongBookReviewAttempt(reviewScope.value, ok)
-  if (!ok) {
-    const miss = handleMentalMathWrongQuizMiss({
-      quiz: q,
-      chosenAnswer,
-      bank: bookTab.value,
-    })
-    notifyMentalMathWrongQuizMissResult(miss)
-  }
 }
 
 function nextQuizQuestion() {
@@ -555,8 +515,7 @@ function finishBatchQuiz() {
 }
 
 function exitQuiz() {
-  // ??????????? attempted/correct???????????????????????????
-  if (
+  // 涓€旈€€鍑猴細宸茬瓟棰樺凡璁″叆 attempted/correct锛涙湭鏁寸粍瀹屾垚鍒欎笉璁″畬鏁村鐩橈紝鍐欎竴鏉′腑閫旀棩蹇椾究浜庡綊绫绘煡鐪?  if (
     quizPhase.value === 'playing' &&
     quizAnswered.value > 0 &&
     !quizCompleteRecorded.value
@@ -575,19 +534,20 @@ function exitQuiz() {
   <div class="mm-wrong">
     <div class="mm-wrong__bar">
       <button type="button" class="mm-wrong__toggle" @click="toggleOpen">
-        <span>???</span>
+        <span>閿欓鏈?/span>
         <strong>{{ wrongCount }}</strong>
-        <span class="mm-wrong__fav-count" title="??">?{{ favoriteCount }}</span>
-        <span class="mm-wrong__chevron" :class="{ 'is-open': open }">?</span>
+        <span class="mm-wrong__fav-count" title="鏀惰棌">鈽厈{ favoriteCount }}</span>
+        <span class="mm-wrong__chevron" :class="{ 'is-open': open }">鈻?/span>
       </button>
       <div class="mm-wrong__bar-actions">
+        <WrongBookReviewStat :scope="reviewScope" />
         <el-button
           size="small"
           type="primary"
           :disabled="!wrongCount && !favoriteCount"
           @click="openWorkspace"
         >
-          ??
+          杩涘叆
         </el-button>
         <el-button
           size="small"
@@ -596,7 +556,7 @@ function exitQuiz() {
           :disabled="!count"
           @click="openPreview()"
         >
-          ??
+          棰勮
         </el-button>
         <el-button
           v-if="open && count > 0"
@@ -605,7 +565,7 @@ function exitQuiz() {
           type="danger"
           @click="onClearAll"
         >
-          ??
+          娓呯┖
         </el-button>
       </div>
     </div>
@@ -618,22 +578,20 @@ function exitQuiz() {
           :class="{ 'is-active': bookTab === 'wrong' }"
           @click="bookTab = 'wrong'"
         >
-          ???{{ wrongCount }}?
-        </button>
+          閿欓锛坽{ wrongCount }}锛?        </button>
         <button
           type="button"
           class="mm-wrong__tab"
           :class="{ 'is-active': bookTab === 'favorite' }"
           @click="bookTab = 'favorite'"
         >
-          ???{{ favoriteCount }}?
-        </button>
+          鏀惰棌锛坽{ favoriteCount }}锛?        </button>
       </div>
       <p v-if="!count" class="mm-wrong__empty">
         {{
           bookTab === 'wrong'
-            ? '???????????????????????????'
-            : '???????????????????????'
+            ? '鏆傛棤閿欓銆傜粌涔犳椂绛旈敊浼氳嚜鍔ㄨ鍏ワ紱涔熷彲鍦ㄨ鎯呴噷鍔犲叆鏀惰棌銆?
+            : '鏆傛棤鏀惰棌銆傚彲鍦ㄩ敊棰樿鎯呮垨缁冧範鎻愪氦鍚庣偣銆屾敹钘忋€嶃€?
         }}
       </p>
       <ul v-else class="mm-wrong__list">
@@ -642,53 +600,47 @@ function exitQuiz() {
             <p class="mm-wrong__expr">{{ row.expression }}</p>
             <p class="mm-wrong__meta">
               <template v-if="isWrongRow(row)">
-                ? {{ row.wrongCount }} ?
-                <template v-if="formatTime(row.updatedAt)"> � {{ formatTime(row.updatedAt) }}</template>
+                閿?{{ row.wrongCount }} 娆?                <template v-if="formatTime(row.updatedAt)"> 路 {{ formatTime(row.updatedAt) }}</template>
               </template>
               <template v-else>
-                ??
-                <template v-if="formatTime(row.savedAt)"> � {{ formatTime(row.savedAt) }}</template>
+                鏀惰棌
+                <template v-if="formatTime(row.savedAt)"> 路 {{ formatTime(row.savedAt) }}</template>
               </template>
-              <template v-if="rowNote(row.fingerprint)"> � ???</template>
-              � ????
+              <template v-if="rowNote(row.fingerprint)"> 路 鏈夊娉?/template>
+              路 鐐圭湅璇︽儏
             </p>
           </button>
           <el-button size="small" text type="danger" @click="onRemove(row.fingerprint)">
-            ??
+            鍒犻櫎
           </el-button>
         </li>
       </ul>
     </div>
 
-    <div class="mm-wrong__footer-stat">
-      <WrongBookReviewStat :scope="reviewScope" />
-    </div>
-
     <el-dialog
       v-model="detailVisible"
-      :title="`${title} � ${bookTab === 'wrong' ? '??' : '??'}??`"
+      :title="`${title} 路 ${bookTab === 'wrong' ? '閿欓' : '鏀惰棌'}璇︽儏`"
       width="560px"
       align-center
       destroy-on-close
       append-to-body
-      :z-index="workspaceOpen ? 4300 : 2100"
       @closed="onDetailClosed"
     >
       <div v-if="detail" class="mm-wrong-detail">
         <section>
-          <h4>??</h4>
+          <h4>棰樼洰</h4>
           <p class="mm-wrong-detail__expr">{{ detail.expression }}</p>
         </section>
         <section v-if="isWrongRow(detail)">
-          <h4>????</h4>
+          <h4>浣犵殑绛旀</h4>
           <p class="mm-wrong-detail__bad">{{ detail.chosenAnswer }}</p>
         </section>
         <section>
-          <h4>????</h4>
+          <h4>姝ｇ‘绛旀</h4>
           <p class="mm-wrong-detail__ok">{{ detail.correctAnswer }}</p>
         </section>
         <section v-if="detail.options?.length">
-          <h4>??</h4>
+          <h4>閫夐」</h4>
           <ul class="mm-wrong-detail__opts">
             <li
               v-for="(opt, idx) in detail.options"
@@ -700,12 +652,12 @@ function exitQuiz() {
           </ul>
         </section>
         <section v-if="detail.explanation">
-          <h4>??</h4>
+          <h4>璇存槑</h4>
           <p class="mm-wrong-detail__exp">{{ detail.explanation }}</p>
         </section>
         <section class="mm-wrong-detail__note">
           <div class="mm-wrong-detail__note-head">
-            <h4>??</h4>
+            <h4>澶囨敞</h4>
             <el-button
               v-if="!noteEditing"
               size="small"
@@ -713,7 +665,7 @@ function exitQuiz() {
               type="primary"
               @click="onEditNote"
             >
-              {{ rowNote(detail.fingerprint) ? '??' : '????' }}
+              {{ rowNote(detail.fingerprint) ? '缂栬緫' : '娣诲姞澶囨敞' }}
             </el-button>
           </div>
           <template v-if="noteEditing">
@@ -723,7 +675,7 @@ function exitQuiz() {
               :rows="3"
               maxlength="500"
               show-word-limit
-              placeholder="?? Markdown???????????"
+              placeholder="鏀寔 Markdown锛屽鏍囬銆佸垪琛ㄣ€佸姞绮楃瓑"
             />
             <div class="mm-wrong-detail__note-actions">
               <el-button
@@ -732,16 +684,16 @@ function exitQuiz() {
                 :loading="noteSaving"
                 @click="onSaveNote(detail.fingerprint)"
               >
-                ??
+                淇濆瓨
               </el-button>
-              <el-button size="small" plain @click="onCancelNoteEdit">??</el-button>
+              <el-button size="small" plain @click="onCancelNoteEdit">鍙栨秷</el-button>
             </div>
           </template>
           <template v-else-if="rowNote(detail.fingerprint)">
             <!-- eslint-disable-next-line vue/no-v-html -->
             <div class="mm-wrong-detail__note-md deepseek-md" v-html="noteHtml(detail.fingerprint)" />
           </template>
-          <p v-else class="mm-wrong-detail__note-empty">????</p>
+          <p v-else class="mm-wrong-detail__note-empty">鏆傛棤澶囨敞</p>
         </section>
       </div>
       <template #footer>
@@ -751,7 +703,7 @@ function exitQuiz() {
           plain
           @click="detail && onToggleFavoriteRow(detail)"
         >
-          {{ detail && rowFavorited(detail.fingerprint) ? '????' : '??' }}
+          {{ detail && rowFavorited(detail.fingerprint) ? '鍙栨秷鏀惰棌' : '鏀惰棌' }}
         </el-button>
         <el-button
           v-if="detail"
@@ -759,7 +711,7 @@ function exitQuiz() {
           plain
           @click="detail && openPreview(detail.fingerprint)"
         >
-          ??
+          棰勮
         </el-button>
         <el-button
           v-if="detail"
@@ -767,9 +719,9 @@ function exitQuiz() {
           plain
           @click="detail && onRemove(detail.fingerprint)"
         >
-          ????
+          鍒犻櫎鏈
         </el-button>
-        <el-button @click="detailVisible = false">??</el-button>
+        <el-button @click="detailVisible = false">鍏抽棴</el-button>
       </template>
     </el-dialog>
 
@@ -782,25 +734,25 @@ function exitQuiz() {
       @delete="onRemove"
     />
 
-    <!-- ???????? + ?? + ???? -->
+    <!-- 娌夋蹈閿欓鏈細绛涢€?+ 鍒楄〃 + 鍒嗘壒娴嬮獙 -->
     <Teleport to="body">
       <div
         v-if="workspaceOpen"
         class="wb-workspace"
         role="dialog"
         aria-modal="true"
-        :aria-label="`${title} � ???`"
+        :aria-label="`${title} 路 閿欓鏈琡"
       >
         <div class="wb-workspace__panel play-panel">
           <div class="play-top">
             <div class="play-meta">
               <div class="play-meta__main">
-                <span class="play-mode">{{ title }} � {{ bookTab === 'wrong' ? '??' : '??' }}</span>
+                <span class="play-mode">{{ title }} 路 {{ bookTab === 'wrong' ? '閿欓' : '鏀惰棌' }}</span>
                 <span class="play-score">
-                  ? <strong>{{ filteredRows.length }}</strong> / {{ count }} ?
-                </span>
+                  鍏?<strong>{{ filteredRows.length }}</strong> / {{ count }} 棰?                </span>
               </div>
               <div class="session-actions session-actions--inline">
+                <WrongBookReviewStat :scope="reviewScope" />
                 <el-button
                   v-if="quizPhase === 'idle'"
                   size="small"
@@ -809,18 +761,17 @@ function exitQuiz() {
                   :disabled="!filteredRows.length"
                   @click="openPreview()"
                 >
-                  ??
+                  棰勮
                 </el-button>
-                <el-button size="small" @click="closeWorkspace">??</el-button>
+                <el-button size="small" @click="closeWorkspace">閫€鍑?/el-button>
               </div>
             </div>
           </div>
 
-          <!-- ??? -->
+          <!-- 娴嬮獙涓?-->
           <template v-if="quizPhase === 'playing' && currentQuiz">
             <p class="wb-quiz__progress">
-              ? {{ quizBatchIndex + 1 }} ? � ? {{ quizCursor + 1 }} / {{ quizTotal }} ?
-              <span v-if="currentQuiz.isVariant" class="wb-quiz__tag">??</span>
+              绗?{{ quizBatchIndex + 1 }} 缁?路 绗?{{ quizCursor + 1 }} / {{ quizTotal }} 棰?              <span v-if="currentQuiz.isVariant" class="wb-quiz__tag">鍙樺紡</span>
             </p>
             <div class="question-block">
               <p
@@ -856,12 +807,12 @@ function exitQuiz() {
             <div v-else class="wb-quiz__fill">
               <el-input
                 v-model="quizFill"
-                placeholder="????"
+                placeholder="杈撳叆绛旀"
                 :disabled="quizRevealed"
                 @keyup.enter="submitQuizAnswer"
               />
               <p v-if="quizRevealed" class="wb-quiz__fill-ans">
-                ?????{{ currentQuiz.fillAnswer }}
+                姝ｇ‘绛旀锛歿{ currentQuiz.fillAnswer }}
               </p>
             </div>
 
@@ -871,32 +822,32 @@ function exitQuiz() {
 
             <div class="wb-quiz__actions">
               <el-button v-if="!quizRevealed" type="primary" @click="submitQuizAnswer">
-                ??
+                鎻愪氦
               </el-button>
               <el-button v-else type="primary" @click="nextQuizQuestion">
-                {{ quizCursor + 1 >= quizTotal ? '????' : '???' }}
+                {{ quizCursor + 1 >= quizTotal ? '鏌ョ湅缁撴灉' : '涓嬩竴棰? }}
               </el-button>
-              <el-button plain @click="exitQuiz">????</el-button>
+              <el-button plain @click="exitQuiz">缁撴潫娴嬮獙</el-button>
             </div>
           </template>
 
-          <!-- ???? -->
+          <!-- 娴嬮獙缁撴灉 -->
           <template v-else-if="quizPhase === 'result'">
             <div class="wb-quiz__result">
-              <p class="wb-quiz__result-title">????</p>
+              <p class="wb-quiz__result-title">鏈粍鎴愮哗</p>
               <p class="wb-quiz__result-score">
                 {{ quizCorrectCount }} / {{ quizTotal }}
               </p>
               <div class="wb-quiz__actions">
                 <el-button type="primary" @click="startBatchQuiz(quizBatchIndex)">
-                  ????
+                  鍐嶇粌鏈粍
                 </el-button>
-                <el-button plain @click="exitQuiz">?????</el-button>
+                <el-button plain @click="exitQuiz">杩斿洖閿欓鏈?/el-button>
               </div>
             </div>
           </template>
 
-          <!-- ?? + ?? + ?? -->
+          <!-- 绛涢€?+ 鍒楄〃 + 鍒嗘壒 -->
           <template v-else>
             <div class="mm-wrong__tabs wb-workspace__tabs">
               <button
@@ -905,57 +856,43 @@ function exitQuiz() {
                 :class="{ 'is-active': bookTab === 'wrong' }"
                 @click="bookTab = 'wrong'"
               >
-                ???{{ wrongCount }}?
-              </button>
+                閿欓锛坽{ wrongCount }}锛?              </button>
               <button
                 type="button"
                 class="mm-wrong__tab"
                 :class="{ 'is-active': bookTab === 'favorite' }"
                 @click="bookTab = 'favorite'"
               >
-                ???{{ favoriteCount }}?
-              </button>
+                鏀惰棌锛坽{ favoriteCount }}锛?              </button>
             </div>
 
             <form class="wb-filter" @submit.prevent>
               <label v-if="bookTab === 'wrong'" class="wb-filter__field">
-                <span>????</span>
-                <el-select
-                  v-model="filterWrongCount"
-                  clearable
-                  placeholder="??"
-                  style="width: 120px"
-                >
-                  <el-option
-                    v-for="n in wrongCountFilterOptions"
-                    :key="n"
-                    :label="`${n} ?`"
-                    :value="n"
-                  />
-                </el-select>
+                <span>閿欓娆℃暟 鈮?/span>
+                <el-input-number
+                  v-model="filterMinWrong"
+                  :min="1"
+                  :max="99"
+                  controls-position="right"
+                  placeholder="涓嶉檺"
+                />
               </label>
               <label class="wb-filter__field">
-                <span>{{ bookTab === 'wrong' ? '????' : '????' }}</span>
-                <el-select
+                <span>{{ bookTab === 'wrong' ? '閿欓鏃ユ湡' : '鏀惰棌鏃ユ湡' }}</span>
+                <el-date-picker
                   v-model="filterDate"
+                  type="date"
+                  value-format="YYYY-MM-DD"
+                  placeholder="鏌愪竴澶?
                   clearable
-                  placeholder="??"
-                  style="width: 150px"
-                >
-                  <el-option
-                    v-for="d in dateFilterOptions"
-                    :key="d"
-                    :label="d"
-                    :value="d"
-                  />
-                </el-select>
+                />
               </label>
-              <el-button size="small" plain @click="resetFilters">??</el-button>
+              <el-button size="small" plain @click="resetFilters">閲嶇疆</el-button>
             </form>
 
             <section v-if="quizBatches.length" class="wb-batches">
               <p class="wb-batches__label">
-                ????????? {{ WRONG_BOOK_BATCH_SIZE }} ???? AI ??????????????
+                鍒嗘壒娴嬮獙锛堟瘡缁勬渶澶?{{ WRONG_BOOK_BATCH_SIZE }} 棰橈紝浼樺厛 AI 鍙樺紡锛涙敹钘忓簱绛旈敊涓嶈鍏ラ敊棰橈級
               </p>
               <div class="wb-batches__btns">
                 <el-button
@@ -968,14 +905,13 @@ function exitQuiz() {
                   :disabled="quizLoading"
                   @click="startBatchQuiz(b.index)"
                 >
-                  ? {{ b.index + 1 }} ??{{ b.from }}?{{ b.to }}?
-                </el-button>
+                  绗?{{ b.index + 1 }} 缁勶紙{{ b.from }}鈥搟{ b.to }}锛?                </el-button>
               </div>
               <p v-if="quizProgress" class="wb-batches__progress">{{ quizProgress }}</p>
             </section>
 
             <p v-if="!filteredRows.length" class="mm-wrong__empty wb-workspace__empty">
-              {{ count ? '?????????' : bookTab === 'wrong' ? '????' : '????' }}
+              {{ count ? '褰撳墠绛涢€変笅娌℃湁棰樼洰' : bookTab === 'wrong' ? '鏆傛棤閿欓' : '鏆傛棤鏀惰棌' }}
             </p>
             <ul v-else class="mm-wrong__list wb-workspace__list">
               <li
@@ -987,28 +923,24 @@ function exitQuiz() {
                   <p class="mm-wrong__expr">{{ row.expression }}</p>
                   <p class="mm-wrong__meta">
                     <template v-if="isWrongRow(row)">
-                      ? {{ row.wrongCount }} ?
-                      <template v-if="formatTime(row.updatedAt)">
-                        � {{ formatTime(row.updatedAt) }}
+                      閿?{{ row.wrongCount }} 娆?                      <template v-if="formatTime(row.updatedAt)">
+                        路 {{ formatTime(row.updatedAt) }}
                       </template>
                     </template>
                     <template v-else>
-                      ??
+                      鏀惰棌
                       <template v-if="formatTime(row.savedAt)">
-                        � {{ formatTime(row.savedAt) }}
+                        路 {{ formatTime(row.savedAt) }}
                       </template>
                     </template>
-                    <template v-if="rowNote(row.fingerprint)"> � ???</template>
+                    <template v-if="rowNote(row.fingerprint)"> 路 鏈夊娉?/template>
                   </p>
                 </button>
                 <el-button size="small" text type="danger" @click="onRemove(row.fingerprint)">
-                  ??
+                  鍒犻櫎
                 </el-button>
               </li>
             </ul>
-            <div class="wb-workspace__footer-stat">
-              <WrongBookReviewStat :scope="reviewScope" />
-            </div>
           </template>
         </div>
       </div>
@@ -1104,21 +1036,6 @@ function exitQuiz() {
   border-radius: 10px;
   overflow: hidden;
   background: var(--app-surface);
-}
-
-.mm-wrong__footer-stat,
-.wb-workspace__footer-stat {
-  display: flex;
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 10px 12px 4px;
-}
-
-.wb-workspace__footer-stat {
-  margin-top: 12px;
-  padding: 12px 0 0;
-  border-top: 1px solid var(--app-border-soft);
 }
 
 .mm-wrong__empty {
