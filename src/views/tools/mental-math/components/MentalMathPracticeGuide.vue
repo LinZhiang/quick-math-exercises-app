@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import {
   DEFAULT_MENTAL_MATH_GUIDE_ARTICLE_ID,
   findMentalMathGuideArticle,
@@ -8,6 +9,15 @@ import {
   type MentalMathGuideArticle,
 } from '@/constants/mental-math-practice-guide'
 import type { PracticeHubSectionId } from '@/constants/practice-hub-sections'
+import {
+  getStrategyGuideNote,
+  hasStrategyGuideNote,
+  setStrategyGuideNote,
+} from '@/utils/strategyGuideNotes'
+import { markdownToDisplaySafeHtml } from '@/utils/markdownToHtml'
+
+const MEMO_MAX_LEN = 3000
+const NOTE_KEY_PREFIX = 'practice-guide:'
 
 const props = defineProps<{
   disabled?: boolean
@@ -24,6 +34,11 @@ const activeGuideGroupId = ref<PracticeHubSectionId>(
     MENTAL_MATH_GUIDE_GROUPS[0]?.id ??
     'guide',
 )
+
+const noteEditing = ref(false)
+const noteDraft = ref('')
+const noteSaving = ref(false)
+const noteTick = ref(0)
 
 const activeArticle = computed(() => findMentalMathGuideArticle(activeArticleId.value))
 
@@ -52,9 +67,32 @@ const breadcrumb = computed(() => {
   return `${group.title} · ${article.title}`
 })
 
+function noteStorageKey(articleId: string): string {
+  return `${NOTE_KEY_PREFIX}${articleId}`
+}
+
+function articleHasNote(articleId: string): boolean {
+  void noteTick.value
+  return hasStrategyGuideNote(noteStorageKey(articleId))
+}
+
+const currentNote = computed(() => {
+  void noteTick.value
+  const id = activeArticle.value?.id
+  if (!id) return ''
+  return getStrategyGuideNote(noteStorageKey(id))
+})
+
+const currentNoteHtml = computed(() => {
+  const note = currentNote.value.trim()
+  return note ? markdownToDisplaySafeHtml(note) : ''
+})
+
 watch(activeArticleId, (id) => {
   const group = mentalMathGuideGroupForArticle(id)
   if (group) activeGuideGroupId.value = group.id
+  noteEditing.value = false
+  noteDraft.value = ''
 })
 
 function selectGuideGroup(groupId: PracticeHubSectionId) {
@@ -103,6 +141,30 @@ const practiceLinkLabel = computed(() => {
   if (article.chineseTabId) return `去练习：${article.title}`
   return `去练习：${article.title}`
 })
+
+function onEditNote() {
+  noteDraft.value = currentNote.value
+  noteEditing.value = true
+}
+
+function onCancelNoteEdit() {
+  noteDraft.value = currentNote.value
+  noteEditing.value = false
+}
+
+function onSaveNote() {
+  const id = activeArticle.value?.id
+  if (!id) return
+  noteSaving.value = true
+  try {
+    setStrategyGuideNote(noteStorageKey(id), noteDraft.value)
+    noteTick.value += 1
+    noteEditing.value = false
+    ElMessage.success(noteDraft.value.trim() ? '备注已保存' : '已清空备注')
+  } finally {
+    noteSaving.value = false
+  }
+}
 
 watch(
   () => props.disabled,
@@ -174,7 +236,13 @@ watch(
                 :disabled="disabled"
                 @click="selectArticle(article)"
               >
-                {{ article.title }}
+                <span class="mm-guide-nav__item-text">{{ article.title }}</span>
+                <span
+                  v-if="articleHasNote(article.id)"
+                  class="mm-guide-nav__note-dot"
+                  title="有备注"
+                  aria-label="有备注"
+                />
               </button>
             </li>
           </ul>
@@ -208,8 +276,52 @@ watch(
         </template>
       </div>
 
-      <footer v-if="hasPracticeLink" class="mm-guide-main__foot">
-        <el-button type="primary" :disabled="disabled" @click="startLinkedPractice">
+      <footer class="mm-guide-main__foot">
+        <section class="mm-guide-note">
+          <div class="mm-guide-note__head">
+            <h4 class="mm-guide-note__title">我的备注</h4>
+            <el-button
+              v-if="!noteEditing"
+              size="small"
+              text
+              type="primary"
+              :disabled="disabled"
+              @click="onEditNote"
+            >
+              {{ currentNote ? '编辑' : '添加备注' }}
+            </el-button>
+          </div>
+          <template v-if="noteEditing">
+            <el-input
+              v-model="noteDraft"
+              type="textarea"
+              :rows="5"
+              :maxlength="MEMO_MAX_LEN"
+              show-word-limit
+              placeholder="记下易错点、口诀、例题思路等（仅本机保存，支持 Markdown）"
+            />
+            <div class="mm-guide-note__actions">
+              <el-button size="small" type="primary" :loading="noteSaving" @click="onSaveNote">
+                保存
+              </el-button>
+              <el-button size="small" plain @click="onCancelNoteEdit">取消</el-button>
+            </div>
+          </template>
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <div
+            v-else-if="currentNoteHtml"
+            class="mm-guide-note__body deepseek-md"
+            v-html="currentNoteHtml"
+          />
+          <p v-else class="mm-guide-note__empty">暂无备注。可把这篇文章的易错点记在这里。</p>
+        </section>
+
+        <el-button
+          v-if="hasPracticeLink"
+          type="primary"
+          :disabled="disabled"
+          @click="startLinkedPractice"
+        >
           {{ practiceLinkLabel }}
         </el-button>
       </footer>
@@ -265,7 +377,10 @@ watch(
 }
 
 .mm-guide-nav__item {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   width: 100%;
   margin: 0;
   padding: 7px 10px;
@@ -281,6 +396,20 @@ watch(
   transition:
     background-color 0.15s ease,
     color 0.15s ease;
+}
+
+.mm-guide-nav__item-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.mm-guide-nav__note-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--el-color-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--el-color-primary-light-8) 80%, transparent);
 }
 
 .mm-guide-nav__item:hover:not(:disabled) {
@@ -378,6 +507,50 @@ watch(
   margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid var(--app-border-soft);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.mm-guide-note {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--app-border-soft);
+  background: color-mix(in srgb, var(--app-surface-alt) 70%, transparent);
+}
+
+.mm-guide-note__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.mm-guide-note__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mm-guide-note__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.mm-guide-note__body {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--app-text);
+}
+
+.mm-guide-note__empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--app-text-muted);
 }
 
 @media (max-width: 720px) {

@@ -121,9 +121,6 @@ async function onClearAll() {
 <template>
   <section class="mode-section practice-log" id="practice-log">
     <h3 class="mode-section__title">测验日志</h3>
-    <p class="mode-section__hint">
-      普通测验按「完整一轮」记日志；错题复盘单独归入「错题复盘」大类，统计的是做了多少题、答对多少、是否完整复盘（与轮次无关）。默认查看当天。
-    </p>
 
     <div class="practice-log__filters">
       <label class="practice-log__field">
@@ -213,6 +210,7 @@ async function onClearAll() {
   gap: 10px 14px;
   align-items: flex-end;
   margin: 12px 0 8px;
+  flex-shrink: 0;
 }
 
 .practice-log__field {
@@ -280,15 +278,22 @@ async function onClearAll() {
   margin: 4px 0 10px;
   font-size: 13px;
   color: #64748b;
+  flex-shrink: 0;
 }
 
 .practice-log__list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 4px 4px 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
 }
 
 .practice-log__item {
