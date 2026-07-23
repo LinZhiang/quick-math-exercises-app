@@ -64,3 +64,22 @@ export function setKeyQuestionNote(
   }
   writeNotes(map)
 }
+
+/** 错题指纹变更时迁移备注（变式替换） */
+export function migrateKeyQuestionNote(
+  source: ChineseKeyQuestionSource,
+  fromFingerprint: string,
+  toFingerprint: string,
+) {
+  const from = String(fromFingerprint ?? '').trim()
+  const to = String(toFingerprint ?? '').trim()
+  if (!from || !to || from === to) return
+  const note = getKeyQuestionNote(source, from).trim()
+  if (!note) {
+    setKeyQuestionNote(source, from, '')
+    return
+  }
+  const existing = getKeyQuestionNote(source, to).trim()
+  if (!existing) setKeyQuestionNote(source, to, note)
+  setKeyQuestionNote(source, from, '')
+}

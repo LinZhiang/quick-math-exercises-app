@@ -174,18 +174,18 @@ export const MENTAL_MATH_ARITHMETIC_MODES: MentalMathModeConfig[] = [
     correctDelta: 8,
     wrongDelta: -16,
     maxScore: 100,
-    desc: '30 秒 · 百分数加减（约 30% 带一位小数）· 近邻/错位加减干扰 · 4 选项 · 对 +8 / 错 -16 · 对 +1 秒 / 错 -1 秒',
+    desc: '30 秒 · 百分数加减（约 30% 带一位小数）· 末位/倒数位干扰 · 4 选项 · 对 +8 / 错 -16 · 对 +1 秒 / 错 -1 秒',
   },
   {
     id: 'pct-addsub-hard',
     category: 'arithmetic',
     label: '百分比加减运算 · 复杂题',
     durationSec: 40,
-    optionCount: 5,
+    optionCount: 4,
     correctDelta: 16,
     wrongDelta: -32,
     maxScore: 100,
-    desc: '40 秒 · 百分数加减（含一位/两位小数）· 强干扰 · 5 选项 · 对 +16 / 错 -32 · 对 +1 秒 / 错 -1 秒',
+    desc: '40 秒 · 百分数加减（含一位/两位小数）· 末位/倒数位干扰 · 4 选项 · 对 +16 / 错 -32 · 对 +1 秒 / 错 -1 秒',
   },
   {
     id: 'mulcalc-easy',
@@ -716,91 +716,82 @@ function generatePctAddSubQuestion(
 }
 
 function distinctPctAddSubWrongAnswers(
-  a: number,
-  b: number,
-  op: '+' | '-',
+  _a: number,
+  _b: number,
+  _op: '+' | '-',
   correct: number,
   count: number,
   places: number,
 ): number[] {
-  const scored: { value: number; priority: number }[] = []
-  const seen = new Set<string>([formatPctLabel(correct, places)])
-  const eps = places <= 0 ? 0 : 0.5 / 10 ** places
+  /**
+   * 干扰规律（以 16.6% 为例）：
+   * - 倒数第二位错、末位对：15.6%
+   * - 末位错、倒数第二位对：16.7%
+   * - 两位都错（末位与「仅末位错」一致）：15.7%
+   */
+  const pattern = buildPctDigitPatternWrongAnswers(correct, places)
+  if (pattern.length >= count) return pattern.slice(0, count)
 
-  const offer = (value: number, priority: number) => {
-    if (!Number.isFinite(value)) return
-    const rounded = roundPctValue(value, places)
-    if (Math.abs(rounded - correct) <= eps) return
-    if (rounded < 0 || rounded > 200) return
-    const key = formatPctLabel(rounded, places)
-    if (seen.has(key)) return
-    seen.add(key)
-    scored.push({ value: rounded, priority })
-  }
-
-  // 加减错位
-  if (op === '+') offer(a - b, 0)
-  else offer(a + b, 0)
-  offer(Math.abs(a - b), 1)
-  offer(b - a, 2)
-
-  // 近邻百分数（整数近邻 + 小数近邻）
-  const neighborSteps =
-    places === 2
-      ? [0.01, 0.02, 0.1, 0.2, 1, 2, 5]
-      : places === 1
-        ? [0.1, 0.2, 0.5, 1, 2, 3, 5]
-        : [1, 2, 3, 5, 10]
-  for (const d of neighborSteps) {
-    const near = places === 0 ? d <= 2 : places === 1 ? d <= 0.2 : d <= 0.02
-    offer(correct + d, near ? 0 : 1)
-    offer(correct - d, near ? 0 : 1)
-  }
-
-  // 把其中一个百分数算错
-  const mistypeSteps =
-    places === 2 ? [0.01, 0.1, 1, 2, 5] : places === 1 ? [0.1, 0.5, 1, 2, 5] : [1, 2, 5, 10]
-  for (const d of mistypeSteps) {
-    if (op === '+') {
-      offer(a + d + b, 1)
-      offer(a + (b + d), 1)
-      offer(a - d + b, 1)
-      offer(a + (b - d), 1)
-    } else {
-      offer(a - d - b, 1)
-      offer(a - (b + d), 1)
-      offer(a + d - b, 1)
-      offer(a - (b - d), 1)
-    }
-  }
-
-  scored.sort((x, y) => {
-    if (x.priority !== y.priority) return x.priority - y.priority
-    return Math.abs(x.value - correct) - Math.abs(y.value - correct)
-  })
-
-  const wrong: number[] = []
-  for (const item of scored) {
-    if (wrong.length >= count) break
-    wrong.push(item.value)
-  }
-
-  // 兜底：近邻填充
-  let step = places === 2 ? 0.01 : places === 1 ? 0.1 : 1
+  const wrong = [...pattern]
+  const seen = new Set(wrong.map((n) => formatPctLabel(n, places)))
+  seen.add(formatPctLabel(correct, places))
+  const step = places <= 0 ? 1 : 1 / 10 ** places
   let k = 1
   while (wrong.length < count && k < 80) {
-    offer(correct + k * step, 9)
-    offer(correct - k * step, 9)
-    for (const item of scored) {
+    for (const sign of [1, -1] as const) {
+      const v = roundPctValue(correct + sign * k * step, places)
+      if (v < 0 || v > 200) continue
+      const key = formatPctLabel(v, places)
+      if (seen.has(key)) continue
+      seen.add(key)
+      wrong.push(v)
       if (wrong.length >= count) break
-      if (!wrong.includes(item.value) && Math.abs(item.value - correct) > eps) {
-        wrong.push(item.value)
-      }
     }
     k++
   }
-
   return wrong.slice(0, count)
+}
+
+/** 按末位 / 倒数第二位构造三个干扰百分数 */
+function buildPctDigitPatternWrongAnswers(correct: number, places: number): number[] {
+  const scale = 10 ** Math.max(0, places)
+  const scaled = Math.round(roundPctValue(correct, places) * scale)
+  if (!Number.isFinite(scaled) || scaled < 0) return []
+
+  const lastDigit = ((scaled % 10) + 10) % 10
+  const prevDigit = Math.floor(scaled / 10) % 10
+
+  const lastDeltas = [1, -1, 2, -2, 3, -3].filter((d) => {
+    const n = lastDigit + d
+    return n >= 0 && n <= 9
+  })
+  const prevDeltas = [1, -1, 2, -2, 3, -3].filter((d) => {
+    const n = prevDigit + d
+    return n >= 0 && n <= 9
+  })
+
+  const tryPair = (lastDelta: number, prevDelta: number): number[] | null => {
+    const wrongLastOnly = scaled + lastDelta
+    const wrongPrevOnly = scaled + prevDelta * 10
+    const wrongBoth = scaled + lastDelta + prevDelta * 10
+    const vals = [wrongPrevOnly, wrongLastOnly, wrongBoth]
+    if (vals.some((v) => !Number.isFinite(v) || v < 0)) return null
+    const nums = vals.map((v) => roundPctValue(v / scale, places))
+    const keys = nums.map((n) => formatPctLabel(n, places))
+    const correctKey = formatPctLabel(correct, places)
+    if (keys.includes(correctKey)) return null
+    if (new Set(keys).size !== 3) return null
+    if (nums.some((n) => n < 0 || n > 200)) return null
+    return nums
+  }
+
+  for (const lastDelta of lastDeltas) {
+    for (const prevDelta of prevDeltas) {
+      const hit = tryPair(lastDelta, prevDelta)
+      if (hit) return hit
+    }
+  }
+  return []
 }
 
 /** 乘法计算：简单两位数×一位数，复杂三位数×一位数；干扰个位与正解一致 */

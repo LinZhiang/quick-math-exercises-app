@@ -3,13 +3,16 @@
  */
 import { isAiChatConfigured, requestChinesePracticeVariantJson } from '@/services/deepseek'
 import { localDateKey } from '@/utils/practiceSessionLog'
-import type { MentalMathWrongRecord } from '@/utils/mentalMathWrongBook'
+import type {
+  MentalMathWrongRecord,
+  MentalMathWrongSection,
+} from '@/utils/mentalMathWrongBook'
 
 export const WRONG_BOOK_BATCH_SIZE = 10
 
 export type WrongBookFilter = {
-  /** 最少错题次数（含） */
-  minWrongCount?: number
+  /** 精确错题次数；空=不限 */
+  wrongCount?: number
   /** 某一天 YYYY-MM-DD；空=不限 */
   dateKey?: string
 }
@@ -17,6 +20,9 @@ export type WrongBookFilter = {
 export type WrongBookQuizItem = {
   id: string
   originFingerprint: string
+  /** 原错题所属 mode，替换入库时沿用 */
+  modeId: string
+  section: MentalMathWrongSection
   expression: string
   /** mcq：四选一；fill：填空（口算无选项错题） */
   kind: 'mcq' | 'fill'
@@ -35,9 +41,9 @@ export function filterWrongBookByMeta<T extends { wrongCount: number; updatedAt:
 ): T[] {
   return rows.filter((row) => {
     if (
-      typeof filter.minWrongCount === 'number' &&
-      filter.minWrongCount > 0 &&
-      (row.wrongCount ?? 0) < filter.minWrongCount
+      typeof filter.wrongCount === 'number' &&
+      filter.wrongCount > 0 &&
+      (row.wrongCount ?? 0) !== filter.wrongCount
     ) {
       return false
     }
@@ -100,6 +106,8 @@ export function wrongRecordToQuizItem(
       return {
         id: `wbq-${seq}-${row.fingerprint.slice(0, 10)}`,
         originFingerprint: row.fingerprint,
+        modeId: row.modeId,
+        section: row.section,
         expression: row.expression,
         kind: 'fill',
         options: [],
@@ -115,6 +123,8 @@ export function wrongRecordToQuizItem(
     return {
       id: `wbq-${seq}-${row.fingerprint.slice(0, 10)}`,
       originFingerprint: row.fingerprint,
+      modeId: row.modeId,
+      section: row.section,
       expression: row.expression,
       kind: 'mcq',
       options,
@@ -126,6 +136,8 @@ export function wrongRecordToQuizItem(
   return {
     id: `wbq-${seq}-${row.fingerprint.slice(0, 10)}`,
     originFingerprint: row.fingerprint,
+    modeId: row.modeId,
+    section: row.section,
     expression: row.expression,
     kind: 'fill',
     options: [],
@@ -188,6 +200,8 @@ async function requestWrongBookMcqVariant(
     return {
       id: `wbq-var-${row.fingerprint.slice(0, 10)}-${Date.now()}`,
       originFingerprint: row.fingerprint,
+      modeId: row.modeId,
+      section: row.section,
       expression: stem,
       kind: 'mcq',
       options,
