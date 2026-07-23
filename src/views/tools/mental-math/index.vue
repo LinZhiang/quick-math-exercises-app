@@ -167,7 +167,6 @@ import ChinesePracticeSection from '@/views/tools/chinese-practice/ChinesePracti
 import PwaInstallPanel from '@/components/PwaInstallPanel.vue'
 import { clearWenguSessionOnAiLeave } from '@/utils/wenguAuthStore'
 import MentalMathWrongBookPanel from '@/views/tools/mental-math/components/MentalMathWrongBookPanel.vue'
-import MentalMathFavoriteButton from '@/views/tools/mental-math/components/MentalMathFavoriteButton.vue'
 import { upsertMentalMathWrong } from '@/utils/mentalMathWrongBook'
 import { wrongBookWorkspaceActive } from '@/utils/wrongBookWorkspaceGate'
 import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
@@ -1527,7 +1526,10 @@ onBeforeUnmount(() => {
       <div
         ref="practiceMainRef"
         class="practice-main mode-select"
-        :class="{ 'practice-main--session-focus': chineseSessionActive }"
+        :class="{
+          'practice-main--session-focus': chineseSessionActive,
+          'practice-main--log': showLogSection,
+        }"
       >
         <PracticeSessionLogPanel v-if="showLogSection" />
         <MentalMathPracticeGuide
@@ -3060,40 +3062,7 @@ onBeforeUnmount(() => {
             <span class="play-score">得分 <strong>{{ score }}</strong> / {{ modeConfig.maxScore }}</span>
           </div>
           <div class="session-actions session-actions--inline">
-            <MentalMathFavoriteButton
-              v-if="
-                feedback &&
-                activeMode &&
-                !graphicQuestion &&
-                (question ||
-                  twentyFourQuestion ||
-                  circleGrammarQuestion ||
-                  shortenSentenceQuestion)
-              "
-              :mode-id="String(activeMode)"
-              :expression="
-                question?.expression ||
-                twentyFourQuestion?.prompt ||
-                circleGrammarQuestion?.sentence.sentence ||
-                shortenSentenceQuestion?.item.sentence ||
-                ''
-              "
-              :correct-answer="
-                question?.correctAnswer ??
-                twentyFourQuestion?.sampleSolution ??
-                (circleGrammarQuestion
-                  ? formatCircleGrammarExpected(circleGrammarQuestion.expected)
-                  : undefined) ??
-                shortenSentenceQuestion?.item.shortened ??
-                ''
-              "
-              :options="question?.options"
-              :explanation="
-                question?.explanation ||
-                circleGrammarQuestion?.explanation ||
-                shortenSentenceQuestion?.explanation
-              "
-            />
+            <!-- 倒计时答题中不显示收藏，避免占时；可在错题本详情里收藏 -->
             <el-button size="small" plain @click="retryCurrentMode">重来</el-button>
             <el-button size="small" @click="backToSelect">返回</el-button>
           </div>
@@ -3413,6 +3382,20 @@ onBeforeUnmount(() => {
   padding: 16px 18px 20px;
   scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
+}
+
+.practice-main--log {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 12px;
+}
+
+.practice-main--log :deep(.practice-log) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .page-kicker {
