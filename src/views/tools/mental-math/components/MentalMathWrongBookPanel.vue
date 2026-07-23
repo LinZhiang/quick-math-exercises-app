@@ -77,11 +77,11 @@ const noteDraft = ref('')
 const noteEditing = ref(false)
 const noteSaving = ref(false)
 
-/** ?? */
+/** 筛选 */
 const filterWrongCount = ref<number | null>(null)
 const filterDate = ref('')
 
-/** ?? */
+/** 测验 */
 const quizLoading = ref(false)
 const quizProgress = ref('')
 const quizPhase = ref<'idle' | 'playing' | 'result'>('idle')
@@ -283,7 +283,7 @@ function toggleOpen() {
 
 function openWorkspace() {
   if (!wrongCount.value && !favoriteCount.value) {
-    ElMessage.info('???????')
+    ElMessage.info('暂无错题或收藏')
     return
   }
   open.value = false
@@ -319,7 +319,7 @@ function onDetailClosed() {
 function openPreview(startFp?: string) {
   const list = filteredRows.value
   if (!list.length) {
-    ElMessage.info('????????????')
+    ElMessage.info('当前筛选下暂无可预览题目')
     return
   }
   const idx = startFp ? list.findIndex((r) => r.fingerprint === startFp) : 0
@@ -345,7 +345,7 @@ function onSaveNote(fp: string) {
   try {
     setMentalMathWrongNote(props.section, fp, noteDraft.value)
     noteEditing.value = false
-    ElMessage.success(noteDraft.value.trim() ? '?????' : '?????')
+    ElMessage.success(noteDraft.value.trim() ? '备注已保存' : '已清空备注')
   } finally {
     noteSaving.value = false
   }
@@ -353,18 +353,18 @@ function onSaveNote(fp: string) {
 
 function onPreviewSaveNote(fp: string, note: string) {
   setMentalMathWrongNote(props.section, fp, note)
-  ElMessage.success(note.trim() ? '?????' : '?????')
+  ElMessage.success(note.trim() ? '备注已保存' : '已清空备注')
 }
 
 async function onRemove(fp: string) {
   try {
     await ElMessageBox.confirm(
-      bookTab.value === 'wrong' ? '?????????????' : '????????????',
-      bookTab.value === 'wrong' ? '????' : '????',
+      bookTab.value === 'wrong' ? '确定从错题集中删除这道题？' : '确定从收藏中删除这道题？',
+      bookTab.value === 'wrong' ? '删除错题' : '删除收藏',
       {
         type: 'warning',
-        confirmButtonText: '??',
-        cancelButtonText: '??',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
       },
     )
   } catch {
@@ -390,7 +390,7 @@ async function onRemove(fp: string) {
       previewIndex.value = Math.min(idx, filteredRows.value.length - 1)
     }
   }
-  ElMessage.success('???')
+  ElMessage.success('已删除')
 }
 
 function onToggleFavoriteRow(row: DisplayRow) {
@@ -403,17 +403,17 @@ function onToggleFavoriteRow(row: DisplayRow) {
     options: row.options,
     explanation: row.explanation,
   })
-  ElMessage.success(r === 'added' ? '?????' : '?????')
+  ElMessage.success(r === 'added' ? '已加入收藏' : '已取消收藏')
 }
 
 async function onClearAll() {
   if (!count.value) return
-  const label = bookTab.value === 'wrong' ? '??' : '??'
+  const label = bookTab.value === 'wrong' ? '错题' : '收藏'
   try {
     await ElMessageBox.confirm(
-      `?????${title.value}??? ${count.value} ?${label}?`,
-      `??${label}`,
-      { type: 'warning', confirmButtonText: '??', cancelButtonText: '??' },
+      `确定清空「${title.value}」全部 ${count.value} 道${label}？`,
+      `清空${label}`,
+      { type: 'warning', confirmButtonText: '清空', cancelButtonText: '取消' },
     )
   } catch {
     return
@@ -428,7 +428,7 @@ async function onClearAll() {
   detail.value = null
   previewOpen.value = false
   closeWorkspace()
-  ElMessage.success('???')
+  ElMessage.success('已清空')
 }
 
 function formatTime(iso: string): string {
@@ -461,25 +461,25 @@ async function startBatchQuiz(batchIndex: number) {
   if (!batch) return
   const slice = toQuizSourceRows(filteredRows.value.slice(batch.from - 1, batch.to))
   if (!slice.length) {
-    ElMessage.info('???????')
+    ElMessage.info('该批次没有题目')
     return
   }
   quizLoading.value = true
-  quizProgress.value = '????????'
+  quizProgress.value = '正在准备变式题…'
   quizPhase.value = 'idle'
   try {
     const items = await buildWrongBookQuizItems(slice, (msg) => {
       quizProgress.value = msg
     })
     if (!items.length) {
-      ElMessage.warning('???????????????')
+      ElMessage.warning('无法生成可测验题目（缺少答案）')
       return
     }
     const variantN = items.filter((i) => i.isVariant).length
     if (variantN > 0) {
-      ElMessage.success(`??? ${variantN}/${items.length} ???`)
+      ElMessage.success(`已生成 ${variantN}/${items.length} 道变式`)
     } else {
-      ElMessage.info('???????? AI ???????')
+      ElMessage.info('已用原题组卷（无 AI 或变式失败时）')
     }
     quizBatchIndex.value = batchIndex
     quizItems.value = chunkWrongBookQuizItems(items, WRONG_BOOK_BATCH_SIZE)[0] ?? items
@@ -504,14 +504,14 @@ function submitQuizAnswer() {
   let chosenAnswer = ''
   if (q.kind === 'mcq') {
     if (quizChoice.value == null) {
-      ElMessage.warning('??????')
+      ElMessage.warning('请先选择选项')
       return
     }
     ok = quizChoice.value === q.correctIndex
     chosenAnswer = String(q.options[quizChoice.value] ?? '')
   } else {
     if (!quizFill.value.trim()) {
-      ElMessage.warning('??????')
+      ElMessage.warning('请先填写答案')
       return
     }
     chosenAnswer = quizFill.value.trim()
@@ -555,7 +555,7 @@ function finishBatchQuiz() {
 }
 
 function exitQuiz() {
-  // ??????????? attempted/correct???????????????????????????
+  // 中途退出：已答题已计入 attempted/correct；未整组完成则不计完整复盘，写一条中途日志便于归类查看
   if (
     quizPhase.value === 'playing' &&
     quizAnswered.value > 0 &&
@@ -575,10 +575,10 @@ function exitQuiz() {
   <div class="mm-wrong">
     <div class="mm-wrong__bar">
       <button type="button" class="mm-wrong__toggle" @click="toggleOpen">
-        <span>???</span>
+        <span>错题本</span>
         <strong>{{ wrongCount }}</strong>
-        <span class="mm-wrong__fav-count" title="??">?{{ favoriteCount }}</span>
-        <span class="mm-wrong__chevron" :class="{ 'is-open': open }">?</span>
+        <span class="mm-wrong__fav-count" title="收藏">★{{ favoriteCount }}</span>
+        <span class="mm-wrong__chevron" :class="{ 'is-open': open }">▾</span>
       </button>
       <div class="mm-wrong__bar-actions">
         <el-button
@@ -587,7 +587,7 @@ function exitQuiz() {
           :disabled="!wrongCount && !favoriteCount"
           @click="openWorkspace"
         >
-          ??
+          进入
         </el-button>
         <el-button
           size="small"
@@ -596,7 +596,7 @@ function exitQuiz() {
           :disabled="!count"
           @click="openPreview()"
         >
-          ??
+          预览
         </el-button>
         <el-button
           v-if="open && count > 0"
@@ -605,7 +605,7 @@ function exitQuiz() {
           type="danger"
           @click="onClearAll"
         >
-          ??
+          清空
         </el-button>
       </div>
     </div>
@@ -618,7 +618,7 @@ function exitQuiz() {
           :class="{ 'is-active': bookTab === 'wrong' }"
           @click="bookTab = 'wrong'"
         >
-          ???{{ wrongCount }}?
+          错题（{{ wrongCount }}）
         </button>
         <button
           type="button"
@@ -626,14 +626,14 @@ function exitQuiz() {
           :class="{ 'is-active': bookTab === 'favorite' }"
           @click="bookTab = 'favorite'"
         >
-          ???{{ favoriteCount }}?
+          收藏（{{ favoriteCount }}）
         </button>
       </div>
       <p v-if="!count" class="mm-wrong__empty">
         {{
           bookTab === 'wrong'
-            ? '???????????????????????????'
-            : '???????????????????????'
+            ? '暂无错题。练习时答错会自动记入；也可在详情里加入收藏。'
+            : '暂无收藏。可在错题详情或练习提交后点「收藏」。'
         }}
       </p>
       <ul v-else class="mm-wrong__list">
@@ -642,19 +642,19 @@ function exitQuiz() {
             <p class="mm-wrong__expr">{{ row.expression }}</p>
             <p class="mm-wrong__meta">
               <template v-if="isWrongRow(row)">
-                ? {{ row.wrongCount }} ?
-                <template v-if="formatTime(row.updatedAt)"> � {{ formatTime(row.updatedAt) }}</template>
+                错 {{ row.wrongCount }} 次
+                <template v-if="formatTime(row.updatedAt)"> · {{ formatTime(row.updatedAt) }}</template>
               </template>
               <template v-else>
-                ??
-                <template v-if="formatTime(row.savedAt)"> � {{ formatTime(row.savedAt) }}</template>
+                收藏
+                <template v-if="formatTime(row.savedAt)"> · {{ formatTime(row.savedAt) }}</template>
               </template>
-              <template v-if="rowNote(row.fingerprint)"> � ???</template>
-              � ????
+              <template v-if="rowNote(row.fingerprint)"> · 有备注</template>
+              · 点看详情
             </p>
           </button>
           <el-button size="small" text type="danger" @click="onRemove(row.fingerprint)">
-            ??
+            删除
           </el-button>
         </li>
       </ul>
@@ -666,7 +666,7 @@ function exitQuiz() {
 
     <el-dialog
       v-model="detailVisible"
-      :title="`${title} � ${bookTab === 'wrong' ? '??' : '??'}??`"
+      :title="`${title} · ${bookTab === 'wrong' ? '错题' : '收藏'}详情`"
       width="560px"
       align-center
       destroy-on-close
@@ -676,19 +676,19 @@ function exitQuiz() {
     >
       <div v-if="detail" class="mm-wrong-detail">
         <section>
-          <h4>??</h4>
+          <h4>题目</h4>
           <p class="mm-wrong-detail__expr">{{ detail.expression }}</p>
         </section>
         <section v-if="isWrongRow(detail)">
-          <h4>????</h4>
+          <h4>你的答案</h4>
           <p class="mm-wrong-detail__bad">{{ detail.chosenAnswer }}</p>
         </section>
         <section>
-          <h4>????</h4>
+          <h4>正确答案</h4>
           <p class="mm-wrong-detail__ok">{{ detail.correctAnswer }}</p>
         </section>
         <section v-if="detail.options?.length">
-          <h4>??</h4>
+          <h4>选项</h4>
           <ul class="mm-wrong-detail__opts">
             <li
               v-for="(opt, idx) in detail.options"
@@ -700,12 +700,12 @@ function exitQuiz() {
           </ul>
         </section>
         <section v-if="detail.explanation">
-          <h4>??</h4>
+          <h4>说明</h4>
           <p class="mm-wrong-detail__exp">{{ detail.explanation }}</p>
         </section>
         <section class="mm-wrong-detail__note">
           <div class="mm-wrong-detail__note-head">
-            <h4>??</h4>
+            <h4>备注</h4>
             <el-button
               v-if="!noteEditing"
               size="small"
@@ -713,7 +713,7 @@ function exitQuiz() {
               type="primary"
               @click="onEditNote"
             >
-              {{ rowNote(detail.fingerprint) ? '??' : '????' }}
+              {{ rowNote(detail.fingerprint) ? '编辑' : '添加备注' }}
             </el-button>
           </div>
           <template v-if="noteEditing">
@@ -723,7 +723,7 @@ function exitQuiz() {
               :rows="3"
               maxlength="500"
               show-word-limit
-              placeholder="?? Markdown???????????"
+              placeholder="支持 Markdown，如标题、列表、加粗等"
             />
             <div class="mm-wrong-detail__note-actions">
               <el-button
@@ -732,16 +732,16 @@ function exitQuiz() {
                 :loading="noteSaving"
                 @click="onSaveNote(detail.fingerprint)"
               >
-                ??
+                保存
               </el-button>
-              <el-button size="small" plain @click="onCancelNoteEdit">??</el-button>
+              <el-button size="small" plain @click="onCancelNoteEdit">取消</el-button>
             </div>
           </template>
           <template v-else-if="rowNote(detail.fingerprint)">
             <!-- eslint-disable-next-line vue/no-v-html -->
             <div class="mm-wrong-detail__note-md deepseek-md" v-html="noteHtml(detail.fingerprint)" />
           </template>
-          <p v-else class="mm-wrong-detail__note-empty">????</p>
+          <p v-else class="mm-wrong-detail__note-empty">暂无备注</p>
         </section>
       </div>
       <template #footer>
@@ -751,7 +751,7 @@ function exitQuiz() {
           plain
           @click="detail && onToggleFavoriteRow(detail)"
         >
-          {{ detail && rowFavorited(detail.fingerprint) ? '????' : '??' }}
+          {{ detail && rowFavorited(detail.fingerprint) ? '取消收藏' : '收藏' }}
         </el-button>
         <el-button
           v-if="detail"
@@ -759,7 +759,7 @@ function exitQuiz() {
           plain
           @click="detail && openPreview(detail.fingerprint)"
         >
-          ??
+          预览
         </el-button>
         <el-button
           v-if="detail"
@@ -767,9 +767,9 @@ function exitQuiz() {
           plain
           @click="detail && onRemove(detail.fingerprint)"
         >
-          ????
+          删除本题
         </el-button>
-        <el-button @click="detailVisible = false">??</el-button>
+        <el-button @click="detailVisible = false">关闭</el-button>
       </template>
     </el-dialog>
 
@@ -782,22 +782,22 @@ function exitQuiz() {
       @delete="onRemove"
     />
 
-    <!-- ???????? + ?? + ???? -->
+    <!-- 沉浸错题本：筛选 + 列表 + 分批测验 -->
     <Teleport to="body">
       <div
         v-if="workspaceOpen"
         class="wb-workspace"
         role="dialog"
         aria-modal="true"
-        :aria-label="`${title} � ???`"
+        :aria-label="`${title} · 错题本`"
       >
         <div class="wb-workspace__panel play-panel">
           <div class="play-top">
             <div class="play-meta">
               <div class="play-meta__main">
-                <span class="play-mode">{{ title }} � {{ bookTab === 'wrong' ? '??' : '??' }}</span>
+                <span class="play-mode">{{ title }} · {{ bookTab === 'wrong' ? '错题' : '收藏' }}</span>
                 <span class="play-score">
-                  ? <strong>{{ filteredRows.length }}</strong> / {{ count }} ?
+                  共 <strong>{{ filteredRows.length }}</strong> / {{ count }} 题
                 </span>
               </div>
               <div class="session-actions session-actions--inline">
@@ -809,18 +809,18 @@ function exitQuiz() {
                   :disabled="!filteredRows.length"
                   @click="openPreview()"
                 >
-                  ??
+                  预览
                 </el-button>
-                <el-button size="small" @click="closeWorkspace">??</el-button>
+                <el-button size="small" @click="closeWorkspace">退出</el-button>
               </div>
             </div>
           </div>
 
-          <!-- ??? -->
+          <!-- 测验中 -->
           <template v-if="quizPhase === 'playing' && currentQuiz">
             <p class="wb-quiz__progress">
-              ? {{ quizBatchIndex + 1 }} ? � ? {{ quizCursor + 1 }} / {{ quizTotal }} ?
-              <span v-if="currentQuiz.isVariant" class="wb-quiz__tag">??</span>
+              第 {{ quizBatchIndex + 1 }} 组 · 第 {{ quizCursor + 1 }} / {{ quizTotal }} 题
+              <span v-if="currentQuiz.isVariant" class="wb-quiz__tag">变式</span>
             </p>
             <div class="question-block">
               <p
@@ -856,12 +856,12 @@ function exitQuiz() {
             <div v-else class="wb-quiz__fill">
               <el-input
                 v-model="quizFill"
-                placeholder="????"
+                placeholder="输入答案"
                 :disabled="quizRevealed"
                 @keyup.enter="submitQuizAnswer"
               />
               <p v-if="quizRevealed" class="wb-quiz__fill-ans">
-                ?????{{ currentQuiz.fillAnswer }}
+                正确答案：{{ currentQuiz.fillAnswer }}
               </p>
             </div>
 
@@ -871,32 +871,32 @@ function exitQuiz() {
 
             <div class="wb-quiz__actions">
               <el-button v-if="!quizRevealed" type="primary" @click="submitQuizAnswer">
-                ??
+                提交
               </el-button>
               <el-button v-else type="primary" @click="nextQuizQuestion">
-                {{ quizCursor + 1 >= quizTotal ? '????' : '???' }}
+                {{ quizCursor + 1 >= quizTotal ? '查看结果' : '下一题' }}
               </el-button>
-              <el-button plain @click="exitQuiz">????</el-button>
+              <el-button plain @click="exitQuiz">结束测验</el-button>
             </div>
           </template>
 
-          <!-- ???? -->
+          <!-- 测验结果 -->
           <template v-else-if="quizPhase === 'result'">
             <div class="wb-quiz__result">
-              <p class="wb-quiz__result-title">????</p>
+              <p class="wb-quiz__result-title">本组成绩</p>
               <p class="wb-quiz__result-score">
                 {{ quizCorrectCount }} / {{ quizTotal }}
               </p>
               <div class="wb-quiz__actions">
                 <el-button type="primary" @click="startBatchQuiz(quizBatchIndex)">
-                  ????
+                  再练本组
                 </el-button>
-                <el-button plain @click="exitQuiz">?????</el-button>
+                <el-button plain @click="exitQuiz">返回错题本</el-button>
               </div>
             </div>
           </template>
 
-          <!-- ?? + ?? + ?? -->
+          <!-- 筛选 + 列表 + 分批 -->
           <template v-else>
             <div class="mm-wrong__tabs wb-workspace__tabs">
               <button
@@ -905,7 +905,7 @@ function exitQuiz() {
                 :class="{ 'is-active': bookTab === 'wrong' }"
                 @click="bookTab = 'wrong'"
               >
-                ???{{ wrongCount }}?
+                错题（{{ wrongCount }}）
               </button>
               <button
                 type="button"
@@ -913,33 +913,33 @@ function exitQuiz() {
                 :class="{ 'is-active': bookTab === 'favorite' }"
                 @click="bookTab = 'favorite'"
               >
-                ???{{ favoriteCount }}?
+                收藏（{{ favoriteCount }}）
               </button>
             </div>
 
             <form class="wb-filter" @submit.prevent>
               <label v-if="bookTab === 'wrong'" class="wb-filter__field">
-                <span>????</span>
+                <span>错题次数</span>
                 <el-select
                   v-model="filterWrongCount"
                   clearable
-                  placeholder="??"
+                  placeholder="不限"
                   style="width: 120px"
                 >
                   <el-option
                     v-for="n in wrongCountFilterOptions"
                     :key="n"
-                    :label="`${n} ?`"
+                    :label="`${n} 次`"
                     :value="n"
                   />
                 </el-select>
               </label>
               <label class="wb-filter__field">
-                <span>{{ bookTab === 'wrong' ? '????' : '????' }}</span>
+                <span>{{ bookTab === 'wrong' ? '错题日期' : '收藏日期' }}</span>
                 <el-select
                   v-model="filterDate"
                   clearable
-                  placeholder="??"
+                  placeholder="不限"
                   style="width: 150px"
                 >
                   <el-option
@@ -950,12 +950,12 @@ function exitQuiz() {
                   />
                 </el-select>
               </label>
-              <el-button size="small" plain @click="resetFilters">??</el-button>
+              <el-button size="small" plain @click="resetFilters">重置</el-button>
             </form>
 
             <section v-if="quizBatches.length" class="wb-batches">
               <p class="wb-batches__label">
-                ????????? {{ WRONG_BOOK_BATCH_SIZE }} ???? AI ??????????????
+                分批测验（每组最多 {{ WRONG_BOOK_BATCH_SIZE }} 题，优先 AI 变式；收藏库答错不记入错题）
               </p>
               <div class="wb-batches__btns">
                 <el-button
@@ -968,14 +968,14 @@ function exitQuiz() {
                   :disabled="quizLoading"
                   @click="startBatchQuiz(b.index)"
                 >
-                  ? {{ b.index + 1 }} ??{{ b.from }}?{{ b.to }}?
+                  第 {{ b.index + 1 }} 组（{{ b.from }}–{{ b.to }}）
                 </el-button>
               </div>
               <p v-if="quizProgress" class="wb-batches__progress">{{ quizProgress }}</p>
             </section>
 
             <p v-if="!filteredRows.length" class="mm-wrong__empty wb-workspace__empty">
-              {{ count ? '?????????' : bookTab === 'wrong' ? '????' : '????' }}
+              {{ count ? '当前筛选下没有题目' : bookTab === 'wrong' ? '暂无错题' : '暂无收藏' }}
             </p>
             <ul v-else class="mm-wrong__list wb-workspace__list">
               <li
@@ -987,22 +987,22 @@ function exitQuiz() {
                   <p class="mm-wrong__expr">{{ row.expression }}</p>
                   <p class="mm-wrong__meta">
                     <template v-if="isWrongRow(row)">
-                      ? {{ row.wrongCount }} ?
+                      错 {{ row.wrongCount }} 次
                       <template v-if="formatTime(row.updatedAt)">
-                        � {{ formatTime(row.updatedAt) }}
+                        · {{ formatTime(row.updatedAt) }}
                       </template>
                     </template>
                     <template v-else>
-                      ??
+                      收藏
                       <template v-if="formatTime(row.savedAt)">
-                        � {{ formatTime(row.savedAt) }}
+                        · {{ formatTime(row.savedAt) }}
                       </template>
                     </template>
-                    <template v-if="rowNote(row.fingerprint)"> � ???</template>
+                    <template v-if="rowNote(row.fingerprint)"> · 有备注</template>
                   </p>
                 </button>
                 <el-button size="small" text type="danger" @click="onRemove(row.fingerprint)">
-                  ??
+                  删除
                 </el-button>
               </li>
             </ul>
