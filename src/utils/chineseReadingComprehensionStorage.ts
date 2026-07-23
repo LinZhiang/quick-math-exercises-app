@@ -20,6 +20,8 @@ export type StoredReadingComprehensionRecord = {
   options: string[]
   correctIndex: number
   explanation: string
+  /** 支撑正确选项的文中原句 */
+  keySentence?: string
   wrongCount: number
   updatedAt: string
 }
@@ -33,6 +35,7 @@ export type StoredReadingComprehensionFavoriteRecord = {
   options: string[]
   correctIndex: number
   explanation: string
+  keySentence?: string
   savedAt: string
 }
 
@@ -62,6 +65,7 @@ function questionToStoredRecord(
     options: [...q.options],
     correctIndex: q.correctIndex,
     explanation: q.explanation,
+    ...(q.keySentence ? { keySentence: q.keySentence } : {}),
     wrongCount: 1,
     updatedAt: new Date().toISOString(),
   }
@@ -81,6 +85,7 @@ export function storedReadingComprehensionToQuestion(
     correctIndex: row.correctIndex,
     explanation: row.explanation,
     fingerprint: row.fingerprint,
+    ...(row.keySentence ? { keySentence: row.keySentence } : {}),
   }
 }
 
@@ -107,6 +112,7 @@ export function upsertChineseReadingComprehensionWrong(q: ReadingComprehensionQu
   if (hit) {
     hit.wrongCount = (hit.wrongCount ?? 0) + 1
     hit.updatedAt = now
+    if (q.keySentence) hit.keySentence = q.keySentence
   } else {
     rows.unshift({ ...questionToStoredRecord(q), wrongCount: 1, updatedAt: now })
   }
@@ -141,6 +147,7 @@ export function toggleChineseReadingComprehensionFavorite(
     options: base.options,
     correctIndex: base.correctIndex,
     explanation: base.explanation,
+    ...(base.keySentence ? { keySentence: base.keySentence } : {}),
     savedAt: new Date().toISOString(),
   })
   writeJson(FAVORITE_KEY, rows)

@@ -32,8 +32,13 @@ export function createChineseWrongBookGate<T extends { fingerprint: string }>(
   }
 
   function clearWrongGate() {
-    pendingWrong = null
-    skipPending = false
+    // 中途返回也落盘，避免「答错后未点下一题就退出」丢错题
+    try {
+      flushWrongIfNeeded()
+    } catch {
+      pendingWrong = null
+      skipPending = false
+    }
   }
 
   function hasPendingWrong(): boolean {

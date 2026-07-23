@@ -76,6 +76,17 @@ body,
   min-height: 100%;
 }
 
+/* 默认禁止页面级 overscroll 触发浏览器手势刷新；设置里开启后由 JS 改为 auto */
+html.app-pull-refresh-off,
+body.app-pull-refresh-off {
+  overscroll-behavior-y: none;
+}
+
+html.app-pull-refresh-on,
+body.app-pull-refresh-on {
+  overscroll-behavior-y: auto;
+}
+
 button {
   font: inherit;
 }

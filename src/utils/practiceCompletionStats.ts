@@ -9,6 +9,15 @@ import {
   appendPracticeSessionLog,
   type PracticeSessionLogStats,
 } from '@/utils/practiceSessionLog'
+import {
+  isChineseKeyReviewActive,
+  getChineseKeyReviewSession,
+  markChineseKeyReviewSessionCompleted,
+} from '@/utils/chineseKeyReviewSession'
+import {
+  chineseWrongReviewScope,
+  recordWrongBookReviewComplete,
+} from '@/utils/wrongBookReviewStats'
 
 const STORAGE_KEY = 'practice-completion-counts-v1'
 const PERFECT_STORAGE_KEY = 'practice-perfect-counts-v1'
@@ -81,6 +90,20 @@ export function incrementPracticeCompletion(
   modeId: string,
   stats?: PracticeCompletionStats,
 ): number {
+  // 关题错题/收藏复盘：不计入普通「已完成轮次」，改记错题复盘统计
+  if (isChineseKeyReviewActive()) {
+    const session = getChineseKeyReviewSession()
+    if (session) {
+      markChineseKeyReviewSessionCompleted()
+      recordWrongBookReviewComplete(chineseWrongReviewScope(session.source, session.bank), {
+        correctCount: stats?.correctCount,
+        totalCount: stats?.totalCount,
+        durationMs: stats?.durationMs,
+      })
+    }
+    return getPracticeCompletionCount(modeId.trim())
+  }
+
   const id = modeId.trim()
   if (!id) return 0
   const map = readCounts(STORAGE_KEY)
@@ -94,7 +117,10 @@ export function incrementPracticeCompletion(
     writeCounts(PERFECT_STORAGE_KEY, pMap)
   }
 
-  appendPracticeSessionLog(id, stats)
+  appendPracticeSessionLog(id, {
+    ...stats,
+    perfect: resolvePerfect(stats),
+  })
   return next
 }
 

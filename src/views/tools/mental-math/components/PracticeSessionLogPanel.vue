@@ -7,12 +7,15 @@ import {
   filterPracticeSessionLogs,
   formatLogDuration,
   formatLogTime,
+  isPracticeLogPerfect,
   listPracticeSessionLogs,
+  localDateKey,
   practiceSessionLogTick,
   type PracticeSessionLogEntry,
 } from '@/utils/practiceSessionLog'
 
-const filterDate = ref('')
+/** 默认查看当天 */
+const filterDate = ref(localDateKey())
 const filterCategoryId = ref('')
 const filterModeId = ref('')
 
@@ -57,23 +60,45 @@ const rows = computed(() =>
   }),
 )
 
+const todayKey = computed(() => localDateKey())
+
 function resultText(row: PracticeSessionLogEntry): string {
   const parts: string[] = []
+  const isWrongReview = row.categoryId === 'wrong-review' || row.modeId.startsWith('wb-review:')
   if (row.totalCount != null && row.correctCount != null) {
-    parts.push(`答对 ${row.correctCount}/${row.totalCount}`)
+    parts.push(
+      isWrongReview
+        ? `复盘答对 ${row.correctCount}/${row.totalCount}`
+        : `答对 ${row.correctCount}/${row.totalCount}`,
+    )
   }
   if (row.score != null && Number.isFinite(row.score)) {
     parts.push(`得分 ${row.score}`)
   }
   const dur = formatLogDuration(row.durationMs)
   if (dur) parts.push(`用时 ${dur}`)
+  if (isWrongReview) {
+    if (row.itemLabel.includes('中途结束')) parts.push('未完整')
+    else if (isPracticeLogPerfect(row)) parts.push('全对')
+    else parts.push('完整复盘')
+  } else if (isPracticeLogPerfect(row)) {
+    parts.push('满分')
+  }
   return parts.join(' · ')
 }
 
 function resetFilters() {
-  filterDate.value = ''
+  filterDate.value = localDateKey()
   filterCategoryId.value = ''
   filterModeId.value = ''
+}
+
+function showAllDates() {
+  filterDate.value = ''
+}
+
+function showToday() {
+  filterDate.value = localDateKey()
 }
 
 async function onClearAll() {
@@ -97,7 +122,7 @@ async function onClearAll() {
   <section class="mode-section practice-log" id="practice-log">
     <h3 class="mode-section__title">测验日志</h3>
     <p class="mode-section__hint">
-      每完成一轮完整测验会自动记一条。默认显示全部；可按日期、大类或小类筛选。
+      普通测验按「完整一轮」记日志；错题复盘单独归入「错题复盘」大类，统计的是做了多少题、答对多少、是否完整复盘（与轮次无关）。默认查看当天。
     </p>
 
     <div class="practice-log__filters">
@@ -122,6 +147,22 @@ async function onClearAll() {
         </select>
       </label>
       <div class="practice-log__actions">
+        <button
+          type="button"
+          class="practice-log__btn"
+          :class="{ 'is-active': filterDate === todayKey }"
+          @click="showToday"
+        >
+          今天
+        </button>
+        <button
+          type="button"
+          class="practice-log__btn"
+          :class="{ 'is-active': !filterDate }"
+          @click="showAllDates"
+        >
+          全部日期
+        </button>
         <button type="button" class="practice-log__btn" @click="resetFilters">重置筛选</button>
         <button
           type="button"
@@ -134,19 +175,34 @@ async function onClearAll() {
       </div>
     </div>
 
-    <p class="practice-log__meta">共 {{ rows.length }} 条记录</p>
+    <p class="practice-log__meta">
+      <template v-if="filterDate === todayKey">今日 </template>
+      <template v-else-if="filterDate">{{ filterDate }} </template>
+      共 {{ rows.length }} 条记录
+    </p>
 
     <ul v-if="rows.length" class="practice-log__list">
-      <li v-for="row in rows" :key="row.id" class="practice-log__item">
+      <li
+        v-for="row in rows"
+        :key="row.id"
+        class="practice-log__item"
+        :class="{ 'practice-log__item--perfect': isPracticeLogPerfect(row) }"
+      >
         <div class="practice-log__item-main">
-          <span class="practice-log__item-title">{{ row.itemLabel }}</span>
+          <span class="practice-log__item-title">
+            {{ row.itemLabel }}
+            <em v-if="isPracticeLogPerfect(row)" class="practice-log__perfect-tag">满分</em>
+          </span>
           <span class="practice-log__item-time">{{ formatLogTime(row.finishedAt) }}</span>
         </div>
         <p v-if="resultText(row)" class="practice-log__item-stats">{{ resultText(row) }}</p>
         <p class="practice-log__item-cat">{{ row.categoryLabel }}</p>
       </li>
     </ul>
-    <p v-else class="practice-log__empty">暂无符合条件的记录。完成一轮测验后会出现在这里。</p>
+    <p v-else class="practice-log__empty">
+      <template v-if="filterDate === todayKey">今天还没有测验记录。完成一轮后会出现在这里。</template>
+      <template v-else>暂无符合条件的记录。完成一轮测验后会出现在这里。</template>
+    </p>
   </section>
 </template>
 
@@ -202,6 +258,13 @@ async function onClearAll() {
   background: #e2e8f0;
 }
 
+.practice-log__btn.is-active {
+  border-color: color-mix(in srgb, var(--el-color-primary) 55%, #cbd5e1);
+  background: color-mix(in srgb, var(--el-color-primary-light-9) 80%, #fff);
+  color: var(--el-color-primary);
+  font-weight: 600;
+}
+
 .practice-log__btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -235,6 +298,16 @@ async function onClearAll() {
   background: #fff;
 }
 
+.practice-log__item--perfect {
+  border-color: color-mix(in srgb, var(--el-color-success) 45%, #e2e8f0);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--el-color-success-light-9) 85%, #fff) 0%,
+    color-mix(in srgb, #fef9c3 55%, #fff) 100%
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--el-color-success) 18%, transparent);
+}
+
 .practice-log__item-main {
   display: flex;
   flex-wrap: wrap;
@@ -243,9 +316,24 @@ async function onClearAll() {
 }
 
 .practice-log__item-title {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   font-size: 14px;
   font-weight: 600;
   color: #0f172a;
+}
+
+.practice-log__perfect-tag {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: var(--el-color-success);
+  background: color-mix(in srgb, var(--el-color-success-light-8) 70%, #fff);
+  border: 1px solid color-mix(in srgb, var(--el-color-success) 35%, transparent);
 }
 
 .practice-log__item-time {

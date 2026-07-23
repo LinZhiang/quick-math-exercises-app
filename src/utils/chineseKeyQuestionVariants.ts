@@ -123,7 +123,11 @@ function schemaHint(source: ChineseKeyQuestionSource): string {
     return 'questionType: poem-to-author|poem-to-theme；term；stem；correct；distractors[3]；explanation'
   }
   if (readingMode) {
-    return `questionType 固定 ${readingMode}；term；passage；stem；correct；distractors[3]；explanationFocus；explanationCorrect；explanationDistractors[3]（与 distractors 同序）；explanation 可选。解析禁止 A/B/C，须完整通顺；禁止正确项独最长或标点独多；干扰半真半假。`
+    const absoluteHint =
+      readingMode !== 'title'
+        ? '若原题正确项含必须/绝对/完全等，变式仍须材料对照成立：passage 保留或写出同一绝对词，correct 与 keySentence 对照支撑；勿材料无绝对语气却硬加绝对正确项。'
+        : '标题添加变式勿硬凑口号式绝对词。'
+    return `questionType 固定 ${readingMode}；term；passage；stem；correct；distractors[3]；keySentence（passage 原句子串，支撑正确项）；explanationFocus；explanationCorrect；explanationDistractors[3]（与 distractors 同序）；explanation 可选。解析禁止 A/B/C，须完整通顺；禁止正确项独最长或标点独多；干扰半真半假。${absoluteHint}`
   }
   if (source === 'classical-chinese') {
     return [

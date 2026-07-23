@@ -13,6 +13,7 @@ import {
 } from '@/utils/chineseReadingComprehensionStorage'
 import {
   readingComprehensionQuestionTypeLabel,
+  renderReadingPassageHtml,
   type ChineseReadingQuestionType,
   type ReadingComprehensionQuestion,
 } from '@/utils/readingComprehensionPractice'
@@ -62,6 +63,13 @@ const isRunningOrLoading = computed(
 const modeLabel = computed(() =>
   selectedMode.value ? readingComprehensionQuestionTypeLabel(selectedMode.value) : '',
 )
+
+/** 提交后高亮支撑正确选项的关键句 */
+const passageHtml = computed(() => {
+  const q = test.currentQuestion
+  if (!q) return ''
+  return renderReadingPassageHtml(q.passage, q.keySentence, !!test.submitted)
+})
 
 defineExpose({
   isRunningOrLoading,
@@ -272,8 +280,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         </div>
       </div>
 
-      <div v-if="test.currentQuestion" class="chinese-quiz__passage">
-        {{ test.currentQuestion.passage }}
+      <div
+        v-if="test.currentQuestion"
+        class="chinese-quiz__passage"
+        :class="{ 'chinese-quiz__passage--highlighted': test.submitted && test.currentQuestion.keySentence }"
+      >
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <div class="chinese-quiz__passage-body" v-html="passageHtml" />
+        <p
+          v-if="test.submitted && test.currentQuestion.keySentence"
+          class="chinese-quiz__passage-hint"
+        >
+          黄底标记为正确选项依据句
+        </p>
       </div>
 
       <div v-if="test.currentQuestion" class="chinese-quiz__stem">
@@ -514,9 +533,32 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   text-align: left;
   max-height: 280px;
   overflow-y: auto;
-  white-space: pre-wrap;
   font-size: 14px;
   line-height: 1.7;
+}
+
+.chinese-quiz__passage-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chinese-quiz__passage-body :deep(mark.reading-key-sentence) {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: color-mix(in srgb, #fde68a 88%, #fff);
+  color: inherit;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.chinese-quiz__passage-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--app-text-muted);
+}
+
+.chinese-quiz__passage--highlighted {
+  border-color: color-mix(in srgb, #f59e0b 35%, var(--app-border-soft));
 }
 
 .chinese-quiz__stem {

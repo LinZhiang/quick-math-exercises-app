@@ -55,6 +55,10 @@ import {
   removeChineseWordMemorizationFavorite,
   removeChineseWordMemorizationWrong,
 } from '@/utils/chineseWordMemorizationStorage'
+import {
+  chineseWrongReviewScope,
+  recordWrongBookReviewComplete,
+} from '@/utils/wrongBookReviewStats'
 
 export type ChineseKeyReviewBank = 'wrong' | 'favorite'
 
@@ -70,6 +74,10 @@ let activeSession: ChineseKeyReviewMeta | null = null
 const keyReviewSessionActive = ref(false)
 /** 用 ref 以便删除按钮 UI 响应式更新 */
 const removedOriginFingerprints = ref<Set<string>>(new Set())
+/** 本会话已答题统计（用于中途退出写日志） */
+let sessionAttempted = 0
+let sessionCorrect = 0
+let sessionCompleted = false
 
 export function beginChineseKeyReviewSession(meta: ChineseKeyReviewMeta) {
   activeSession = {
@@ -79,12 +87,41 @@ export function beginChineseKeyReviewSession(meta: ChineseKeyReviewMeta) {
   }
   removedOriginFingerprints.value = new Set()
   keyReviewSessionActive.value = true
+  sessionAttempted = 0
+  sessionCorrect = 0
+  sessionCompleted = false
+}
+
+export function noteChineseKeyReviewSessionAnswer(correct: boolean) {
+  if (!activeSession) return
+  sessionAttempted += 1
+  if (correct) sessionCorrect += 1
+}
+
+export function markChineseKeyReviewSessionCompleted() {
+  sessionCompleted = true
 }
 
 export function clearChineseKeyReviewSession() {
+  const session = activeSession
+  const attempted = sessionAttempted
+  const correct = sessionCorrect
+  const completed = sessionCompleted
+
   activeSession = null
   removedOriginFingerprints.value = new Set()
   keyReviewSessionActive.value = false
+  sessionAttempted = 0
+  sessionCorrect = 0
+  sessionCompleted = false
+
+  if (session && !completed && attempted > 0) {
+    recordWrongBookReviewComplete(chineseWrongReviewScope(session.source, session.bank), {
+      correctCount: correct,
+      totalCount: attempted,
+      abandoned: true,
+    })
+  }
 }
 
 export function isChineseKeyReviewActive(): boolean {

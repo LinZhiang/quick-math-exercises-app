@@ -10,6 +10,7 @@ import {
   getChineseKeyReviewSession,
   getKeyReviewOriginFingerprint,
   isChineseKeyReviewActive,
+  noteChineseKeyReviewSessionAnswer,
   updateKeyReviewOriginFingerprint,
 } from '@/utils/chineseKeyReviewSession'
 import {
@@ -69,6 +70,10 @@ import {
   removeChineseGeographyCommonSenseWrong,
 } from '@/utils/chineseGeographyCommonSenseStorage'
 import { chinesePracticeDataTick } from '@/utils/chineseIdiomStorage'
+import {
+  chineseWrongReviewScope,
+  recordWrongBookReviewAttempt,
+} from '@/utils/wrongBookReviewStats'
 
 /** 各模块测验题的最小公共形状（变式题均具备） */
 export type KeyReviewVariantQuestion = {
@@ -91,7 +96,8 @@ function listWrongRows(source: ChineseKeyQuestionSource): WrongRow[] {
   if (source === 'classical-chinese') return listChineseClassicalChineseWrongRecords() as WrongRow[]
   if (source === 'rhetoric-usage') return listChineseRhetoricUsageWrongRecords() as WrongRow[]
   if (readingSubModeFromKeySource(source)) {
-    return listChineseReadingComprehensionWrongRecords() as WrongRow[]
+    const mode = readingSubModeFromKeySource(source)
+    return listChineseReadingComprehensionWrongRecords(mode ?? undefined) as WrongRow[]
   }
   if (source === 'history-common-sense') {
     return listChineseHistoryCommonSenseWrongRecords() as WrongRow[]
@@ -209,6 +215,9 @@ function writeWrongWithCount(
     updatedAt: now,
   }
   if (typeof q.passage === 'string') base.passage = q.passage
+  if (typeof q.keySentence === 'string' && q.keySentence.trim()) {
+    base.keySentence = q.keySentence.trim()
+  }
 
   const key = storageKeyFor(source)
   if (!key) return
@@ -284,13 +293,22 @@ export function noteWrongOrReplaceKeyReviewVariant(
   question: KeyReviewVariantQuestion,
   noteOrdinaryWrong: () => void,
 ): void {
-  if (isCorrect) return
   if (isChineseKeyReviewActive()) {
+    const session = getChineseKeyReviewSession()
+    if (session) {
+      noteChineseKeyReviewSessionAnswer(isCorrect)
+      recordWrongBookReviewAttempt(
+        chineseWrongReviewScope(session.source, session.bank),
+        isCorrect,
+      )
+    }
+    if (isCorrect) return
     const r = handleKeyReviewVariantWrong(questionIndex, question)
     if (r === 'replaced') {
       ElMessage.info('原错题无备注，已用本变式题替换错题本记录（错题次数已累加）')
     }
     return
   }
+  if (isCorrect) return
   noteOrdinaryWrong()
 }

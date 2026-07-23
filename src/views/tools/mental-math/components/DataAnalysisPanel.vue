@@ -16,6 +16,7 @@ import {
   type DataAnalysisQuestion,
 } from '@/utils/dataAnalysisPractice'
 import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+import MentalMathFavoriteButton from '@/views/tools/mental-math/components/MentalMathFavoriteButton.vue'
 
 const selectedDifficulty = ref<DataAnalysisDifficulty | null>(null)
 const test = reactive(useDataAnalysisTest(selectedDifficulty))
@@ -182,6 +183,18 @@ watch(selectedDifficulty, () => {
           {{ test.quizRunningElapsedText }}
         </span>
         <div class="chinese-quiz__actions-top">
+          <MentalMathFavoriteButton
+            v-if="test.submitted && test.currentQuestion && selectedDifficulty"
+            :mode-id="`data-analysis-${selectedDifficulty}`"
+            :expression="
+              test.currentQuestion.passage
+                ? `${test.currentQuestion.passage}\n\n${test.currentQuestion.stem}`
+                : test.currentQuestion.stem
+            "
+            :correct-answer="test.currentQuestion.options[test.currentQuestion.correctIndex] ?? ''"
+            :options="test.currentQuestion.options"
+            :explanation="test.currentQuestion.explanation"
+          />
           <el-button size="small" plain @click="test.resetToIdle(); selectedDifficulty = null">
             返回
           </el-button>

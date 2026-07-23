@@ -30,6 +30,7 @@ import ChineseTheoryPolicyPanel from '@/views/tools/chinese-practice/ChineseTheo
 import ChineseWordMemorizationPanel from '@/views/tools/chinese-practice/ChineseWordMemorizationPanel.vue'
 import { isAiChatConfigured, DEEPSEEK_NOT_CONFIGURED_HINT } from '@/services/deepseek'
 import { wenguAuthTick } from '@/utils/wenguAuthStore'
+import { wrongBookWorkspaceActive } from '@/utils/wrongBookWorkspaceGate'
 import AiProviderSwitch from '@/components/AiProviderSwitch.vue'
 
 export type { KeyPracticePayload } from '@/types/chinese-practice'
@@ -72,6 +73,7 @@ const showTabLevel2 = computed(() => chineseTabGroupHasMultiple(activeTabGroupId
 
 const isRunningOrLoading = computed(
   () =>
+    wrongBookWorkspaceActive.value ||
     idiomRef.value?.isRunningOrLoading ||
     wordMemorizationRef.value?.isRunningOrLoading ||
     charLiteracyRef.value?.isRunningOrLoading ||
