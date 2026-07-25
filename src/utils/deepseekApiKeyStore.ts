@@ -141,7 +141,7 @@ export function looksLikeDeepSeekApiKey(raw: string): boolean {
 }
 
 export const DEEPSEEK_NOT_CONFIGURED_HINT =
-  '未登录：请到「导览 → 安装」登录后，再使用语文 AI 功能（本机 Key 模式已弃用，请使用服务端登录）'
+  '未登录：请到「导览 → 设置」登录后，再使用语文 AI 功能（本机 Key 模式已弃用，请使用服务端登录）'
 
 export function getDeepSeekAuthSnapshot(): DeepSeekAuthSnapshot {
   void deepseekAuthTick.value

@@ -261,7 +261,7 @@ export async function aiChatCompletion(
   // 无登录会话时：仅允许 DeepSeek 直连（开发/旧授权）；豆包必须走代理
   if (provider === 'doubao') {
     throw new Error(
-      '豆包需通过已登录的服务端代理调用。安装页虽可能曾显示登录，请到「导览 → 安装」重新登录后再试。',
+      '豆包需通过已登录的服务端代理调用。设置页虽可能曾显示登录，请到「导览 → 设置」重新登录后再试。',
     )
   }
 

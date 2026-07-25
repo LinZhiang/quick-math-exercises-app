@@ -21,6 +21,14 @@ import {
   type WenguBackupKind,
 } from '@/utils/userDataBackup'
 
+const props = withDefaults(
+  defineProps<{
+    /** install：仅 PWA 安装；settings：登录、界面与备份 */
+    panel?: 'install' | 'settings'
+  }>(),
+  { panel: 'install' },
+)
+
 const { canInstall, showIosHint, installed, promptInstall } = usePwaInstall()
 
 const pullToRefreshOn = computed({
@@ -145,11 +153,14 @@ async function runImport(text: string) {
 </script>
 
 <template>
-  <section class="mode-section install-panel" id="practice-install">
+  <section
+    v-if="panel === 'install'"
+    class="mode-section install-panel"
+    id="practice-install"
+  >
     <h3 class="mode-section__title">安装到手机</h3>
     <p class="mode-section__hint">
-      手机 Chrome 打开本页（Cloudflare 公网地址）→ 安装应用。
-      装好后有手机网络就能练；语文 AI 在下方登录即可（公网站点出门也能用，无需开电脑）。
+      手机 Chrome 打开本页（Cloudflare 公网地址）→ 安装应用。装好后有手机网络就能练。
     </p>
 
     <div v-if="installed" class="install-card install-card--ok">
@@ -169,107 +180,109 @@ async function runImport(text: string) {
     </template>
   </section>
 
-  <section class="mode-section install-panel" id="practice-settings">
-    <h3 class="mode-section__title">设置</h3>
-    <p class="mode-section__hint">
-      界面偏好与练习数据保存在本机。可打包到手机/电脑另一端导入，两边互通。
-    </p>
-
-    <div class="install-card settings-card">
-      <div class="settings-row">
-        <div class="settings-row__text">
-          <p class="install-card__title">允许手势刷新页面</p>
-          <p class="install-card__text">
-            开启后，可在页面顶部下拉（部分机型称上滑边缘）触发浏览器刷新。
-          </p>
-        </div>
-        <el-switch v-model="pullToRefreshOn" />
-      </div>
-    </div>
-
-    <div class="install-card settings-card">
-      <p class="install-card__title">数据备份与迁移</p>
-      <p class="install-card__text">
-        手机可「分享」到微信/文件；电脑会下载 JSON。导入支持选文件或粘贴。不含登录密钥与 API
-        密钥，登录信息需在新设备重新登录。
+  <template v-else>
+    <section class="mode-section install-panel" id="practice-settings">
+      <h3 class="mode-section__title">设置</h3>
+      <p class="mode-section__hint">
+        登录账号、界面偏好与练习数据。数据可打包到手机/电脑另一端导入，两边互通。
       </p>
 
-      <div class="backup-block">
-        <p class="backup-block__label">导出</p>
-        <div class="backup-actions">
-          <el-button
-            type="primary"
-            plain
-            :loading="exportBusy"
-            @click="onExport('wrong-favorite')"
-          >
-            打包错题与收藏（{{ wrongFavKeyCount }}）
-          </el-button>
-          <el-button plain :loading="exportBusy" @click="onCopy('wrong-favorite')">
-            复制错题收藏
-          </el-button>
+      <div class="install-card settings-card">
+        <div class="settings-row">
+          <div class="settings-row__text">
+            <p class="install-card__title">允许手势刷新页面</p>
+            <p class="install-card__text">
+              开启后，可在页面顶部下拉（部分机型称上滑边缘）触发浏览器刷新。
+            </p>
+          </div>
+          <el-switch v-model="pullToRefreshOn" />
         </div>
-        <div class="backup-actions">
-          <el-button type="primary" plain :loading="exportBusy" @click="onExport('user-data')">
-            打包全部练习数据（{{ userDataKeyCount }}）
-          </el-button>
-          <el-button plain :loading="exportBusy" @click="onCopy('user-data')">
-            复制全部数据
-          </el-button>
-        </div>
-        <p class="backup-block__hint">
-          「全部练习数据」含错题收藏、测验日志、完成次数、界面设置与出题去重历史等。
-        </p>
       </div>
 
-      <div class="backup-block">
-        <p class="backup-block__label">导入</p>
-        <div class="backup-mode">
-          <span class="backup-mode__text">写入方式</span>
-          <el-radio-group v-model="importMode" size="small">
-            <el-radio-button value="merge">合并</el-radio-button>
-            <el-radio-button value="replace">覆盖同名项</el-radio-button>
-          </el-radio-group>
-        </div>
-        <p class="backup-block__hint">
-          合并：错题按指纹合并并取较大错次；覆盖：备份里的键直接替换本机对应项。
+      <div class="install-card settings-card">
+        <p class="install-card__title">数据备份与迁移</p>
+        <p class="install-card__text">
+          手机可「分享」到微信/文件；电脑会下载 JSON。导入支持选文件或粘贴。不含登录密钥与 API
+          密钥，登录信息需在新设备重新登录。
         </p>
-        <div class="backup-actions">
-          <el-button type="success" plain :loading="importBusy" @click="openFilePicker">
-            从文件导入
-          </el-button>
-          <el-button plain :loading="importBusy" @click="pasteOpen = !pasteOpen">
-            {{ pasteOpen ? '收起粘贴' : '粘贴 JSON 导入' }}
-          </el-button>
+
+        <div class="backup-block">
+          <p class="backup-block__label">导出</p>
+          <div class="backup-actions">
+            <el-button
+              type="primary"
+              plain
+              :loading="exportBusy"
+              @click="onExport('wrong-favorite')"
+            >
+              打包错题与收藏（{{ wrongFavKeyCount }}）
+            </el-button>
+            <el-button plain :loading="exportBusy" @click="onCopy('wrong-favorite')">
+              复制错题收藏
+            </el-button>
+          </div>
+          <div class="backup-actions">
+            <el-button type="primary" plain :loading="exportBusy" @click="onExport('user-data')">
+              打包全部练习数据（{{ userDataKeyCount }}）
+            </el-button>
+            <el-button plain :loading="exportBusy" @click="onCopy('user-data')">
+              复制全部数据
+            </el-button>
+          </div>
+          <p class="backup-block__hint">
+            「全部练习数据」含错题收藏、测验日志、完成次数、界面设置与出题去重历史等。
+          </p>
         </div>
-        <input
-          ref="fileInputRef"
-          class="backup-file-input"
-          type="file"
-          accept="application/json,.json,text/plain"
-          @change="onFilePicked"
-        />
-        <div v-if="pasteOpen" class="backup-paste">
-          <el-input
-            v-model="pasteText"
-            type="textarea"
-            :rows="6"
-            placeholder="粘贴从另一台设备复制的备份 JSON…"
+
+        <div class="backup-block">
+          <p class="backup-block__label">导入</p>
+          <div class="backup-mode">
+            <span class="backup-mode__text">写入方式</span>
+            <el-radio-group v-model="importMode" size="small">
+              <el-radio-button value="merge">合并</el-radio-button>
+              <el-radio-button value="replace">覆盖同名项</el-radio-button>
+            </el-radio-group>
+          </div>
+          <p class="backup-block__hint">
+            合并：错题按指纹合并并取较大错次；覆盖：备份里的键直接替换本机对应项。
+          </p>
+          <div class="backup-actions">
+            <el-button type="success" plain :loading="importBusy" @click="openFilePicker">
+              从文件导入
+            </el-button>
+            <el-button plain :loading="importBusy" @click="pasteOpen = !pasteOpen">
+              {{ pasteOpen ? '收起粘贴' : '粘贴 JSON 导入' }}
+            </el-button>
+          </div>
+          <input
+            ref="fileInputRef"
+            class="backup-file-input"
+            type="file"
+            accept="application/json,.json,text/plain"
+            @change="onFilePicked"
           />
-          <el-button
-            class="backup-paste__btn"
-            type="primary"
-            :loading="importBusy"
-            @click="onPasteImport"
-          >
-            确认导入
-          </el-button>
+          <div v-if="pasteOpen" class="backup-paste">
+            <el-input
+              v-model="pasteText"
+              type="textarea"
+              :rows="6"
+              placeholder="粘贴从另一台设备复制的备份 JSON…"
+            />
+            <el-button
+              class="backup-paste__btn"
+              type="primary"
+              :loading="importBusy"
+              @click="onPasteImport"
+            >
+              确认导入
+            </el-button>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <DeepseekApiAuthPanel />
+    <DeepseekApiAuthPanel />
+  </template>
 </template>
 
 <style scoped>

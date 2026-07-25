@@ -185,7 +185,6 @@ function buildQuestion(input: {
     input.stem,
     input.passage ?? '',
     [...assembled.options].sort().join('|'),
-    String(assembled.correctIndex),
   ].join('\u001e')
   return {
     id: `right-triangle-${input.difficulty}-${input.seq}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -334,13 +333,13 @@ function genEasyIdentify(seq: number): RightTriangleQuestion | null {
       b: 8,
       c: 10,
       ans: '是，勾股数 (3,4,5) 的 2 倍',
-      wrong: ['不是直角三角形', '是，勾股数 (5,12,13)', '无法判断'],
+      wrong: ['不是直角三角形', '是，勾股数 (5,12,13)', '是，勾股数 (3,4,5) 的 3 倍'],
     },
     {
       a: 5,
       b: 12,
       c: 13,
-      ans: '是直角三角形',
+      ans: '是直角三角形（勾股数 5,12,13）',
       wrong: ['不是直角三角形', '是钝角三角形', '是锐角三角形但非直角'],
     },
     {
@@ -348,7 +347,14 @@ function genEasyIdentify(seq: number): RightTriangleQuestion | null {
       b: 5,
       c: approxInt(5 * Math.sqrt(2)),
       ans: '等腰直角（约 45°）',
-      wrong: ['30° 直角三角形', '不是直角三角形', '三边成 3:4:5'],
+      wrong: ['30°-60°-90° 直角三角形', '不是直角三角形', '三边成 3:4:5'],
+    },
+    {
+      a: 7,
+      b: 8,
+      c: 10,
+      ans: '不是直角三角形',
+      wrong: ['是直角三角形', '是，勾股数 (3,4,5) 的倍数', '等腰直角三角形'],
     },
   ]
   const t = pickOne(cases)
@@ -358,9 +364,9 @@ function genEasyIdentify(seq: number): RightTriangleQuestion | null {
     passage: `三角形三边长分别为 ${t.a}、${t.b}、${t.c}。`,
     stem: '下列判断正确的是？',
     correct: t.ans,
-    distractors: uniqueStr(t.ans, t.wrong),
-    method: '最大边为斜边候选，检验 a²+b²=c²；两直角边相等则为 45° 等腰直角。',
-    explanation: `${t.a}²+${t.b}²=${t.a * t.a + t.b * t.b}，${t.c}²=${t.c * t.c}。结论：${t.ans}。`,
+    distractors: t.wrong,
+    method: '勾股定理：直角 ⇔ a²+b²=c²（c 为最长边）。',
+    explanation: `最长边 ${Math.max(t.a, t.b, t.c)}。验证平方和关系后得：${t.ans}。`,
     seq,
   })
 }

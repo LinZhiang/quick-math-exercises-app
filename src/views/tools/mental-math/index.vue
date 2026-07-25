@@ -525,7 +525,14 @@ const showOpSkillSection = computed(() => activeOutlineSection.value === 'op-ski
 const showOpHighfreqSection = computed(() => activeOutlineSection.value === 'op-highfreq')
 const showOpOtherSection = computed(() => activeOutlineSection.value === 'op-other')
 const showChineseSection = computed(() => activeOutlineSection.value === 'chinese')
+const chineseActiveTab = ref<import('@/constants/chinese-practice-tabs').ChinesePracticeTabId | null>(
+  null,
+)
+const isChinesePoetOverview = computed(
+  () => showChineseSection.value && chineseActiveTab.value === 'poet-overview',
+)
 const showInstallSection = computed(() => activeOutlineSection.value === 'install')
+const showSettingsSection = computed(() => activeOutlineSection.value === 'settings')
 const showGuideSection = computed(() => activeOutlineSection.value === 'guide')
 const showLogSection = computed(() => activeOutlineSection.value === 'log')
 
@@ -614,7 +621,7 @@ const showHubLevel2 = computed(() => practiceHubGroupHasMultiple(activeHubGroupI
 
 watch(activeOutlineSection, (id, prev) => {
   activeHubGroupId.value = practiceHubGroupIdForSection(id)
-  if (prev === 'chinese' && id !== 'chinese' && id !== 'install') {
+  if (prev === 'chinese' && id !== 'chinese' && id !== 'install' && id !== 'settings') {
     clearWenguSessionOnAiLeave()
   }
 })
@@ -1057,7 +1064,10 @@ function finishCircleGrammarAnswer(marks: CircleGrammarMark[]) {
 
   const cfg = getCircleGrammarModeConfig(activeMode.value)
   const q = circleGrammarQuestion.value
-  const check = validateCircleGrammarAnswer(q.expected, marks)
+  const check = validateCircleGrammarAnswer(q.expected, marks, {
+    sentence: q.sentence.sentence,
+    alternateParts: q.sentence.alternateParts,
+  })
   const ok = check.ok
 
   // 先停表，再公布答案
@@ -1068,7 +1078,10 @@ function finishCircleGrammarAnswer(marks: CircleGrammarMark[]) {
   }
 
   const chosenAnswer = formatCircleGrammarMarks(marks)
-  const correctAnswer = formatCircleGrammarExpected(q.expected)
+  const altHint = q.sentence.alternateParts?.length
+    ? '（另有其他可接受切分，见解析）'
+    : '（相邻同成分可合并圈选）'
+  const correctAnswer = `${formatCircleGrammarExpected(q.expected)}${altHint}`
 
   score.value = clampCircleGrammarScore(score.value + (ok ? cfg.correctDelta : cfg.wrongDelta))
   if (!ok) sessionHadWrongAnswer = true
@@ -1425,6 +1438,8 @@ onMounted(() => {
     activeOutlineSection.value = 'chinese'
   } else if (hash === 'install' || route.query.section === 'install') {
     activeOutlineSection.value = 'install'
+  } else if (hash === 'settings' || route.query.section === 'settings') {
+    activeOutlineSection.value = 'settings'
   } else if (hash === 'fraction' || route.query.section === 'fraction') {
     activeOutlineSection.value = 'fraction'
   } else if (hash === 'divisibility' || route.query.section === 'divisibility') {
@@ -1445,11 +1460,14 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="mental-math-page">
-    <header v-if="phase === 'select' && !chineseSessionActive" class="page-hero">
+    <header
+      v-if="phase === 'select' && !chineseSessionActive && !showChineseSection"
+      class="page-hero"
+    >
       <h2 class="page-title">口算练习</h2>
       <p class="page-subtitle page-subtitle--full">
         限时口算、次幂、平方与立方、估算分数、整除、生活常识；数学推理含二十四点、数独、图形推理、资料分析、运算技巧、高频运算、其他运算；左侧「语文练习」含成语识记、词语识记、阅读理解等。
-        口算/图形结果仅在本页展示；语文练习多子模块四选一、正计时，依赖 AI 出题（DeepSeek / 豆包，需在「导览 → 安装」登录），错题与收藏在「关题练习」。
+        口算/图形结果仅在本页展示；语文练习多子模块四选一、正计时，依赖 AI 出题（DeepSeek / 豆包，需在「导览 → 设置」登录），错题与收藏在「关题练习」。
       </p>
       <p class="page-subtitle page-subtitle--compact">
         点上方分类找模式，点卡片开始练习。
@@ -1529,6 +1547,7 @@ onBeforeUnmount(() => {
         :class="{
           'practice-main--session-focus': chineseSessionActive,
           'practice-main--log': showLogSection,
+          'practice-main--poet': isChinesePoetOverview,
         }"
       >
         <PracticeSessionLogPanel v-if="showLogSection" />
@@ -3006,18 +3025,24 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <section v-if="showChineseSection" class="mode-section" id="practice-chinese">
+        <section
+          v-if="showChineseSection"
+          class="mode-section mode-section--chinese"
+          id="practice-chinese"
+        >
           <h3 class="mode-section__title">语文练习</h3>
           <p class="mode-section__hint">
             面向公务员、事业单位备考；开放成语/词语识记、文言、修辞、阅读理解及公基常识等子功能。
           </p>
           <ChinesePracticeSection
             ref="chinesePracticeRef"
-            @go-install="activeOutlineSection = 'install'"
+            @go-install="activeOutlineSection = 'settings'"
+            @tab-change="chineseActiveTab = $event"
           />
         </section>
 
-        <PwaInstallPanel v-if="showInstallSection" />
+        <PwaInstallPanel v-if="showInstallSection" panel="install" />
+        <PwaInstallPanel v-if="showSettingsSection" panel="settings" />
       </div>
     </div>
 
@@ -4302,8 +4327,51 @@ onBeforeUnmount(() => {
     padding: 12px 12px 24px;
   }
 
+  /* 语文区：去掉与顶栏重复的「语文练习」标题/说明 */
+  .mode-section--chinese > .mode-section__title,
+  .mode-section--chinese > .mode-section__hint {
+    display: none;
+  }
+
+  /* 语文：顶栏与子菜单贴紧，减少空隙 */
+  .practice-main:has(.mode-section--chinese) {
+    padding-top: 0;
+  }
+
+  /* 诗人速览：外层不滚动，仅正文区内滚动；隐藏外层滚动条 */
+  .practice-main--poet {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 0 0 6px;
+    scrollbar-gutter: auto;
+    scrollbar-width: none;
+  }
+
+  .practice-main--poet::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
+  .practice-main--poet .mode-section--chinese {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .practice-main--poet :deep(.chinese-practice-section--poet) {
+    flex: 1;
+    min-height: 0;
+  }
+
   .mode-select {
     gap: 18px;
+  }
+
+  .mode-select.practice-main--poet {
+    gap: 0;
   }
 
   .mode-section__title {

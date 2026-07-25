@@ -20,6 +20,8 @@ export type GrammarSentence = {
   sentence: string
   difficulty: 'easy' | 'normal' | 'hard'
   parts: GrammarPart[]
+  /** 其他可接受的整句切分；与 parts 任一方案匹配即可（判分时相邻同成分仍可合并） */
+  alternateParts?: GrammarPart[][]
 }
 
 export const GRAMMAR_ROLE_LABELS: Record<GrammarRole, string> = {

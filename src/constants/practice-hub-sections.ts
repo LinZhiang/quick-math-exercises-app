@@ -17,6 +17,7 @@ export type PracticeHubSectionId =
   | 'op-other'
   | 'chinese'
   | 'install'
+  | 'settings'
 
 export type PracticeHubSection = {
   id: PracticeHubSectionId
@@ -42,6 +43,7 @@ export const PRACTICE_HUB_SECTIONS: PracticeHubSection[] = [
   { id: 'op-other', title: '其他运算' },
   { id: 'chinese', title: '语文练习' },
   { id: 'install', title: '安装' },
+  { id: 'settings', title: '设置' },
 ]
 
 /** 手机端二级菜单：一级分类 */
@@ -54,7 +56,7 @@ export type PracticeHubGroup = {
 }
 
 export const PRACTICE_HUB_GROUPS: PracticeHubGroup[] = [
-  { id: 'browse', title: '导览', sectionIds: ['log', 'guide', 'install'] },
+  { id: 'browse', title: '导览', sectionIds: ['log', 'guide', 'install', 'settings'] },
   {
     id: 'mental',
     title: '口算',

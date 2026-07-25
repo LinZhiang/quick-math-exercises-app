@@ -6,9 +6,9 @@
  * 1. min-n-zeros：乘积末尾至少 k 个 0，求最小 n（经典）
  * 2. zeros-at-n：已知首项、公差、末项 n，问末尾几个 0
  * 3. term-count：至少几个因数相乘才能末尾 ≥k 个 0
- * 4. first-five-term：数列中第一个含质因数 5 的项
- * 5. five-count-of-term：某一项对「5 的个数」贡献几个
- * 6. five-step：相邻两个含 5 的项相差多少
+ * 4. first-five-term：数列中第一个「至少含两个质因数 5」（能被 25 整除）的项
+ * 5. five-count-of-term：高次幂项对「5 的个数」贡献几个（材料内定位）
+ * 6. five-step：相邻两个「能被 25 整除」的项相差多少
  * 7. cumul-at-term：乘到某一含 5 的项时，累计几个 5
  */
 import { assembleFourChoiceMcq } from '@/utils/chineseMcqAiFields'
@@ -35,7 +35,7 @@ export const GCD_LCM_MODES: {
   {
     id: 'hard',
     label: '公因数与公倍数 · 困难',
-    desc: '每轮 6 题 · 对齐经典真题 4 的 7 类变式（每题题型不同）· 正计时停表看答案',
+    desc: '每轮 6 题 · 对齐经典真题 4，卡高次幂 5 / 累计末尾 0 · 正计时停表看答案',
   },
 ]
 
@@ -57,18 +57,18 @@ export const GCD_LCM_HARD_EXAM_TYPES = [
   },
   {
     id: 'first-five-term',
-    name: '第一个含质因数 5 的项',
-    note: '在等差数列中找最小的含 5 的项',
+    name: '第一个高次含 5 的项',
+    note: '找数列中第一个能被 25 整除（v5≥2）的项，禁止「扫到第一个被 5 整除」',
   },
   {
     id: 'five-count-of-term',
-    name: '某一项贡献几个 5',
-    note: '如 200=2³×5² 贡献 2 个质因数 5',
+    name: '高次幂项贡献几个 5',
+    note: '先在数列中定位高次幂项，再问指数；材料不可成摆设',
   },
   {
     id: 'five-step',
-    name: '相邻含 5 项的步长',
-    note: '含 5 的项每隔 LCM(公差,5)/… 出现，问相邻差',
+    name: '相邻「能被 25 整除」项的步长',
+    note: '间隔由公差与 25 的 LCM 决定，非简单 LCM(d,5)',
   },
   {
     id: 'cumul-at-term',
@@ -222,9 +222,9 @@ function buildQuestion(input: {
     'gcd-lcm',
     input.difficulty,
     input.hardTypeId ?? '',
-    input.stem,
+    (input.passage ?? '').trim(),
+    input.stem.trim(),
     [...assembled.options].sort().join('|'),
-    String(assembled.correctIndex),
   ].join('\u001e')
   return {
     id: `gcd-lcm-${input.difficulty}-${input.seq}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -350,20 +350,23 @@ function genEasyCoprime(seq: number): GcdLcmQuestion | null {
 // ——— 中等：多数 GCD/LCM + 经典真题 3 周期相遇 ———
 
 function genMediumMultiGcd(seq: number): GcdLcmQuestion | null {
-  const triples: number[][] = [
-    [12, 18, 30],
-    [16, 24, 40],
-    [15, 25, 35],
-    [14, 21, 35],
-    [18, 27, 45],
-  ]
-  const nums = pickOne(triples)
+  // 随机三数，扩大池避免同卷撞车
+  const base = randInt(2, 6)
+  const nums = shuffleInPlace([
+    base * pickOne([2, 3, 4, 5, 6]),
+    base * pickOne([3, 4, 5, 6, 7, 8]),
+    base * pickOne([4, 5, 6, 7, 8, 9, 10]),
+  ])
+  if (new Set(nums).size < 3) return null
   const ans = gcdMany(nums)
+  if (ans < 2) return null
   const distractors = uniqueNum(ans, [
     lcmMany(nums),
     Math.min(...nums),
     gcd(nums[0]!, nums[1]!),
     ans * 2,
+    ans * 3,
+    Math.max(...nums),
   ])
   return buildQuestion({
     difficulty: 'medium',
@@ -378,21 +381,21 @@ function genMediumMultiGcd(seq: number): GcdLcmQuestion | null {
 }
 
 function genMediumMultiLcm(seq: number): GcdLcmQuestion | null {
-  const triples: number[][] = [
-    [4, 6, 8],
-    [6, 9, 12],
-    [8, 12, 18],
-    [5, 10, 15],
-    [9, 12, 18],
-  ]
-  const nums = pickOne(triples)
+  const nums = shuffleInPlace([
+    pickOne([3, 4, 5, 6, 8, 9]),
+    pickOne([4, 6, 8, 9, 10, 12]),
+    pickOne([5, 6, 8, 10, 12, 15, 18]),
+  ])
+  if (new Set(nums).size < 3) return null
   const ans = lcmMany(nums)
+  if (ans < 12 || ans > 720) return null
   const distractors = uniqueNum(ans, [
     gcdMany(nums),
     nums.reduce((a, b) => a * b, 1),
     Math.max(...nums),
     ans / 2,
     ans * 2,
+    lcm2(nums[0]!, nums[1]!),
   ].filter((x) => x > 0 && Number.isInteger(x)))
   return buildQuestion({
     difficulty: 'medium',
@@ -408,30 +411,41 @@ function genMediumMultiLcm(seq: number): GcdLcmQuestion | null {
 
 /** 经典真题 3：周期相遇 = LCM */
 function genMediumMeetAgain(seq: number): GcdLcmQuestion | null {
-  const scenarios: {
-    names: [string, string, string]
-    days: [number, number, number]
-    place: string
-  }[] = [
-    { names: ['小凡', '小徐', '老刘'], days: [5, 9, 12], place: '健身房' },
-    { names: ['甲', '乙', '丙'], days: [4, 6, 10], place: '图书馆' },
-    { names: ['小张', '小李', '小王'], days: [3, 5, 7], place: '游泳馆' },
-    { names: ['阿杰', '阿强', '阿明'], days: [6, 8, 9], place: '篮球场' },
-    { names: ['小陈', '小周', '小吴'], days: [4, 5, 6], place: '公园' },
-    { names: ['小刘', '小赵', '小孙'], days: [8, 10, 12], place: '羽毛球馆' },
+  const nameSets: [string, string, string][] = [
+    ['小凡', '小徐', '老刘'],
+    ['甲', '乙', '丙'],
+    ['小张', '小李', '小王'],
+    ['阿杰', '阿强', '阿明'],
+    ['小陈', '小周', '小吴'],
+    ['小刘', '小赵', '小孙'],
+    ['小何', '小罗', '小邓'],
+    ['阿东', '阿西', '阿南'],
   ]
-  const s = pickOne(scenarios)
-  const [d1, d2, d3] = s.days
+  const places = ['健身房', '图书馆', '游泳馆', '篮球场', '公园', '羽毛球馆', '琴房', '晨练点']
+  // 随机三周期，避免固定 6 组场景反复撞车
+  const pool = [3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 15, 16, 18]
+  const days = shuffleInPlace([...pool]).slice(0, 3) as [number, number, number]
+  days.sort((a, b) => a - b)
+  // 三者不能全互质积过大难算，也避免完全相同
+  if (new Set(days).size < 3) return null
+  const [d1, d2, d3] = days
   const ans = lcmMany([d1, d2, d3])
+  if (ans < 12 || ans > 720) return null
+  const names = pickOne(nameSets)
+  const place = pickOne(places)
   const distractors = uniqueNum(ans, [
     d1 * d2 * d3,
     lcm2(d1, d2),
     lcm2(d2, d3),
+    lcm2(d1, d3),
     d1 + d2 + d3,
+    d1 * d2,
     gcdMany([d1, d2, d3]) * ans,
     ans / 2,
+    ans * 2,
+    (d1 - 1) * (d2 - 1) * (d3 - 1),
   ].filter((x) => x > 0 && Number.isInteger(x) && x !== ans))
-  const passage = `${s.names[0]}每隔 ${d1} 天去一次${s.place}，${s.names[1]}每隔 ${d2} 天去一次，${s.names[2]}每隔 ${d3} 天去一次。三人今天在${s.place}相遇。`
+  const passage = `${names[0]}每隔 ${d1} 天去一次${place}，${names[1]}每隔 ${d2} 天去一次，${names[2]}每隔 ${d3} 天去一次。三人今天在${place}相遇。`
   return buildQuestion({
     difficulty: 'medium',
     term: '周期相遇（经典真题 3）',
@@ -446,26 +460,32 @@ function genMediumMeetAgain(seq: number): GcdLcmQuestion | null {
 }
 
 function genMediumPairGcdLcm(seq: number): GcdLcmQuestion | null {
-  const pairs: [number, number][] = [
-    [24, 60],
-    [36, 48],
-    [28, 42],
-    [45, 75],
-    [32, 56],
-  ]
-  const [a, b] = pickOne(pairs)
+  const a = randInt(12, 96)
+  const b = randInt(12, 96)
+  if (a === b) return null
   const g = gcd(a, b)
   const l = lcm2(a, b)
+  if (g < 2 || l > 2000) return null
   const askGcd = Math.random() < 0.5
   const ans = askGcd ? g : l
   return buildQuestion({
     difficulty: 'medium',
     term: askGcd ? '两数最大公因数' : '两数最小公倍数',
+    // 题干不给质因数分解，分解只放在解析里
     stem: askGcd
-      ? `已知 ${a}=${factorPretty(a)}，${b}=${factorPretty(b)}，则最大公因数是？`
-      : `已知 ${a}=${factorPretty(a)}，${b}=${factorPretty(b)}，则最小公倍数是？`,
+      ? `${a} 与 ${b} 的最大公因数是？`
+      : `${a} 与 ${b} 的最小公倍数是？`,
     correct: String(ans),
-    distractors: uniqueNum(ans, [askGcd ? l : g, a, b, g * 2, l / 2].filter((x) => x > 0 && Number.isInteger(x))),
+    distractors: uniqueNum(ans, [
+      askGcd ? l : g,
+      a,
+      b,
+      g * 2,
+      l / 2,
+      a + b,
+      Math.abs(a - b),
+      a * b,
+    ].filter((x) => x > 0 && Number.isInteger(x))),
     method: askGcd
       ? '公有质因数取较低次幂。'
       : '全部质因数取较高次幂。',
@@ -528,6 +548,9 @@ function buildZeroScene(opts?: {
     if (minN === 0) continue
     // 保证 2 够用（末尾 0 由 5 决定）
     if (cumul2 < targetK) continue
+    // 困难变式依赖高次幂：尽量保证至少两项 v5≥2
+    const highCount = hits.filter((h) => h.v5 >= 2).length
+    if (highCount < 2 && attempt < 60) continue
 
     return { first, diff, targetK, hits, minN, minTermCount, cumulAtHits }
   }
@@ -636,79 +659,134 @@ function genHardTermCount(seq: number): GcdLcmQuestion | null {
 }
 
 function genHardFirstFiveTerm(seq: number): GcdLcmQuestion | null {
-  const scene = buildZeroScene({ targetK: 6 })
+  // 困难：禁止「依次检验到第一个被 5 整除」一眼题；改问首个 v5≥2（含 25 的幂）
+  const scene = buildZeroScene({ targetK: 8 })
   if (!scene) return null
   const { first, diff, hits } = scene
-  const ans = hits[0]!.term
+  const high = hits.filter((h) => h.v5 >= 2)
+  if (!high.length) return null
+  const ans = high[0]!.term
+  const firstFive = hits[0]!.term
   const distractors = uniqueNum(ans, [
-    ans + diff,
+    firstFive,
+    firstFive + lcm2(diff, 5),
+    ans + lcm2(diff, 25),
     first,
     first + diff,
     lcm2(diff, 5),
+    25,
     ans - diff > 0 ? ans - diff : ans + 2 * diff,
   ])
   return buildQuestion({
     difficulty: 'hard',
-    term: '第一个含质因数 5 的项',
+    term: '第一个高次含 5 的项',
     hardTypeId: 'first-five-term',
     passage: productPassage(first, diff, 'n'),
-    stem: '该等差数列中，第一个含有质因数 5 的项是？',
+    stem: '该等差数列中，第一个能被 25 整除（至少含两个质因数 5）的项是？',
     correct: String(ans),
     distractors,
-    method: '从首项起按公差推进，检查能否被 5 整除（或含 5 的幂）。',
-    explanation: `首项 ${first}，公差 ${diff}。依次检验：… 得 ${ans}（${factorPretty(ans)}）为第一个含 5 的项。`,
+    method: '含 5 的项落在原等差数列 ∩ 5 的倍数上；再筛能被 25 整除者。干扰常为「第一个仅被 5 整除」的项。',
+    explanation: `首项 ${first}，公差 ${diff}。第一个仅含一个 5 的项多为 ${firstFive}；继续推进得 ${ans}=${factorPretty(ans)}，为第一个 v5≥2 的项。答案为 ${ans}。`,
     seq,
   })
 }
 
 function genHardFiveCountOfTerm(seq: number): GcdLcmQuestion | null {
-  const scene = buildZeroScene({ targetK: 8 })
+  // 困难：只问数列内高次幂项，且题干先定位「第一个/第 k 个」高次项，材料必须用到
+  const scene = buildZeroScene({ targetK: 10 })
   if (!scene) return null
   const high = scene.hits.filter((h) => h.v5 >= 2)
-  const pick = high.length ? pickOne(high) : pickOne(scene.hits)
+  if (!high.length) return null
+  const mode = pickOne(['first-high', 'which-most'] as const)
+
+  if (mode === 'which-most') {
+    // 给出数列中若干含 5 的项，问哪一项贡献的 5 最多
+    const pool = scene.hits.slice(0, Math.min(6, scene.hits.length))
+    const best = pool.reduce((a, b) => (b.v5 > a.v5 ? b : a))
+    if (best.v5 < 2) return null
+    const cands = shuffleInPlace([...pool]).slice(0, 4)
+    if (!cands.some((h) => h.term === best.term)) {
+      cands[0] = best
+      shuffleInPlace(cands)
+    }
+    while (cands.length < 4) {
+      const extra = scene.hits.find((h) => !cands.some((c) => c.term === h.term))
+      if (!extra) break
+      cands.push(extra)
+    }
+    if (cands.length < 4) return null
+    const labels = cands.map((h) => String(h.term))
+    return buildQuestion({
+      difficulty: 'hard',
+      term: '哪一项贡献 5 最多',
+      hardTypeId: 'five-count-of-term',
+      passage: productPassage(scene.first, scene.diff, 'n'),
+      stem: `在下列属于该数列的因数中，对乘积「质因数 5 的个数」贡献最多的是？`,
+      correct: String(best.term),
+      distractors: labels.filter((s) => s !== String(best.term)).slice(0, 3),
+      method: '各项做质因数分解比指数；25、125、625 分别贡献 2、3、4。须确认选项确实落在等差数列上。',
+      explanation: `${cands.map((h) => `${h.term}=${factorPretty(h.term)}（贡献 ${h.v5}）`).join('；')}。最多者为 ${best.term}。答案为 ${best.term}。`,
+      seq,
+    })
+  }
+
+  const pick = high[0]!
   const ans = pick.v5
   const distractors = uniqueNum(ans, [1, 2, 3, ans + 1, 0].filter((x) => x !== ans && x >= 0))
   return buildQuestion({
     difficulty: 'hard',
-    term: '某一项贡献几个 5',
+    term: '高次幂项贡献几个 5',
     hardTypeId: 'five-count-of-term',
     passage: productPassage(scene.first, scene.diff, 'n'),
-    stem: `因数 ${pick.term} 对乘积中「质因数 5 的个数」贡献几个？`,
+    stem: `该数列中第一个能被 25 整除的项，对乘积中「质因数 5 的个数」贡献几个？`,
     correct: String(ans),
     distractors,
-    method: '对该项做质因数分解，看 5 的指数；25、125、625 分别贡献 2、3、4 个。',
-    explanation: `${pick.term}=${factorPretty(pick.term)}，质因数 5 的指数为 ${ans}。`,
+    method: '先按公差推进找到第一个被 25 整除的项，再分解看 5 的指数。',
+    explanation: `第一个高次项为 ${pick.term}=${factorPretty(pick.term)}，质因数 5 的指数为 ${ans}。答案为 ${ans}。`,
     seq,
   })
 }
 
 function genHardFiveStep(seq: number): GcdLcmQuestion | null {
-  const scene = buildZeroScene({ targetK: 6 })
-  if (!scene || scene.hits.length < 2) return null
+  // 困难：问相邻「能被 25 整除」项的差（≈LCM(d,25)），忌一眼 LCM(d,5)
+  const scene = buildZeroScene({ targetK: 10 })
+  if (!scene) return null
   const { first, diff, hits } = scene
-  // 相邻两个「至少含一个 5」的项之差（通常恒定 = LCM(diff,5) 在同余类上的步长）
-  const step = hits[1]!.term - hits[0]!.term
-  // 验证前几项是否等步
-  const consistent = hits.slice(0, Math.min(4, hits.length - 1)).every((h, i) => {
+  const high = hits.filter((h) => h.v5 >= 2)
+  if (high.length < 2) return null
+  const step = high[1]!.term - high[0]!.term
+  const consistent = high.slice(0, Math.min(4, high.length - 1)).every((h, i) => {
     if (i === 0) return true
-    return hits[i]!.term - hits[i - 1]!.term === step
+    return high[i]!.term - high[i - 1]!.term === step
   })
   if (!consistent || step <= 0) return null
+  // 若步长碰巧等于 LCM(d,5)，说明场景太浅，重抽
+  if (step === lcm2(diff, 5) && step !== lcm2(diff, 25)) return null
   const ans = step
-  const distractors = uniqueNum(ans, [diff, 5, lcm2(diff, 5), diff * 5, step * 2, Math.abs(diff - 5)])
+  const fiveStep = hits.length >= 2 ? hits[1]!.term - hits[0]!.term : lcm2(diff, 5)
+  const distractors = uniqueNum(ans, [
+    fiveStep,
+    diff,
+    5,
+    25,
+    lcm2(diff, 5),
+    lcm2(diff, 25),
+    diff * 5,
+    step * 2,
+  ])
   return buildQuestion({
     difficulty: 'hard',
-    term: '相邻含 5 项的步长',
+    term: '相邻高次含 5 项的步长',
     hardTypeId: 'five-step',
     passage: productPassage(first, diff, 'n'),
-    stem: '数列中相邻两个「含质因数 5」的项，它们的差通常是多少？',
+    stem: '数列中相邻两个「能被 25 整除」的项，它们的差通常是多少？',
     correct: String(ans),
     distractors,
-    method: '含 5 的项需同时落在原等差数列与 5 的倍数上，相邻间隔由公差与 5 的最小公倍数决定。',
-    explanation: `前几个含 5 的项：${hits
+    method: '能被 25 整除的项 = 原等差数列 ∩ 25 的倍数；相邻间隔由 LCM(公差,25) 在同余类上决定。勿与「仅含一个 5」的步长混淆。',
+    explanation: `能被 25 整除的项如：${high
       .slice(0, 4)
       .map((h) => h.term)
-      .join('、')}…，相邻差为 ${ans}（与 LCM(${diff},5)=${lcm2(diff, 5)} 相关）。`,
+      .join('、')}…，相邻差为 ${ans}（与 LCM(${diff},25)=${lcm2(diff, 25)} 相关）。仅含一个 5 的相邻差多为 ${fiveStep}。答案为 ${ans}。`,
     seq,
   })
 }
@@ -757,13 +835,14 @@ const HARD_BUILDERS: Record<
   'cumul-at-term': genHardCumulAtTerm,
 }
 
-function tryBuild(
+function tryBuildUnique(
   factory: () => GcdLcmQuestion | null,
-  maxTry = 25,
+  seen: Set<string>,
+  maxTry = 40,
 ): GcdLcmQuestion | null {
   for (let i = 0; i < maxTry; i++) {
     const q = factory()
-    if (q) return q
+    if (q && !seen.has(q.fingerprint)) return q
   }
   return null
 }
@@ -774,35 +853,40 @@ export function generateGcdLcmPaper(difficulty: GcdLcmDifficulty): GcdLcmQuestio
 
   const push = (q: GcdLcmQuestion | null) => {
     if (!q) return
-    const key = q.fingerprint
-    if (seen.has(key)) return
-    seen.add(key)
+    if (seen.has(q.fingerprint)) return
+    seen.add(q.fingerprint)
     out.push(q)
   }
 
   if (difficulty === 'easy') {
     const factories = [genEasyGcd, genEasyLcm, genEasyCoprime]
     let guard = 0
-    while (out.length < GCD_LCM_QUESTION_COUNT && guard++ < 80) {
+    while (out.length < GCD_LCM_QUESTION_COUNT && guard++ < 120) {
       const f = pickOne(factories)
-      push(tryBuild(() => f(out.length)))
+      push(tryBuildUnique(() => f(out.length), seen))
     }
   } else if (difficulty === 'medium') {
+    // 同卷内同题型可重复，但材料数字/选项必须互异；相遇题最多 2 道且强制换周期
     const plan: Array<() => GcdLcmQuestion | null> = [
       () => genMediumMeetAgain(0),
-      () => genMediumMeetAgain(1),
-      () => genMediumMultiGcd(2),
-      () => genMediumMultiLcm(3),
-      () => genMediumPairGcdLcm(4),
-      () => (Math.random() < 0.5 ? genMediumMeetAgain(5) : genMediumPairGcdLcm(5)),
+      () => genMediumMultiGcd(1),
+      () => genMediumMultiLcm(2),
+      () => genMediumPairGcdLcm(3),
+      () => (Math.random() < 0.5 ? genMediumMultiGcd(4) : genMediumMultiLcm(4)),
+      () => (Math.random() < 0.55 ? genMediumMeetAgain(5) : genMediumPairGcdLcm(5)),
     ]
-    for (let i = 0; i < plan.length; i++) {
-      const factory = plan[i]!
-      push(tryBuild(() => factory()))
+    for (const factory of plan) {
+      push(tryBuildUnique(factory, seen, 50))
     }
+    const fillers = [
+      () => genMediumPairGcdLcm(out.length),
+      () => genMediumMultiGcd(out.length),
+      () => genMediumMultiLcm(out.length),
+      () => genMediumMeetAgain(out.length),
+    ]
     let guard = 0
-    while (out.length < GCD_LCM_QUESTION_COUNT && guard++ < 60) {
-      push(tryBuild(() => genMediumMeetAgain(out.length)))
+    while (out.length < GCD_LCM_QUESTION_COUNT && guard++ < 100) {
+      push(tryBuildUnique(pickOne(fillers), seen, 30))
     }
   } else {
     const types = shuffleInPlace([...GCD_LCM_HARD_EXAM_TYPES.map((t) => t.id)]).slice(
@@ -811,16 +895,7 @@ export function generateGcdLcmPaper(difficulty: GcdLcmDifficulty): GcdLcmQuestio
     )
     for (const typeId of types) {
       const builder = HARD_BUILDERS[typeId]
-      let q: GcdLcmQuestion | null = null
-      for (let t = 0; t < 30; t++) {
-        q = builder(out.length)
-        if (q && !seen.has(q.fingerprint)) break
-        q = null
-      }
-      if (q) {
-        seen.add(q.fingerprint)
-        out.push(q)
-      }
+      push(tryBuildUnique(() => builder(out.length), seen, 40))
     }
   }
 

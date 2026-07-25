@@ -141,7 +141,7 @@ export function getAuthPublicConfig() {
     adminSessionTtlMs: ADMIN_SESSION_TTL_MS,
     memberSessionTtlHours: Math.round((MEMBER_SESSION_TTL_MS / (60 * 60 * 1000)) * 10) / 10,
     adminSessionTtlDays: Math.round((ADMIN_SESSION_TTL_MS / (24 * 60 * 60 * 1000)) * 10) / 10,
-    memberStorageHint: 'sessionStorage',
+    memberStorageHint: 'localStorage',
     adminStorageHint: 'localStorage',
   }
 }

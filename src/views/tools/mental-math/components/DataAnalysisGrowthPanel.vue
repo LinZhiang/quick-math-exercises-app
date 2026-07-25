@@ -168,7 +168,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         已备好 {{ test.questions.length }} 题，点击「开始练习」后计时。
       </p>
       <p v-else-if="!isAiChatConfigured()" class="chinese-setup__loading">
-        未登录，无法生成。请到「导览 → 安装」登录后再试。
+        未登录，无法生成。请到「导览 → 设置」登录后再试。
       </p>
     </template>
 

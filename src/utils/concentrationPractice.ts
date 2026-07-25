@@ -211,7 +211,6 @@ function buildQuestion(input: {
     input.stem,
     input.passage ?? '',
     [...assembled.options].sort().join('|'),
-    String(assembled.correctIndex),
   ].join('\u001e')
   return {
     id: `conc-${input.difficulty}-${input.seq}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,

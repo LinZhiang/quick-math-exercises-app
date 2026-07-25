@@ -236,7 +236,6 @@ export function buildProbabilityQuestionFromSeed(
     passage,
     stem,
     [...assembled.options].sort().join('|'),
-    String(assembled.correctIndex),
   ].join('\u001e')
   return {
     id: `prob-${difficulty}-${seq}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -301,7 +300,6 @@ function buildLocalQuestion(input: {
     input.stem,
     input.passage,
     [...assembled.options].sort().join('|'),
-    String(assembled.correctIndex),
   ].join('\u001e')
   return {
     id: `prob-${input.difficulty}-${input.seq}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,

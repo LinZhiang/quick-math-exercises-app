@@ -197,9 +197,9 @@ function buildQuestion(input: {
     'rem-prop',
     input.difficulty,
     input.hardTypeId ?? '',
-    input.stem,
+    (input.passage ?? '').trim(),
+    input.stem.trim(),
     [...assembled.options].sort().join('|'),
-    String(assembled.correctIndex),
   ].join('\u001e')
   return {
     id: `rem-prop-${input.difficulty}-${input.seq}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -810,10 +810,14 @@ const HARD_BUILDERS: Record<RemPropHardTypeId, (seq: number) => RemPropQuestion 
   'mixed-expr-rem': genHardMixedExprRem,
 }
 
-function tryBuild(factory: () => RemPropQuestion | null, maxTry = 30): RemPropQuestion | null {
+function tryBuild(
+  factory: () => RemPropQuestion | null,
+  seen: Set<string>,
+  maxTry = 40,
+): RemPropQuestion | null {
   for (let i = 0; i < maxTry; i++) {
     const q = factory()
-    if (q) return q
+    if (q && !seen.has(q.fingerprint)) return q
   }
   return null
 }
@@ -832,23 +836,28 @@ export function generateRemPropPaper(difficulty: RemPropDifficulty): RemPropQues
   if (difficulty === 'easy') {
     const factories = [genEasySumRem, genEasyDiffRem, genEasyProdRem, genEasyMixedRem]
     let guard = 0
-    while (out.length < REM_PROP_QUESTION_COUNT && guard++ < 100) {
-      push(tryBuild(() => pickOne(factories)(out.length)))
+    while (out.length < REM_PROP_QUESTION_COUNT && guard++ < 120) {
+      push(tryBuild(() => pickOne(factories)(out.length), seen))
     }
   } else if (difficulty === 'medium') {
     const plan = [
       () => genMediumScoreDraw(0),
-      () => genMediumScoreDraw(1),
-      () => genMediumCrtGroup(2),
-      () => genMediumCrtGroup(3),
-      () => genMediumExprRem(4),
+      () => genMediumCrtGroup(1),
+      () => genMediumExprRem(2),
+      () => genMediumScoreDraw(3),
+      () => genMediumCrtGroup(4),
       () => genMediumExprRem(5),
       () => (Math.random() < 0.5 ? genMediumScoreDraw(6) : genMediumCrtGroup(6)),
     ]
-    for (const f of plan) push(tryBuild(f))
+    for (const f of plan) push(tryBuild(f, seen, 50))
     let guard = 0
-    while (out.length < REM_PROP_QUESTION_COUNT && guard++ < 50) {
-      push(tryBuild(() => genMediumCrtGroup(out.length)))
+    while (out.length < REM_PROP_QUESTION_COUNT && guard++ < 80) {
+      const fillers = [
+        () => genMediumCrtGroup(out.length),
+        () => genMediumExprRem(out.length),
+        () => genMediumScoreDraw(out.length),
+      ]
+      push(tryBuild(pickOne(fillers), seen, 30))
     }
   } else {
     const types = shuffleInPlace([...REM_PROP_HARD_EXAM_TYPES.map((t) => t.id)]).slice(
@@ -856,17 +865,7 @@ export function generateRemPropPaper(difficulty: RemPropDifficulty): RemPropQues
       REM_PROP_QUESTION_COUNT,
     )
     for (const typeId of types) {
-      const builder = HARD_BUILDERS[typeId]
-      let q: RemPropQuestion | null = null
-      for (let t = 0; t < 40; t++) {
-        q = builder(out.length)
-        if (q && !seen.has(q.fingerprint)) break
-        q = null
-      }
-      if (q) {
-        seen.add(q.fingerprint)
-        out.push(q)
-      }
+      push(tryBuild(() => HARD_BUILDERS[typeId](out.length), seen, 40))
     }
   }
 

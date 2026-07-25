@@ -191,7 +191,6 @@ export function getPullFingerprint(input: {
     input.passage.trim(),
     input.stem.trim(),
     [...input.options].map((x) => x.trim()).sort().join('\u001f'),
-    String(input.correctIndex),
   ].join('\u001e')
 }
 

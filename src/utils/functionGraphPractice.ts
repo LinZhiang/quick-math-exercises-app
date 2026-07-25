@@ -164,7 +164,6 @@ export function buildFunctionGraphQuestionFromSeed(
     passage,
     stem,
     optionKinds.join('|'),
-    String(correctIndex),
   ].join('\u001e')
   return {
     id: `fg-${seed.difficulty}-${seq}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,

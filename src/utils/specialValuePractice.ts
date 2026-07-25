@@ -190,9 +190,9 @@ function buildQuestion(input: {
     'spec-val',
     input.difficulty,
     input.easyTypeId ?? input.hardTypeId ?? '',
-    input.stem,
+    (input.passage ?? '').trim(),
+    input.stem.trim(),
     [...assembled.options].sort().join('|'),
-    String(assembled.correctIndex),
   ].join('\u001e')
   return {
     id: `spec-val-${input.difficulty}-${input.seq}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
