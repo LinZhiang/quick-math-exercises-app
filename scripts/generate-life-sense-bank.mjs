@@ -20,6 +20,7 @@ import {
 } from './life-sense-relations-data.mjs'
 import { getNatureQaByDifficulty } from './life-sense-nature-data.mjs'
 import { getExtraQaByDifficulty } from './life-sense-extra-data.mjs'
+import { getCultureQaByDifficulty } from './life-sense-culture-data.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const outJson = path.join(__dirname, '../src/utils/lifeSenseBank.generated.json')
@@ -156,6 +157,36 @@ function addNatureKnowledge(diff) {
   if (n !== 120) {
     throw new Error(`自然地理专题 ${diff} 应为 120 题，实际 ${n}`)
   }
+}
+
+function addCultureKnowledge(diff) {
+  const bag = getCultureQaByDifficulty(diff)
+  const topicLabel = {
+    music: '古代音乐',
+    opera: '古代戏曲',
+    tech: '古代科技',
+  }
+  let n = 0
+  for (const [topic, rows] of Object.entries(bag)) {
+    if (rows.length !== 30) {
+      throw new Error(`文化专题 ${diff}/${topic} 应为 30 题，实际 ${rows.length}`)
+    }
+    for (const [stem, correct, distractors] of rows) {
+      const ok = pushOnce(
+        diff,
+        stem,
+        correct,
+        distractors,
+        `【${topicLabel[topic] || topic}】正确答案是「${correct}」。`,
+        `culture-${topic}`,
+      )
+      if (ok) n += 1
+    }
+  }
+  if (n !== 90) {
+    throw new Error(`古代文化专题 ${diff} 应为 90 题（音乐/戏曲/科技各30），实际 ${n}`)
+  }
+  console.log(`[culture] ${diff}: +${n}`)
 }
 
 function addExtraKnowledge(diff) {
@@ -1417,6 +1448,7 @@ function addRelations(diff) {
 
 for (const d of ['easy', 'normal', 'hard']) {
   addNatureKnowledge(d) // 天气/节日/天文/山川：每难度精确 120 题，优先入库
+  addCultureKnowledge(d) // 古代音乐/戏曲/科技：每难度精确 90 题
   addExtraKnowledge(d) // 各难度再补 ≥200 道生活快判
   addMaterials(d)
   addMaterialReverse(d)
@@ -1641,6 +1673,26 @@ for (const diff of ['easy', 'normal', 'hard']) {
     }
   }
   console.log(`[nature] ${diff}:`, byTopic, 'sum', nature.length)
+}
+
+// 专题入库检查：古代音乐/戏曲/科技 每难度须满 90（各类 30）
+for (const diff of ['easy', 'normal', 'hard']) {
+  const culture = final.filter((q) => q.difficulty === diff && String(q.key || '').includes('culture-'))
+  if (culture.length < 90) {
+    throw new Error(`入库后 ${diff} 古代文化专题不足 90（实际 ${culture.length}）`)
+  }
+  const byTopic = { music: 0, opera: 0, tech: 0 }
+  for (const q of culture) {
+    for (const t of Object.keys(byTopic)) {
+      if (String(q.key).includes(`culture-${t}`)) byTopic[t] += 1
+    }
+  }
+  for (const t of Object.keys(byTopic)) {
+    if (byTopic[t] < 30) {
+      throw new Error(`入库后 ${diff}/culture-${t} 不足 30（实际 ${byTopic[t]}）`)
+    }
+  }
+  console.log(`[culture] ${diff}:`, byTopic, 'sum', culture.length)
 }
 
 console.log('OK', payload.easy, payload.normal, payload.hard, 'total', payload.total)
