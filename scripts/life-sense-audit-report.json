@@ -1,10 +1,10 @@
 {
   "counts": {
-    "easy": 569,
-    "normal": 513,
-    "hard": 516
+    "easy": 659,
+    "normal": 603,
+    "hard": 606
   },
-  "uniqueStems": 1580,
+  "uniqueStems": 1850,
   "errorCount": 0,
   "warningCount": 0,
   "errors": [],
@@ -32,6 +32,28 @@
       "festival": 30,
       "astronomy": 30,
       "landform": 30
+    }
+  },
+  "cultureCounts": {
+    "easy": 90,
+    "normal": 90,
+    "hard": 90
+  },
+  "cultureTopicCounts": {
+    "easy": {
+      "music": 30,
+      "opera": 30,
+      "tech": 30
+    },
+    "normal": {
+      "music": 30,
+      "opera": 30,
+      "tech": 30
+    },
+    "hard": {
+      "music": 30,
+      "opera": 30,
+      "tech": 30
     }
   }
 }

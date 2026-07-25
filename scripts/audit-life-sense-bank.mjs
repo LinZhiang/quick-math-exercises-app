@@ -525,6 +525,36 @@ const report = {
   report.natureTopicCounts = topicCounts
 }
 
+// 古代音乐/戏曲/科技：每难度 90，各类 30
+{
+  const cultureCounts = { easy: 0, normal: 0, hard: 0 }
+  const topicCounts = {
+    easy: { music: 0, opera: 0, tech: 0 },
+    normal: { music: 0, opera: 0, tech: 0 },
+    hard: { music: 0, opera: 0, tech: 0 },
+  }
+  for (const q of items) {
+    const k = String(q.key || '')
+    if (!k.includes('culture-')) continue
+    cultureCounts[q.difficulty] = (cultureCounts[q.difficulty] || 0) + 1
+    for (const t of ['music', 'opera', 'tech']) {
+      if (k.includes(`culture-${t}`)) topicCounts[q.difficulty][t] += 1
+    }
+  }
+  for (const diff of ['easy', 'normal', 'hard']) {
+    if (cultureCounts[diff] < 90) {
+      err(`古代文化专题 ${diff} 不足90（${cultureCounts[diff]}）`)
+    }
+    for (const t of ['music', 'opera', 'tech']) {
+      if (topicCounts[diff][t] < 30) {
+        err(`古代文化专题 ${diff}/${t} 不足30（${topicCounts[diff][t]}）`)
+      }
+    }
+  }
+  report.cultureCounts = cultureCounts
+  report.cultureTopicCounts = topicCounts
+}
+
 fs.writeFileSync(
   path.join(__dirname, 'life-sense-audit-report.json'),
   JSON.stringify(report, null, 2),
