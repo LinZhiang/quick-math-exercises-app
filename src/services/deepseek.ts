@@ -46,6 +46,12 @@ import {
   type PoetryRecognitionQuestion,
 } from '@/utils/poetryRecognitionPractice'
 import {
+  buildPoetDrillQuestionFromMcq,
+  parsePoetDrillMcqAiObject,
+  POET_DRILL_QUESTION_COUNT,
+  type PoetDrillQuestion,
+} from '@/utils/poetDrillPractice'
+import {
   buildTheoryPolicyQuestionFromMcq,
   THEORY_POLICY_QUESTION_COUNT,
   parseTheoryPolicyMcqAiObject,
@@ -739,6 +745,154 @@ export async function requestPoetryRecognitionMcqs(input: {
       const fields = parsePoetryMcqAiObject(oneObj)
       if (!fields) continue
       const q = buildPoetryQuestionFromMcq({ ...fields, seq: slot })
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const POET_DRILL_SYSTEM = [
+  '你是公务员考试与事业单位考试「文学常识/古诗文」命题专家，擅长根据给定背诵材料出细致识记题。',
+  '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
+  '所有考点必须能在用户提供的材料中找到依据；不得编造材料未出现的诗句、作者或背景。',
+].join('\n')
+
+const POET_DRILL_FORMAT = `
+【题型】每题 questionType 随机取其一：
+- verse-to-author（诗句选作者）：stem 只写材料中的诗句（可 1～4 句），问作者；选项为四位诗人姓名；stem **不得**出现作者名或篇目名
+- author-to-verse（作者选诗句）：stem 问某诗人哪句出自材料（或给出情境问对应名句）；correct 为材料中的名句；干扰项为同分期其他诗人名句或易混句
+- verse-to-background（诗句选背景）：stem **只写诗句**（不得写篇目名/作者名），问创作处境；选项为短句概括
+- poet-fact（诗人背景）：根据材料考生平脉络、流派、阶段特点、应试标签；stem 为完整问句
+
+【诗句选背景·难度硬性要求】（必须遵守，否则视为废题）
+- 作答者只能靠诗句内容与材料记忆判断，**禁止**靠「对号入座」蒙对
+- correct 与三个 distractors **一律不得**出现篇目名（term）、以及与篇目名同形的楼台亭阁地标专名（如 term 为「黄鹤楼」则选项禁写「黄鹤楼」；term 为「早发白帝城」则禁写「白帝城」作唯一线索）
+- 正确项应写成「时令/天气 + 处境/心境 + 地理方位类描述」，例如「登高远眺江上烟波、日暮思乡」；干扰项取**同分期材料里其他诗人**的相近江景、边塞、羁旅、登高等背景，措辞风格一致、长度接近
+- 禁止只有正确项带地名关键词、其余三项完全不沾边；四选项都应像「真背景」
+- 优先考材料注释里的细点（阶段处境、天气、羁旅缘由），不要考「一眼能从诗题猜出」的信息
+
+【命题要求】
+- 考点要比普通「诗词练习」更细：精确到材料里的名句、注释背景、分期共性
+- term 填篇目名或诗人名（仅用于复习标识；**不要**写进 stem / 背景题选项）
+- 干扰项须强干扰：同朝同期、同流派、常混诗人/相近意境/相近背景，忌明显无关选项
+- explanation 用 1～2 句点明材料依据与记忆要点（可在解析里点出篇目）
+- 本批 term 尽量分散覆盖不同诗人与篇目
+
+【JSON 示例】
+选作者：{"questionType":"verse-to-author","term":"登幽州台歌","stem":"前不见古人，后不见来者。念天地之悠悠，独怆然而涕下。","correct":"陈子昂","distractors":["王勃","骆宾王","张若虚"],"explanation":"……"}
+选背景（注意选项不含篇目名）：{"questionType":"verse-to-background","term":"黄鹤楼","stem":"日暮乡关何处是？烟波江上使人愁。","correct":"登楼远眺江上烟波，黄昏思乡","distractors":["舟泊秋江、羁旅漂泊","边城笛里折柳、征人怀乡","白帝高江、朝辞远行"],"explanation":"崔颢《黄鹤楼》……"}
+诗人事实：{"questionType":"poet-fact","term":"初唐四杰","stem":"初唐「四杰」通常指下列哪一组？","correct":"王勃、杨炯、卢照邻、骆宾王","distractors":["王维、孟浩然、李白、杜甫","高适、岑参、王昌龄、王之涣","韩愈、柳宗元、白居易、刘禹锡"],"explanation":"……"}
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
+
+function dedupePoetDrillQuestions(
+  items: PoetDrillQuestion[],
+  blockedTerms?: Set<string>,
+): PoetDrillQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: PoetDrillQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestPoetDrillMcqs(input: {
+  material: string
+  periodLabel: string
+  scopeKey: string
+  count?: number
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<PoetDrillQuestion[]> {
+  const count = input.count ?? POET_DRILL_QUESTION_COUNT
+  const material = input.material.trim()
+  if (!material) throw new Error('当前分期没有可用材料，无法出题')
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.(aiRequestProgressText('识记测试题'))
+
+  const typeHints = Array.from({ length: count }, (_, i) => {
+    const types = ['诗句选作者', '作者选诗句', '诗句选背景', '诗人背景']
+    return `第 ${i + 1} 题建议 ${types[i % types.length]}`
+  }).join('；')
+
+  const historyHint = buildAvoidTermsHint('篇目/考点', [...blocked])
+  const user = [
+    `请根据下列「${input.periodLabel}」背诵材料，生成 **${count} 道** 细致识记四选一题（公考/事业编文学常识向）。`,
+    POET_DRILL_FORMAT,
+    `本轮题型顺序参考：${typeHints}`,
+    historyHint,
+    `本批 ${count} 道的 term 必须互不相同。`,
+    `【材料】\n${material}`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: POET_DRILL_SYSTEM,
+    temperature: 0.68,
+    maxTokens: 8192,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: PoetDrillQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parsePoetDrillMcqAiObject(item)
+    if (!fields) return
+    const q = buildPoetDrillQuestionFromMcq({
+      ...fields,
+      scopeKey: input.scopeKey,
+      seq: idx + 1,
+    })
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
+  })
+
+  const deduped = dedupePoetDrillQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('篇目/考点', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        [
+          `请根据「${input.periodLabel}」材料再生成 1 道细致识记四选一题。`,
+          POET_DRILL_FORMAT,
+          avoidHint,
+          `【材料】\n${material}`,
+          '仅返回一个 JSON 对象。',
+        ].join('\n\n'),
+        { system: POET_DRILL_SYSTEM, temperature: 0.7, maxTokens: 900 },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parsePoetDrillMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildPoetDrillQuestionFromMcq({
+        ...fields,
+        scopeKey: input.scopeKey,
+        seq: slot,
+      })
       if (!q || !isPlayableFourChoiceMcq(q)) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (

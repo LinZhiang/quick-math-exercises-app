@@ -447,7 +447,8 @@ onMounted(() => {
         </el-button>
       </div>
       <p class="install-card__text wengu-auth__note">
-        管理员登录保存在本机 localStorage，有效期约 7 天；成员登录保存在 sessionStorage（关标签即失效）。
+        管理员约 7 天、成员约 2 小时有效；登录保存在本机，手机与电脑可同时登录互不挤下。
+        主动退出、过期或管理员禁用/改密后需重新登录。
         成员登录后须填写自己的 API 地址。禁用成员后其旧 Token 立即失效。
       </p>
     </div>

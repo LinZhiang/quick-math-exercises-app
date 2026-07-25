@@ -64,17 +64,17 @@ export const DIV_JUDGE_HARD_EXAM_TYPES = [
   {
     id: 'pass-property',
     name: '因子必然性（传递加强）',
-    note: '能被 15/21 等整除时，哪些结论一定对',
+    note: '能被 36/48/60 等复合数整除时，辨复合因子与「未必」；可计数',
   },
   {
     id: 'multi-divisor-lcm',
     name: '多因子·LCM 应用',
-    note: '「一定能被谁整除」；干扰为相关但非恒除数',
+    note: '结论计数 / 最小三位数挖空为主；少出直接选 LCM 一眼项',
   },
   {
     id: 'last-digits',
     name: '可变除数·谁能被整除',
-    note: '除数在 8/9/11/12/14/15/18/24/36/45/72 等间轮换；无提示词；强半满足干扰',
+    note: '除数偏 8/12/16/18/24/36/45/48/72；半满足干扰；无提示词',
   },
 ] as const
 
@@ -186,9 +186,9 @@ function buildQ(input: {
     'div-judge',
     input.difficulty,
     input.hardTypeId ?? '',
-    input.stem,
+    (input.passage ?? '').trim(),
+    input.stem.trim(),
     [...assembled.options].sort().join('|'),
-    String(assembled.correctIndex),
   ].join('\u001e')
   return {
     id: `div-judge-${input.difficulty}-${input.seq}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -224,11 +224,13 @@ function ruleHint(d: number): string {
   if (d === 14) return '同时能被 2 和 7 整除'
   if (d === 15) return '同时能被 3 和 5 整除'
   if (d === 12) return '同时能被 3 和 4 整除'
+  if (d === 16) return '末四位数能被 16 整除（或直接除）'
   if (d === 18) return '同时能被 2 和 9 整除'
   if (d === 22) return '同时能被 2 和 11 整除'
   if (d === 24) return '同时能被 3 和 8 整除'
   if (d === 36) return '同时能被 4 和 9 整除'
   if (d === 45) return '同时能被 5 和 9 整除'
+  if (d === 48) return '同时能被 3 和 16 整除'
   if (d === 72) return '同时能被 8 和 9 整除'
   return `能被 ${d} 整除则余数为 0`
 }
@@ -322,23 +324,31 @@ function genCanNBeDivBy(
   seq: number,
 ): DivJudgeQuestion | null {
   if (difficulty === 'medium') {
-    // 中等不用弱「能/不能」三干扰，改成带验算要点的四选一结论
     return genMediumMustTrue(d, seq)
   }
+  // 禁止「能/不能/无法判断」硬凑四选一：改问余数（数值选项）
   const [min, max] = [100, 999]
-  const yes = Math.random() < 0.55
-  const n = yes ? makeDivisible(d, min, max) : makeNotDivisible(d, min, max)
-  const correct = yes ? '能' : '不能'
+  const n =
+    Math.random() < 0.45 ? makeDivisible(d, min, max) : makeNotDivisible(d, min, max)
+  const rem = n % d
+  const distractors = uniqueDistractors(rem, [
+    0,
+    1,
+    d - 1,
+    rem + 1,
+    Math.max(0, rem - 1),
+    (rem + 2) % d,
+    d,
+    Math.floor(n / d),
+  ])
   return buildQ({
     difficulty,
-    term: `${n}被${d}整除？`,
-    stem: `${n} 能否被 ${d} 整除？`,
-    correct,
-    distractors: yes ? ['不能', '无法判断', '只能被 1 整除'] : ['能', '无法判断', '与整除无关'],
+    term: `${n}÷${d}求余`,
+    stem: `${n}÷${d} 的余数是？`,
+    correct: String(rem),
+    distractors,
     method: ruleHint(d),
-    explanation: yes
-      ? `${n}÷${d}=${n / d}。${ruleHint(d)}。答案为能。`
-      : `${n}÷${d} 余 ${n % d}，不能整除。${ruleHint(d)}。答案为不能。`,
+    explanation: `${n}÷${d}=${Math.floor(n / d)}……${rem}。${ruleHint(d)}。答案为 ${rem}。`,
     seq,
   })
 }
@@ -428,7 +438,22 @@ function genEasyMediumPaper(difficulty: 'easy' | 'medium'): DivJudgeQuestion[] {
   const medD: MediumDivisor[] = [6, 7, 9, 11, 14, 15]
   const divisors = difficulty === 'easy' ? easyD : medD
   const out: DivJudgeQuestion[] = []
+  const seen = new Set<string>()
   let seq = 1
+
+  const push = (q: DivJudgeQuestion | null) => {
+    if (!q || seen.has(q.fingerprint)) return false
+    seen.add(q.fingerprint)
+    out.push(q)
+    return true
+  }
+
+  const tryGen = (factory: () => DivJudgeQuestion | null, maxTry = 25) => {
+    for (let i = 0; i < maxTry; i++) {
+      if (push(factory())) return
+    }
+  }
+
   if (difficulty === 'easy') {
     const plan: Array<'which' | 'can' | 'by-which'> = shuffleInPlace([
       'which',
@@ -441,12 +466,13 @@ function genEasyMediumPaper(difficulty: 'easy' | 'medium'): DivJudgeQuestion[] {
     ])
     for (const kind of plan) {
       if (out.length >= DIV_JUDGE_QUESTION_COUNT) break
-      const d = pickOne(divisors)
-      let q: DivJudgeQuestion | null = null
-      if (kind === 'which') q = genWhichDivisibleBy('easy', d, seq++)
-      else if (kind === 'can') q = genCanNBeDivBy('easy', d, seq++)
-      else q = genNDivisibleByWhich('easy', seq++)
-      if (q) out.push(q)
+      tryGen(() => {
+        const d = pickOne(divisors)
+        const s = seq++
+        if (kind === 'which') return genWhichDivisibleBy('easy', d, s)
+        if (kind === 'can') return genCanNBeDivBy('easy', d, s)
+        return genNDivisibleByWhich('easy', s)
+      })
     }
   } else {
     const plan: Array<'which' | 'near' | 'by-which' | 'must'> = shuffleInPlace([
@@ -460,22 +486,23 @@ function genEasyMediumPaper(difficulty: 'easy' | 'medium'): DivJudgeQuestion[] {
     ])
     for (const kind of plan) {
       if (out.length >= DIV_JUDGE_QUESTION_COUNT) break
-      const d = pickOne(medD)
-      let q: DivJudgeQuestion | null = null
-      if (kind === 'which') q = genWhichDivisibleBy('medium', d, seq++)
-      else if (kind === 'near') q = genMediumPickAmongNear(seq++)
-      else if (kind === 'by-which') q = genNDivisibleByWhich('medium', seq++)
-      else q = genMediumMustTrue(d, seq++)
-      if (q) out.push(q)
+      tryGen(() => {
+        const d = pickOne(medD)
+        const s = seq++
+        if (kind === 'which') return genWhichDivisibleBy('medium', d, s)
+        if (kind === 'near') return genMediumPickAmongNear(s)
+        if (kind === 'by-which') return genNDivisibleByWhich('medium', s)
+        return genMediumMustTrue(d, s)
+      })
     }
   }
-  while (out.length < DIV_JUDGE_QUESTION_COUNT) {
-    const q =
+  let guard = 0
+  while (out.length < DIV_JUDGE_QUESTION_COUNT && guard++ < 80) {
+    tryGen(() =>
       difficulty === 'easy'
         ? genWhichDivisibleBy('easy', pickOne(easyD), seq++)
-        : genMediumPickAmongNear(seq++)
-    if (q) out.push(q)
-    else break
+        : genMediumPickAmongNear(seq++),
+    )
   }
   return out.slice(0, DIV_JUDGE_QUESTION_COUNT)
 }
@@ -704,43 +731,88 @@ function genHardCompound(seq: number): DivJudgeQuestion | null {
 }
 
 function genHardAddSub(seq: number): DivJudgeQuestion | null {
-  const c = pickOne([7, 9, 11])
-  let a = makeDivisible(c, 80, 400)
-  let b = makeDivisible(c, 50, 350)
-  while (a === b) b = makeDivisible(c, 50, 350)
+  const c = pickOne([7, 9, 11, 13])
+  let a = makeDivisible(c, 120, 600)
+  let b = makeDivisible(c, 80, 480)
+  while (a === b) b = makeDivisible(c, 80, 480)
   if (a < b) [a, b] = [b, a]
   const sum = a + b
   const diff = a - b
-  const mode = pickOne(['infer-b', 'must', 'blank-diff'] as const)
-  if (mode === 'blank-diff') {
-    // 挖空：M=□，已知 M 与 N 都能被 c 整除，M−N=diff，问 □
+  // 困难：禁止「已知 M 与差直接相减」一眼题；改用和差联立 / 多结论辨析 / 可能值筛选
+  const mode = pickOne(['sum-diff', 'must', 'which-pair'] as const)
+
+  if (mode === 'sum-diff') {
     return buildQ({
       difficulty: 'hard',
       hardTypeId: 'add-sub-property',
-      term: '可加减性·挖空',
-      passage: `已知正整数 □ 与 ${b} 都能被 ${c} 整除，且 □−${b}=${diff}。`,
-      stem: '□ 中的数是？',
+      term: '可加减性·和差联立',
+      passage: `两正整数都能被 ${c} 整除，它们的和为 ${sum}，差为 ${diff}。`,
+      stem: '较大的数是？',
       correct: String(a),
-      distractors: uniqueDistractors(a, [b, diff, sum, a + c, a - c, b + diff]),
-      method: '□=N+差；两数均被 c 整除则差也被 c 整除可作检验',
-      explanation: `□=${b}+${diff}=${a}，且 ${a}÷${c}=${a / c}。答案为 ${a}。`,
+      distractors: uniqueDistractors(a, [
+        b,
+        sum,
+        diff,
+        (sum + diff) / 2 + c,
+        Math.abs(sum - diff) / 2,
+        a + c,
+      ]),
+      method: '较大数=(和+差)/2；较小数=(和−差)/2；再用「均被 c 整除」检验',
+      explanation: `设较大为 x、较小为 y：x+y=${sum}，x−y=${diff} ⇒ x=${a}，y=${b}。且 ${a}÷${c}=${a / c}，${b}÷${c}=${b / c}。答案为 ${a}。`,
       seq,
     })
   }
-  if (mode === 'infer-b') {
+
+  if (mode === 'which-pair') {
+    // 给出和（或差），选项为数对：只有一对两数都能被 c 整除且满足和/差
+    const useSum = Math.random() < 0.55
+    const correctPair = `${a} 与 ${b}`
+    const traps = [
+      `${a + c} 与 ${useSum ? sum - (a + c) : a + c - diff}`,
+      `${a} 与 ${b + c}`,
+      `${sum - b - c} 与 ${b + c}`,
+      `${a - c > 0 ? a - c : a + 2 * c} 与 ${b}`,
+    ]
+      .map((s) => s.replace(/\s+/g, ' ').trim())
+      .filter((s) => {
+        const m = s.match(/^(\d+) 与 (\d+)$/)
+        if (!m) return false
+        const x = Number(m[1])
+        const y = Number(m[2])
+        if (x <= 0 || y <= 0 || x === y) return false
+        const hi = Math.max(x, y)
+        const lo = Math.min(x, y)
+        if (useSum) return hi + lo === sum && !(hi % c === 0 && lo % c === 0)
+        return hi - lo === diff && !(hi % c === 0 && lo % c === 0)
+      })
+    const distractors = [...new Set(traps)].slice(0, 3)
+    while (distractors.length < 3) {
+      const fakeA = a + c * (distractors.length + 1)
+      const fakeB = useSum ? sum - fakeA : fakeA - diff
+      if (fakeB > 0 && fakeA !== fakeB) {
+        const s = `${Math.max(fakeA, fakeB)} 与 ${Math.min(fakeA, fakeB)}`
+        if (s !== correctPair && !distractors.includes(s)) distractors.push(s)
+      } else break
+    }
+    if (distractors.length < 3) return null
     return buildQ({
       difficulty: 'hard',
       hardTypeId: 'add-sub-property',
-      term: '可加减性·反推',
-      passage: `已知正整数 M=${a}、N 均能被 ${c} 整除，且 M−N=${diff}。`,
-      stem: 'N 等于？',
-      correct: String(b),
-      distractors: uniqueDistractors(b, [diff, sum, a + diff, b + c, Math.abs(a - 2 * diff)]),
-      method: 'N=M−(M−N)',
-      explanation: `N=${a}−${diff}=${b}。答案为 ${b}。`,
+      term: '可加减性·数对筛选',
+      passage: useSum
+        ? `两正整数都能被 ${c} 整除，且两数之和为 ${sum}。`
+        : `两正整数都能被 ${c} 整除，且较大数比较小数大 ${diff}。`,
+      stem: '下列哪一对符合条件？',
+      correct: correctPair,
+      distractors,
+      method: '先按和/差锁定候选，再逐对检验是否都能被 c 整除',
+      explanation: `正确对 ${a}、${b}：${useSum ? `和=${sum}` : `差=${diff}`}，且均可被 ${c} 整除。干扰项虽满足和/差，但不能同时被 ${c} 整除。答案为 ${correctPair}。`,
       seq,
     })
   }
+
+  // must：多结论，需用可加减性排除
+  const sumPlus1 = sum + 1
   return buildQ({
     difficulty: 'hard',
     hardTypeId: 'add-sub-property',
@@ -749,34 +821,47 @@ function genHardAddSub(seq: number): DivJudgeQuestion | null {
     stem: '下列一定成立的是？',
     correct: `${sum} 与 ${diff} 都能被 ${c} 整除`,
     distractors: [
-      `${sum + 1} 一定能被 ${c} 整除`,
-      `${a}×${b} 一定不能被 ${c} 整除`,
+      `${sumPlus1} 一定能被 ${c} 整除`,
+      `${a * b} 的各位数字之和一定能被 ${c} 整除`,
       `只有 ${sum} 能被 ${c} 整除，${diff} 不能`,
     ],
-    method: '可加减性：和、差均被同一数整除',
-    explanation: `${sum}÷${c}=${sum / c}，${diff}÷${c}=${diff / c}。答案为「${sum} 与 ${diff} 都能被 ${c} 整除」。`,
+    method: '可加减性：两数均被 c 整除 ⇒ 和、差也都被 c 整除；积的数位和无此保证',
+    explanation: `${sum}÷${c}=${sum / c}，${diff}÷${c}=${diff / c}。${sumPlus1} 与积的数位和对「一定」不成立。答案为「${sum} 与 ${diff} 都能被 ${c} 整除」。`,
     seq,
   })
 }
 
 function genHardPass(seq: number): DivJudgeQuestion | null {
-  const specs: { d: number; must: number[]; notSure: number[] }[] = [
-    { d: 15, must: [3, 5], notSure: [6, 10, 30, 45] },
-    { d: 21, must: [3, 7], notSure: [6, 14, 42, 9] },
-    { d: 35, must: [5, 7], notSure: [10, 14, 70, 21] },
-    { d: 33, must: [3, 11], notSure: [6, 22, 66, 9] },
+  // 困难：避免「能被 33 ⇒ 一定能被 3」这种一眼题；正确项用复合因子，并多用计数/否定
+  const specs: {
+    d: number
+    /** 一定成立的复合因子（非一眼可见的单质因子） */
+    mustComposite: number[]
+    /** 不一定成立 */
+    notSure: number[]
+  }[] = [
+    { d: 36, mustComposite: [12, 18, 4, 9], notSure: [8, 24, 27, 72] },
+    { d: 48, mustComposite: [16, 24, 12], notSure: [18, 32, 36, 96] },
+    { d: 60, mustComposite: [12, 20, 15], notSure: [8, 16, 45, 90] },
+    { d: 72, mustComposite: [24, 18, 8, 9], notSure: [16, 27, 32, 144] },
+    { d: 84, mustComposite: [28, 21, 12], notSure: [16, 32, 42, 168] },
   ]
   const spec = pickOne(specs)
-  const must = pickOne(spec.must)
+  const must = pickOne(spec.mustComposite)
+  const must2 =
+    spec.mustComposite.find((x) => x !== must) ??
+    pickOne(spec.mustComposite)
   const trap = pickOne(spec.notSure)
-  const mode = pickOne(['must-true', 'how-many'] as const)
+  const trap2 = pickOne(spec.notSure.filter((x) => x !== trap).concat([trap * 2]))
+
+  const mode = pickOne(['must-true', 'how-many', 'not-sure'] as const)
+
   if (mode === 'how-many') {
-    // 给出若干结论，问有几条一定正确
     const statements = [
       { text: `n 一定能被 ${must} 整除`, ok: true },
       { text: `n 一定能被 ${trap} 整除`, ok: false },
-      { text: `n 一定能被 ${spec.must.find((x) => x !== must) ?? must} 整除`, ok: true },
-      { text: `n 的各位数字之和一定能被 ${spec.d} 整除`, ok: false },
+      { text: `n 一定能被 ${must2} 整除`, ok: true },
+      { text: `n 一定能被 ${trap2} 整除`, ok: false },
     ]
     const okCount = statements.filter((s) => s.ok).length
     return buildQ({
@@ -787,14 +872,34 @@ function genHardPass(seq: number): DivJudgeQuestion | null {
       stem: '其中一定正确的说法有几条？',
       correct: `${okCount} 条`,
       distractors: ['1 条', '2 条', '3 条', '4 条'].filter((s) => s !== `${okCount} 条`).slice(0, 3),
-      method: `${spec.d} 的因子一定能整除 n；复合数如 ${trap} 不一定`,
-      explanation: `一定成立的是：${statements
+      method: `先分解 ${spec.d} 的质因数，再判断各复合数是否被其「覆盖」；更大复合数往往缺因子`,
+      explanation: `一定成立：${statements
         .filter((s) => s.ok)
         .map((s) => s.text)
-        .join('；')}。共 ${okCount} 条。答案为 ${okCount} 条。`,
+        .join('；')}。共 ${okCount} 条。取 n=${spec.d} 可排除「一定能被 ${trap}」类说法。答案为 ${okCount} 条。`,
       seq,
     })
   }
+
+  if (mode === 'not-sure') {
+    return buildQ({
+      difficulty: 'hard',
+      hardTypeId: 'pass-property',
+      term: `因子必然性·未必·${spec.d}`,
+      passage: `若正整数 n 能被 ${spec.d} 整除。`,
+      stem: '下列结论不一定正确的是？',
+      correct: `n 一定能被 ${trap} 整除`,
+      distractors: [
+        `n 一定能被 ${must} 整除`,
+        `n 一定能被 ${must2} 整除`,
+        `${spec.d} 能整除 n`,
+      ],
+      method: `${trap} 相对 ${spec.d} 多出或错配质因子，不能由「能被 ${spec.d}」推出`,
+      explanation: `n=${spec.d} 时能被 ${must}、${must2} 整除，但不一定能被 ${trap} 整除。答案为「n 一定能被 ${trap} 整除」。`,
+      seq,
+    })
+  }
+
   return buildQ({
     difficulty: 'hard',
     hardTypeId: 'pass-property',
@@ -804,11 +909,11 @@ function genHardPass(seq: number): DivJudgeQuestion | null {
     correct: `n 一定能被 ${must} 整除`,
     distractors: [
       `n 一定能被 ${trap} 整除`,
-      `n 一定不能被 ${must} 整除`,
+      `n 一定能被 ${trap2} 整除`,
       `n 的各位数字之和一定能被 ${spec.d} 整除`,
     ],
-    method: `${spec.d} 含因子 ${spec.must.join('、')}；但不一定能被 ${trap} 整除`,
-    explanation: `n 能被 ${spec.d} 整除 ⇒ 能被 ${must} 整除。取 n=${spec.d} 可说明「一定能被 ${trap}」不成立。答案为「n 一定能被 ${must} 整除」。`,
+    method: `比较质因子：${must} 的质因子都被 ${spec.d} 覆盖；${trap} 等则否`,
+    explanation: `能被 ${spec.d} 整除 ⇒ 能被 ${must} 整除。取 n=${spec.d} 说明「一定能被 ${trap}」不成立；数位和对 ${spec.d} 也无必然。答案为「n 一定能被 ${must} 整除」。`,
     seq,
   })
 }
@@ -820,26 +925,60 @@ function genHardLcm(seq: number): DivJudgeQuestion | null {
     [3, 5, 6],
     [4, 5, 6],
     [6, 9, 12],
+    [8, 12, 18],
+    [9, 12, 15],
   ]
   const [a, b, c] = pickOne(triples)
   const L = lcm3(a, b, c)
   const half = L % 2 === 0 ? L / 2 : a * b
   const lab = lcm(a, b)
-  const distractors = uniqueDistractors(L, [
-    2 * L,
-    a * b,
-    lab === L ? a * c : lab,
-    half === L ? L + a : half,
-    a * b * c,
-    L + a,
-  ].filter((n) => n > 1 && n !== L))
+  const lac = lcm(a, c)
+  const lbc = lcm(b, c)
 
-  const mode = pickOne(['must-div', 'min-blank'] as const)
+  // 困难：少出「直接选 LCM」一眼项；结论计数 / 最小三位数为主
+  const modeRoll = Math.random()
+  const mode = modeRoll < 0.45 ? 'how-many' : modeRoll < 0.85 ? 'min-blank' : 'must-div'
+
+  if (mode === 'how-many') {
+    const cand = [
+      { n: L, ok: true },
+      { n: lab === L ? half : lab, ok: lab !== 0 && L % lab === 0 },
+      { n: 2 * L, ok: false },
+      { n: a * b * c, ok: L % (a * b * c) === 0 },
+      { n: lac === L ? lbc : lac, ok: true },
+    ]
+    // 规范化：ok 表示「一定能被该数整除」
+    const statements = cand.slice(0, 4).map((item, i) => {
+      const ok = L % item.n === 0
+      return { text: `一定能被 ${item.n} 整除`, ok, n: item.n, i }
+    })
+    // 保证至少 1 真 1 假
+    if (!statements.some((s) => s.ok) || !statements.some((s) => !s.ok)) {
+      statements[0] = { text: `一定能被 ${L} 整除`, ok: true, n: L, i: 0 }
+      statements[1] = { text: `一定能被 ${2 * L} 整除`, ok: false, n: 2 * L, i: 1 }
+    }
+    const okCount = statements.filter((s) => s.ok).length
+    return buildQ({
+      difficulty: 'hard',
+      hardTypeId: 'multi-divisor-lcm',
+      term: '多因子·结论计数',
+      passage: `一个数同时能被 ${a}、${b}、${c} 整除。考虑：\n${statements.map((s, i) => `${i + 1}. ${s.text}`).join('\n')}`,
+      stem: '其中一定正确的有几条？',
+      correct: `${okCount} 条`,
+      distractors: ['1 条', '2 条', '3 条', '4 条'].filter((s) => s !== `${okCount} 条`).slice(0, 3),
+      method: `先求 lcm(${a},${b},${c})=${L}；能整除 L 的才「一定能整除该数」`,
+      explanation: `该数必为 ${L} 的倍数。一定成立：${statements
+        .filter((s) => s.ok)
+        .map((s) => s.text)
+        .join('；')}。共 ${okCount} 条。答案为 ${okCount} 条。`,
+      seq,
+    })
+  }
+
   if (mode === 'min-blank') {
-    // 挖空：最小的能同时被 a,b,c 整除的三位数是 □□□
     let min3 = L
     while (min3 < 100) min3 += L
-    if (min3 > 999) min3 = L // fallback
+    if (min3 > 999) min3 = L
     return buildQ({
       difficulty: 'hard',
       hardTypeId: 'multi-divisor-lcm',
@@ -861,22 +1000,36 @@ function genHardLcm(seq: number): DivJudgeQuestion | null {
     })
   }
 
+  // must-div：正确项用「整除 L 的非平凡真因子」（勿默认甩出 L 本身）
+  const proper = [lab, lac, lbc, half]
+    .filter((n) => n > Math.max(a, b, c) && n !== L && L % n === 0)
+  const correctN = proper.length ? pickOne(proper) : L
+  const distractors = uniqueDistractors(correctN, [
+    2 * L,
+    a * b * c,
+    lab === correctN ? lac : lab,
+    L === correctN ? half : L,
+    correctN * 2,
+    a * c,
+  ].filter((n) => n > 1 && n !== correctN && L % n !== 0))
+
   return buildQ({
     difficulty: 'hard',
     hardTypeId: 'multi-divisor-lcm',
     term: '多因子·一定能被',
     stem: `一个数同时能被 ${a}、${b}、${c} 整除，则它一定能被下列哪个数整除？`,
-    correct: String(L),
+    correct: String(correctN),
     distractors,
-    method: `同时被三者整除 ⇔ 被 lcm=${L} 整除`,
-    explanation: `最小公倍数为 ${L}。不一定能被 ${2 * L} 整除（反例取 ${L}）。答案为 ${L}。`,
+    method: `同时被三者整除 ⇔ 被 lcm=${L} 整除；因而也一定被其因子 ${correctN} 整除`,
+    explanation: `lcm(${a},${b},${c})=${L}。${correctN} 整除 ${L}，故一定成立；干扰项（如 ${2 * L}）不整除 ${L}，取反例 ${L} 可排除。答案为 ${correctN}。`,
     seq,
   })
 }
 
 /** 可变除数的「下列哪个能被 xx 整除」——无提示词，半满足干扰 */
 function genHardLastDigits(seq: number): DivJudgeQuestion | null {
-  const divisors = [8, 9, 11, 12, 14, 15, 18, 22, 24, 36, 45, 72] as const
+  // 困难：优先复合判定（需两道门）；少出「被 15 整除」这种末位一看就筛掉大半选项的题
+  const divisors = [8, 12, 16, 18, 24, 36, 45, 48, 72] as const
   const d = pickOne(divisors)
   const correct = makeDivisible(d, 10000, 999999)
   const wrongs: number[] = []
@@ -884,49 +1037,40 @@ function genHardLastDigits(seq: number): DivJudgeQuestion | null {
   const pushNear = (w: number) => {
     if (w !== correct && w % d !== 0 && !wrongs.includes(w)) wrongs.push(w)
   }
-  for (let t = 0; t < 100 && wrongs.length < 3; t++) {
-    if (d === 8) {
-      // 末三位不能被 8
+  for (let t = 0; t < 120 && wrongs.length < 3; t++) {
+    if (d === 8 || d === 16) {
       const head = randInt(10, 999)
-      const last = makeNotDivisible(8, 100, 999)
+      const last = makeNotDivisible(d, 100, 999)
       pushNear(head * 1000 + last)
-    } else if (d === 9 || d === 18 || d === 45 || d === 36) {
-      pushNear(makeNearMiss(d === 9 ? 9 : 3, 10000, 999999))
-      if (d !== 9) {
-        const w = makeDivisible(d === 18 || d === 36 ? 9 : 5, 10000, 999999)
-        if (w % d !== 0) pushNear(w)
+    } else if (d === 18 || d === 36) {
+      // 被 9 不被 2，或被 2 不被 9
+      let w = makeDivisible(9, 10000, 999999)
+      if (w % 2 === 0) w += 9
+      pushNear(w)
+      w = makeDivisible(2, 10000, 999999)
+      if (w % 9 === 0) w += 2
+      pushNear(w)
+      if (d === 36) {
+        w = makeDivisible(12, 10000, 999999)
+        if (w % 36 === 0) w += 12
+        pushNear(w)
       }
-    } else if (d === 11 || d === 22) {
-      pushNear(makeNotDivisible(11, 10000, 999999))
-      if (d === 22) {
-        const w = makeDivisible(11, 10000, 999999)
-        if (w % 2 !== 0) pushNear(w)
-      }
-    } else if (d === 12) {
-      // 被 3 不被 4，或被 4 不被 3
-      let w = makeDivisible(3, 10000, 999999)
-      if (w % 4 === 0) w += 3
-      pushNear(w)
-      w = makeDivisible(4, 10000, 999999)
-      if (w % 3 === 0) w += 4
-      pushNear(w)
-    } else if (d === 14) {
-      pushNear(makeNearMiss(14, 10000, 999999))
-    } else if (d === 15) {
-      pushNear(makeNearMiss(15, 10000, 999999))
-    } else if (d === 24) {
-      let w = makeDivisible(8, 10000, 999999)
-      if (w % 3 === 0) w += 8
-      pushNear(w)
-      w = makeDivisible(3, 10000, 999999)
-      if (w % 8 === 0) w += 3
-      pushNear(w)
-    } else if (d === 72) {
-      let w = makeDivisible(8, 10000, 999999)
-      if (w % 9 === 0) w += 8
+    } else if (d === 45) {
+      // 被 5 不被 9，或被 9 不被 5
+      let w = makeDivisible(5, 10000, 999999)
+      if (w % 9 === 0) w += 5
       pushNear(w)
       w = makeDivisible(9, 10000, 999999)
-      if (w % 8 === 0) w += 9
+      if (w % 5 === 0) w += 9
+      pushNear(w)
+    } else if (d === 12 || d === 24 || d === 48 || d === 72) {
+      const factors =
+        d === 12 ? [3, 4] : d === 24 ? [3, 8] : d === 48 ? [3, 16] : [8, 9]
+      let w = makeDivisible(factors[0]!, 10000, 999999)
+      if (w % factors[1]! === 0) w += factors[0]!
+      pushNear(w)
+      w = makeDivisible(factors[1]!, 10000, 999999)
+      if (w % factors[0]! === 0) w += factors[1]!
       pushNear(w)
     } else {
       pushNear(makeNearMiss(d, 10000, 999999))
@@ -936,41 +1080,21 @@ function genHardLastDigits(seq: number): DivJudgeQuestion | null {
 
   const askMode = pickOne(['which', 'count-four', 'not-which'] as const)
   if (askMode === 'count-four') {
-    const pool = shuffleInPlace([correct, ...wrongs.slice(0, 3)])
-    // 确保只有 1 个正确
-    const uniq = [...new Set(pool)].slice(0, 4)
-    while (uniq.length < 4) uniq.push(makeNotDivisible(d, 10000, 999999))
-    const cnt = uniq.filter((n) => n % d === 0).length
-    // 若意外多个正确，重建
-    if (cnt !== 1) {
-      const only = [correct, ...uniqueDistractors(correct, wrongs).map(Number)].slice(0, 4)
-      const labels = only.map((n, i) => `${['①', '②', '③', '④'][i]} ${n}`).join('；')
-      return buildQ({
-        difficulty: 'hard',
-        hardTypeId: 'last-digits',
-        term: `可变除数·计数·${d}`,
-        passage: `下列四个数：${labels}。`,
-        stem: `其中能被 ${d} 整除的有几个？`,
-        correct: '1 个',
-        distractors: ['0 个', '2 个', '3 个'],
-        method: ruleHint(d),
-        explanation: `仅 ${correct} 能被 ${d} 整除（${correct}÷${d}=${correct / d}）。答案为 1 个。`,
-        seq,
-      })
-    }
-    const labels = uniq.map((n, i) => `${['①', '②', '③', '④'][i]} ${n}`).join('；')
+    // 强制恰好 1 个正确，干扰均为半满足
+    const rebuilt = [correct, ...wrongs.slice(0, 3)]
+    while (rebuilt.length < 4) rebuilt.push(makeNotDivisible(d, 10000, 999999))
+    const only = shuffleInPlace(rebuilt.slice(0, 4))
+    const labels = only.map((n, i) => `${['①', '②', '③', '④'][i]} ${n}`).join('；')
     return buildQ({
       difficulty: 'hard',
       hardTypeId: 'last-digits',
       term: `可变除数·计数·${d}`,
       passage: `下列四个数：${labels}。`,
       stem: `其中能被 ${d} 整除的有几个？`,
-      correct: `${cnt} 个`,
-      distractors: ['0 个', '1 个', '2 个', '3 个', '4 个']
-        .filter((s) => s !== `${cnt} 个`)
-        .slice(0, 3),
+      correct: '1 个',
+      distractors: ['0 个', '2 个', '3 个'],
       method: ruleHint(d),
-      explanation: `逐个用判定法检验。答案为 ${cnt} 个。`,
+      explanation: `仅 ${correct} 能被 ${d} 整除（${correct}÷${d}=${correct / d}）。其余为半满足干扰。答案为 1 个。`,
       seq,
     })
   }
@@ -981,6 +1105,7 @@ function genHardLastDigits(seq: number): DivJudgeQuestion | null {
       const w = makeDivisible(d, 10000, 999999)
       if (w !== cannot && !canList.includes(w)) canList.push(w)
     }
+    // 让「能被整除」的选项外观接近不能整除的（同量级、相近开头）
     return buildQ({
       difficulty: 'hard',
       hardTypeId: 'last-digits',
@@ -988,7 +1113,7 @@ function genHardLastDigits(seq: number): DivJudgeQuestion | null {
       stem: `下列哪个数不能被 ${d} 整除？`,
       correct: String(cannot),
       distractors: canList.slice(0, 3).map(String),
-      method: ruleHint(d),
+      method: `${ruleHint(d)}；干扰项刻意做成「只满足其中一个子条件」`,
       explanation: `${cannot}÷${d} 余 ${cannot % d}，不能整除。其余选项均可被 ${d} 整除。答案为 ${cannot}。`,
       seq,
     })
@@ -1020,23 +1145,31 @@ const HARD_GENERATORS: Record<
 }
 
 function genHardPaper(): DivJudgeQuestion[] {
-  // 固定 7 类各一题，再打乱顺序
+  // 固定 7 类各一题，再打乱顺序；同卷内容指纹不得重复
   const types = [...DIV_JUDGE_HARD_EXAM_TYPES.map((t) => t.id)]
   const out: DivJudgeQuestion[] = []
+  const seen = new Set<string>()
   let seq = 1
   for (const id of types) {
     let q: DivJudgeQuestion | null = null
-    for (let attempt = 0; attempt < 6 && !q; attempt++) {
-      q = HARD_GENERATORS[id](seq)
+    for (let attempt = 0; attempt < 25 && !q; attempt++) {
+      const cand = HARD_GENERATORS[id](seq)
+      if (cand && !seen.has(cand.fingerprint)) q = cand
     }
     seq += 1
-    if (q) out.push(q)
+    if (q) {
+      seen.add(q.fingerprint)
+      out.push(q)
+    }
   }
   shuffleInPlace(out)
-  while (out.length < DIV_JUDGE_QUESTION_COUNT) {
-    const q = genHardCompound(seq++)
-    if (!q) break
-    out.push(q)
+  let guard = 0
+  while (out.length < DIV_JUDGE_QUESTION_COUNT && guard++ < 40) {
+    const cand = genHardCompound(seq++)
+    if (cand && !seen.has(cand.fingerprint)) {
+      seen.add(cand.fingerprint)
+      out.push(cand)
+    }
   }
   return out.slice(0, DIV_JUDGE_QUESTION_COUNT)
 }

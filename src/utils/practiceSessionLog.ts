@@ -70,6 +70,14 @@ function difficultyLabel(d: string): string {
   return d
 }
 
+/** 与菜单卡片文案一致：简单题 / 普通题 / 困难题 */
+function difficultyTopicLabel(d: string): string {
+  if (d === 'easy') return '简单题'
+  if (d === 'medium' || d === 'normal') return '普通题'
+  if (d === 'hard') return '困难题'
+  return difficultyLabel(d)
+}
+
 function splitDifficulty(rest: string): { mid: string; difficulty: string } {
   const parts = rest.split('-').filter(Boolean)
   const last = parts[parts.length - 1] ?? ''
@@ -389,7 +397,25 @@ const PREFIX_RULES: PrefixRule[] = [
     categoryLabel: '语法判断',
     labelFor: (mid, difficulty) => {
       const d = difficulty || mid
-      return `语法判断 · ${difficultyLabel(d) || d}`
+      return `语法判断 · ${difficultyTopicLabel(d) || d}`
+    },
+  },
+  {
+    prefix: 'circle-grammar-',
+    categoryId: 'circle-grammar',
+    categoryLabel: '圈出所有语法',
+    labelFor: (_mid, difficulty) => {
+      const d = difficulty || 'easy'
+      return `圈出所有语法 · ${difficultyTopicLabel(d) || d}`
+    },
+  },
+  {
+    prefix: 'shorten-sentence-',
+    categoryId: 'shorten-sentence',
+    categoryLabel: '缩句练习',
+    labelFor: (_mid, difficulty) => {
+      const d = difficulty || 'easy'
+      return `缩句练习 · ${difficultyTopicLabel(d) || d}`
     },
   },
   {
@@ -525,6 +551,8 @@ export const PRACTICE_LOG_CATEGORIES: { id: string; label: string }[] = [
   { id: 'divisibility', label: '整除及其性质' },
   { id: 'life-sense', label: '生活常识' },
   { id: 'grammar-judgment', label: '语法判断' },
+  { id: 'circle-grammar', label: '圈出所有语法' },
+  { id: 'shorten-sentence', label: '缩句练习' },
   { id: 'twentyfour', label: '二十四点' },
   { id: 'sudoku', label: '数独' },
   { id: 'graphic', label: '图形推理' },
@@ -564,7 +592,32 @@ function writeLogs(rows: PracticeSessionLogEntry[]) {
 
 export function listPracticeSessionLogs(): PracticeSessionLogEntry[] {
   void practiceSessionLogTick.value
-  return readLogs()
+  return readLogs().map(refreshPracticeLogDisplayMeta)
+}
+
+/** 用当前中文规则刷新展示标签（兼容旧日志里的英文 fallback） */
+export function refreshPracticeLogDisplayMeta(row: PracticeSessionLogEntry): PracticeSessionLogEntry {
+  if (row.modeId.startsWith('wb-review:')) return row
+  const meta = resolvePracticeLogMeta(row.modeId)
+  if (meta.categoryId === 'other') return row
+  const labelLooksEnglish =
+    !/[\u4e00-\u9fff]/.test(row.itemLabel) ||
+    /^(circle|shorten|grammar)\b/i.test(row.itemLabel) ||
+    row.categoryId === 'other'
+  if (
+    labelLooksEnglish ||
+    row.modeId.startsWith('circle-grammar-') ||
+    row.modeId.startsWith('shorten-sentence-') ||
+    row.modeId.startsWith('grammar-judgment-')
+  ) {
+    return {
+      ...row,
+      categoryId: meta.categoryId,
+      categoryLabel: meta.categoryLabel,
+      itemLabel: meta.itemLabel,
+    }
+  }
+  return row
 }
 
 export function appendPracticeSessionLog(

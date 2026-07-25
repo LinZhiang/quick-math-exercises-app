@@ -79,6 +79,12 @@ let sessionAttempted = 0
 let sessionCorrect = 0
 let sessionCompleted = false
 
+/**
+ * 重点题复盘会话结束（点返回 / 清空）时递增。
+ * 语文练习区订阅后切回「重点题」页。
+ */
+export const chineseKeyReviewExitTick = ref(0)
+
 export function beginChineseKeyReviewSession(meta: ChineseKeyReviewMeta) {
   activeSession = {
     source: meta.source,
@@ -121,6 +127,10 @@ export function clearChineseKeyReviewSession() {
       totalCount: attempted,
       abandoned: true,
     })
+  }
+  // 从重点题复盘退出后回到「重点题」（含完整复盘后点返回）
+  if (session) {
+    chineseKeyReviewExitTick.value += 1
   }
 }
 

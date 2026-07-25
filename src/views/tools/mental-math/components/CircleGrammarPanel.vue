@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import {
   ALL_GRAMMAR_ROLES,
   GRAMMAR_ROLE_LABELS,
+  buildGrammarRoleMap,
   type CircleGrammarMark,
   type CircleGrammarQuestion,
 } from '@/utils/circleGrammarPractice'
@@ -34,6 +35,12 @@ const rolePickerOpen = ref(false)
 const manualError = ref('')
 
 const chars = computed(() => Array.from(props.question.sentence.sentence))
+
+const answerRoleMap = computed(() =>
+  buildGrammarRoleMap(props.question.sentence.sentence, props.question.expected),
+)
+
+const showAnswerPreview = computed(() => props.reviewing && props.feedback === 'wrong')
 
 const canSubmit = computed(() => marks.value.length > 0 && props.acceptingInput)
 
@@ -90,6 +97,10 @@ function charCoveredBy(i: number): CircleGrammarMark | null {
     if (m.start != null && m.end != null && i >= m.start && i < m.end) return m
   }
   return null
+}
+
+function answerRoleAt(i: number): GrammarRole | null {
+  return answerRoleMap.value[i] ?? null
 }
 
 function isInPending(i: number): boolean {
@@ -235,7 +246,7 @@ function goNext() {
 
     <section class="cg-zone" aria-label="圈选区">
       <p class="cg-zone__title">
-        {{ reviewing ? '本题句子' : '滑动圈选词语' }}
+        {{ reviewing ? '你的圈选（原句着色）' : '滑动圈选词语' }}
         <span v-if="!reviewing" class="cg-zone__sub">按住拖动选中文字，再点成分确认</span>
       </p>
       <div
@@ -279,6 +290,21 @@ function goNext() {
             取消
           </button>
         </div>
+      </div>
+    </section>
+
+    <section v-if="showAnswerPreview" class="cg-zone" aria-label="正确答案预览">
+      <p class="cg-zone__title">
+        正确答案预览
+        <span class="cg-zone__sub">按标准切分着色（相邻同成分可合并圈选）</span>
+      </p>
+      <div class="cg-chars cg-chars--locked cg-chars--answer-preview">
+        <span
+          v-for="(ch, i) in chars"
+          :key="`ans-${i}`"
+          class="cg-char"
+          :class="answerRoleAt(i) ? roleClass(answerRoleAt(i)!) : 'cg-char--plain'"
+        >{{ ch }}</span>
       </div>
     </section>
 
@@ -442,6 +468,17 @@ function goNext() {
 .cg-chars--locked {
   pointer-events: none;
   opacity: 0.95;
+}
+
+.cg-chars--answer-preview {
+  background: linear-gradient(160deg, #f0fdf4 0%, #ecfdf5 100%);
+  border-color: #86efac;
+}
+
+.cg-char--plain {
+  background: transparent;
+  color: #94a3b8;
+  font-weight: 500;
 }
 
 .cg-char {

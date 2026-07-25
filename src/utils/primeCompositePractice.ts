@@ -9,7 +9,7 @@
  * 4. must-have-two：由奇偶性判断必含质数 2
  * 5. find-primes：由 a+b+c 与 abc 还原三个质数
  * 6. pair-sum-from-abc：由 a+b+c 与 abc（其一为 2）求 ab+bc+ac
- * 7. which-is-two：给出三质数及相关式，问哪一个是 2
+ * 7. which-is-two：由和与两两积之和还原较小奇质数
  */
 import { assembleFourChoiceMcq } from '@/utils/chineseMcqAiFields'
 
@@ -72,8 +72,8 @@ export const PRIME_COMP_HARD_EXAM_TYPES = [
   },
   {
     id: 'which-is-two',
-    name: '判断哪个是 2',
-    note: '材料给出三质数与和/积关系，问哪一个必为 2',
+    name: '还原较小奇质数',
+    note: '由 a+b+c 与 ab+bc+ac 还原；忌只问「必为 2」',
   },
 ] as const
 
@@ -183,9 +183,9 @@ function buildQ(input: {
     'prime-comp',
     input.difficulty,
     input.hardTypeId ?? '',
-    input.stem,
+    (input.passage ?? '').trim(),
+    input.stem.trim(),
     [...assembled.options].sort().join('|'),
-    String(assembled.correctIndex),
   ].join('\u001e')
   return {
     id: `prime-comp-${input.difficulty}-${input.seq}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -274,31 +274,52 @@ function genWhichIsComposite(difficulty: 'easy' | 'medium', seq: number): PrimeC
   })
 }
 
+/** 四个数中质数/合数有几个（替代「某某是？」+ 标签硬凑选项） */
 function genClassifyNumber(difficulty: 'easy' | 'medium', seq: number): PrimeCompQuestion | null {
-  const pool =
+  const askPrime = Math.random() < 0.55
+  const primes =
+    difficulty === 'easy' ? SMALL_PRIMES.filter((p) => p <= 29) : MED_PRIMES.slice(0, 20)
+  const comps =
     difficulty === 'easy'
-      ? [1, 2, 4, 7, 9, 11, 15, 17]
-      : [1, 2, 51, 57, 87, 91, 97, 49]
-  const n = pickOne(pool)
-  let correct: string
-  if (n === 1) correct = '既不是质数也不是合数'
-  else if (isPrime(n)) correct = '质数'
-  else correct = '合数'
+      ? [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 21, 25, 27]
+      : shuffleInPlace([...TRAP_COMPOSITES]).slice(0, 16)
+  const nums: number[] = []
+  // 强制 0～3 个目标类别，避免全对/全错过水
+  const targetCount = randInt(1, 3)
+  while (nums.length < targetCount) {
+    const p = pickOne(askPrime ? primes : comps)
+    if (!nums.includes(p)) nums.push(p)
+  }
+  while (nums.length < 4) {
+    const q = pickOne(askPrime ? comps : primes)
+    // 中等偶混入 1（既非质也非合）
+    const cand =
+      difficulty === 'medium' && !askPrime && Math.random() < 0.25 && !nums.includes(1)
+        ? 1
+        : q
+    if (!nums.includes(cand)) nums.push(cand)
+  }
+  shuffleInPlace(nums)
+  const count = nums.filter((n) => (askPrime ? isPrime(n) : n > 1 && !isPrime(n))).length
+  const labels = nums.map((n, i) => `${['①', '②', '③', '④'][i]}${n}`).join('、')
   return buildQ({
     difficulty,
-    term: `判断${n}`,
-    stem: `${n} 是？`,
-    correct,
-    distractors: ['质数', '合数', '既不是质数也不是合数', '既是质数又是合数'].filter(
-      (s) => s !== correct,
-    ).slice(0, 3),
-    method: '先看是否为 1；再看正因数个数',
-    explanation:
-      n === 1
-        ? '1 既不是质数也不是合数。答案为既不是质数也不是合数。'
-        : isPrime(n)
-          ? `${n} 是质数。答案为质数。`
-          : `${n}=${formatFactorization(factorize(n))}，是合数。答案为合数。`,
+    term: askPrime ? '几个质数' : '几个合数',
+    passage: `下列四个数：${labels}。`,
+    stem: askPrime ? '其中质数有几个？' : '其中合数有几个？',
+    correct: `${count} 个`,
+    distractors: ['0 个', '1 个', '2 个', '3 个', '4 个']
+      .filter((s) => s !== `${count} 个`)
+      .slice(0, 3),
+    method: askPrime
+      ? '逐个判断：质数只有 1 和自身两个正因数；1 不是质数'
+      : '逐个判断：合数除 1 和自身外还有其他正因数；1 不是合数',
+    explanation: `${nums
+      .map((n) => {
+        if (n === 1) return '1 既非质数也非合数'
+        return isPrime(n) ? `${n} 是质数` : `${n} 是合数`
+      })
+      .join('；')}。故答案为 ${count} 个。`,
     seq,
   })
 }
@@ -565,16 +586,26 @@ function genHardPairFromAbc(seq: number, t: Triple): PrimeCompQuestion | null {
 }
 
 function genHardWhichIsTwo(seq: number, t: Triple): PrimeCompQuestion | null {
+  // 困难：勿总问「其中一个一定是 2」（一眼奇偶）；改为还原较小奇质数
+  const smallerOdd = Math.min(t.b, t.c)
+  const largerOdd = Math.max(t.b, t.c)
   return buildQ({
     difficulty: 'hard',
     hardTypeId: 'which-is-two',
-    term: '必为哪一质数',
+    term: '还原奇质数',
     passage: `质数 a、b、c 满足 a+b+c=${t.sum}，ab+bc+ac=${t.pair}。`,
-    stem: '其中一个质数一定是？',
-    correct: '2',
-    distractors: uniqueStr('2', ['1', '3', String(t.b), String(t.c), '5', '奇数']),
-    method: '三质数之和为偶数 ⇒ 必含唯一偶质数 2',
-    explanation: `${t.sum} 为偶数，三个奇质数之和为奇，矛盾，故必有一个是 2。进一步可解得另两数为 ${t.b}、${t.c}。答案为 2。`,
+    stem: '三个质数中，较小的那个奇质数是？',
+    correct: String(smallerOdd),
+    distractors: uniqueStr(String(smallerOdd), [
+      '2',
+      String(largerOdd),
+      String(t.sum - 2 - smallerOdd === largerOdd ? largerOdd + 2 : t.sum - 4),
+      '3',
+      '5',
+      String(t.pair % 10),
+    ]),
+    method: '和为偶 ⇒ 必含 2；设另两数为 x≤y，则 x+y=sum−2，xy 可由 pair 反推，或试探质数对',
+    explanation: `${t.sum} 为偶数 ⇒ 含 2。另两数之和 ${t.sum - 2}、且 ab+bc+ac=${t.pair}，解得 ${t.b} 与 ${t.c}，较小奇质数为 ${smallerOdd}。答案为 ${smallerOdd}。`,
     seq,
   })
 }
@@ -598,20 +629,28 @@ function genHardPaper(): PrimeCompQuestion[] {
     PRIME_COMP_QUESTION_COUNT,
   )
   const out: PrimeCompQuestion[] = []
+  const seen = new Set<string>()
   let seq = 1
   for (const id of types) {
     let q: PrimeCompQuestion | null = null
-    for (let attempt = 0; attempt < 8 && !q; attempt++) {
-      q = HARD_GENERATORS[id](seq, makeTriple())
+    for (let attempt = 0; attempt < 30 && !q; attempt++) {
+      const cand = HARD_GENERATORS[id](seq, makeTriple())
+      if (cand && !seen.has(cand.fingerprint)) q = cand
     }
     seq += 1
-    if (q) out.push(q)
+    if (q) {
+      seen.add(q.fingerprint)
+      out.push(q)
+    }
   }
   shuffleInPlace(out)
-  while (out.length < PRIME_COMP_QUESTION_COUNT) {
-    const q = genHardAbcFromSums(seq++, makeTriple())
-    if (!q) break
-    out.push(q)
+  let guard = 0
+  while (out.length < PRIME_COMP_QUESTION_COUNT && guard++ < 40) {
+    const cand = genHardAbcFromSums(seq++, makeTriple())
+    if (cand && !seen.has(cand.fingerprint)) {
+      seen.add(cand.fingerprint)
+      out.push(cand)
+    }
   }
   return out.slice(0, PRIME_COMP_QUESTION_COUNT)
 }

@@ -267,7 +267,6 @@ export function getGrowthAvgAnnualQuestionFingerprint(input: {
     input.tableTitle?.trim() ?? '',
     input.stem.trim(),
     [...input.options].map((x) => x.trim()).sort().join('\u001f'),
-    String(input.correctIndex),
   ].join('\u001e')
 }
 

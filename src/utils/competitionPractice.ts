@@ -154,9 +154,9 @@ function buildQuestion(input: {
     input.difficulty,
     input.hardTypeId ?? '',
     input.passage,
-    input.stem,
+    (input.passage ?? '').trim(),
+    input.stem.trim(),
     [...assembled.options].sort().join('|'),
-    String(assembled.correctIndex),
   ].join('\u001e')
   return {
     id: `cp-${input.difficulty}-${input.seq}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,

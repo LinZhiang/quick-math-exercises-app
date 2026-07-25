@@ -133,7 +133,7 @@ export function generateShortenSentenceQuestion(
     id,
     item,
     prompt:
-      '请缩写句子：滑动圈选主干词语（也可手动输入）。去掉定语、状语、补语等修饰，留下主谓宾主干；并列成分请整体保留。',
+      '请缩写句子：滑动圈选主干词语（也可手动输入）。去掉定语、状语、补语等修饰，留下主谓宾主干；并列成分请整体保留。答案需与推荐主干一致（「了/着/过」可略有出入）。',
     // 面板已展示标准/备选/来源，此处仅作错题本短说明
     explanation: item.alternates?.length
       ? `推荐主干：${item.shortened}；也可接受：${item.alternates.join(' / ')}（${item.source}）`
@@ -153,6 +153,20 @@ export function normalizeShortenAnswer(text: string): string {
     .toLowerCase()
 }
 
+/**
+ * 缩句判分用的弱化键：忽略动态助词「了/着/过」的有无（形式不要太死板），
+ * 但仍要求与标准/备选主干一致，不接受任意删减后的含糊短句。
+ */
+export function softenShortenKey(text: string): string {
+  return normalizeShortenAnswer(text).replace(/[了着过]/g, '')
+}
+
+function collectShortenCandidates(item: ShortenSentenceItem): string[] {
+  return [item.shortened, ...(item.alternates ?? [])]
+    .map((s) => String(s || '').trim())
+    .filter(Boolean)
+}
+
 export function validateShortenSentenceAnswer(
   item: ShortenSentenceItem,
   answer: string,
@@ -161,10 +175,25 @@ export function validateShortenSentenceAnswer(
   if (!got) {
     return { ok: false, detail: '未填写缩句' }
   }
-  const candidates = [item.shortened, ...(item.alternates ?? [])].map(normalizeShortenAnswer)
-  if (candidates.includes(got)) {
+
+  const rawCandidates = collectShortenCandidates(item)
+  const normalized = rawCandidates.map(normalizeShortenAnswer)
+  if (normalized.includes(got)) {
     return { ok: true, detail: '缩句正确' }
   }
+
+  const gotSoft = softenShortenKey(got)
+  const softKeys = new Set(rawCandidates.map(softenShortenKey))
+  if (gotSoft && softKeys.has(gotSoft)) {
+    // 仅「了/着/过」差异：须与对应候选长度接近，防止误伤过短含糊作答
+    const matched = rawCandidates.find((c) => softenShortenKey(c) === gotSoft)
+    if (matched) {
+      const candN = normalizeShortenAnswer(matched)
+      const lenOk = Math.abs(got.length - candN.length) <= 2
+      if (lenOk) return { ok: true, detail: '缩句正确' }
+    }
+  }
+
   return {
     ok: false,
     detail: item.alternates?.length

@@ -862,7 +862,6 @@ export function getDataAnalysisQuestionFingerprint(input: {
     input.passage.trim(),
     input.stem.trim(),
     opts,
-    String(input.correctIndex),
   ].join('\u001e')
 }
 

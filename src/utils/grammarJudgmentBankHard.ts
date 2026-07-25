@@ -5,8 +5,9 @@
  *    例：台下顿时响起掌声 → 台下=主语；他在台下唱歌 → 在台下=状语。
  * 2) 动补合并：「响起了」等作单一谓语，不拆「响」+「起了」。
  * 3) 把字句：「把+NP」整段标状语，不另拆「歌」等为宾语（防重复圈选）。
- *    双标兼容（状语整段 / 单独标宾语都算对）暂未开启，需时再放宽判分。
+ *    若需「把+NP 状语」与「NP 作宾语」并存，写入 alternateParts。
  * 4) 嵌套定语（反复、这首、难唱的）已含在更大状/定短语内，金标不重复拆出。
+ * 5) 判分：按字比对角色；相邻同成分可合并圈选；alternateParts 为多套切分。
  */
 
 export type HardGrammarRole =
@@ -24,10 +25,22 @@ type HardSentence = {
   sentence: string
   difficulty: 'hard'
   parts: HardPart[]
+  alternateParts?: HardPart[][]
 }
 
-function S(id: string, sentence: string, parts: HardPart[]): HardSentence {
-  return { id, difficulty: 'hard', sentence, parts }
+function S(
+  id: string,
+  sentence: string,
+  parts: HardPart[],
+  alternateParts?: HardPart[][],
+): HardSentence {
+  return {
+    id,
+    difficulty: 'hard',
+    sentence,
+    parts,
+    ...(alternateParts?.length ? { alternateParts } : {}),
+  }
 }
 
 /** 复杂：超长单句，多层定状补与把被兼语交织；后半句必须标全 */
@@ -132,6 +145,22 @@ export const HARD: HardSentence[] = [
     { text: '受', role: 'predicate' },
     { text: '一点点', role: 'attributive' },
     { text: '潮', role: 'object' },
+  ], [
+    // 也可把「一点点潮」整段作宾语
+    [
+      { text: '他', role: 'subject' },
+      { text: '把被雨水淋湿的书包', role: 'adverbial' },
+      { text: '小心翼翼地', role: 'adverbial' },
+      { text: '挂', role: 'predicate' },
+      { text: '到通风处', role: 'complement' },
+      { text: '晾晒', role: 'complement' },
+      { text: '生怕', role: 'adverbial' },
+      { text: '里面的', role: 'attributive' },
+      { text: '课本', role: 'subject' },
+      { text: '再', role: 'adverbial' },
+      { text: '受', role: 'predicate' },
+      { text: '一点点潮', role: 'object' },
+    ],
   ]),
   S('h08', '那位从外地赶来的专家把实验数据核对得一丝不苟，连最细微的误差也不肯轻易放过。', [
     { text: '那位从外地赶来的', role: 'attributive' },

@@ -1,7 +1,8 @@
 /**
  * 温故口算 — 服务端登录会话（仅语文 AI 需要）
  * - 管理员：localStorage + 服务端 Token 默认 7 天
- * - 成员：sessionStorage + 服务端 Token 默认 2 小时
+ * - 成员：localStorage + 服务端 Token 默认 2 小时（手机/电脑可同时登录，互不挤下）
+ * - 真正失效：Token 过期、主动登出、管理员禁用/改密（sessionEpoch）
  */
 import { ref } from 'vue'
 import {
@@ -11,9 +12,8 @@ import {
 } from '@/utils/wenguApiFetch'
 import { isMemberCustomApiOriginValid } from '@/utils/wenguApiOrigin'
 
-const MEMBER_STORAGE_KEY = 'wengu-session-v1'
+const MEMBER_STORAGE_KEY = 'wengu-member-session-v1'
 const ADMIN_STORAGE_KEY = 'wengu-admin-session-v1'
-const LEGACY_MEMBER_LOCAL_KEY = 'wengu-session-v1'
 
 export type WenguRole = 'admin' | 'member'
 
@@ -31,10 +31,9 @@ export const wenguAuthTick = ref(0)
 
 let memorySession: StoredSession | null = null
 let hydratePromise: Promise<void> | null = null
-let unloadHookInstalled = false
 
 export const WENGU_LOGIN_REQUIRED_HINT =
-  '未登录：请到「导览 → 安装」登录后，再使用语文 AI 功能'
+  '未登录：请到「导览 → 设置」登录后，再使用语文 AI 功能'
 
 export { probeWenguAuthServer, usesRemoteWenguApi, type WenguServerProbe } from '@/utils/wenguApiFetch'
 
@@ -46,24 +45,21 @@ function isAdminSession(session: StoredSession | null | undefined): boolean {
   return session?.user?.role === 'admin'
 }
 
-function storageForRole(role: WenguRole): Storage | null {
+function getLocalStorage(): Storage | null {
   if (typeof window === 'undefined') return null
-  if (role === 'admin') {
-    return typeof localStorage !== 'undefined' ? localStorage : null
-  }
-  return typeof sessionStorage !== 'undefined' ? sessionStorage : null
+  return typeof localStorage !== 'undefined' ? localStorage : null
 }
 
 function storageKeyForRole(role: WenguRole): string {
   return role === 'admin' ? ADMIN_STORAGE_KEY : MEMBER_STORAGE_KEY
 }
 
-function purgeLegacyLocalStorage() {
+function purgeLegacyJunk() {
   try {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem(LEGACY_MEMBER_LOCAL_KEY)
-      localStorage.removeItem('wengu-deepseek-auth-v1')
-    }
+    const ls = getLocalStorage()
+    if (!ls) return
+    // 旧 DeepSeek Key 缓存；旧混用键若仍是成员会话则迁移后再删
+    ls.removeItem('wengu-deepseek-auth-v1')
   } catch {
     /* ignore */
   }
@@ -88,28 +84,60 @@ function readFromStore(store: Storage, key: string): StoredSession | null {
   }
 }
 
-function readStored(): StoredSession | null {
-  const adminStore = storageForRole('admin')
-  if (adminStore) {
-    const admin = readFromStore(adminStore, ADMIN_STORAGE_KEY)
-    if (admin) return admin
+/** 从旧 sessionStorage / 旧 localStorage 键迁移成员会话 */
+function migrateLegacyMemberSession(): StoredSession | null {
+  const ls = getLocalStorage()
+  const ss = typeof sessionStorage !== 'undefined' ? sessionStorage : null
+
+  const candidates: { store: Storage; key: string }[] = []
+  if (ss) candidates.push({ store: ss, key: 'wengu-session-v1' }, { store: ss, key: MEMBER_STORAGE_KEY })
+  if (ls) candidates.push({ store: ls, key: 'wengu-session-v1' })
+
+  for (const { store, key } of candidates) {
+    const hit = readFromStore(store, key)
+    if (!hit || hit.user.role === 'admin') continue
+    try {
+      store.removeItem(key)
+    } catch {
+      /* ignore */
+    }
+    return hit
   }
-  const memberStore = storageForRole('member')
-  if (memberStore) {
-    return readFromStore(memberStore, MEMBER_STORAGE_KEY)
+  return null
+}
+
+function readStored(): StoredSession | null {
+  const ls = getLocalStorage()
+  if (!ls) return null
+
+  const admin = readFromStore(ls, ADMIN_STORAGE_KEY)
+  if (admin) return admin
+
+  const member = readFromStore(ls, MEMBER_STORAGE_KEY)
+  if (member) return member
+
+  const migrated = migrateLegacyMemberSession()
+  if (migrated) {
+    ls.setItem(MEMBER_STORAGE_KEY, JSON.stringify(migrated))
+    return migrated
   }
   return null
 }
 
 function writeStored(session: StoredSession | null) {
-  const memberStore = storageForRole('member')
-  const adminStore = storageForRole('admin')
-  memberStore?.removeItem(MEMBER_STORAGE_KEY)
-  adminStore?.removeItem(ADMIN_STORAGE_KEY)
+  const ls = getLocalStorage()
+  if (!ls) return
+  ls.removeItem(MEMBER_STORAGE_KEY)
+  ls.removeItem(ADMIN_STORAGE_KEY)
+  // 顺带清掉旧 sessionStorage，避免双份状态
+  try {
+    sessionStorage?.removeItem('wengu-session-v1')
+    sessionStorage?.removeItem(MEMBER_STORAGE_KEY)
+  } catch {
+    /* ignore */
+  }
   if (!session) return
-  const store = storageForRole(session.user.role)
-  const key = storageKeyForRole(session.user.role)
-  store?.setItem(key, JSON.stringify(session))
+  ls.setItem(storageKeyForRole(session.user.role), JSON.stringify(session))
 }
 
 function clearMemoryAndStorage() {
@@ -150,7 +178,7 @@ export function isWenguApiReadyForCurrentUser(): boolean {
 export async function hydrateWenguAuthStore(): Promise<void> {
   if (hydratePromise) return hydratePromise
   hydratePromise = (async () => {
-    purgeLegacyLocalStorage()
+    purgeLegacyJunk()
     const stored = readStored()
     if (!stored) {
       // 勿清空 memorySession：登录可能与首次 hydrate 并发，避免把刚登录的会话冲掉
@@ -165,17 +193,20 @@ export async function hydrateWenguAuthStore(): Promise<void> {
       const stillSameSession = () =>
         (memorySession?.token ?? readStored()?.token) === stored.token
 
-      if (res.status === 403) {
+      // 只有明确鉴权失败才清本地；网络/5xx/连错地址时保留，方便多端与弱网
+      if (res.status === 401 || res.status === 403) {
         if (stillSameSession()) clearMemoryAndStorage()
         return
       }
       if (!res.ok) {
-        if (stillSameSession()) clearMemoryAndStorage()
+        if (!memorySession) memorySession = stored
+        notify()
         return
       }
       const data = await readWenguJsonResponse<{ ok?: boolean; user?: WenguUser }>(res)
       if (!data.ok || !data.user) {
-        if (stillSameSession()) clearMemoryAndStorage()
+        if (!memorySession) memorySession = stored
+        notify()
         return
       }
       // 若用户已在校验期间重新登录，保留新会话
@@ -232,29 +263,17 @@ export async function logoutWengu(): Promise<void> {
   clearMemoryAndStorage()
 }
 
-/** 离开语文 AI 区域时清空成员登录态；管理员保持一周 localStorage 缓存 */
+/**
+ * @deprecated 不再因离开语文区清登录；保留空实现以免旧调用报错。
+ * 手机/电脑可同时保持登录，互不影响。
+ */
 export function clearWenguSessionOnAiLeave(): void {
-  const current = memorySession ?? readStored()
-  if (isAdminSession(current)) return
-  clearMemoryAndStorage()
+  /* no-op：多端同时使用时不应因切栏目掉登录 */
 }
 
+/** @deprecated 刷新/切后台不再清会话 */
 export function installWenguSessionUnloadGuard(): void {
-  if (unloadHookInstalled || typeof window === 'undefined') return
-  unloadHookInstalled = true
-  purgeLegacyLocalStorage()
-  const onUnload = () => {
-    try {
-      sessionStorage?.removeItem(MEMBER_STORAGE_KEY)
-    } catch {
-      /* ignore */
-    }
-    if (!isAdminSession(memorySession ?? readStored())) {
-      memorySession = null
-    }
-  }
-  window.addEventListener('pagehide', onUnload)
-  window.addEventListener('beforeunload', onUnload)
+  /* no-op */
 }
 
 export type WenguMemberUser = {
@@ -316,6 +335,5 @@ export async function deleteWenguMember(username: string): Promise<void> {
 }
 
 if (typeof window !== 'undefined') {
-  installWenguSessionUnloadGuard()
   void hydrateWenguAuthStore()
 }

@@ -15,6 +15,16 @@ export type ChinesePracticeTabId =
   | 'life-common-sense'
   | 'geography-common-sense'
   | 'key-questions'
+  | 'poet-overview'
+
+/** 诗人速览朝代分区（后续按录入文本整理） */
+export type PoetOverviewDynastyId = 'tang' | 'song' | 'other'
+
+export const POET_OVERVIEW_DYNASTIES: { id: PoetOverviewDynastyId; title: string }[] = [
+  { id: 'tang', title: '唐朝' },
+  { id: 'song', title: '宋朝' },
+  { id: 'other', title: '其他' },
+]
 
 /** 阅读理解子模块（面板内选择；重点题来源也按此区分） */
 export type ChineseReadingSubMode =
@@ -59,16 +69,19 @@ export const CHINESE_PRACTICE_TABS: ChinesePracticeTab[] = [
   { id: 'economy-common-sense', title: '经济常识' },
   { id: 'life-common-sense', title: '生活科学' },
   { id: 'geography-common-sense', title: '地理常识' },
-  { id: 'key-questions', title: '重点题练习' },
+  { id: 'key-questions', title: '重点题' },
+  { id: 'poet-overview', title: '诗人速览' },
 ]
 
 /** 手机端二级菜单：一级分类 */
-export type ChinesePracticeTabGroupId = 'language' | 'common-sense' | 'review'
+export type ChinesePracticeTabGroupId = 'language' | 'common-sense' | 'review' | 'memorization'
 
 export type ChinesePracticeTabGroup = {
   id: ChinesePracticeTabGroupId
   title: string
   tabIds: ChinesePracticeTabId[]
+  /** 仅 1 个子项时仍显示一级分组名（用于「识记模块」等） */
+  forceGroup?: boolean
 }
 
 export const CHINESE_PRACTICE_TAB_GROUPS: ChinesePracticeTabGroup[] = [
@@ -98,6 +111,12 @@ export const CHINESE_PRACTICE_TAB_GROUPS: ChinesePracticeTabGroup[] = [
       'geography-common-sense',
     ],
   },
+  {
+    id: 'memorization',
+    title: '识记模块',
+    forceGroup: true,
+    tabIds: ['poet-overview'],
+  },
   { id: 'review', title: '专项', tabIds: ['key-questions'] },
 ]
 
@@ -116,14 +135,14 @@ export function chineseTabsInGroup(groupId: ChinesePracticeTabGroupId): ChineseP
     .filter((t): t is ChinesePracticeTab => !!t)
 }
 
-/** 手机一级导航：多子项保留分组；仅 1 项的合并为直接入口 */
+/** 手机一级导航：多子项保留分组；仅 1 项的合并为直接入口（forceGroup 除外） */
 export type ChinesePracticeNavItem =
   | { kind: 'group'; group: ChinesePracticeTabGroup }
   | { kind: 'tab'; tab: ChinesePracticeTab; groupId: ChinesePracticeTabGroupId }
 
 export const CHINESE_PRACTICE_NAV_ITEMS: ChinesePracticeNavItem[] = CHINESE_PRACTICE_TAB_GROUPS.map(
   (group) => {
-    if (group.tabIds.length === 1) {
+    if (group.tabIds.length === 1 && !group.forceGroup) {
       const tab = CHINESE_PRACTICE_TABS.find((t) => t.id === group.tabIds[0])!
       return { kind: 'tab' as const, tab, groupId: group.id }
     }
@@ -133,17 +152,18 @@ export const CHINESE_PRACTICE_NAV_ITEMS: ChinesePracticeNavItem[] = CHINESE_PRAC
 
 export function chineseTabGroupHasMultiple(groupId: ChinesePracticeTabGroupId): boolean {
   const g = CHINESE_PRACTICE_TAB_GROUPS.find((x) => x.id === groupId)
+  // 仅多项时才显示二级栏；forceGroup 只影响一级是否保留分组名
   return (g?.tabIds.length ?? 0) > 1
 }
 
 export const DEFAULT_CHINESE_PRACTICE_TAB: ChinesePracticeTabId = 'idiom-memorization'
 
 /**
- * 重点题来源：主 Tab（不含 key-questions / 阅读理解父级）+ 阅读理解五个子模块。
+ * 重点题来源：主 Tab（不含 key-questions / 阅读理解父级 / 诗人速览）+ 阅读理解五个子模块。
  * 旧版成语来源 id 曾为 word-memorization，备注读取时会兼容迁移。
  */
 export type ChineseKeyQuestionSource =
-  | Exclude<ChinesePracticeTabId, 'key-questions' | 'reading-comprehension'>
+  | Exclude<ChinesePracticeTabId, 'key-questions' | 'reading-comprehension' | 'poet-overview'>
   | ChineseReadingKeySource
 
 export function readingKeySource(mode: ChineseReadingSubMode): ChineseReadingKeySource {

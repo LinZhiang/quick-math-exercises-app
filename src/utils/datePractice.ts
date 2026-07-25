@@ -200,9 +200,9 @@ function buildQuestion(input: {
     input.difficulty,
     input.hardTypeId ?? '',
     input.passage,
-    input.stem,
+    (input.passage ?? '').trim(),
+    input.stem.trim(),
     [...assembled.options].sort().join('|'),
-    String(assembled.correctIndex),
   ].join('\u001e')
   return {
     id: `date-${input.difficulty}-${input.seq}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -334,18 +334,27 @@ function genEasyLeapJudge(seq: number): DateQuestion | null {
     { y: 2100, leap: false, why: '整百年不能被 400 整除' },
   ] as const
   const c = pickOne(cases)
-  const ans = c.leap ? '闰年' : '平年'
+  const days = c.leap ? 366 : 365
   return buildQuestion({
     difficulty: 'easy',
     term: '平闰年判定',
     passage: `已知公历年份 ${c.y} 年。`,
-    stem: '该年是平年还是闰年？',
-    correct: ans,
-    distractors: [c.leap ? '平年' : '闰年', '无法判断', c.y % 4 === 0 ? '一定是闰年' : '一定是平年'],
-    method: ['规则：能被 4 整除为闰年；整百年须能被 400 整除。', `${c.y}：${c.why} → ${ans}。`].join(
-      '\n',
-    ),
-    explanation: `${c.y} 年是${ans}。`,
+    stem: '该年共有多少天？',
+    correct: String(days),
+    distractors: uniqueStr(String(days), [
+      String(c.leap ? 365 : 366),
+      '364',
+      '360',
+      '365',
+      '366',
+      '367',
+    ]),
+    method: [
+      '先判平闰：能被 4 整除为闰年；整百年须能被 400 整除。',
+      '平年 365 天，闰年 366 天。',
+      `${c.y}：${c.why} → ${c.leap ? '闰年' : '平年'} → ${days} 天。`,
+    ].join('\n'),
+    explanation: `${c.y} 年是${c.leap ? '闰年' : '平年'}，共 ${days} 天。`,
     seq,
   })
 }

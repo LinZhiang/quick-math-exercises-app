@@ -251,9 +251,9 @@ function buildQuestion(input: {
     'ratio-mult',
     input.difficulty,
     input.hardTypeId ?? '',
-    input.stem,
+    (input.passage ?? '').trim(),
+    input.stem.trim(),
     [...assembled.options].sort().join('|'),
-    String(assembled.correctIndex),
   ].join('\u001e')
   return {
     id: `ratio-mult-${input.difficulty}-${input.seq}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -870,10 +870,14 @@ const HARD_BUILDERS: Record<RatioMultHardTypeId, (seq: number) => RatioMultQuest
   'mixed-pct-frac': genHardMixedPctFrac,
 }
 
-function tryBuild(factory: () => RatioMultQuestion | null, maxTry = 30): RatioMultQuestion | null {
+function tryBuild(
+  factory: () => RatioMultQuestion | null,
+  seen: Set<string>,
+  maxTry = 40,
+): RatioMultQuestion | null {
   for (let i = 0; i < maxTry; i++) {
     const q = factory()
-    if (q) return q
+    if (q && !seen.has(q.fingerprint)) return q
   }
   return null
 }
@@ -892,21 +896,26 @@ export function generateRatioMultPaper(difficulty: RatioMultDifficulty): RatioMu
   if (difficulty === 'easy') {
     const factories = [genEasyAMultiple, genEasySumDiff, genEasyPickOption, genEasyMustTrue]
     let guard = 0
-    while (out.length < RATIO_MULT_QUESTION_COUNT && guard++ < 80) {
-      push(tryBuild(() => pickOne(factories)(out.length)))
+    while (out.length < RATIO_MULT_QUESTION_COUNT && guard++ < 120) {
+      push(tryBuild(() => pickOne(factories)(out.length), seen))
     }
   } else if (difficulty === 'medium') {
     const plan = [
       () => genMediumShipClassic(0),
-      () => genMediumShipClassic(1),
-      () => genMediumTwoRatioScreen(2),
-      () => genMediumPartOfWhole(3),
-      () => (Math.random() < 0.5 ? genMediumShipClassic(4) : genMediumTwoRatioScreen(4)),
+      () => genMediumTwoRatioScreen(1),
+      () => genMediumPartOfWhole(2),
+      () => genMediumShipClassic(3),
+      () => (Math.random() < 0.5 ? genMediumTwoRatioScreen(4) : genMediumPartOfWhole(4)),
     ]
-    for (const f of plan) push(tryBuild(f))
+    for (const f of plan) push(tryBuild(f, seen, 50))
     let guard = 0
-    while (out.length < RATIO_MULT_QUESTION_COUNT && guard++ < 40) {
-      push(tryBuild(() => genMediumShipClassic(out.length)))
+    while (out.length < RATIO_MULT_QUESTION_COUNT && guard++ < 80) {
+      const fillers = [
+        () => genMediumShipClassic(out.length),
+        () => genMediumTwoRatioScreen(out.length),
+        () => genMediumPartOfWhole(out.length),
+      ]
+      push(tryBuild(pickOne(fillers), seen, 30))
     }
   } else {
     const types = shuffleInPlace([...RATIO_MULT_HARD_EXAM_TYPES.map((t) => t.id)]).slice(
@@ -914,17 +923,7 @@ export function generateRatioMultPaper(difficulty: RatioMultDifficulty): RatioMu
       RATIO_MULT_QUESTION_COUNT,
     )
     for (const typeId of types) {
-      const builder = HARD_BUILDERS[typeId]
-      let q: RatioMultQuestion | null = null
-      for (let t = 0; t < 35; t++) {
-        q = builder(out.length)
-        if (q && !seen.has(q.fingerprint)) break
-        q = null
-      }
-      if (q) {
-        seen.add(q.fingerprint)
-        out.push(q)
-      }
+      push(tryBuild(() => HARD_BUILDERS[typeId](out.length), seen, 40))
     }
   }
 

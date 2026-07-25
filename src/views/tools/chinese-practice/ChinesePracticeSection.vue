@@ -28,15 +28,18 @@ import ChineseReadingComprehensionPanel from '@/views/tools/chinese-practice/Chi
 import ChineseRhetoricUsagePanel from '@/views/tools/chinese-practice/ChineseRhetoricUsagePanel.vue'
 import ChineseTheoryPolicyPanel from '@/views/tools/chinese-practice/ChineseTheoryPolicyPanel.vue'
 import ChineseWordMemorizationPanel from '@/views/tools/chinese-practice/ChineseWordMemorizationPanel.vue'
+import ChinesePoetOverviewPanel from '@/views/tools/chinese-practice/ChinesePoetOverviewPanel.vue'
 import { isAiChatConfigured, DEEPSEEK_NOT_CONFIGURED_HINT } from '@/services/deepseek'
 import { wenguAuthTick } from '@/utils/wenguAuthStore'
 import { wrongBookWorkspaceActive } from '@/utils/wrongBookWorkspaceGate'
+import { chineseKeyReviewExitTick } from '@/utils/chineseKeyReviewSession'
 import AiProviderSwitch from '@/components/AiProviderSwitch.vue'
 
 export type { KeyPracticePayload } from '@/types/chinese-practice'
 
 const emit = defineEmits<{
   (e: 'go-install'): void
+  (e: 'tab-change', tabId: ChinesePracticeTabId): void
 }>()
 
 const deepseekReady = computed(() => {
@@ -53,6 +56,7 @@ const idiomRef = ref<InstanceType<typeof ChineseIdiomPanel> | null>(null)
 const wordMemorizationRef = ref<InstanceType<typeof ChineseWordMemorizationPanel> | null>(null)
 const charLiteracyRef = ref<InstanceType<typeof ChineseCharLiteracyPanel> | null>(null)
 const poetryRef = ref<InstanceType<typeof ChinesePoetryPanel> | null>(null)
+const poetOverviewRef = ref<InstanceType<typeof ChinesePoetOverviewPanel> | null>(null)
 const classicalChineseRef = ref<InstanceType<typeof ChineseClassicalChinesePanel> | null>(null)
 const rhetoricUsageRef = ref<InstanceType<typeof ChineseRhetoricUsagePanel> | null>(null)
 const readingComprehensionRef = ref<InstanceType<typeof ChineseReadingComprehensionPanel> | null>(
@@ -78,6 +82,7 @@ const isRunningOrLoading = computed(
     wordMemorizationRef.value?.isRunningOrLoading ||
     charLiteracyRef.value?.isRunningOrLoading ||
     poetryRef.value?.isRunningOrLoading ||
+    poetOverviewRef.value?.isRunningOrLoading ||
     classicalChineseRef.value?.isRunningOrLoading ||
     rhetoricUsageRef.value?.isRunningOrLoading ||
     readingComprehensionRef.value?.isRunningOrLoading ||
@@ -93,6 +98,20 @@ const isRunningOrLoading = computed(
 
 watch(activeTab, (id) => {
   activeTabGroupId.value = chineseTabGroupIdForTab(id)
+  emit('tab-change', id)
+}, { immediate: true })
+
+/** 重点题复盘测验结束返回时，切回「重点题」 */
+watch(chineseKeyReviewExitTick, async () => {
+  if (activeTab.value === 'key-questions') return
+  await nextTick()
+  activeTab.value = 'key-questions'
+  activeTabGroupId.value = chineseTabGroupIdForTab('key-questions')
+  await nextTick()
+  const active = tabsRef.value?.querySelector<HTMLElement>(
+    '.chinese-practice-section__tab.is-active',
+  )
+  active?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
 })
 
 function selectTabGroup(groupId: ChinesePracticeTabGroupId) {
@@ -107,7 +126,7 @@ function selectTabGroup(groupId: ChinesePracticeTabGroupId) {
 
 function isChineseLevel1Active(item: (typeof CHINESE_PRACTICE_NAV_ITEMS)[number]): boolean {
   if (item.kind === 'group') {
-    return activeTabGroupId.value === item.group.id && showTabLevel2.value
+    return activeTabGroupId.value === item.group.id
   }
   return activeTab.value === item.tab.id
 }
@@ -171,6 +190,7 @@ function onKeyPractice(payload: KeyPracticePayload) {
 defineExpose({
   isRunningOrLoading,
   selectTab,
+  activeTab,
   startKeyPractice(source: ChineseKeyQuestionSource, questions: KeyPracticePayload['questions']) {
     onKeyPractice({ source, questions } as KeyPracticePayload)
   },
@@ -178,16 +198,19 @@ defineExpose({
 </script>
 
 <template>
-  <div class="chinese-practice-section">
+  <div
+    class="chinese-practice-section"
+    :class="{ 'chinese-practice-section--poet': activeTab === 'poet-overview' }"
+  >
     <div v-if="!deepseekReady" class="chinese-practice-section__auth-banner" role="status">
       <p class="chinese-practice-section__auth-text">{{ DEEPSEEK_NOT_CONFIGURED_HINT }}</p>
       <a
         class="chinese-practice-section__auth-link"
-        href="#install"
+        href="#settings"
         @click.prevent="emit('go-install')"
       >去登录</a>
     </div>
-    <AiProviderSwitch v-if="deepseekReady" />
+    <AiProviderSwitch v-if="deepseekReady && activeTab !== 'poet-overview'" />
     <nav ref="tabsRef" class="chinese-practice-section__nav" aria-label="语文练习子功能">
       <div class="chinese-practice-section__level1" aria-label="一级分类">
         <template
@@ -291,10 +314,18 @@ defineExpose({
       :active="activeTab === 'key-questions'"
       @practice="onKeyPractice"
     />
+    <ChinesePoetOverviewPanel
+      v-show="activeTab === 'poet-overview'"
+      ref="poetOverviewRef"
+    />
   </div>
 </template>
 
 <style scoped>
+.chinese-practice-section {
+  min-width: 0;
+}
+
 .chinese-practice-section__auth-banner {
   display: flex;
   flex-wrap: wrap;
@@ -371,12 +402,26 @@ defineExpose({
 }
 
 @media (max-width: 640px) {
+  .chinese-practice-section--poet {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chinese-practice-section--poet :deep(.poet-overview) {
+    flex: 1;
+    min-height: 0;
+    margin: 0 10px;
+  }
+
   .chinese-practice-section__nav {
     display: flex;
     flex-direction: column;
     gap: 0;
-    margin: 0 -12px 12px;
+    margin: 0 -12px 8px;
     padding: 0;
+    flex-shrink: 0;
     position: sticky;
     top: 0;
     z-index: 12;
@@ -385,8 +430,16 @@ defineExpose({
     border-bottom: 1px solid var(--app-border-soft);
   }
 
-  /* 无登录提示时贴紧 Hub 一级栏，抵消 practice-main 上内边距白缝 */
-  .chinese-practice-section:not(:has(.chinese-practice-section__auth-banner))
+  /* 诗人页：nav 贴顶、无二级栏时再收一点底边 */
+  .chinese-practice-section--poet .chinese-practice-section__nav {
+    position: static;
+    margin: 0 0 6px;
+    border-bottom: none;
+  }
+
+  .chinese-practice-section:not(.chinese-practice-section--poet):not(
+      :has(.chinese-practice-section__auth-banner)
+    )
     .chinese-practice-section__nav {
     margin-top: -12px;
   }
@@ -398,20 +451,24 @@ defineExpose({
   .chinese-practice-section__level1,
   .chinese-practice-section__level2 {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 6px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
     overflow: visible;
   }
 
   .chinese-practice-section__level1 {
-    padding: 8px 12px;
-    background: color-mix(in srgb, var(--app-border-soft) 35%, var(--app-surface-alt));
-    border-bottom: 1px solid var(--app-border);
+    padding: 5px 8px;
+    background: color-mix(in srgb, var(--app-border-soft) 22%, var(--app-surface-alt));
+    border-bottom: 1px solid var(--app-border-soft);
+  }
+
+  .chinese-practice-section--poet .chinese-practice-section__level1 {
+    border-bottom: none;
   }
 
   .chinese-practice-section__level2 {
     margin-top: 0;
-    padding: 8px 12px 10px;
+    padding: 6px 10px 8px;
     background: var(--app-surface);
   }
 
@@ -422,26 +479,26 @@ defineExpose({
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
-    padding: 8px 4px;
+    padding: 6px 2px;
     border: 1px solid transparent;
-    border-radius: 10px;
+    border-radius: 8px;
     background: transparent;
     color: var(--app-text-muted);
     font: inherit;
     font-size: 12px;
     font-weight: 700;
-    line-height: 1.25;
+    line-height: 1.2;
     text-align: center;
-    white-space: normal;
-    word-break: break-all;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     cursor: pointer;
   }
 
   .chinese-practice-section__group.is-active {
-    border-color: color-mix(in srgb, var(--el-color-primary) 45%, transparent);
+    border-color: color-mix(in srgb, var(--el-color-primary) 40%, transparent);
     background: var(--app-surface);
     color: var(--el-color-primary);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
   }
 
   .chinese-practice-section__tab {
@@ -449,12 +506,13 @@ defineExpose({
     min-width: 0;
     box-sizing: border-box;
     text-align: center;
-    white-space: normal;
-    word-break: break-all;
-    padding: 7px 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 6px 4px;
     border-radius: 999px;
     font-size: 12px;
-    line-height: 1.25;
+    line-height: 1.2;
     background: var(--app-surface-alt);
   }
 
