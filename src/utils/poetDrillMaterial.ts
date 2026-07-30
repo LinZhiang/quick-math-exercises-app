@@ -130,3 +130,99 @@ export function buildPoetDrillMaterialText(scope: PoetDrillScope): string {
   // 防止超长 prompt
   return raw.length > 14000 ? `${raw.slice(0, 14000)}\n…（材料已截断）` : raw
 }
+
+/** 从材料中提取可考诗人名、篇目名，供命题后校验「不得超纲」 */
+export function extractPoetDrillAllowlist(material: string): {
+  poets: string[]
+  titles: string[]
+  compact: string
+} {
+  const poets: string[] = []
+  const titles: string[] = []
+  for (const line of material.split(/\r?\n/)) {
+    const h = line.match(/^###\s*(.+)\s*$/)
+    if (h?.[1]) poets.push(h[1].trim())
+    const t = line.trim()
+    if (
+      t &&
+      !t.startsWith('【') &&
+      !t.startsWith('名句') &&
+      !t.startsWith('注释') &&
+      !t.startsWith('背景') &&
+      !t.startsWith('###') &&
+      !t.startsWith('—') &&
+      !t.includes('：') === false &&
+      t.length >= 2 &&
+      t.length <= 24 &&
+      !/考查范围|分期总述|诗人详解/.test(t)
+    ) {
+      if (!/^[甲乙丙丁]/.test(t) && !/小时|分钟/.test(t)) {
+        titles.push(t)
+      }
+    }
+  }
+  const compact = normalizePoetText(material)
+  return {
+    poets: [...new Set(poets)],
+    titles: [...new Set(titles)],
+    compact,
+  }
+}
+
+function normalizePoetText(s: string): string {
+  return s.replace(/\s+/g, '').replace(/[，。！？、；：:""''「」『』《》【】（）()·\-—_/\\]/g, '')
+}
+
+/** 题目是否仍落在材料封闭范围内（宽松：正确作者/诗句须在材料；term 尽量在材料） */
+export function poetDrillQuestionInMaterial(
+  q: { questionType: string; term: string; stem: string; options: string[]; correctIndex: number },
+  allow: { poets: string[]; titles: string[]; compact: string },
+): boolean {
+  const stemCompact = normalizePoetText(q.stem)
+  const correct = (q.options[q.correctIndex] ?? '').trim()
+  const correctCompact = normalizePoetText(correct)
+
+  const inCompact = (s: string) => {
+    const c = normalizePoetText(s)
+    return c.length >= 2 && allow.compact.includes(c)
+  }
+
+  const stemInMaterial = (() => {
+    if (!stemCompact) return false
+    if (allow.compact.includes(stemCompact)) return true
+    for (const n of [12, 10, 8, 6]) {
+      if (stemCompact.length >= n && allow.compact.includes(stemCompact.slice(0, n))) return true
+    }
+    return false
+  })()
+
+  if (q.questionType === 'verse-to-author') {
+    const authorOk = allow.poets.includes(correct) || inCompact(correct)
+    if (!authorOk) return false
+    if (!stemInMaterial) return false
+    return true
+  }
+
+  if (q.questionType === 'author-to-verse') {
+    if (correctCompact.length >= 4) {
+      const hit =
+        allow.compact.includes(correctCompact) ||
+        allow.compact.includes(correctCompact.slice(0, Math.min(10, correctCompact.length)))
+      if (!hit) return false
+    }
+    return true
+  }
+
+  if (q.questionType === 'verse-to-background') {
+    return stemInMaterial
+  }
+
+  if (q.questionType === 'poet-fact') {
+    const term = q.term.trim()
+    if (term && (allow.poets.includes(term) || inCompact(term))) return true
+    if (allow.poets.some((p) => q.stem.includes(p))) return true
+    return allow.poets.some((p) => allow.compact.includes(normalizePoetText(p)) && q.stem.length > 0)
+  }
+
+  return true
+}

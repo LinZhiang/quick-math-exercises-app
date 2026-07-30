@@ -17,6 +17,16 @@
  * 10. profit-compound：先涨后跌或两阶段盈亏再交叉
  */
 import { assembleFourChoiceMcq } from '@/utils/chineseMcqAiFields'
+import {
+  crossYieldCostRatio,
+  ratioStrInts,
+  uniqueMcqNums,
+  uniqueMcqStrings,
+} from '@/utils/mathOpMcqHelpers'
+import {
+  appendRecentOpFingerprints,
+  listRecentOpFingerprints,
+} from '@/utils/mathOpRecentStore'
 
 export type CrossMethodDifficulty = 'easy' | 'medium' | 'hard'
 
@@ -140,56 +150,20 @@ function pickOne<T>(arr: readonly T[]): T {
   return arr[randInt(0, arr.length - 1)]!
 }
 
-function gcd(a: number, b: number): number {
-  let x = Math.abs(Math.round(a))
-  let y = Math.abs(Math.round(b))
-  while (y) {
-    const t = y
-    y = x % y
-    x = t
-  }
-  return x || 1
-}
-
-function reduceRatio(x: number, y: number): [number, number] {
-  const g = gcd(x, y)
-  return [x / g, y / g]
-}
-
 function ratioStr(x: number, y: number): string {
-  const [a, b] = reduceRatio(x, y)
-  return `${a}:${b}`
+  return ratioStrInts(x, y)
 }
 
 function uniqueStr(correct: string, cands: string[], need = 3): string[] {
-  const out: string[] = []
-  const seen = new Set([correct.replace(/\s+/g, '')])
-  for (const c of cands) {
-    const k = c.trim().replace(/\s+/g, '')
-    if (!k || seen.has(k)) continue
-    seen.add(k)
-    out.push(c.trim())
-    if (out.length >= need) break
-  }
-  let g = 0
-  while (out.length < need && g++ < 40) {
-    const fake = `${correct}+${g}`
-    if (seen.has(fake)) continue
-    seen.add(fake)
-    out.push(String(Number(correct) + g || `${g}:${g + 1}`))
-  }
-  return out.slice(0, need)
+  return uniqueMcqStrings(correct, cands, need)
 }
 
 function uniqueNum(correct: number, cands: number[]): string[] {
-  return uniqueStr(
-    String(correct),
-    cands.filter((x) => Number.isFinite(x) && Number.isInteger(x) && x !== correct).map(String),
-  )
+  return uniqueMcqNums(correct, cands)
 }
 
 function uniqueOpt(correct: string, cands: (string | number)[]): string[] {
-  return uniqueStr(correct, cands.map(String))
+  return uniqueMcqStrings(correct, cands.map(String))
 }
 
 function buildQuestion(input: {
@@ -351,39 +325,30 @@ function genEasyPrice(seq: number): CrossMethodQuestion | null {
 // ——— 中等（经典：先算 c，再交叉；可含负盈亏） ———
 
 function genMediumStock(seq: number): CrossMethodQuestion | null {
-  // Classic: A +15%, B -10%, total 24000, profit 1350 → c=1350/24000=9/160
-  // Generalize with integer-friendly numbers
+  // Classic: A +15%, B -10%, total 24000, profit 1350 → 精确 5:3（禁止浮点舍入）
   const templates = [
     { total: 24000, profit: 1350, up: 15, down: 10 }, // 5:3
     { total: 20000, profit: 1000, up: 20, down: 10 }, // 3:2
     { total: 16000, profit: 400, up: 15, down: 5 }, // 2:1
     { total: 30000, profit: 1500, up: 20, down: 10 }, // 1:1
     { total: 12000, profit: 600, up: 25, down: 5 }, // 1:2
+    { total: 18000, profit: 900, up: 20, down: 10 }, // 2:1
+    { total: 28000, profit: 1400, up: 15, down: 10 }, // 5:3
   ]
 
   for (const t of shuffleInPlace([...templates])) {
-    const a = t.up / 100
-    const b = -t.down / 100
-    const c = t.profit / t.total
-    // scale by 10000 for integer cross
-    const scale = 10000
-    const A = Math.round(a * scale)
-    const B = Math.round(b * scale)
-    const C = Math.round(c * scale)
-    const x = C - B
-    const y = A - C
-    if (x <= 0 || y <= 0) continue
-    const ans = ratioStr(x, y)
-    // verify against template ans if provided for classic
+    const ans = crossYieldCostRatio(t.up, -t.down, t.profit, t.total)
+    if (!ans) continue
+    const cExact = `${t.profit}/${t.total}`
     return buildQuestion({
       difficulty: 'medium',
       term: '股票盈亏交叉（经典型）',
       passage: `小孙用 ${t.total} 元购买甲、乙两种股票。当甲股票上涨 ${t.up}%、乙股票下跌 ${t.down}% 时全部卖出，共获利 ${t.profit} 元。`,
       stem: '购买甲、乙股票的资金之比是？',
       correct: ans,
-      distractors: uniqueOpt(ans, ['5:3', '8:5', '8:3', '3:5', '2:1', '3:2', ratioStr(y, x)]),
-      method: '先算总收益率 c=利润/成本，再对 a、b、c 做十字交叉；右侧为成本之比。',
-      explanation: `c=${t.profit}/${t.total}。交叉：(${fractionish(c)}−(${-t.down}%)) : (${t.up}%−${fractionish(c)}) = ${ans}。`,
+      distractors: uniqueOpt(ans, ['5:3', '8:5', '8:3', '3:5', '2:1', '3:2', '4:3', '1:1']),
+      method: '先算总收益率 c=利润/成本（保留分数），再对 a、b、c 做十字交叉；右侧为成本之比。禁止对 c 做百分数四舍五入。',
+      explanation: `c=${cExact}。交叉用整数算：((100×利润−(−跌幅)×成本):(涨幅×成本−100×利润)) 约分得 ${ans}。`,
       seq,
     })
   }
@@ -399,12 +364,6 @@ function genMediumStock(seq: number): CrossMethodQuestion | null {
     explanation: 'c−b=25/160，a−c=15/160 ⇒ 25:15=5:3。',
     seq,
   })
-}
-
-function fractionish(c: number): string {
-  // display as percent-ish or simplified
-  const pct = Math.round(c * 10000) / 100
-  return `${pct}%`
 }
 
 function genMediumProfitGoods(seq: number): CrossMethodQuestion | null {
@@ -894,7 +853,7 @@ export function generateCrossMethodPaper(
   difficulty: CrossMethodDifficulty,
 ): CrossMethodQuestion[] {
   const out: CrossMethodQuestion[] = []
-  const seen = new Set<string>()
+  const seen = new Set<string>(listRecentOpFingerprints(`cross-method:${difficulty}`))
 
   const push = (q: CrossMethodQuestion | null) => {
     if (!q) return
@@ -947,7 +906,40 @@ export function generateCrossMethodPaper(
   }
 
   if (out.length < CROSS_METHOD_QUESTION_COUNT) {
+    const soft = new Set(out.map((q) => q.fingerprint))
+    const pushSoft = (q: CrossMethodQuestion | null) => {
+      if (!q || soft.has(q.fingerprint)) return
+      soft.add(q.fingerprint)
+      out.push(q)
+    }
+    let guard = 0
+    while (out.length < CROSS_METHOD_QUESTION_COUNT && guard++ < 80) {
+      if (difficulty === 'easy') {
+        pushSoft(
+          tryBuild(() =>
+            pickOne([genEasyScore, genEasyConcentration, genEasyAge, genEasyPrice])(out.length),
+          ),
+        )
+      } else if (difficulty === 'medium') {
+        pushSoft(
+          tryBuild(() =>
+            pickOne([genMediumStock, genMediumProfitGoods, genMediumConcNeedC])(out.length),
+          ),
+        )
+      } else {
+        const typeId = pickOne(CROSS_METHOD_HARD_EXAM_TYPES.map((t) => t.id))
+        pushSoft(tryBuild(() => HARD_BUILDERS[typeId](out.length), 40))
+      }
+    }
+  }
+
+  if (out.length < CROSS_METHOD_QUESTION_COUNT) {
     throw new Error(`十字交叉法组卷不足：仅 ${out.length}/${CROSS_METHOD_QUESTION_COUNT}`)
   }
-  return out.slice(0, CROSS_METHOD_QUESTION_COUNT)
+  const paper = out.slice(0, CROSS_METHOD_QUESTION_COUNT)
+  appendRecentOpFingerprints(
+    `cross-method:${difficulty}`,
+    paper.map((q) => q.fingerprint),
+  )
+  return paper
 }

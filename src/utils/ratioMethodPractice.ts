@@ -17,6 +17,11 @@
  * 10. ratio-unify-travel：行程三段比例统一
  */
 import { assembleFourChoiceMcq } from '@/utils/chineseMcqAiFields'
+import { uniqueMcqNums, uniqueMcqStrings } from '@/utils/mathOpMcqHelpers'
+import {
+  appendRecentOpFingerprints,
+  listRecentOpFingerprints,
+} from '@/utils/mathOpRecentStore'
 
 export type RatioMethodDifficulty = 'easy' | 'medium' | 'hard'
 
@@ -156,37 +161,15 @@ function lcm2(a: number, b: number): number {
 }
 
 function uniqueStr(correct: string, cands: string[], need = 3): string[] {
-  const out: string[] = []
-  const seen = new Set([correct.replace(/\s+/g, '')])
-  for (const c of cands) {
-    const k = c.trim().replace(/\s+/g, '')
-    if (!k || seen.has(k)) continue
-    seen.add(k)
-    out.push(c.trim())
-    if (out.length >= need) break
-  }
-  let g = 0
-  while (out.length < need && g++ < 40) {
-    const fake = String(Number(correct) + g + 1)
-    if (seen.has(fake)) continue
-    seen.add(fake)
-    out.push(fake)
-  }
-  return out.slice(0, need)
+  return uniqueMcqStrings(correct, cands, need)
 }
 
 function uniqueNum(correct: number, cands: number[]): string[] {
-  return uniqueStr(
-    String(correct),
-    cands.filter((x) => Number.isFinite(x) && Number.isInteger(x) && x !== correct).map(String),
-  )
+  return uniqueMcqNums(correct, cands)
 }
 
 function uniqueOpt(correct: string, cands: (string | number)[]): string[] {
-  return uniqueStr(
-    correct,
-    cands.map(String),
-  )
+  return uniqueMcqStrings(correct, cands.map(String))
 }
 
 function buildQuestion(input: {
@@ -325,9 +308,10 @@ function genEasyUnifySimple(seq: number): RatioMethodQuestion | null {
     correct: ans,
     distractors: uniqueOpt(ans, [
       `${a}:${b}:${d}`,
-      `${A}:${B}:${C}`,
       `${a * c}:${b * c}:${b * d}`,
       `${A / g}:${C / g}`,
+      `${B / g}:${C / g}`,
+      `${a}:${d}`,
     ]),
     method: '乙为中间量，取两比中乙份数的最小公倍数后统一约分。',
     explanation: `乙取 ${B} 份 ⇒ 甲:乙:丙=${A}:${B}:${C}=${ans}。`,
@@ -389,30 +373,81 @@ function genMediumTransferRatio(seq: number): RatioMethodQuestion | null {
 }
 
 function genMediumUnifyThree(seq: number): RatioMethodQuestion | null {
-  for (let attempt = 0; attempt < 30; attempt++) {
-    const a = pickOne([3, 4, 5])
-    const b1 = pickOne([4, 5, 6])
-    const b2 = pickOne([3, 5, 6])
-    const c = pickOne([4, 5, 7, 8])
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const a = pickOne([2, 3, 4, 5, 6])
+    const b1 = pickOne([3, 4, 5, 6, 7])
+    const b2 = pickOne([2, 3, 4, 5, 6])
+    const c = pickOne([3, 4, 5, 7, 8, 9])
+    if (a === b1 && b2 === c) continue
     const B = lcm2(b1, b2)
     const A = (B / b1) * a
     const C = (B / b2) * c
     const g = gcd(gcd(A, B), C)
-    const dg = Math.abs(A - C) / g
-    if (dg === 0) continue
-    const realDiff = pickOne([6, 8, 10, 12, 14, 15])
-    if (realDiff % dg !== 0) continue
-    const unit = realDiff / dg
-    const total = ((A + B + C) / g) * unit
+    const Ar = A / g
+    const Br = B / g
+    const Cr = C / g
+    if (Ar === Br && Br === Cr) continue
+    const ans = `${Ar}:${Br}:${Cr}`
+    // 要求三量比完整，干扰项禁止缺项/未约分等价
     return buildQuestion({
       difficulty: 'medium',
       term: '三量比例统一',
-      passage: `甲:乙=${a}:${b1}，乙:丙=${b2}:${c}。甲比丙多 ${realDiff}（人/件）。`,
+      passage: `已知甲:乙=${a}:${b1}，乙:丙=${b2}:${c}。`,
+      stem: '甲:乙:丙等于？',
+      correct: ans,
+      distractors: uniqueOpt(ans, [
+        `${a}:${b1}:${c}`,
+        `${Ar}:${Cr}`,
+        `${a * b2}:${b1 * b2}:${b1 * c}`,
+        `${Br}:${Cr}`,
+        `${Ar}:${Br}`,
+        '2:3:4',
+        '3:4:5',
+      ]),
+      method: '乙为中间量，取两比中乙份数的最小公倍数后统一约分，得到完整三量比。',
+      explanation: `乙取 ${B} 份 ⇒ 甲:乙:丙=${A}:${B}:${C}=${ans}。`,
+      seq,
+    })
+  }
+  return null
+}
+
+function genMediumPartDiff(seq: number): RatioMethodQuestion | null {
+  for (let attempt = 0; attempt < 35; attempt++) {
+    const a = pickOne([3, 4, 5, 6])
+    const b = pickOne([4, 5, 6, 7])
+    const c = pickOne([2, 3, 4, 5])
+    const d = pickOne([5, 6, 7, 8])
+    if (b === d) continue
+    const B = lcm2(b, d)
+    const A = (B / b) * a
+    const C = (B / d) * c
+    const g = gcd(gcd(A, B), C)
+    const Ar = A / g
+    const Br = B / g
+    const Cr = C / g
+    const dg = Math.abs(Ar - Cr)
+    if (dg === 0) continue
+    const realDiff = pickOne([6, 8, 9, 10, 12, 15, 16, 18, 20, 24])
+    if (realDiff % dg !== 0) continue
+    const unit = realDiff / dg
+    const total = (Ar + Br + Cr) * unit
+    return buildQuestion({
+      difficulty: 'medium',
+      term: '三量比求总量',
+      passage: `甲:乙=${a}:${b}，乙:丙=${d}:${c}。甲比丙${Ar > Cr ? '多' : '少'} ${realDiff}。`,
       stem: '甲、乙、丙合计是多少？',
       correct: String(total),
-      distractors: uniqueNum(total, [(A / g) * unit, (B / g) * unit, total + unit, realDiff * 9]),
-      method: '统一乙份数得甲:乙:丙，用差对应份数求每份实际值。',
-      explanation: `统一后甲:乙:丙=${A / g}:${B / g}:${C / g}；差 ${dg} 份=${realDiff}，每份 ${unit}；合计 ${total}。`,
+      distractors: uniqueNum(total, [
+        Ar * unit,
+        Br * unit,
+        Cr * unit,
+        total + unit,
+        realDiff * (Ar + Br + Cr),
+        total - unit,
+      ]),
+      method: '先统一得甲:乙:丙完整比，再用差对应份数求每份实际值，最后求和。',
+      explanation: `统一后甲:乙:丙=${Ar}:${Br}:${Cr}；差 ${dg} 份=${realDiff}，每份 ${unit}；合计 ${total}。`,
       seq,
     })
   }
@@ -778,7 +813,7 @@ export function generateRatioMethodPaper(
   difficulty: RatioMethodDifficulty,
 ): RatioMethodQuestion[] {
   const out: RatioMethodQuestion[] = []
-  const seen = new Set<string>()
+  const seen = new Set<string>(listRecentOpFingerprints(`ratio-method:${difficulty}`))
 
   const push = (q: RatioMethodQuestion | null) => {
     if (!q) return
@@ -796,15 +831,16 @@ export function generateRatioMethodPaper(
   } else if (difficulty === 'medium') {
     const plan = [
       () => genMediumTransferRatio(0),
-      () => genMediumTransferRatio(1),
-      () => genMediumUnifyThree(2),
+      () => genMediumUnifyThree(1),
+      () => genMediumPartDiff(2),
       () => genMediumTransferRatio(3),
       () => genMediumUnifyThree(4),
     ]
     for (const f of plan) push(tryBuild(f))
+    const fillers = [genMediumTransferRatio, genMediumUnifyThree, genMediumPartDiff]
     let guard = 0
-    while (out.length < RATIO_METHOD_QUESTION_COUNT && guard++ < 40) {
-      push(tryBuild(() => genMediumTransferRatio(out.length)))
+    while (out.length < RATIO_METHOD_QUESTION_COUNT && guard++ < 50) {
+      push(tryBuild(() => pickOne(fillers)(out.length)))
     }
   } else {
     const types = shuffleInPlace([...RATIO_METHOD_HARD_EXAM_TYPES.map((t) => t.id)])
@@ -827,7 +863,32 @@ export function generateRatioMethodPaper(
   }
 
   if (out.length < RATIO_METHOD_QUESTION_COUNT) {
+    // 近期去重过严时放宽：仅保证本轮不重复
+    const soft = new Set(out.map((q) => q.fingerprint))
+    const pushSoft = (q: RatioMethodQuestion | null) => {
+      if (!q || soft.has(q.fingerprint)) return
+      soft.add(q.fingerprint)
+      out.push(q)
+    }
+    let guard = 0
+    const factories =
+      difficulty === 'easy'
+        ? [genEasyDiffParts, genEasySumParts, genEasyUnifySimple]
+        : difficulty === 'medium'
+          ? [genMediumTransferRatio, genMediumUnifyThree, genMediumPartDiff]
+          : Object.values(HARD_BUILDERS)
+    while (out.length < RATIO_METHOD_QUESTION_COUNT && guard++ < 100) {
+      pushSoft(tryBuild(() => pickOne(factories)(out.length), 40))
+    }
+  }
+
+  if (out.length < RATIO_METHOD_QUESTION_COUNT) {
     throw new Error(`比例法组卷不足：仅 ${out.length}/${RATIO_METHOD_QUESTION_COUNT}`)
   }
-  return out.slice(0, RATIO_METHOD_QUESTION_COUNT)
+  const paper = out.slice(0, RATIO_METHOD_QUESTION_COUNT)
+  appendRecentOpFingerprints(
+    `ratio-method:${difficulty}`,
+    paper.map((q) => q.fingerprint),
+  )
+  return paper
 }

@@ -25,6 +25,11 @@
  * 14. leftover-one：剩余工程设人效 1
  */
 import { assembleFourChoiceMcq } from '@/utils/chineseMcqAiFields'
+import { uniqueMcqNums, uniqueMcqStrings } from '@/utils/mathOpMcqHelpers'
+import {
+  appendRecentOpFingerprints,
+  listRecentOpFingerprints,
+} from '@/utils/mathOpRecentStore'
 
 export type SpecValDifficulty = 'easy' | 'hard'
 
@@ -134,30 +139,11 @@ function lcmMany(nums: number[]): number {
 }
 
 function uniqueStr(correct: string, cands: string[], need = 3): string[] {
-  const out: string[] = []
-  const seen = new Set([correct.replace(/\s+/g, '')])
-  for (const c of cands) {
-    const k = c.trim().replace(/\s+/g, '')
-    if (!k || seen.has(k)) continue
-    seen.add(k)
-    out.push(c.trim())
-    if (out.length >= need) break
-  }
-  let g = 0
-  while (out.length < need && g++ < 40) {
-    const fake = String(Number(correct) + g + 1)
-    if (seen.has(fake)) continue
-    seen.add(fake)
-    out.push(fake)
-  }
-  return out.slice(0, need)
+  return uniqueMcqStrings(correct, cands, need)
 }
 
 function uniqueNum(correct: number, cands: number[]): string[] {
-  return uniqueStr(
-    String(correct),
-    cands.filter((x) => Number.isFinite(x) && Number.isInteger(x) && x !== correct).map(String),
-  )
+  return uniqueMcqNums(correct, cands)
 }
 
 function uniqueOpt(correct: string, cands: (string | number)[]): string[] {
@@ -690,31 +676,61 @@ function genHardRoundtrip(seq: number): SpecValQuestion | null {
 }
 
 function genHardThreeSpeed(seq: number): SpecValQuestion | null {
-  for (let attempt = 0; attempt < 30; attempt++) {
-    const t1 = pickOne([3, 4, 6])
-    const t2 = pickOne([4, 6, 8])
-    const t3 = pickOne([6, 8, 12])
+  // 复合：甲乙两端相向，丙从甲地同时出发同向乙；问甲乙相遇时，丙距乙还剩多少路程（或已走路程占比）
+  for (let attempt = 0; attempt < 45; attempt++) {
+    const t1 = pickOne([4, 5, 6, 8, 9, 10])
+    const t2 = pickOne([6, 8, 10, 12, 15])
+    const t3 = pickOne([8, 10, 12, 15, 18, 20])
     if (new Set([t1, t2, t3]).size < 3) continue
+    if (t1 >= t2) continue
     const dist = lcmMany([t1, t2, t3])
     const v1 = dist / t1
     const v2 = dist / t2
     const v3 = dist / t3
-    // 三车同时同向从起点出发， eth最快追上最慢？ from start gap 0 - instead: A,B opposite meet time
-    // Ask: 甲乙相向相遇时间
     const meet = dist / (v1 + v2)
-    if (!Number.isInteger(meet) && Math.abs(meet * 2 - Math.round(meet * 2)) > 1e-9) continue
-    const ans = Number.isInteger(meet) ? String(meet) : String(meet)
     if (!Number.isInteger(meet)) continue
+    const propDone = v3 * meet
+    if (!Number.isInteger(propDone)) continue
+    const leftToB = dist - propDone
+    if (leftToB <= 0 || leftToB >= dist) continue
+    const mode = pickOne(['left', 'done', 'when'] as const)
+    if (mode === 'when') {
+      // 丙追上乙要多久（同向，乙从对端）—— 更复合：先甲乙相遇时刻丙位置已算；改问「甲乙相遇时丙走了全程几分之几」
+      const g = gcd(propDone, dist)
+      const ans = `${propDone / g}/${dist / g}`
+      return buildQuestion({
+        difficulty: 'hard',
+        term: '三车行程设 LCM（复合）',
+        hardTypeId: 'three-speed-lcm',
+        passage: `甲、乙、丙走完同一路程分别需 ${t1}、${t2}、${t3} 小时。甲、乙从两端同时相向而行，丙与甲同时从甲端出发同向乙端。`,
+        stem: '甲、乙相遇时，丙已走完全程的几分之几？',
+        correct: ans,
+        distractors: uniqueOpt(ans, [
+          `${meet}/${t3}`,
+          `${v3}/${v1 + v2}`,
+          '1/2',
+          '1/3',
+          `${propDone}/${dist}`,
+        ]),
+        method: `设路程为 ${t1},${t2},${t3} 的最小公倍数 ${dist}。先求甲乙相遇时间，再算丙在该时间内路程占比。`,
+        explanation: `路程=${dist}。甲乙相遇 ${meet} 小时；丙走 ${propDone}，占全程 ${ans}。`,
+        seq,
+      })
+    }
+    const ans = mode === 'left' ? leftToB : propDone
     return buildQuestion({
       difficulty: 'hard',
-      term: '三车行程设 LCM',
+      term: '三车行程设 LCM（复合）',
       hardTypeId: 'three-speed-lcm',
-      passage: `同一路程：甲需 ${t1} 小时，乙需 ${t2} 小时，丙需 ${t3} 小时。甲、乙从两端同时相向而行。`,
-      stem: '甲乙多少小时后相遇？',
-      correct: ans,
-      distractors: uniqueNum(Number(ans), [t1, t2, t3, Number(ans) + 1]),
-      method: `设路程为 ${t1},${t2},${t3} 的最小公倍数 ${dist}，再算甲乙速度和。`,
-      explanation: `路程=${dist}，甲速 ${v1}、乙速 ${v2}，相遇 ${ans} 小时。（丙速 ${v3} 为干扰信息。）`,
+      passage: `甲、乙、丙走完同一路程分别需 ${t1}、${t2}、${t3} 小时。甲、乙从两端同时相向而行，丙与甲同时从甲端出发同向乙端。`,
+      stem:
+        mode === 'left'
+          ? '甲、乙相遇时，丙距乙端还剩多少路程？（设特值后的路程单位）'
+          : '甲、乙相遇时，丙已走多少路程？（设特值后的路程单位）',
+      correct: String(ans),
+      distractors: uniqueNum(ans, [dist, meet, propDone, leftToB, v1 * meet, v3, ans + 1].filter((x) => x !== ans)),
+      method: `设路程为三者时间的最小公倍数 ${dist}。甲乙相遇时间=路程÷(甲速+乙速)，再算丙同时段路程。`,
+      explanation: `路程=${dist}，甲速 ${v1}、乙速 ${v2}、丙速 ${v3}；相遇 ${meet} 小时；丙走 ${propDone}，距乙端 ${leftToB}。所求=${ans}。`,
       seq,
     })
   }
@@ -895,7 +911,7 @@ function tryBuild(factory: () => SpecValQuestion | null, maxTry = 35): SpecValQu
 
 export function generateSpecValPaper(difficulty: SpecValDifficulty): SpecValQuestion[] {
   const out: SpecValQuestion[] = []
-  const seen = new Set<string>()
+  const seen = new Set<string>(listRecentOpFingerprints(`spec-val:${difficulty}`))
 
   const push = (q: SpecValQuestion | null) => {
     if (!q) return
@@ -940,7 +956,31 @@ export function generateSpecValPaper(difficulty: SpecValDifficulty): SpecValQues
   }
 
   if (out.length < SPEC_VAL_QUESTION_COUNT) {
+    const soft = new Set(out.map((q) => q.fingerprint))
+    const pushSoft = (q: SpecValQuestion | null) => {
+      if (!q || soft.has(q.fingerprint)) return
+      soft.add(q.fingerprint)
+      out.push(q)
+    }
+    let guard = 0
+    while (out.length < SPEC_VAL_QUESTION_COUNT && guard++ < 80) {
+      if (difficulty === 'easy') {
+        const type = pickOne(SPEC_VAL_EASY_TYPES)
+        pushSoft(tryBuild(() => EASY_BUILDERS[type.id](out.length)))
+      } else {
+        const typeId = pickOne(SPEC_VAL_HARD_EXAM_TYPES.map((t) => t.id))
+        pushSoft(tryBuild(() => HARD_BUILDERS[typeId](out.length), 50))
+      }
+    }
+  }
+
+  if (out.length < SPEC_VAL_QUESTION_COUNT) {
     throw new Error(`特值法组卷不足：仅 ${out.length}/${SPEC_VAL_QUESTION_COUNT}`)
   }
-  return shuffleInPlace(out.slice(0, SPEC_VAL_QUESTION_COUNT))
+  const paper = shuffleInPlace(out.slice(0, SPEC_VAL_QUESTION_COUNT))
+  appendRecentOpFingerprints(
+    `spec-val:${difficulty}`,
+    paper.map((q) => q.fingerprint),
+  )
+  return paper
 }
