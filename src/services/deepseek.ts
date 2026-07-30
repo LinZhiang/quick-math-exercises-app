@@ -52,6 +52,10 @@ import {
   type PoetDrillQuestion,
 } from '@/utils/poetDrillPractice'
 import {
+  extractPoetDrillAllowlist,
+  poetDrillQuestionInMaterial,
+} from '@/utils/poetDrillMaterial'
+import {
   buildTheoryPolicyQuestionFromMcq,
   THEORY_POLICY_QUESTION_COUNT,
   parseTheoryPolicyMcqAiObject,
@@ -769,34 +773,33 @@ export async function requestPoetryRecognitionMcqs(input: {
 const POET_DRILL_SYSTEM = [
   '你是公务员考试与事业单位考试「文学常识/古诗文」命题专家，擅长根据给定背诵材料出细致识记题。',
   '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
-  '所有考点必须能在用户提供的材料中找到依据；不得编造材料未出现的诗句、作者或背景。',
+  '硬性约束：所有考点、诗句、作者、背景必须严格来自用户提供的材料；严禁考查材料未出现的诗词、作者或史实。',
 ].join('\n')
 
 const POET_DRILL_FORMAT = `
 【题型】每题 questionType 随机取其一：
-- verse-to-author（诗句选作者）：stem 只写材料中的诗句（可 1～4 句），问作者；选项为四位诗人姓名；stem **不得**出现作者名或篇目名
-- author-to-verse（作者选诗句）：stem 问某诗人哪句出自材料（或给出情境问对应名句）；correct 为材料中的名句；干扰项为同分期其他诗人名句或易混句
-- verse-to-background（诗句选背景）：stem **只写诗句**（不得写篇目名/作者名），问创作处境；选项为短句概括
-- poet-fact（诗人背景）：根据材料考生平脉络、流派、阶段特点、应试标签；stem 为完整问句
+- verse-to-author（诗句选作者）：stem 只写**材料中原样出现的诗句**（可 1～4 句），问作者；选项为四位诗人姓名（正确项必须是材料中该诗句的作者；干扰项优先用同分期材料内其他诗人）
+- author-to-verse（作者选诗句）：stem 问材料中某诗人；correct 必须是材料中该诗人名句原文；干扰项用材料中其他诗句或同分期易混句
+- verse-to-background（诗句选背景）：stem 只写材料中的诗句，问材料注释/标签里的创作处境；选项为短句概括
+- poet-fact（诗人背景）：只能考材料里写明的生平脉络、流派、阶段特点、应试标签；不得发挥课外知识
 
-【诗句选背景·难度硬性要求】（必须遵守，否则视为废题）
-- 作答者只能靠诗句内容与材料记忆判断，**禁止**靠「对号入座」蒙对
-- correct 与三个 distractors **一律不得**出现篇目名（term）、以及与篇目名同形的楼台亭阁地标专名（如 term 为「黄鹤楼」则选项禁写「黄鹤楼」；term 为「早发白帝城」则禁写「白帝城」作唯一线索）
-- 正确项应写成「时令/天气 + 处境/心境 + 地理方位类描述」，例如「登高远眺江上烟波、日暮思乡」；干扰项取**同分期材料里其他诗人**的相近江景、边塞、羁旅、登高等背景，措辞风格一致、长度接近
-- 禁止只有正确项带地名关键词、其余三项完全不沾边；四选项都应像「真背景」
-- 优先考材料注释里的细点（阶段处境、天气、羁旅缘由），不要考「一眼能从诗题猜出」的信息
+【材料封闭性·最高优先级】
+- 不得出现材料未列出的篇目名、诗句、作者
+- 若材料只有盛唐诗人，不得考初唐/中唐专属篇目
+- term 只能填材料中的篇目名或诗人名
+
+【诗句选背景·难度硬性要求】
+- correct 与 distractors **一律不得**出现篇目名（term）及同形地标专名
+- 干扰项取同分期材料里其他诗人的相近背景
+- 优先考材料注释细点
 
 【命题要求】
-- 考点要比普通「诗词练习」更细：精确到材料里的名句、注释背景、分期共性
-- term 填篇目名或诗人名（仅用于复习标识；**不要**写进 stem / 背景题选项）
-- 干扰项须强干扰：同朝同期、同流派、常混诗人/相近意境/相近背景，忌明显无关选项
-- explanation 用 1～2 句点明材料依据与记忆要点（可在解析里点出篇目）
-- 本批 term 尽量分散覆盖不同诗人与篇目
+- 干扰项须强干扰；explanation 点明材料依据
+- 本批 term 尽量分散覆盖材料内不同诗人与篇目
 
 【JSON 示例】
 选作者：{"questionType":"verse-to-author","term":"登幽州台歌","stem":"前不见古人，后不见来者。念天地之悠悠，独怆然而涕下。","correct":"陈子昂","distractors":["王勃","骆宾王","张若虚"],"explanation":"……"}
-选背景（注意选项不含篇目名）：{"questionType":"verse-to-background","term":"黄鹤楼","stem":"日暮乡关何处是？烟波江上使人愁。","correct":"登楼远眺江上烟波，黄昏思乡","distractors":["舟泊秋江、羁旅漂泊","边城笛里折柳、征人怀乡","白帝高江、朝辞远行"],"explanation":"崔颢《黄鹤楼》……"}
-诗人事实：{"questionType":"poet-fact","term":"初唐四杰","stem":"初唐「四杰」通常指下列哪一组？","correct":"王勃、杨炯、卢照邻、骆宾王","distractors":["王维、孟浩然、李白、杜甫","高适、岑参、王昌龄、王之涣","韩愈、柳宗元、白居易、刘禹锡"],"explanation":"……"}
+选背景：{"questionType":"verse-to-background","term":"黄鹤楼","stem":"日暮乡关何处是？烟波江上使人愁。","correct":"登楼远眺江上烟波，黄昏思乡","distractors":["舟泊秋江、羁旅漂泊","边城笛里折柳、征人怀乡","白帝高江、朝辞远行"],"explanation":"材料：崔颢《黄鹤楼》……"}
 `.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 function dedupePoetDrillQuestions(
@@ -855,6 +858,7 @@ export async function requestPoetDrillMcqs(input: {
   })
 
   const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const allow = extractPoetDrillAllowlist(material)
   const questions: PoetDrillQuestion[] = []
   parsed.forEach((item, idx) => {
     const fields = parsePoetDrillMcqAiObject(item)
@@ -864,7 +868,9 @@ export async function requestPoetDrillMcqs(input: {
       scopeKey: input.scopeKey,
       seq: idx + 1,
     })
-    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
+    if (q && isPlayableFourChoiceMcq(q) && poetDrillQuestionInMaterial(q, allow)) {
+      questions.push(q)
+    }
   })
 
   const deduped = dedupePoetDrillQuestions(questions, blocked)
@@ -877,7 +883,7 @@ export async function requestPoetDrillMcqs(input: {
     try {
       const oneRaw = await deepseekChatRaw(
         [
-          `请根据「${input.periodLabel}」材料再生成 1 道细致识记四选一题。`,
+          `请根据「${input.periodLabel}」材料再生成 1 道细致识记四选一题。考点必须全部来自下列材料，禁止超纲。`,
           POET_DRILL_FORMAT,
           avoidHint,
           `【材料】\n${material}`,
@@ -893,7 +899,7 @@ export async function requestPoetDrillMcqs(input: {
         scopeKey: input.scopeKey,
         seq: slot,
       })
-      if (!q || !isPlayableFourChoiceMcq(q)) continue
+      if (!q || !isPlayableFourChoiceMcq(q) || !poetDrillQuestionInMaterial(q, allow)) continue
       const termKey = normalizeAvoidTerm(q.term)
       if (
         deduped.some((x) => x.fingerprint === q.fingerprint) ||
@@ -909,7 +915,7 @@ export async function requestPoetDrillMcqs(input: {
   }
 
   if (deduped.length < count) {
-    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复与超纲题），请稍后重试`)
   }
   return deduped.slice(0, count)
 }

@@ -399,7 +399,15 @@ function poemMetaBits(poem: {
           {{ test.questionCount }} 道细致四选一（诗句 / 诗人 / 背景），强干扰项。
         </p>
         <p class="practice-completion-line">
-          <PracticeCompletionStat mode-id="chinese-poet-drill" />
+          <PracticeCompletionStat
+            :mode-id="
+              test.activeScope
+                ? `chinese-poet-drill:${test.activeScope.scopeKey}`
+                : drillScope
+                  ? `chinese-poet-drill:${drillScope.scopeKey}`
+                  : 'chinese-poet-drill'
+            "
+          />
         </p>
         <p v-if="test.phase === 'loading'" class="poet-drill__loading">{{ test.loadingMessage }}</p>
         <div v-else class="poet-drill__actions">

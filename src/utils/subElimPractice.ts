@@ -15,6 +15,7 @@
  * 10. multi-cond-sub：多条件综合代入
  */
 import { assembleFourChoiceMcq } from '@/utils/chineseMcqAiFields'
+import { uniqueMcqNums, uniqueMcqStrings } from '@/utils/mathOpMcqHelpers'
 
 export type SubElimDifficulty = 'easy' | 'medium' | 'hard'
 
@@ -154,30 +155,11 @@ function mod(n: number, m: number): number {
 }
 
 function uniqueStr(correct: string, cands: string[], need = 3): string[] {
-  const out: string[] = []
-  const seen = new Set([correct.replace(/\s+/g, '')])
-  for (const c of cands) {
-    const k = c.trim().replace(/\s+/g, '')
-    if (!k || seen.has(k)) continue
-    seen.add(k)
-    out.push(c.trim())
-    if (out.length >= need) break
-  }
-  let g = 0
-  while (out.length < need && g++ < 40) {
-    const fake = String(Number(correct) + g + 1)
-    if (seen.has(fake)) continue
-    seen.add(fake)
-    out.push(fake)
-  }
-  return out.slice(0, need)
+  return uniqueMcqStrings(correct, cands, need)
 }
 
 function uniqueNum(correct: number, cands: number[]): string[] {
-  return uniqueStr(
-    String(correct),
-    cands.filter((x) => Number.isFinite(x) && Number.isInteger(x) && x !== correct).map(String),
-  )
+  return uniqueMcqNums(correct, cands)
 }
 
 function buildQuestion(input: {
@@ -243,18 +225,32 @@ function maxCrtUnder(moduli: number[], rems: number[], maxN: number): number | n
 
 function wrongCrtOptions(ans: number, moduli: number[], rems: number[], pool: number[]): number[] {
   const wrong: number[] = []
-  for (const cand of pool) {
-    if (cand <= 0 || cand === ans) continue
-    if (satisfiesCrt(cand, moduli, rems)) continue
+  const push = (cand: number) => {
+    if (cand <= 0 || cand === ans) return
+    if (satisfiesCrt(cand, moduli, rems)) return
     if (!wrong.includes(cand)) wrong.push(cand)
-    if (wrong.length >= 3) break
   }
+
+  // 优先「近错」：满足除一条外的全部条件，避免一眼用第一条就排除
+  if (moduli.length >= 2) {
+    for (let skip = 0; skip < moduli.length && wrong.length < 6; skip++) {
+      const m2 = moduli.filter((_, i) => i !== skip)
+      const r2 = rems.filter((_, i) => i !== skip)
+      for (let d = 1; d <= 120 && wrong.length < 8; d++) {
+        for (const cand of [ans + d, Math.max(1, ans - d), ans + d * (moduli[skip] ?? 1)]) {
+          if (satisfiesCrt(cand, m2, r2)) push(cand)
+        }
+      }
+    }
+  }
+
+  for (const cand of pool) push(cand)
+
   let t = 1
-  while (wrong.length < 3 && t < 80) {
-    const cand = ans + t
+  while (wrong.length < 3 && t < 120) {
+    push(ans + t)
+    push(Math.max(1, ans - t))
     t++
-    if (satisfiesCrt(cand, moduli, rems)) continue
-    if (!wrong.includes(cand)) wrong.push(cand)
   }
   return wrong.slice(0, 3)
 }
@@ -611,29 +607,56 @@ function genHardPctBooks(seq: number): SubElimQuestion | null {
 }
 
 function genHardDualPct(seq: number): SubElimQuestion | null {
-  // A+B=S; A 的 k% 与 B 的 m/n，问 A
-  const S = pickOne([200, 240, 280, 320])
-  const aPct = pickOne([25, 20, 16])
-  const bDen = pickOne([5, 8, 4])
-  for (let a = 40; a < S; a += 20) {
-    if ((a * aPct) % 100 !== 0) continue
-    const b = S - a
-    if (b % bDen !== 0) continue
-    const ans = a
-    const wrong = [a + 20, a - 20, b, S / 2].filter((x) => x > 0 && x !== ans && Number.isInteger(x))
-    if (wrong.length < 3) continue
-    return buildQuestion({
-      difficulty: 'hard',
-      term: '双百分数约束代入',
-      hardTypeId: 'dual-pct-sub',
-      passage: `甲、乙两队共 ${S} 人。甲队党员占甲队 ${aPct}%，乙队党员占乙队 1/${bDen}（人数均为整数）。`,
-      stem: '甲队人数是？',
-      correct: String(ans),
-      distractors: uniqueNum(ans, wrong),
-      method: '甲人数须使 (甲×占比) 为整数；乙人数须为分母倍数。筛选项后代入。',
-      explanation: `甲 ${ans}、乙 ${S - ans} 同时满足整数条件。`,
-      seq,
-    })
+  // 甲+乙=S；甲党员占甲 aPct%；乙党员占乙 bPct%；且甲党员比乙党员多 diff
+  // 保证整数解唯一，选项里只有正确答案满足全部条件
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const S = pickOne([240, 280, 300, 320, 360, 400])
+    const aPct = pickOne([25, 20, 50])
+    const bPct = pickOne([20, 25, 10, 50])
+    if (aPct === bPct) continue
+    const valid: number[] = []
+    for (let a = 20; a < S; a += 4) {
+      const b = S - a
+      if ((a * aPct) % 100 !== 0) continue
+      if ((b * bPct) % 100 !== 0) continue
+      valid.push(a)
+    }
+    if (valid.length < 2) continue
+    // 追加「甲党员人数是乙党员的 k 倍」使解唯一
+    for (const k of [2, 3, 4]) {
+      const hits = valid.filter((a) => {
+        const pa = (a * aPct) / 100
+        const pb = ((S - a) * bPct) / 100
+        return pb > 0 && pa === k * pb
+      })
+      if (hits.length !== 1) continue
+      const ans = hits[0]!
+      const failPool: number[] = []
+      for (const x of [...valid, ans + 20, ans - 20, S / 2, 40, 60, 80, 100, S - 40]) {
+        if (!Number.isInteger(x) || x <= 0 || x >= S || x === ans) continue
+        const pa = (x * aPct) / 100
+        const pb = ((S - x) * bPct) / 100
+        if (!Number.isInteger(pa) || !Number.isInteger(pb)) {
+          failPool.push(x)
+          continue
+        }
+        if (pb <= 0 || pa !== k * pb) failPool.push(x)
+      }
+      const wrong = uniqueMcqNums(ans, failPool)
+      if (wrong.length < 3) continue
+      return buildQuestion({
+        difficulty: 'hard',
+        term: '双百分数约束代入',
+        hardTypeId: 'dual-pct-sub',
+        passage: `甲、乙两队共 ${S} 人。甲队党员占甲队 ${aPct}%，乙队党员占乙队 ${bPct}%，且甲队党员人数是乙队党员的 ${k} 倍（人数均为整数）。`,
+        stem: '甲队人数是？',
+        correct: String(ans),
+        distractors: wrong,
+        method: '由倍数与整除条件列式，选项代入：党员人数均为整数且满足倍数。',
+        explanation: `甲 ${ans}、乙 ${S - ans}：党员 ${(ans * aPct) / 100} 与 ${((S - ans) * bPct) / 100}，恰为 ${k} 倍。其余选项不满足。`,
+        seq,
+      })
+    }
   }
   return null
 }
