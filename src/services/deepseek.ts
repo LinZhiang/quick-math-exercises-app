@@ -5,13 +5,17 @@ import {
 } from '@/utils/chineseMcqAiFields'
 import {
   parseVocabRelatedLearningPack,
+  parseVocabRelatedQuizList,
   type VocabRelatedKind,
   type VocabRelatedLearningPack,
+  type VocabRelatedQuizQuestion,
   type VocabRelatedSourceRow,
 } from '@/utils/vocabRelatedLearning'
 import {
   parseCharLiteracyRelatedLearningPack,
+  parseCharLiteracyRelatedQuizList,
   type CharLiteracyRelatedLearningPack,
+  type CharLiteracyRelatedQuizQuestion,
   type CharLiteracyRelatedSourceRow,
 } from '@/utils/charLiteracyRelatedLearning'
 import {
@@ -2034,18 +2038,20 @@ export async function requestVocabRelatedLearningPack(input: {
     `  "term": "${input.row.term}",`,
     '  "layer1": {',
     '    "meaning": "当前词准确释义（1～3 句）",',
+    '    "sentiment": "褒义|贬义|中性|分情况",',
+    '    "sentimentNote": "若为分情况，说明什么语境褒/贬/中；否则空字符串",',
     '    "phonologyNotes": "字音字形需注意点；若无则写空字符串"',
     '  },',
     '  "layer2": {',
     '    "confusables": [',
-    '      { "word": "易混词", "meaning": "该词释义", "howToDistinguish": "与目标词如何区分" }',
+    '      { "word": "易混词", "meaning": "该词释义", "sentiment": "褒义|贬义|中性|分情况", "sentimentNote": "", "howToDistinguish": "与目标词如何区分" }',
     '    ]',
     '  },',
     '  "layer3": {',
     '    "synonyms": ["近义词1", "近义词2"],',
     '    "antonyms": ["反义词1"],',
     '    "otherOptions": [',
-    '      { "text": "原题干扰项原文", "meaning": "该选项释义" }',
+    '      { "text": "原题干扰项原文", "meaning": "该选项释义", "sentiment": "褒义|贬义|中性|分情况", "sentimentNote": "" }',
     '    ]',
     '  },',
     '  "quiz": [',
@@ -2063,11 +2069,12 @@ export async function requestVocabRelatedLearningPack(input: {
     '硬性要求：',
     '1. layer2.confusables 至少 1 条，优先公考高频易混；',
     '2. layer3.otherOptions 须覆盖原题全部干扰项（非正确选项），每项必须有准确释义（meaning），禁止空字段；',
-    '3. quiz 必须 2～3 题；questionType 仅 meaning（词义理解）或 fill（选词填空）；',
-    '4. quiz 各题 focusTerm 尽量轮换（目标词、易混词、近/反义词等），不要三题都只考同一个词面；',
-    '5. 小测四选一：correct + distractors 共 4 个互不相同选项；禁止靠选项长短/标点蒙对；',
-    '6. 近/反义词若确实少见可少给，但数组字段必须存在（可为 []）；',
-    '7. 小测题干禁止写「本题考查××」「考「××」」等剧透；选词填空题干不得提前给出正确答案。',
+    '3. 所有释义处必须标注 sentiment（褒义/贬义/中性/分情况）；分情况时 sentimentNote 写清语境差异；',
+    '4. quiz 必须 2～3 题；questionType 仅 meaning（词义理解）或 fill（选词填空）；',
+    '5. quiz 各题 focusTerm 尽量轮换（目标词、易混词、近/反义词等），不要三题都只考同一个词面；',
+    '6. 小测四选一：correct + distractors 共 4 个互不相同选项；禁止靠选项长短/标点蒙对；',
+    '7. 近/反义词若确实少见可少给，但数组字段必须存在（可为 []）；',
+    '8. 小测题干禁止写「本题考查××」「考「××」」等剧透；选词填空题干不得提前给出正确答案。',
     '',
     CHINESE_MCQ_CORRECTNESS_RULES,
   ]
@@ -2086,10 +2093,52 @@ export async function requestVocabRelatedLearningPack(input: {
     term: input.row.term,
     otherOptionTexts: otherOptions,
   })
-  if (!pack) {
+  if (!pack || pack.quiz.length < 2) {
     throw new Error('关联学习内容解析失败，请稍后重试')
   }
   return pack
+}
+
+/** 仅重出学后小测（学习材料用缓存） */
+export async function requestVocabRelatedQuizOnly(input: {
+  kind: VocabRelatedKind
+  row: VocabRelatedSourceRow
+  pack: VocabRelatedLearningPack
+  avoidStems?: string[]
+  onProgress?: (message: string) => void
+}): Promise<VocabRelatedQuizQuestion[]> {
+  const kindLabel = input.kind === 'idiom' ? '成语' : '词语'
+  input.onProgress?.(aiRequestProgressText(`${kindLabel}关联学习小测`))
+  const avoid = (input.avoidStems ?? []).filter(Boolean).slice(0, 6)
+  const user = [
+    `请根据下列「${kindLabel}」关联学习材料，重新生成 2～3 道学后小测（四选一），只考词义或选词填空。`,
+    `目标词：${input.pack.term}`,
+    `释义：${input.pack.meaning}（${input.pack.sentiment}${input.pack.sentimentNote ? `；${input.pack.sentimentNote}` : ''}）`,
+    `易混：${input.pack.confusables.map((c) => `${c.word}（${c.sentiment}）`).join('、')}`,
+    `近义：${input.pack.synonyms.join('、') || '无'}；反义：${input.pack.antonyms.join('、') || '无'}`,
+    avoid.length ? `请避免与下列旧题干雷同：${avoid.join(' ｜ ')}` : '',
+    '',
+    '返回 JSON 对象：{"quiz":[...]} 或直接返回 quiz 数组。',
+    '每题字段：questionType(meaning|fill)、focusTerm、stem、correct、distractors[3]、explanation。',
+    '禁止题干写出「本题考查××」；选项互不相同。',
+    '',
+    CHINESE_MCQ_CORRECTNESS_RULES,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: VOCAB_RELATED_LEARNING_SYSTEM,
+    temperature: 0.72,
+    maxTokens: 2048,
+  })
+  const parsedObj = parseAiJsonObjectLenient(stripAiJsonFence(raw))
+  const parsedArr = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const quiz =
+    parseVocabRelatedQuizList(parsedObj, { kind: input.kind, term: input.pack.term }) ??
+    parseVocabRelatedQuizList(parsedArr, { kind: input.kind, term: input.pack.term })
+  if (!quiz) throw new Error('小测重新生成失败，请稍后重试')
+  return quiz
 }
 
 function extractRelatedPacksArray(rawText: string): unknown[] {
@@ -2164,8 +2213,8 @@ export async function requestVocabRelatedLearningPackBatch(input: {
 
   const user = [
     `请为下列 ${rows.length} 个「${kindLabel}识记」目标词一次性生成【关联学习包】数组。`,
-    '每个元素：layer1（meaning、phonologyNotes）、layer2.confusables（≥1）、layer3（synonyms、antonyms、otherOptions）、quiz（2 题，meaning 或 fill）。',
-    '硬性：otherOptions 必须覆盖全部干扰项，每项都要有真实释义（字段 meaning），禁止空释义或省略。',
+    '每个元素：layer1（meaning、sentiment、sentimentNote、phonologyNotes）、layer2.confusables（≥1，含 sentiment）、layer3（synonyms、antonyms、otherOptions 含 sentiment）、quiz（2 题）。',
+    '硬性：otherOptions 必须覆盖全部干扰项且有真实释义；sentiment 取褒义/贬义/中性/分情况，分情况须写 sentimentNote。',
     '一次返回完整 JSON 数组，长度恰好为输入词数；不要分多轮。',
     '小测题干勿写「本题考查××」剧透。',
     '',
@@ -2201,7 +2250,7 @@ export async function requestVocabRelatedLearningPackBatch(input: {
       term: row.term,
       otherOptionTexts: otherOptions,
     })
-    if (pack) out[i] = pack
+    if (pack && pack.quiz.length >= 2) out[i] = pack
   }
 
   for (let i = 0; i < rows.length; i++) {
@@ -2331,6 +2380,54 @@ export async function requestCharLiteracyRelatedLearningPack(input: {
     throw new Error('字音字形关联学习内容解析失败，请稍后重试')
   }
   return pack
+}
+
+/** 仅重出学后小测（学习材料用缓存） */
+export async function requestCharLiteracyRelatedQuizOnly(input: {
+  row: CharLiteracyRelatedSourceRow
+  pack: CharLiteracyRelatedLearningPack
+  avoidStems?: string[]
+  onProgress?: (message: string) => void
+}): Promise<CharLiteracyRelatedQuizQuestion[]> {
+  input.onProgress?.(aiRequestProgressText('字音字形关联学习小测'))
+  const avoid = (input.avoidStems ?? []).filter(Boolean).slice(0, 6)
+  const qType = String(input.pack.questionType || input.row.questionType || 'pronunciation')
+  const user = [
+    '请根据下列「字音字形」关联学习材料，重新生成 2～3 道学后小测（四选一），只考字音或字形，禁止纯词义题。',
+    `目标词：${input.pack.term}`,
+    `题型倾向：${qType}`,
+    `词义参考：${input.pack.meaning}`,
+    `字音字形要点：${input.pack.phonologyOrForm}`,
+    `易混：${input.pack.confusables.map((c) => `${c.word}（${c.correctFormOrReading}）`).join('、')}`,
+    avoid.length ? `请避免与下列旧题干雷同：${avoid.join(' ｜ ')}` : '',
+    '',
+    '返回 JSON 对象：{"quiz":[...]} 或直接返回 quiz 数组。',
+    '每题字段：questionType(pronunciation|typo)、focusTerm、stem、correct、distractors[3]、explanation。',
+    '禁止题干写出「本题考查××」；选项互不相同；读音题宜带拼音；错别字题为写法辨析。',
+    '',
+    CHINESE_MCQ_CORRECTNESS_RULES,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: CHAR_LITERACY_RELATED_LEARNING_SYSTEM,
+    temperature: 0.72,
+    maxTokens: 2048,
+  })
+  const parsedObj = parseAiJsonObjectLenient(stripAiJsonFence(raw))
+  const parsedArr = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const quiz =
+    parseCharLiteracyRelatedQuizList(parsedObj, {
+      term: input.pack.term,
+      questionType: qType,
+    }) ??
+    parseCharLiteracyRelatedQuizList(parsedArr, {
+      term: input.pack.term,
+      questionType: qType,
+    })
+  if (!quiz) throw new Error('小测重新生成失败，请稍后重试')
+  return quiz
 }
 
 /** 字音字形关联学习：优先整组一次生成，失败词再补生成 */

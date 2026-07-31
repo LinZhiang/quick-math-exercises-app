@@ -8,6 +8,9 @@ import {
 
 export type VocabRelatedKind = 'idiom' | 'word'
 
+/** 感情色彩：褒义 / 贬义 / 中性 / 分情况（视语境） */
+export type VocabSentiment = '褒义' | '贬义' | '中性' | '分情况'
+
 export type VocabRelatedSourceRow = {
   fingerprint: string
   term: string
@@ -21,12 +24,18 @@ export type VocabRelatedSourceRow = {
 export type VocabRelatedConfusable = {
   word: string
   meaning: string
+  /** 感情色彩 */
+  sentiment: VocabSentiment
+  /** 分情况时的说明；其他情况可空 */
+  sentimentNote: string
   howToDistinguish: string
 }
 
 export type VocabRelatedOtherOption = {
   text: string
   meaning: string
+  sentiment: VocabSentiment
+  sentimentNote: string
 }
 
 export type VocabRelatedQuizType = 'meaning' | 'fill'
@@ -47,6 +56,10 @@ export type VocabRelatedLearningPack = {
   kind: VocabRelatedKind
   /** 第一层 */
   meaning: string
+  /** 感情色彩：褒义 / 贬义 / 中性 / 分情况 */
+  sentiment: VocabSentiment
+  /** 分情况时须说明；其余可空 */
+  sentimentNote: string
   phonologyNotes: string
   /** 第二层：高频易混（至少 1） */
   confusables: VocabRelatedConfusable[]
@@ -54,8 +67,23 @@ export type VocabRelatedLearningPack = {
   synonyms: string[]
   antonyms: string[]
   otherOptions: VocabRelatedOtherOption[]
-  /** 学后小测 2～3 题 */
+  /** 学后小测 2～3 题（可空：表示待重新生成） */
   quiz: VocabRelatedQuizQuestion[]
+}
+
+export function vocabSentimentLabel(s: VocabSentiment): string {
+  return s
+}
+
+export function parseVocabSentiment(raw: unknown): VocabSentiment {
+  const s = String(raw ?? '').trim()
+  if (!s) return '中性'
+  if (/分情况|视语境|依语境|可褒可贬|两用|褒贬两用/.test(s)) return '分情况'
+  if (/褒/.test(s) && !/贬/.test(s)) return '褒义'
+  if (/贬/.test(s) && !/褒/.test(s)) return '贬义'
+  if (/中性/.test(s)) return '中性'
+  if (/褒/.test(s) && /贬/.test(s)) return '分情况'
+  return '中性'
 }
 
 function shuffleInPlace<T>(arr: T[]): T[] {
@@ -83,9 +111,17 @@ function parseConfusables(raw: unknown): VocabRelatedConfusable[] {
       o.howToDistinguish ?? o.distinguish ?? o.diff ?? o.note ?? '',
     ).trim()
     if (!word || !meaning) continue
+    const sentiment = parseVocabSentiment(
+      o.sentiment ?? o.valence ?? o.connotation ?? o.感情色彩 ?? o.色彩,
+    )
+    const sentimentNote = String(
+      o.sentimentNote ?? o.valenceNote ?? o.色彩说明 ?? o.分情况说明 ?? '',
+    ).trim()
     out.push({
       word,
       meaning,
+      sentiment,
+      sentimentNote: sentiment === '分情况' ? sentimentNote || '视具体语境而定。' : sentimentNote,
       howToDistinguish: howToDistinguish || '注意语境搭配与感情色彩差异。',
     })
   }
@@ -118,13 +154,28 @@ function parseOtherOptions(
   raw: unknown,
   fallback: string[],
 ): VocabRelatedOtherOption[] | null {
-  const byText = new Map<string, string>()
+  const byText = new Map<
+    string,
+    { meaning: string; sentiment: VocabSentiment; sentimentNote: string }
+  >()
 
-  const absorb = (text: string, meaning: string) => {
+  const absorb = (
+    text: string,
+    meaning: string,
+    sentiment: VocabSentiment,
+    sentimentNote: string,
+  ) => {
     const t = text.trim()
     const m = meaning.trim()
     if (!t || !m) return
-    if (!byText.has(t)) byText.set(t, m)
+    if (!byText.has(t)) {
+      byText.set(t, {
+        meaning: m,
+        sentiment,
+        sentimentNote:
+          sentiment === '分情况' ? sentimentNote || '视具体语境而定。' : sentimentNote,
+      })
+    }
   }
 
   if (Array.isArray(raw)) {
@@ -132,40 +183,44 @@ function parseOtherOptions(
       if (typeof item === 'string') {
         const s = item.trim()
         const m = s.match(/^(.+?)[：:：\s]+(.+)$/)
-        if (m) absorb(m[1]!, m[2]!)
+        if (m) absorb(m[1]!, m[2]!, '中性', '')
         continue
       }
       if (!item || typeof item !== 'object') continue
       const o = item as Record<string, unknown>
-      absorb(pickTextField(o), pickMeaningField(o))
+      absorb(
+        pickTextField(o),
+        pickMeaningField(o),
+        parseVocabSentiment(o.sentiment ?? o.valence ?? o.connotation ?? o.感情色彩 ?? o.色彩),
+        String(o.sentimentNote ?? o.valenceNote ?? o.色彩说明 ?? o.分情况说明 ?? '').trim(),
+      )
     }
   } else if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
     for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-      absorb(k, String(v ?? '').trim())
+      absorb(k, String(v ?? '').trim(), '中性', '')
     }
   }
 
   if (!fallback.length) {
-    return [...byText.entries()].map(([text, meaning]) => ({ text, meaning }))
+    return [...byText.entries()].map(([text, v]) => ({ text, ...v }))
   }
 
   const out: VocabRelatedOtherOption[] = []
   for (const text of fallback) {
     const t = text.trim()
     if (!t) continue
-    let meaning = byText.get(t)
-    if (!meaning) {
-      // 宽松匹配：去空白后相等
+    let hit = byText.get(t)
+    if (!hit) {
       const norm = t.replace(/\s+/g, '')
       for (const [k, v] of byText) {
         if (k.replace(/\s+/g, '') === norm) {
-          meaning = v
+          hit = v
           break
         }
       }
     }
-    if (!meaning) return null
-    out.push({ text: t, meaning })
+    if (!hit) return null
+    out.push({ text: t, ...hit })
   }
   return out.length ? out : null
 }
@@ -211,6 +266,28 @@ function parseQuizItem(
   return q
 }
 
+/** 仅解析小测数组（用于答错/重开时重出题） */
+export function parseVocabRelatedQuizList(
+  raw: unknown,
+  input: { kind: VocabRelatedKind; term: string },
+): VocabRelatedQuizQuestion[] | null {
+  const list = Array.isArray(raw)
+    ? raw
+    : raw && typeof raw === 'object'
+      ? ((raw as Record<string, unknown>).quiz ??
+        (raw as Record<string, unknown>).questions ??
+        (raw as Record<string, unknown>).practice)
+      : null
+  if (!Array.isArray(list)) return null
+  const quiz: VocabRelatedQuizQuestion[] = []
+  list.forEach((item, idx) => {
+    const q = parseQuizItem(item, input.kind, input.term, idx + 1)
+    if (q) quiz.push(q)
+  })
+  if (quiz.length < 2) return null
+  return quiz.slice(0, 3)
+}
+
 export function parseVocabRelatedLearningPack(
   raw: unknown,
   input: {
@@ -233,11 +310,28 @@ export function parseVocabRelatedLearningPack(
   ).trim()
   if (!meaning) return null
 
+  const sentiment = parseVocabSentiment(
+    layer1.sentiment ??
+      layer1.valence ??
+      layer1.connotation ??
+      layer1.感情色彩 ??
+      o.sentiment ??
+      o.感情色彩,
+  )
+  const sentimentNote = String(
+    layer1.sentimentNote ??
+      layer1.valenceNote ??
+      layer1.色彩说明 ??
+      layer1.分情况说明 ??
+      o.sentimentNote ??
+      '',
+  ).trim()
+
   const phonologyNotes = String(
     layer1.phonologyNotes ?? layer1.phonetics ?? layer1.formNotes ?? o.phonologyNotes ?? '',
   ).trim()
 
-  let confusables = parseConfusables(
+  const confusables = parseConfusables(
     layer2.confusables ?? layer2.confused ?? o.confusables ?? o.confusedWords,
   )
   if (!confusables.length) return null
@@ -251,18 +345,22 @@ export function parseVocabRelatedLearningPack(
   if (!otherOptions) return null
 
   const quizRaw = o.quiz ?? o.questions ?? o.practice
-  if (!Array.isArray(quizRaw)) return null
   const quiz: VocabRelatedQuizQuestion[] = []
-  quizRaw.forEach((item, idx) => {
-    const q = parseQuizItem(item, input.kind, input.term, idx + 1)
-    if (q) quiz.push(q)
-  })
-  if (quiz.length < 2) return null
+  if (Array.isArray(quizRaw)) {
+    quizRaw.forEach((item, idx) => {
+      const q = parseQuizItem(item, input.kind, input.term, idx + 1)
+      if (q) quiz.push(q)
+    })
+  }
+  // 首次整包生成须带小测；仅材料缓存可读时可为空，由调用方再生成小测
+  if (quiz.length > 0 && quiz.length < 2) return null
 
   return {
     term: String(o.term ?? input.term).trim() || input.term,
     kind: input.kind,
     meaning,
+    sentiment,
+    sentimentNote: sentiment === '分情况' ? sentimentNote || '视具体语境而定。' : sentimentNote,
     phonologyNotes,
     confusables,
     synonyms,
@@ -276,18 +374,31 @@ export function vocabRelatedQuizTypeLabel(t: VocabRelatedQuizType): string {
   return t === 'fill' ? '选词填空' : '词义理解'
 }
 
-/** 校验已缓存/内存中的学习包是否可直接使用 */
-export function isVocabRelatedLearningPack(v: unknown): v is VocabRelatedLearningPack {
+/** 学习材料是否可用（小测可空，答错/重开时另生成） */
+export function isVocabRelatedMaterialsPack(v: unknown): v is VocabRelatedLearningPack {
   if (!v || typeof v !== 'object') return false
   const o = v as VocabRelatedLearningPack
   if (!String(o.term ?? '').trim()) return false
   if (o.kind !== 'idiom' && o.kind !== 'word') return false
   if (!String(o.meaning ?? '').trim()) return false
+  if (!o.sentiment) return false
   if (!Array.isArray(o.confusables) || o.confusables.length < 1) return false
   if (!Array.isArray(o.otherOptions) || o.otherOptions.length < 1) return false
   if (o.otherOptions.some((x) => /生成未返回/.test(x.meaning))) return false
+  return true
+}
+
+/** 校验已缓存/内存中的完整学习包（含小测） */
+export function isVocabRelatedLearningPack(v: unknown): v is VocabRelatedLearningPack {
+  if (!isVocabRelatedMaterialsPack(v)) return false
+  const o = v as VocabRelatedLearningPack
   if (!Array.isArray(o.quiz) || o.quiz.length < 2) return false
   return o.quiz.every((q) => isUsableRelatedQuizMcq(q) || isPlayableFourChoiceMcq(q))
+}
+
+/** 取出缓存材料时清空小测，强制下次作答重新出题 */
+export function stripVocabRelatedQuiz(pack: VocabRelatedLearningPack): VocabRelatedLearningPack {
+  return { ...pack, quiz: [] }
 }
 
 /** 用于缓存失效：题干/选项变化则视为新内容 */

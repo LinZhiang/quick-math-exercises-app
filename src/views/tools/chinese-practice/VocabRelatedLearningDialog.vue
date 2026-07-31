@@ -77,7 +77,21 @@ function optKey(i: number) {
 
       <section v-if="studyLayer === 1" class="vr__block">
         <h4 class="vr__h">第一层 · 当前词</h4>
-        <p class="vr__line"><strong>释义：</strong>{{ pack.meaning }}</p>
+        <p class="vr__line">
+          <strong>释义：</strong>{{ pack.meaning }}
+          <span
+            class="vr__sent"
+            :class="{
+              'is-pos': pack.sentiment === '褒义',
+              'is-neg': pack.sentiment === '贬义',
+              'is-neu': pack.sentiment === '中性',
+              'is-mixed': pack.sentiment === '分情况',
+            }"
+          >{{ pack.sentiment }}</span>
+        </p>
+        <p v-if="pack.sentimentNote" class="vr__line vr__sent-note">
+          <strong>色彩说明：</strong>{{ pack.sentimentNote }}
+        </p>
         <p v-if="pack.phonologyNotes" class="vr__line">
           <strong>字音字形：</strong>{{ pack.phonologyNotes }}
         </p>
@@ -88,8 +102,22 @@ function optKey(i: number) {
         <h4 class="vr__h">第二层 · 高频易混</h4>
         <ul class="vr__list">
           <li v-for="(c, i) in pack.confusables" :key="i" class="vr__list-item">
-            <p class="vr__word">{{ c.word }}</p>
+            <p class="vr__word">
+              {{ c.word }}
+              <span
+                class="vr__sent"
+                :class="{
+                  'is-pos': c.sentiment === '褒义',
+                  'is-neg': c.sentiment === '贬义',
+                  'is-neu': c.sentiment === '中性',
+                  'is-mixed': c.sentiment === '分情况',
+                }"
+              >{{ c.sentiment }}</span>
+            </p>
             <p class="vr__line"><strong>释义：</strong>{{ c.meaning }}</p>
+            <p v-if="c.sentimentNote" class="vr__line vr__sent-note">
+              <strong>色彩说明：</strong>{{ c.sentimentNote }}
+            </p>
             <p class="vr__line"><strong>区分：</strong>{{ c.howToDistinguish }}</p>
           </li>
         </ul>
@@ -107,8 +135,22 @@ function optKey(i: number) {
         </p>
         <ul v-if="pack.otherOptions.length" class="vr__list">
           <li v-for="(o, i) in pack.otherOptions" :key="i" class="vr__list-item">
-            <p class="vr__word">{{ o.text }}</p>
+            <p class="vr__word">
+              {{ o.text }}
+              <span
+                class="vr__sent"
+                :class="{
+                  'is-pos': o.sentiment === '褒义',
+                  'is-neg': o.sentiment === '贬义',
+                  'is-neu': o.sentiment === '中性',
+                  'is-mixed': o.sentiment === '分情况',
+                }"
+              >{{ o.sentiment }}</span>
+            </p>
             <p class="vr__line">{{ o.meaning }}</p>
+            <p v-if="o.sentimentNote" class="vr__line vr__sent-note">
+              <strong>色彩说明：</strong>{{ o.sentimentNote }}
+            </p>
           </li>
         </ul>
       </section>
@@ -300,6 +342,50 @@ function optKey(i: number) {
   margin: 0 0 4px;
   font-weight: 700;
   font-size: 15px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.vr__sent {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 2px 7px;
+  border-radius: 4px;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.vr__word .vr__sent {
+  margin-left: 0;
+}
+
+.vr__sent.is-pos {
+  color: #1a7f4b;
+  background: color-mix(in srgb, #1a7f4b 12%, transparent);
+}
+
+.vr__sent.is-neg {
+  color: #b42318;
+  background: color-mix(in srgb, #b42318 12%, transparent);
+}
+
+.vr__sent.is-neu {
+  color: #5c6570;
+  background: color-mix(in srgb, #5c6570 12%, transparent);
+}
+
+.vr__sent.is-mixed {
+  color: #8a5a00;
+  background: color-mix(in srgb, #c98500 14%, transparent);
+}
+
+.vr__sent-note {
+  color: var(--app-text-muted, #666);
+  font-size: 13px;
 }
 
 .vr__quiz-head {

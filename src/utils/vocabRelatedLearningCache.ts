@@ -3,7 +3,8 @@
  * 按 kind + fingerprint 复用；题干/选项变化（contentKey）则失效；删除词条时减量清理。
  */
 import {
-  isVocabRelatedLearningPack,
+  isVocabRelatedMaterialsPack,
+  stripVocabRelatedQuiz,
   vocabRelatedContentKey,
   type VocabRelatedKind,
   type VocabRelatedLearningPack,
@@ -75,12 +76,13 @@ export function getVocabRelatedLearningCache(
   if (!entry) return null
   if (entry.kind !== kind || entry.fingerprint !== fp) return null
   if (entry.contentKey !== vocabRelatedContentKey(row)) return null
-  if (!isVocabRelatedLearningPack(entry.pack)) {
+  if (!isVocabRelatedMaterialsPack(entry.pack)) {
     delete store.entries[cacheKey(kind, fp)]
     writeStore(store)
     return null
   }
-  return entry.pack
+  // 材料可复用；小测每次作答重新生成
+  return stripVocabRelatedQuiz(entry.pack)
 }
 
 export function setVocabRelatedLearningCache(
@@ -89,14 +91,15 @@ export function setVocabRelatedLearningCache(
   pack: VocabRelatedLearningPack,
 ): void {
   const fp = String(row.fingerprint ?? '').trim()
-  if (!fp || !isVocabRelatedLearningPack(pack)) return
+  if (!fp || !isVocabRelatedMaterialsPack(pack)) return
   const store = readStore()
   store.entries[cacheKey(kind, fp)] = {
     kind,
     fingerprint: fp,
     term: row.term.trim() || pack.term,
     contentKey: vocabRelatedContentKey(row),
-    pack,
+    // 缓存只落学习材料，小测不复用
+    pack: stripVocabRelatedQuiz(pack),
     savedAt: Date.now(),
   }
   evictIfNeeded(store.entries)
