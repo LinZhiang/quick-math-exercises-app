@@ -4,6 +4,17 @@ import {
   isPlayableFourChoiceMcq,
 } from '@/utils/chineseMcqAiFields'
 import {
+  parseVocabRelatedLearningPack,
+  type VocabRelatedKind,
+  type VocabRelatedLearningPack,
+  type VocabRelatedSourceRow,
+} from '@/utils/vocabRelatedLearning'
+import {
+  parseCharLiteracyRelatedLearningPack,
+  type CharLiteracyRelatedLearningPack,
+  type CharLiteracyRelatedSourceRow,
+} from '@/utils/charLiteracyRelatedLearning'
+import {
   buildCharLiteracyQuestionFromMcq,
   CHAR_LITERACY_QUESTION_COUNT,
   parseCharLiteracyMcqAiObject,
@@ -1981,6 +1992,362 @@ export async function requestWordMemorizationMcqs(input: {
     throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
   }
   return deduped.slice(0, count)
+}
+
+const VOCAB_RELATED_LEARNING_SYSTEM = [
+  '你是公务员考试与事业单位考试「言语理解」词语/成语关联学习教练。',
+  '根据学员错题中的目标词，输出结构化关联学习材料与学后小测。',
+  '只输出合法 JSON 对象，不要 markdown 代码围栏，不要其它说明文字。',
+  '内容须准确、简洁，使用简体中文；小测只考词义理解或选词填空，不考典故出处 trivia。',
+].join('\n')
+
+/**
+ * 重点题 · 成语/词语「关联学习」：一次生成三层学习材料 + 2～3 道学后小测。
+ * 小测答错不进错题本（由调用方保证）。
+ */
+export async function requestVocabRelatedLearningPack(input: {
+  kind: VocabRelatedKind
+  row: VocabRelatedSourceRow
+  onProgress?: (message: string) => void
+}): Promise<VocabRelatedLearningPack> {
+  const kindLabel = input.kind === 'idiom' ? '成语' : '词语'
+  const correct =
+    input.row.options[input.row.correctIndex]?.trim() ||
+    (input.row.questionType === 'meaning-to-word' ? input.row.term : '')
+  const otherOptions = input.row.options
+    .map((x, i) => ({ text: String(x ?? '').trim(), index: i }))
+    .filter((x) => x.text && x.index !== input.row.correctIndex)
+    .map((x) => x.text)
+
+  input.onProgress?.(aiRequestProgressText(`${kindLabel}关联学习`))
+
+  const user = [
+    `请为下列公考/事业编言语理解「${kindLabel}识记」错题目标词生成【关联学习包】。`,
+    `目标词（term）：${input.row.term}`,
+    `原题干：${input.row.stem}`,
+    `正确选项：${correct || input.row.term}`,
+    `全部选项：${input.row.options.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join(' / ')}`,
+    input.row.explanation ? `原解析（可参考）：${input.row.explanation}` : '',
+    '',
+    '请严格按下列 JSON 结构返回一个对象：',
+    '{',
+    `  "term": "${input.row.term}",`,
+    '  "layer1": {',
+    '    "meaning": "当前词准确释义（1～3 句）",',
+    '    "phonologyNotes": "字音字形需注意点；若无则写空字符串"',
+    '  },',
+    '  "layer2": {',
+    '    "confusables": [',
+    '      { "word": "易混词", "meaning": "该词释义", "howToDistinguish": "与目标词如何区分" }',
+    '    ]',
+    '  },',
+    '  "layer3": {',
+    '    "synonyms": ["近义词1", "近义词2"],',
+    '    "antonyms": ["反义词1"],',
+    '    "otherOptions": [',
+    '      { "text": "原题干扰项原文", "meaning": "该选项释义" }',
+    '    ]',
+    '  },',
+    '  "quiz": [',
+    '    {',
+    '      "questionType": "meaning 或 fill",',
+    '      "focusTerm": "本题主要考查的词（目标词或易混/近反义之一）",',
+    '      "stem": "题干",',
+    '      "correct": "正确选项原文",',
+    '      "distractors": ["干扰1", "干扰2", "干扰3"],',
+    '      "explanation": "简短解析"',
+    '    }',
+    '  ]',
+    '}',
+    '',
+    '硬性要求：',
+    '1. layer2.confusables 至少 1 条，优先公考高频易混；',
+    '2. layer3.otherOptions 须覆盖原题全部干扰项（非正确选项），释义准确；',
+    '3. quiz 必须 2～3 题；questionType 仅 meaning（词义理解）或 fill（选词填空）；',
+    '4. quiz 各题 focusTerm 尽量轮换（目标词、易混词、近/反义词等），不要三题都只考同一个词面；',
+    '5. 小测四选一：correct + distractors 共 4 个互不相同选项；禁止靠选项长短/标点蒙对；',
+    '6. 近/反义词若确实少见可少给，但数组字段必须存在（可为 []）；',
+    '7. 小测题干禁止写「本题考查××」「考「××」」等剧透；选词填空题干不得提前给出正确答案。',
+    '',
+    CHINESE_MCQ_CORRECTNESS_RULES,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: VOCAB_RELATED_LEARNING_SYSTEM,
+    temperature: 0.55,
+    maxTokens: 4096,
+  })
+
+  const parsed = parseAiJsonObjectLenient(stripAiJsonFence(raw))
+  const pack = parseVocabRelatedLearningPack(parsed, {
+    kind: input.kind,
+    term: input.row.term,
+    otherOptionTexts: otherOptions,
+  })
+  if (!pack) {
+    throw new Error('关联学习内容解析失败，请稍后重试')
+  }
+  return pack
+}
+
+/**
+ * 一组关联学习包一次性生成（仅对未缓存词调用）；返回顺序与 rows 一致。
+ */
+export async function requestVocabRelatedLearningPackBatch(input: {
+  kind: VocabRelatedKind
+  rows: VocabRelatedSourceRow[]
+  onProgress?: (message: string) => void
+}): Promise<VocabRelatedLearningPack[]> {
+  const rows = input.rows
+  if (!rows.length) return []
+  if (rows.length === 1) {
+    return [await requestVocabRelatedLearningPack({ kind: input.kind, row: rows[0]!, onProgress: input.onProgress })]
+  }
+
+  const kindLabel = input.kind === 'idiom' ? '成语' : '词语'
+  input.onProgress?.(aiRequestProgressText(`${kindLabel}关联学习（本组 ${rows.length} 词）`))
+
+  const items = rows
+    .map((row, i) => {
+      const correct =
+        row.options[row.correctIndex]?.trim() ||
+        (row.questionType === 'meaning-to-word' ? row.term : '')
+      return [
+        `【词 ${i + 1}】`,
+        `term：${row.term}`,
+        `题干：${row.stem}`,
+        `正确选项：${correct || row.term}`,
+        `全部选项：${row.options.map((o, j) => `${String.fromCharCode(65 + j)}. ${o}`).join(' / ')}`,
+        row.explanation ? `原解析：${row.explanation}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n')
+    })
+    .join('\n\n')
+
+  const user = [
+    `请为下列 ${rows.length} 个「${kindLabel}识记」目标词一次性生成【关联学习包】数组。`,
+    '每个元素结构与单包相同：layer1（meaning、phonologyNotes）、layer2.confusables（≥1）、layer3（synonyms、antonyms、otherOptions）、quiz（2～3 题，meaning 或 fill）。',
+    '硬性：一次返回完整 JSON 数组，长度恰好为输入词数，顺序与下方词序一致；不要分多轮、不要只返回部分。',
+    '小测题干/选项不得额外写出「本题考查××」之类剧透。',
+    '',
+    items,
+    '',
+    `**仅返回 JSON 数组**，长度恰好 ${rows.length}。`,
+    '',
+    CHINESE_MCQ_CORRECTNESS_RULES,
+  ].join('\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: VOCAB_RELATED_LEARNING_SYSTEM,
+    temperature: 0.55,
+    maxTokens: 12288,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const out: VocabRelatedLearningPack[] = []
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]!
+    const otherOptions = row.options
+      .map((x, idx) => ({ text: String(x ?? '').trim(), index: idx }))
+      .filter((x) => x.text && x.index !== row.correctIndex)
+      .map((x) => x.text)
+    const pack = parseVocabRelatedLearningPack(parsed[i], {
+      kind: input.kind,
+      term: row.term,
+      otherOptionTexts: otherOptions,
+    })
+    if (!pack) {
+      throw new Error(`关联学习第 ${i + 1} 词「${row.term}」解析失败，请稍后重试`)
+    }
+    out.push(pack)
+  }
+  return out
+}
+
+const CHAR_LITERACY_RELATED_LEARNING_SYSTEM = [
+  '你是公务员考试与事业单位考试「言语理解·字音字形」关联学习教练。',
+  '根据学员错题中的目标词，输出结构化关联学习材料与学后小测。',
+  '只输出合法 JSON 对象，不要 markdown 代码围栏，不要其它说明文字。',
+  '内容须准确、简洁，使用简体中文；小测只考字音或字形，不考词义 trivia。',
+].join('\n')
+
+/**
+ * 重点题 · 字音字形「关联学习」：三层材料 + 2～3 道学后小测（不计错题本）。
+ */
+export async function requestCharLiteracyRelatedLearningPack(input: {
+  row: CharLiteracyRelatedSourceRow
+  onProgress?: (message: string) => void
+}): Promise<CharLiteracyRelatedLearningPack> {
+  const qType =
+    input.row.questionType === 'typo' || String(input.row.questionType).includes('错')
+      ? 'typo'
+      : 'pronunciation'
+  const typeLabel = qType === 'typo' ? '错别字/字形' : '读音辨析'
+  const correct = input.row.options[input.row.correctIndex]?.trim() || input.row.term
+  const otherOptions = input.row.options
+    .map((x, i) => ({ text: String(x ?? '').trim(), index: i }))
+    .filter((x) => x.text && x.index !== input.row.correctIndex)
+    .map((x) => x.text)
+
+  input.onProgress?.(aiRequestProgressText('字音字形关联学习'))
+
+  const user = [
+    `请为下列公考/事业编「字音字形」错题目标词生成【关联学习包】（原题型侧重：${typeLabel}）。`,
+    `目标词（term）：${input.row.term}`,
+    `原题干：${input.row.stem}`,
+    `正确选项：${correct}`,
+    `全部选项：${input.row.options.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join(' / ')}`,
+    input.row.explanation ? `原解析（可参考）：${input.row.explanation}` : '',
+    '',
+    '请严格按下列 JSON 结构返回一个对象：',
+    '{',
+    `  "term": "${input.row.term}",`,
+    `  "questionType": "${qType}",`,
+    '  "layer1": {',
+    '    "meaning": "当前词准确释义（1～2 句）",',
+    '    "phonologyOrForm": "当前词正确字音与/或规范字形要点（必填，可含拼音注音）"',
+    '  },',
+    '  "layer2": {',
+    '    "confusables": [',
+    '      {',
+    '        "word": "易混词",',
+    '        "correctFormOrReading": "该词正确读音或规范写法",',
+    '        "howToDistinguish": "与目标词在字音/字形上如何区分"',
+    '      }',
+    '    ]',
+    '  },',
+    '  "layer3": {',
+    '    "otherOptions": [',
+    '      {',
+    '        "text": "原题干扰项原文",',
+    '        "correctFormOrReading": "该选项对应的正确字音或规范字形",',
+    '        "confusionPoint": "易混点说明"',
+    '      }',
+    '    ]',
+    '  },',
+    '  "quiz": [',
+    '    {',
+    '      "questionType": "pronunciation 或 typo",',
+    '      "focusTerm": "本题主要考查的词",',
+    '      "stem": "题干（只考字音或字形）",',
+    '      "correct": "正确选项原文",',
+    '      "distractors": ["干扰1", "干扰2", "干扰3"],',
+    '      "explanation": "简短解析"',
+    '    }',
+    '  ]',
+    '}',
+    '',
+    '硬性要求：',
+    '1. layer1.phonologyOrForm 必填；',
+    '2. layer2.confusables 至少 1 条，必须针对字音或字形易混（不是词义近反义）；',
+    '3. layer3.otherOptions 须覆盖原题全部干扰项，写明正确字音/字形与易混点；',
+    '4. quiz 必须 2～3 题；questionType 仅 pronunciation 或 typo；禁止考纯词义；',
+    '5. quiz 各题 focusTerm 尽量轮换（目标词、易混词等）；',
+    '6. 小测四选一：correct + distractors 共 4 个互不相同；选项勿带「（误）」等露馅标记；',
+    '7. 读音题选项宜带拼音注音；错别字题选项为词语写法辨析。',
+    '',
+    CHINESE_MCQ_CORRECTNESS_RULES,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: CHAR_LITERACY_RELATED_LEARNING_SYSTEM,
+    temperature: 0.55,
+    maxTokens: 4096,
+  })
+
+  const parsed = parseAiJsonObjectLenient(stripAiJsonFence(raw))
+  const pack = parseCharLiteracyRelatedLearningPack(parsed, {
+    term: input.row.term,
+    questionType: qType,
+    otherOptionTexts: otherOptions,
+  })
+  if (!pack) {
+    throw new Error('字音字形关联学习内容解析失败，请稍后重试')
+  }
+  return pack
+}
+
+/** 字音字形关联学习：一组未缓存词一次性生成 */
+export async function requestCharLiteracyRelatedLearningPackBatch(input: {
+  rows: CharLiteracyRelatedSourceRow[]
+  onProgress?: (message: string) => void
+}): Promise<CharLiteracyRelatedLearningPack[]> {
+  const rows = input.rows
+  if (!rows.length) return []
+  if (rows.length === 1) {
+    return [await requestCharLiteracyRelatedLearningPack({ row: rows[0]!, onProgress: input.onProgress })]
+  }
+
+  input.onProgress?.(aiRequestProgressText(`字音字形关联学习（本组 ${rows.length} 词）`))
+
+  const items = rows
+    .map((row, i) => {
+      const qType =
+        row.questionType === 'typo' || String(row.questionType).includes('错')
+          ? 'typo'
+          : 'pronunciation'
+      const correct = row.options[row.correctIndex]?.trim() || row.term
+      return [
+        `【词 ${i + 1}】`,
+        `term：${row.term}`,
+        `questionType：${qType}`,
+        `题干：${row.stem}`,
+        `正确选项：${correct}`,
+        `全部选项：${row.options.map((o, j) => `${String.fromCharCode(65 + j)}. ${o}`).join(' / ')}`,
+        row.explanation ? `原解析：${row.explanation}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n')
+    })
+    .join('\n\n')
+
+  const user = [
+    `请为下列 ${rows.length} 个「字音字形」目标词一次性生成【关联学习包】数组。`,
+    '每个元素含 layer1（meaning、phonologyOrForm）、layer2.confusables（≥1，字音字形易混）、layer3.otherOptions、quiz（2～3 题，仅 pronunciation/typo）。',
+    '硬性：一次返回完整 JSON 数组，长度恰好为输入词数，顺序一致；不要分多轮。',
+    '小测题干勿写「本题考查××」剧透。',
+    '',
+    items,
+    '',
+    `**仅返回 JSON 数组**，长度恰好 ${rows.length}。`,
+    '',
+    CHINESE_MCQ_CORRECTNESS_RULES,
+  ].join('\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: CHAR_LITERACY_RELATED_LEARNING_SYSTEM,
+    temperature: 0.55,
+    maxTokens: 12288,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const out: CharLiteracyRelatedLearningPack[] = []
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]!
+    const qType =
+      row.questionType === 'typo' || String(row.questionType).includes('错')
+        ? 'typo'
+        : 'pronunciation'
+    const otherOptions = row.options
+      .map((x, idx) => ({ text: String(x ?? '').trim(), index: idx }))
+      .filter((x) => x.text && x.index !== row.correctIndex)
+      .map((x) => x.text)
+    const pack = parseCharLiteracyRelatedLearningPack(parsed[i], {
+      term: row.term,
+      questionType: qType,
+      otherOptionTexts: otherOptions,
+    })
+    if (!pack) {
+      throw new Error(`字音字形关联学习第 ${i + 1} 词「${row.term}」解析失败，请稍后重试`)
+    }
+    out.push(pack)
+  }
+  return out
 }
 
 const CLASSICAL_CHINESE_SYSTEM = [

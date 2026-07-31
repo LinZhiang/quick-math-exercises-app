@@ -197,10 +197,25 @@ const KNOWN_ITEM_LABELS: Record<string, { categoryId: string; categoryLabel: str
       categoryLabel: '语文练习',
       itemLabel: '语文 · 词语识记',
     },
+    'chinese-vocab-related-idiom': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 关联学习 · 成语识记',
+    },
+    'chinese-vocab-related-word': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 关联学习 · 词语识记',
+    },
     'chinese-char-literacy': {
       categoryId: 'chinese',
       categoryLabel: '语文练习',
       itemLabel: '语文 · 汉字认读',
+    },
+    'chinese-char-literacy-related': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 关联学习 · 字音字形',
     },
     'chinese-poetry': { categoryId: 'chinese', categoryLabel: '语文练习', itemLabel: '语文 · 诗词练习' },
     'chinese-classical-chinese': {
