@@ -199,6 +199,12 @@ import WrongBookReviewStat from '@/views/tools/mental-math/components/WrongBookR
 import WrongBookImmersivePreview, {
   type WrongBookPreviewItem,
 } from '@/views/tools/mental-math/components/WrongBookImmersivePreview.vue'
+import VocabRelatedLearningDialog from '@/views/tools/chinese-practice/VocabRelatedLearningDialog.vue'
+import CharLiteracyRelatedLearningDialog from '@/views/tools/chinese-practice/CharLiteracyRelatedLearningDialog.vue'
+import type { VocabRelatedSourceRow } from '@/utils/vocabRelatedLearning'
+import type { CharLiteracyRelatedSourceRow } from '@/utils/charLiteracyRelatedLearning'
+import { pruneVocabRelatedLearningCache } from '@/utils/vocabRelatedLearningCache'
+import { pruneCharLiteracyRelatedLearningCache } from '@/utils/charLiteracyRelatedLearningCache'
 import { renderReadingPassageHtml } from '@/utils/readingComprehensionPractice'
 
 type StoredRow =
@@ -257,6 +263,11 @@ const noteEditing = ref(false)
 const noteSaving = ref(false)
 const previewOpen = ref(false)
 const previewIndex = ref(0)
+const vocabRelatedRef = ref<InstanceType<typeof VocabRelatedLearningDialog> | null>(null)
+const charRelatedRef = ref<InstanceType<typeof CharLiteracyRelatedLearningDialog> | null>(null)
+const vocabRelatedActive = ref(false)
+const charRelatedActive = ref(false)
+const relatedLearningOpen = computed(() => vocabRelatedActive.value || charRelatedActive.value)
 const workspaceOpen = ref(false)
 const filterWrongCount = ref<number | null>(null)
 const filterDate = ref('')
@@ -387,6 +398,83 @@ const detailRow = computed(
 
 function isVocabSource(src: ChineseKeyQuestionSource): boolean {
   return src === 'idiom-memorization' || src === 'word-memorization'
+}
+
+function isCharLiteracySource(src: ChineseKeyQuestionSource): boolean {
+  return src === 'char-literacy'
+}
+
+/** 成语/词语/字音字形支持关联学习 */
+function supportsRelatedLearning(src: ChineseKeyQuestionSource): boolean {
+  return isVocabSource(src) || isCharLiteracySource(src)
+}
+
+function toVocabRelatedRow(row: StoredRow): VocabRelatedSourceRow {
+  return {
+    fingerprint: row.fingerprint,
+    term: row.term,
+    stem: row.stem,
+    options: [...row.options],
+    correctIndex: row.correctIndex,
+    explanation: row.explanation ?? '',
+    questionType: String(row.questionType ?? ''),
+  }
+}
+
+function toCharLiteracyRelatedRow(row: StoredRow): CharLiteracyRelatedSourceRow {
+  return {
+    fingerprint: row.fingerprint,
+    term: row.term,
+    stem: row.stem,
+    options: [...row.options],
+    correctIndex: row.correctIndex,
+    explanation: row.explanation ?? '',
+    questionType: String(row.questionType ?? 'pronunciation'),
+  }
+}
+
+function startRelatedLearning(rows: StoredRow[]) {
+  workspaceOpen.value = false
+  detailDialogVisible.value = false
+  previewOpen.value = false
+  expandedFingerprint.value = null
+  if (isVocabSource(source.value)) {
+    const kind = source.value === 'idiom-memorization' ? 'idiom' : 'word'
+    void vocabRelatedRef.value?.start({
+      kind,
+      rows: rows.map(toVocabRelatedRow),
+    })
+    return
+  }
+  if (isCharLiteracySource(source.value)) {
+    void charRelatedRef.value?.start({
+      rows: rows.map(toCharLiteracyRelatedRow),
+    })
+  }
+}
+
+function onRelatedLearningOne(fp: string) {
+  const row = activeRows.value.find((r) => r.fingerprint === fp)
+  if (!row) {
+    ElMessage.warning('未找到该题')
+    return
+  }
+  startRelatedLearning([row])
+}
+
+function onRelatedLearningBatch(batchIndex: number) {
+  const pool = practicePool.value
+  if (!pool.length) {
+    ElMessage.warning(selected.value.size ? '勾选题目不在当前筛选结果中' : '当前没有可关联学习的题目')
+    return
+  }
+  const from = batchIndex * WRONG_BOOK_BATCH_SIZE
+  const rows = pool.slice(from, from + WRONG_BOOK_BATCH_SIZE)
+  if (!rows.length) {
+    ElMessage.warning('该批次没有题目')
+    return
+  }
+  startRelatedLearning(rows)
 }
 
 function isReadingSource(src: ChineseKeyQuestionSource): boolean {
@@ -540,10 +628,29 @@ function syncSelectAll() {
   selected.value = new Set(displayRows.value.map((r) => r.fingerprint))
 }
 
+function pruneRelatedLearningCache() {
+  const keep = [
+    ...wrongRows.value.map((r) => r.fingerprint),
+    ...favoriteRows.value.map((r) => r.fingerprint),
+  ]
+  if (source.value === 'idiom-memorization') {
+    pruneVocabRelatedLearningCache('idiom', keep)
+    return
+  }
+  if (source.value === 'word-memorization') {
+    pruneVocabRelatedLearningCache('word', keep)
+    return
+  }
+  if (source.value === 'char-literacy') {
+    pruneCharLiteracyRelatedLearningCache(keep)
+  }
+}
+
 function refresh() {
   loading.value = true
   try {
     loadRows()
+    pruneRelatedLearningCache()
     syncSelectAll()
   } finally {
     loading.value = false
@@ -936,6 +1043,16 @@ defineExpose({ refresh })
 
 <template>
   <div class="chinese-key-panel">
+    <VocabRelatedLearningDialog
+      ref="vocabRelatedRef"
+      @active="vocabRelatedActive = $event"
+    />
+    <CharLiteracyRelatedLearningDialog
+      ref="charRelatedRef"
+      @active="charRelatedActive = $event"
+    />
+
+    <template v-if="!relatedLearningOpen">
     <p class="mode-section__hint">
       汇总各练习模块的错题与收藏；默认全选，点击词条可查看详情。阅读理解题目会在大弹窗中展示原文与解析。数据保存在本浏览器本地。
     </p>
@@ -1151,6 +1268,16 @@ defineExpose({ refresh })
               </template>
               <p v-else class="chinese-key__note-empty">暂无备注</p>
             </div>
+            <div v-if="supportsRelatedLearning(source)" class="chinese-key__related-actions">
+              <el-button
+                size="small"
+                type="primary"
+                plain
+                @click.stop="onRelatedLearningOne(row.fingerprint)"
+              >
+                关联学习
+              </el-button>
+            </div>
           </div>
         </button>
         <el-button size="small" text type="danger" @click.stop="onRemove(row.fingerprint)">
@@ -1258,6 +1385,13 @@ defineExpose({ refresh })
       </div>
       <template #footer>
         <el-button
+          v-if="detailRow && supportsRelatedLearning(source)"
+          type="primary"
+          @click="detailRow && onRelatedLearningOne(detailRow.fingerprint)"
+        >
+          关联学习
+        </el-button>
+        <el-button
           v-if="detailRow"
           type="primary"
           plain
@@ -1309,7 +1443,31 @@ defineExpose({ refresh })
       <p class="chinese-key__variant-hint">
         变式测验：答错不进错题本；答对后可删除对应的错题/收藏原题。已勾选
         {{ selected.size }} 题。
+        <template v-if="supportsRelatedLearning(source)">
+          关联学习按组进行（每组最多 {{ WRONG_BOOK_BATCH_SIZE }} 词）：AI
+          生成三层讲解后做小测；学习包本地缓存，未变复用、新增增量、删词清理（小测不进错题本，完成后写入导览日志）。
+        </template>
       </p>
+      <div
+        v-if="supportsRelatedLearning(source) && practiceBatches.length"
+        class="chinese-key__batches chinese-key__batches--related"
+      >
+        <p class="chinese-key__batches-label">
+          关联学习分组（每组最多 {{ WRONG_BOOK_BATCH_SIZE }} 词；未勾选则按当前筛选全部）
+        </p>
+        <div class="chinese-key__batches-btns">
+          <el-button
+            v-for="b in practiceBatches"
+            :key="`rel-${b.index}`"
+            type="success"
+            plain
+            size="small"
+            @click="onRelatedLearningBatch(b.index)"
+          >
+            第 {{ b.index + 1 }} 组（{{ b.from }}–{{ b.to }}）
+          </el-button>
+        </div>
+      </div>
       <el-button plain @click="selectAll">全选当前筛选</el-button>
     </div>
 
@@ -1398,6 +1556,26 @@ defineExpose({ refresh })
             </div>
             <p v-if="variantProgress" class="chinese-key__variant-progress">{{ variantProgress }}</p>
           </div>
+          <div
+            v-if="supportsRelatedLearning(source) && practiceBatches.length"
+            class="chinese-key__batches chinese-key__batches--related"
+          >
+            <p class="chinese-key__batches-label">
+              关联学习分组（每组最多 {{ WRONG_BOOK_BATCH_SIZE }} 词）
+            </p>
+            <div class="chinese-key__batches-btns">
+              <el-button
+                v-for="b in practiceBatches"
+                :key="`ws-rel-${b.index}`"
+                type="success"
+                plain
+                size="small"
+                @click="onRelatedLearningBatch(b.index)"
+              >
+                第 {{ b.index + 1 }} 组（{{ b.from }}–{{ b.to }}）
+              </el-button>
+            </div>
+          </div>
 
           <p v-if="!displayRows.length" class="chinese-key__empty">当前筛选下没有题目</p>
           <ul v-else class="chinese-key__list chinese-key-workspace__list">
@@ -1441,6 +1619,7 @@ defineExpose({ refresh })
         </div>
       </div>
     </Teleport>
+    </template>
   </div>
 </template>
 
@@ -1528,6 +1707,10 @@ defineExpose({ refresh })
 .chinese-key__batches {
   width: 100%;
   margin-bottom: 8px;
+}
+
+.chinese-key__batches--related {
+  margin-top: 4px;
 }
 
 .chinese-key__batches-label {
@@ -1693,6 +1876,13 @@ defineExpose({ refresh })
   background: var(--app-surface);
   font-size: 13px;
   line-height: 1.6;
+}
+
+.chinese-key__related-actions {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .chinese-key__detail-line {
