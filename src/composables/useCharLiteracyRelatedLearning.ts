@@ -25,6 +25,8 @@ export type CharLiteracyRelatedLearningPhase =
   | 'quiz-result'
   | 'session-done'
 
+export type CharLiteracyRelatedStudyLayer = 1 | 2 | 3
+
 function shuffleCopy<T>(arr: T[]): T[] {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
@@ -57,6 +59,7 @@ export function useCharLiteracyRelatedLearning() {
   const queueIndex = ref(0)
   const packs = ref<CharLiteracyRelatedLearningPack[]>([])
   const pack = computed(() => packs.value[queueIndex.value] ?? null)
+  const studyLayer = ref<CharLiteracyRelatedStudyLayer>(1)
 
   const quizIndex = ref(0)
   const selectedOption = ref<number | null>(null)
@@ -109,6 +112,7 @@ export function useCharLiteracyRelatedLearning() {
     next[queueIndex.value] = { ...cur, quiz }
     packs.value = next
     resetQuizState(quiz)
+    studyLayer.value = 1
     phase.value = 'study'
   }
 
@@ -119,6 +123,7 @@ export function useCharLiteracyRelatedLearning() {
     packs.value = []
     queue.value = []
     queueIndex.value = 0
+    studyLayer.value = 1
     quizIndex.value = 0
     selectedOption.value = null
     quizSubmitted.value = false
@@ -200,6 +205,20 @@ export function useCharLiteracyRelatedLearning() {
     }
   }
 
+  function nextStudyLayer() {
+    if (studyLayer.value < 3) {
+      studyLayer.value = (studyLayer.value + 1) as CharLiteracyRelatedStudyLayer
+      return
+    }
+    startQuiz()
+  }
+
+  function prevStudyLayer() {
+    if (studyLayer.value > 1) {
+      studyLayer.value = (studyLayer.value - 1) as CharLiteracyRelatedStudyLayer
+    }
+  }
+
   function startQuiz() {
     phase.value = 'quiz'
     quizIndex.value = 0
@@ -239,6 +258,7 @@ export function useCharLiteracyRelatedLearning() {
   function retryModule() {
     if (!pack.value) return
     resetQuizState(reshuffleQuiz(pack.value.quiz))
+    studyLayer.value = 1
     phase.value = 'study'
   }
 
@@ -279,6 +299,7 @@ export function useCharLiteracyRelatedLearning() {
     queue,
     queueIndex,
     pack,
+    studyLayer,
     quizIndex,
     selectedOption,
     quizSubmitted,
@@ -292,6 +313,8 @@ export function useCharLiteracyRelatedLearning() {
     charLiteracyRelatedQuizTypeLabel,
     start,
     close,
+    nextStudyLayer,
+    prevStudyLayer,
     startQuiz,
     selectQuizOption,
     submitQuizAnswer,

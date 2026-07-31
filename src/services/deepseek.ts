@@ -2062,7 +2062,7 @@ export async function requestVocabRelatedLearningPack(input: {
     '',
     '硬性要求：',
     '1. layer2.confusables 至少 1 条，优先公考高频易混；',
-    '2. layer3.otherOptions 须覆盖原题全部干扰项（非正确选项），释义准确；',
+    '2. layer3.otherOptions 须覆盖原题全部干扰项（非正确选项），每项必须有准确释义（meaning），禁止空字段；',
     '3. quiz 必须 2～3 题；questionType 仅 meaning（词义理解）或 fill（选词填空）；',
     '4. quiz 各题 focusTerm 尽量轮换（目标词、易混词、近/反义词等），不要三题都只考同一个词面；',
     '5. 小测四选一：correct + distractors 共 4 个互不相同选项；禁止靠选项长短/标点蒙对；',
@@ -2164,9 +2164,9 @@ export async function requestVocabRelatedLearningPackBatch(input: {
 
   const user = [
     `请为下列 ${rows.length} 个「${kindLabel}识记」目标词一次性生成【关联学习包】数组。`,
-    '每个元素：layer1（meaning、phonologyNotes）、layer2.confusables（≥1）、layer3（synonyms、antonyms、otherOptions）、quiz（恰好 2 题，meaning 或 fill）。',
-    '篇幅控制：释义/解析各不超过约 40 字；易混与选项释义尽量短，确保 JSON 完整不被截断。',
-    '硬性：一次返回完整 JSON 数组，长度恰好为输入词数，顺序与词序一致；不要分多轮。',
+    '每个元素：layer1（meaning、phonologyNotes）、layer2.confusables（≥1）、layer3（synonyms、antonyms、otherOptions）、quiz（2 题，meaning 或 fill）。',
+    '硬性：otherOptions 必须覆盖全部干扰项，每项都要有真实释义（字段 meaning），禁止空释义或省略。',
+    '一次返回完整 JSON 数组，长度恰好为输入词数；不要分多轮。',
     '小测题干勿写「本题考查××」剧透。',
     '',
     items,
@@ -2374,9 +2374,9 @@ export async function requestCharLiteracyRelatedLearningPackBatch(input: {
 
   const user = [
     `请为下列 ${rows.length} 个「字音字形」目标词一次性生成【关联学习包】数组。`,
-    '每个元素：layer1（meaning、phonologyOrForm）、layer2.confusables（≥1）、layer3.otherOptions、quiz（恰好 2 题，pronunciation/typo）。',
-    '篇幅控制：释义/解析各不超过约 40 字，确保 JSON 完整。',
-    '硬性：一次返回完整 JSON 数组，长度恰好为输入词数；不要分多轮。',
+    '每个元素：layer1（meaning、phonologyOrForm）、layer2.confusables（≥1）、layer3.otherOptions、quiz（2 题，pronunciation/typo）。',
+    '硬性：otherOptions 必须覆盖全部干扰项，写明正确字音/字形与易混点，禁止空字段。',
+    '一次返回完整 JSON 数组，长度恰好为输入词数；不要分多轮。',
     '小测题干勿写「本题考查××」剧透。',
     '',
     items,

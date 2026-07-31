@@ -99,33 +99,87 @@ function parseConfusables(raw: unknown): CharLiteracyRelatedConfusable[] {
 function parseOtherOptions(
   raw: unknown,
   fallbackTexts: string[],
-): CharLiteracyRelatedOtherOption[] {
+): CharLiteracyRelatedOtherOption[] | null {
+  const byText = new Map<
+    string,
+    { correctFormOrReading: string; confusionPoint: string }
+  >()
+
+  const absorb = (
+    text: string,
+    correctFormOrReading: string,
+    confusionPoint: string,
+  ) => {
+    const t = text.trim()
+    if (!t) return
+    if (!correctFormOrReading.trim() && !confusionPoint.trim()) return
+    if (!byText.has(t)) {
+      byText.set(t, {
+        correctFormOrReading: correctFormOrReading.trim(),
+        confusionPoint: confusionPoint.trim(),
+      })
+    }
+  }
+
   if (Array.isArray(raw)) {
-    const out: CharLiteracyRelatedOtherOption[] = []
     for (const item of raw) {
       if (!item || typeof item !== 'object') continue
       const o = item as Record<string, unknown>
       const text = String(o.text ?? o.option ?? o.word ?? o.term ?? '').trim()
       const correctFormOrReading = String(
-        o.correctFormOrReading ?? o.correct ?? o.reading ?? o.form ?? '',
+        o.correctFormOrReading ??
+          o.correct ??
+          o.reading ??
+          o.form ??
+          o.正确读音 ??
+          o.规范写法 ??
+          '',
       ).trim()
       const confusionPoint = String(
-        o.confusionPoint ?? o.confusion ?? o.diff ?? o.note ?? o.meaning ?? '',
+        o.confusionPoint ??
+          o.confusion ??
+          o.diff ??
+          o.note ??
+          o.meaning ??
+          o.易混点 ??
+          o.释义 ??
+          '',
       ).trim()
-      if (!text) continue
-      out.push({
-        text,
-        correctFormOrReading: correctFormOrReading || '（见解析）',
-        confusionPoint: confusionPoint || '注意与正确项在字音或字形上的差异。',
-      })
+      absorb(text, correctFormOrReading, confusionPoint)
     }
-    if (out.length) return out
   }
-  return fallbackTexts.map((text) => ({
-    text,
-    correctFormOrReading: '（生成未返回，可结合解析理解）',
-    confusionPoint: '注意与正确项在字音或字形上的差异。',
-  }))
+
+  if (!fallbackTexts.length) {
+    return [...byText.entries()].map(([text, v]) => ({
+      text,
+      correctFormOrReading: v.correctFormOrReading || '见规范读音/写法',
+      confusionPoint: v.confusionPoint || '注意与正确项差异',
+    }))
+  }
+
+  const out: CharLiteracyRelatedOtherOption[] = []
+  for (const text of fallbackTexts) {
+    const t = text.trim()
+    if (!t) continue
+    let hit = byText.get(t)
+    if (!hit) {
+      const norm = t.replace(/\s+/g, '')
+      for (const [k, v] of byText) {
+        if (k.replace(/\s+/g, '') === norm) {
+          hit = v
+          break
+        }
+      }
+    }
+    if (!hit || (!hit.correctFormOrReading && !hit.confusionPoint)) return null
+    if (/生成未返回/.test(hit.correctFormOrReading)) return null
+    out.push({
+      text: t,
+      correctFormOrReading: hit.correctFormOrReading || '见规范读音/写法',
+      confusionPoint: hit.confusionPoint || '注意与正确项在字音或字形上的差异。',
+    })
+  }
+  return out.length ? out : null
 }
 
 function parseQuizItem(
@@ -202,25 +256,13 @@ export function parseCharLiteracyRelatedLearningPack(
   let confusables = parseConfusables(
     layer2.confusables ?? layer2.confused ?? o.confusables ?? o.confusedWords,
   )
-  if (!confusables.length) {
-    const fallbackWord = input.otherOptionTexts[0]?.trim()
-    if (fallbackWord) {
-      confusables = [
-        {
-          word: fallbackWord,
-          correctFormOrReading: '见规范读音/写法',
-          howToDistinguish: '注意与目标词在字音或字形上的差异。',
-        },
-      ]
-    } else {
-      return null
-    }
-  }
+  if (!confusables.length) return null
 
   const otherOptions = parseOtherOptions(
     layer3.otherOptions ?? o.otherOptions ?? o.distractorNotes,
     input.otherOptionTexts,
   )
+  if (!otherOptions) return null
 
   const quizRaw = o.quiz ?? o.questions ?? o.practice
   if (!Array.isArray(quizRaw)) return null
@@ -252,6 +294,14 @@ export function isCharLiteracyRelatedLearningPack(
   if (!String(o.meaning ?? '').trim()) return false
   if (!String(o.phonologyOrForm ?? '').trim()) return false
   if (!Array.isArray(o.confusables) || o.confusables.length < 1) return false
+  if (!Array.isArray(o.otherOptions) || o.otherOptions.length < 1) return false
+  if (
+    o.otherOptions.some(
+      (x) => /生成未返回/.test(x.correctFormOrReading) || /生成未返回/.test(x.confusionPoint),
+    )
+  ) {
+    return false
+  }
   if (!Array.isArray(o.quiz) || o.quiz.length < 2) return false
   return o.quiz.every((q) => {
     const norms = q.options.map((x) => String(x ?? '').trim().replace(/\s+/g, ''))
