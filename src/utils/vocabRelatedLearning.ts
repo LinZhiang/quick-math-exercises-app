@@ -92,20 +92,82 @@ function parseConfusables(raw: unknown): VocabRelatedConfusable[] {
   return out
 }
 
-function parseOtherOptions(raw: unknown, fallback: string[]): VocabRelatedOtherOption[] {
+function pickMeaningField(o: Record<string, unknown>): string {
+  return String(
+    o.meaning ??
+      o.definition ??
+      o.释义 ??
+      o.意思 ??
+      o.explain ??
+      o.explanation ??
+      o.note ??
+      o.desc ??
+      o.description ??
+      '',
+  ).trim()
+}
+
+function pickTextField(o: Record<string, unknown>): string {
+  return String(o.text ?? o.option ?? o.word ?? o.term ?? o.name ?? '').trim()
+}
+
+/**
+ * 解析其他选项释义。缺释义则返回 null（整包作废，触发补生成），禁止占位文案入库。
+ */
+function parseOtherOptions(
+  raw: unknown,
+  fallback: string[],
+): VocabRelatedOtherOption[] | null {
+  const byText = new Map<string, string>()
+
+  const absorb = (text: string, meaning: string) => {
+    const t = text.trim()
+    const m = meaning.trim()
+    if (!t || !m) return
+    if (!byText.has(t)) byText.set(t, m)
+  }
+
   if (Array.isArray(raw)) {
-    const out: VocabRelatedOtherOption[] = []
     for (const item of raw) {
+      if (typeof item === 'string') {
+        const s = item.trim()
+        const m = s.match(/^(.+?)[：:：\s]+(.+)$/)
+        if (m) absorb(m[1]!, m[2]!)
+        continue
+      }
       if (!item || typeof item !== 'object') continue
       const o = item as Record<string, unknown>
-      const text = String(o.text ?? o.option ?? o.word ?? o.term ?? '').trim()
-      const meaning = String(o.meaning ?? o.definition ?? '').trim()
-      if (!text || !meaning) continue
-      out.push({ text, meaning })
+      absorb(pickTextField(o), pickMeaningField(o))
     }
-    if (out.length) return out
+  } else if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      absorb(k, String(v ?? '').trim())
+    }
   }
-  return fallback.map((text) => ({ text, meaning: '（生成未返回释义，可结合语境理解）' }))
+
+  if (!fallback.length) {
+    return [...byText.entries()].map(([text, meaning]) => ({ text, meaning }))
+  }
+
+  const out: VocabRelatedOtherOption[] = []
+  for (const text of fallback) {
+    const t = text.trim()
+    if (!t) continue
+    let meaning = byText.get(t)
+    if (!meaning) {
+      // 宽松匹配：去空白后相等
+      const norm = t.replace(/\s+/g, '')
+      for (const [k, v] of byText) {
+        if (k.replace(/\s+/g, '') === norm) {
+          meaning = v
+          break
+        }
+      }
+    }
+    if (!meaning) return null
+    out.push({ text: t, meaning })
+  }
+  return out.length ? out : null
 }
 
 /** 关联学习小测：只要求四选项结构可用，不过度用「表面泄题」卡死（否则整包易解析失败） */
@@ -178,21 +240,7 @@ export function parseVocabRelatedLearningPack(
   let confusables = parseConfusables(
     layer2.confusables ?? layer2.confused ?? o.confusables ?? o.confusedWords,
   )
-  if (!confusables.length) {
-    // 模型偶发漏易混项：用干扰项顶一条，避免整包作废
-    const fallbackWord = input.otherOptionTexts[0]?.trim()
-    if (fallbackWord) {
-      confusables = [
-        {
-          word: fallbackWord,
-          meaning: '与目标词易混，注意语境与搭配差异。',
-          howToDistinguish: '结合题干语境区分感情色彩与搭配对象。',
-        },
-      ]
-    } else {
-      return null
-    }
-  }
+  if (!confusables.length) return null
 
   const synonyms = asStringArray(layer3.synonyms ?? o.synonyms)
   const antonyms = asStringArray(layer3.antonyms ?? o.antonyms)
@@ -200,6 +248,7 @@ export function parseVocabRelatedLearningPack(
     layer3.otherOptions ?? o.otherOptions ?? o.distractorMeanings,
     input.otherOptionTexts,
   )
+  if (!otherOptions) return null
 
   const quizRaw = o.quiz ?? o.questions ?? o.practice
   if (!Array.isArray(quizRaw)) return null
@@ -235,6 +284,8 @@ export function isVocabRelatedLearningPack(v: unknown): v is VocabRelatedLearnin
   if (o.kind !== 'idiom' && o.kind !== 'word') return false
   if (!String(o.meaning ?? '').trim()) return false
   if (!Array.isArray(o.confusables) || o.confusables.length < 1) return false
+  if (!Array.isArray(o.otherOptions) || o.otherOptions.length < 1) return false
+  if (o.otherOptions.some((x) => /生成未返回/.test(x.meaning))) return false
   if (!Array.isArray(o.quiz) || o.quiz.length < 2) return false
   return o.quiz.every((q) => isUsableRelatedQuizMcq(q) || isPlayableFourChoiceMcq(q))
 }

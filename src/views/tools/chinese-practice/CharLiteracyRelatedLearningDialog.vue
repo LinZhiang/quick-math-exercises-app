@@ -12,6 +12,7 @@ const {
   queue,
   queueIndex,
   pack,
+  studyLayer,
   quizIndex,
   selectedOption,
   quizSubmitted,
@@ -25,7 +26,8 @@ const {
   charLiteracyRelatedQuizTypeLabel,
   start,
   close,
-  startQuiz,
+  nextStudyLayer,
+  prevStudyLayer,
   selectQuizOption,
   submitQuizAnswer,
   nextQuizOrResult,
@@ -54,20 +56,33 @@ function optKey(i: number) {
 
     <div v-if="phase === 'loading'" class="vr__loading">
       <p>{{ loadingMessage || '正在一次性生成本组关联学习内容…' }}</p>
-      <p class="vr__muted">优先读缓存；缺失词整组一次生成</p>
+      <p class="vr__muted">本组最多 10 词整组一次生成；学习时仍按三层逐步查看</p>
     </div>
 
     <template v-else-if="phase === 'study' && pack">
       <div class="vr__term">{{ pack.term }}</div>
+      <div class="vr__layers">
+        <span
+          v-for="n in 3"
+          :key="n"
+          class="vr__layer-dot"
+          :class="{
+            'is-active': studyLayer === n,
+            'is-done': studyLayer > n,
+          }"
+        >
+          第 {{ n }} 层
+        </span>
+      </div>
 
-      <section class="vr__block">
-        <h4 class="vr__h">一、当前词</h4>
+      <section v-if="studyLayer === 1" class="vr__block">
+        <h4 class="vr__h">第一层 · 当前词</h4>
         <p class="vr__line"><strong>释义：</strong>{{ pack.meaning }}</p>
         <p class="vr__line"><strong>字音字形：</strong>{{ pack.phonologyOrForm }}</p>
       </section>
 
-      <section class="vr__block">
-        <h4 class="vr__h">二、高频易混（字音字形）</h4>
+      <section v-else-if="studyLayer === 2" class="vr__block">
+        <h4 class="vr__h">第二层 · 高频易混（字音字形）</h4>
         <ul class="vr__list">
           <li v-for="(c, i) in pack.confusables" :key="i" class="vr__list-item">
             <p class="vr__word">{{ c.word }}</p>
@@ -79,8 +94,8 @@ function optKey(i: number) {
         </ul>
       </section>
 
-      <section class="vr__block">
-        <h4 class="vr__h">三、其他选项字音/字形</h4>
+      <section v-else class="vr__block">
+        <h4 class="vr__h">第三层 · 其他选项字音/字形</h4>
         <ul v-if="pack.otherOptions.length" class="vr__list">
           <li v-for="(o, i) in pack.otherOptions" :key="i" class="vr__list-item">
             <p class="vr__word">{{ o.text }}</p>
@@ -94,7 +109,10 @@ function optKey(i: number) {
       </section>
 
       <div class="vr__actions">
-        <el-button type="primary" @click="startQuiz">看完了，开始小测</el-button>
+        <el-button v-if="studyLayer > 1" plain @click="prevStudyLayer">上一层</el-button>
+        <el-button type="primary" @click="nextStudyLayer">
+          {{ studyLayer < 3 ? '下一层' : '开始小测' }}
+        </el-button>
       </div>
     </template>
 
@@ -214,6 +232,30 @@ function optKey(i: number) {
   font-weight: 700;
   letter-spacing: 0.04em;
   margin: 0 0 14px;
+}
+
+.vr__layers {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.vr__layer-dot {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--app-border-soft, #ddd);
+  color: var(--app-text-muted, #888);
+}
+
+.vr__layer-dot.is-active {
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
+  font-weight: 600;
+}
+
+.vr__layer-dot.is-done {
+  background: color-mix(in srgb, var(--el-color-primary) 12%, transparent);
 }
 
 .vr__block {

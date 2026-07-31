@@ -26,6 +26,8 @@ export type VocabRelatedLearningPhase =
   | 'quiz-result'
   | 'session-done'
 
+export type VocabRelatedStudyLayer = 1 | 2 | 3
+
 function shuffleCopy<T>(arr: T[]): T[] {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
@@ -58,6 +60,7 @@ export function useVocabRelatedLearning() {
   /** 本组全部学习包（开场一次性备齐） */
   const packs = ref<VocabRelatedLearningPack[]>([])
   const pack = computed(() => packs.value[queueIndex.value] ?? null)
+  const studyLayer = ref<VocabRelatedStudyLayer>(1)
 
   const quizIndex = ref(0)
   const selectedOption = ref<number | null>(null)
@@ -110,6 +113,7 @@ export function useVocabRelatedLearning() {
     next[queueIndex.value] = { ...cur, quiz }
     packs.value = next
     resetQuizState(quiz)
+    studyLayer.value = 1
     phase.value = 'study'
   }
 
@@ -120,6 +124,7 @@ export function useVocabRelatedLearning() {
     packs.value = []
     queue.value = []
     queueIndex.value = 0
+    studyLayer.value = 1
     quizIndex.value = 0
     selectedOption.value = null
     quizSubmitted.value = false
@@ -206,6 +211,20 @@ export function useVocabRelatedLearning() {
     }
   }
 
+  function nextStudyLayer() {
+    if (studyLayer.value < 3) {
+      studyLayer.value = (studyLayer.value + 1) as VocabRelatedStudyLayer
+      return
+    }
+    startQuiz()
+  }
+
+  function prevStudyLayer() {
+    if (studyLayer.value > 1) {
+      studyLayer.value = (studyLayer.value - 1) as VocabRelatedStudyLayer
+    }
+  }
+
   function startQuiz() {
     phase.value = 'quiz'
     quizIndex.value = 0
@@ -245,6 +264,7 @@ export function useVocabRelatedLearning() {
   function retryModule() {
     if (!pack.value) return
     resetQuizState(reshuffleQuiz(pack.value.quiz))
+    studyLayer.value = 1
     phase.value = 'study'
   }
 
@@ -287,6 +307,7 @@ export function useVocabRelatedLearning() {
     queue,
     queueIndex,
     pack,
+    studyLayer,
     quizIndex,
     selectedOption,
     quizSubmitted,
@@ -300,6 +321,8 @@ export function useVocabRelatedLearning() {
     vocabRelatedQuizTypeLabel,
     start,
     close,
+    nextStudyLayer,
+    prevStudyLayer,
     startQuiz,
     selectQuizOption,
     submitQuizAnswer,
