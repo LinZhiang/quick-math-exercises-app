@@ -152,7 +152,15 @@ function parseQuizItem(
     explanation: String(o.explanation ?? o.explain ?? '').trim(),
     focusTerm,
   }
-  if (!isPlayableFourChoiceMcq(q)) return null
+  // 关联学习小测放宽表面泄题校验，避免整包因字数蒙题规则被整段丢弃
+  const norms = q.options.map((o) => String(o ?? '').trim().replace(/\s+/g, ''))
+  const basicOk =
+    norms.length === 4 &&
+    norms.every(Boolean) &&
+    new Set(norms).size === 4 &&
+    q.correctIndex >= 0 &&
+    q.correctIndex < 4
+  if (!basicOk && !isPlayableFourChoiceMcq(q)) return null
   return q
 }
 
@@ -178,7 +186,7 @@ export function parseCharLiteracyRelatedLearningPack(
   ).trim()
   if (!meaning) return null
 
-  const phonologyOrForm = String(
+  let phonologyOrForm = String(
     layer1.phonologyOrForm ??
       layer1.phonologyNotes ??
       layer1.formNotes ??
@@ -186,12 +194,28 @@ export function parseCharLiteracyRelatedLearningPack(
       o.phonologyOrForm ??
       '',
   ).trim()
-  if (!phonologyOrForm) return null
+  if (!phonologyOrForm) {
+    // 模型偶发漏字段：用题干/term 兜底，避免整包作废
+    phonologyOrForm = `注意「${input.term}」的规范读音与写法。`
+  }
 
-  const confusables = parseConfusables(
+  let confusables = parseConfusables(
     layer2.confusables ?? layer2.confused ?? o.confusables ?? o.confusedWords,
   )
-  if (!confusables.length) return null
+  if (!confusables.length) {
+    const fallbackWord = input.otherOptionTexts[0]?.trim()
+    if (fallbackWord) {
+      confusables = [
+        {
+          word: fallbackWord,
+          correctFormOrReading: '见规范读音/写法',
+          howToDistinguish: '注意与目标词在字音或字形上的差异。',
+        },
+      ]
+    } else {
+      return null
+    }
+  }
 
   const otherOptions = parseOtherOptions(
     layer3.otherOptions ?? o.otherOptions ?? o.distractorNotes,
@@ -229,7 +253,16 @@ export function isCharLiteracyRelatedLearningPack(
   if (!String(o.phonologyOrForm ?? '').trim()) return false
   if (!Array.isArray(o.confusables) || o.confusables.length < 1) return false
   if (!Array.isArray(o.quiz) || o.quiz.length < 2) return false
-  return o.quiz.every((q) => isPlayableFourChoiceMcq(q))
+  return o.quiz.every((q) => {
+    const norms = q.options.map((x) => String(x ?? '').trim().replace(/\s+/g, ''))
+    const basicOk =
+      norms.length === 4 &&
+      norms.every(Boolean) &&
+      new Set(norms).size === 4 &&
+      q.correctIndex >= 0 &&
+      q.correctIndex < 4
+    return basicOk || isPlayableFourChoiceMcq(q)
+  })
 }
 
 export function charLiteracyRelatedContentKey(

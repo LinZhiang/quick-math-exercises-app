@@ -108,6 +108,15 @@ function parseOtherOptions(raw: unknown, fallback: string[]): VocabRelatedOtherO
   return fallback.map((text) => ({ text, meaning: '（生成未返回释义，可结合语境理解）' }))
 }
 
+/** 关联学习小测：只要求四选项结构可用，不过度用「表面泄题」卡死（否则整包易解析失败） */
+function isUsableRelatedQuizMcq(q: { options: string[]; correctIndex: number }): boolean {
+  if (!Array.isArray(q.options) || q.options.length !== 4) return false
+  if (q.correctIndex < 0 || q.correctIndex >= 4) return false
+  const norms = q.options.map((o) => String(o ?? '').trim().replace(/\s+/g, ''))
+  if (norms.some((n) => !n)) return false
+  return new Set(norms).size === 4
+}
+
 function parseQuizItem(
   item: unknown,
   kind: VocabRelatedKind,
@@ -136,7 +145,7 @@ function parseQuizItem(
     explanation: String(o.explanation ?? o.explain ?? '').trim(),
     focusTerm,
   }
-  if (!isPlayableFourChoiceMcq(q)) return null
+  if (!isUsableRelatedQuizMcq(q) && !isPlayableFourChoiceMcq(q)) return null
   return q
 }
 
@@ -166,10 +175,24 @@ export function parseVocabRelatedLearningPack(
     layer1.phonologyNotes ?? layer1.phonetics ?? layer1.formNotes ?? o.phonologyNotes ?? '',
   ).trim()
 
-  const confusables = parseConfusables(
+  let confusables = parseConfusables(
     layer2.confusables ?? layer2.confused ?? o.confusables ?? o.confusedWords,
   )
-  if (!confusables.length) return null
+  if (!confusables.length) {
+    // 模型偶发漏易混项：用干扰项顶一条，避免整包作废
+    const fallbackWord = input.otherOptionTexts[0]?.trim()
+    if (fallbackWord) {
+      confusables = [
+        {
+          word: fallbackWord,
+          meaning: '与目标词易混，注意语境与搭配差异。',
+          howToDistinguish: '结合题干语境区分感情色彩与搭配对象。',
+        },
+      ]
+    } else {
+      return null
+    }
+  }
 
   const synonyms = asStringArray(layer3.synonyms ?? o.synonyms)
   const antonyms = asStringArray(layer3.antonyms ?? o.antonyms)
@@ -213,7 +236,7 @@ export function isVocabRelatedLearningPack(v: unknown): v is VocabRelatedLearnin
   if (!String(o.meaning ?? '').trim()) return false
   if (!Array.isArray(o.confusables) || o.confusables.length < 1) return false
   if (!Array.isArray(o.quiz) || o.quiz.length < 2) return false
-  return o.quiz.every((q) => isPlayableFourChoiceMcq(q))
+  return o.quiz.every((q) => isUsableRelatedQuizMcq(q) || isPlayableFourChoiceMcq(q))
 }
 
 /** 用于缓存失效：题干/选项变化则视为新内容 */

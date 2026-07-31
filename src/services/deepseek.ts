@@ -2092,8 +2092,37 @@ export async function requestVocabRelatedLearningPack(input: {
   return pack
 }
 
+function extractRelatedPacksArray(rawText: string): unknown[] {
+  const stripped = stripAiJsonFence(rawText)
+  const arr = parseAiJsonArrayLenient(stripped)
+  if (arr.length) return arr
+  const obj = parseAiJsonObjectLenient(stripped)
+  if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+    const o = obj as Record<string, unknown>
+    const nested = o.packs ?? o.items ?? o.data ?? o.list
+    if (Array.isArray(nested)) return nested
+  }
+  return []
+}
+
+function pickRelatedRawPack(
+  parsed: unknown[],
+  term: string,
+  index: number,
+): unknown {
+  const want = term.trim()
+  const byTerm = parsed.find(
+    (p) =>
+      p &&
+      typeof p === 'object' &&
+      String((p as Record<string, unknown>).term ?? '')
+        .trim() === want,
+  )
+  return byTerm ?? parsed[index]
+}
+
 /**
- * 一组关联学习包一次性生成（仅对未缓存词调用）；返回顺序与 rows 一致。
+ * 一组关联学习包优先一次性生成；截断/解析失败的词再单词补生成。
  */
 export async function requestVocabRelatedLearningPackBatch(input: {
   kind: VocabRelatedKind
@@ -2103,7 +2132,13 @@ export async function requestVocabRelatedLearningPackBatch(input: {
   const rows = input.rows
   if (!rows.length) return []
   if (rows.length === 1) {
-    return [await requestVocabRelatedLearningPack({ kind: input.kind, row: rows[0]!, onProgress: input.onProgress })]
+    return [
+      await requestVocabRelatedLearningPack({
+        kind: input.kind,
+        row: rows[0]!,
+        onProgress: input.onProgress,
+      }),
+    ]
   }
 
   const kindLabel = input.kind === 'idiom' ? '成语' : '词语'
@@ -2129,9 +2164,10 @@ export async function requestVocabRelatedLearningPackBatch(input: {
 
   const user = [
     `请为下列 ${rows.length} 个「${kindLabel}识记」目标词一次性生成【关联学习包】数组。`,
-    '每个元素结构与单包相同：layer1（meaning、phonologyNotes）、layer2.confusables（≥1）、layer3（synonyms、antonyms、otherOptions）、quiz（2～3 题，meaning 或 fill）。',
-    '硬性：一次返回完整 JSON 数组，长度恰好为输入词数，顺序与下方词序一致；不要分多轮、不要只返回部分。',
-    '小测题干/选项不得额外写出「本题考查××」之类剧透。',
+    '每个元素：layer1（meaning、phonologyNotes）、layer2.confusables（≥1）、layer3（synonyms、antonyms、otherOptions）、quiz（恰好 2 题，meaning 或 fill）。',
+    '篇幅控制：释义/解析各不超过约 40 字；易混与选项释义尽量短，确保 JSON 完整不被截断。',
+    '硬性：一次返回完整 JSON 数组，长度恰好为输入词数，顺序与词序一致；不要分多轮。',
+    '小测题干勿写「本题考查××」剧透。',
     '',
     items,
     '',
@@ -2140,31 +2176,56 @@ export async function requestVocabRelatedLearningPackBatch(input: {
     CHINESE_MCQ_CORRECTNESS_RULES,
   ].join('\n')
 
-  const raw = await deepseekChatRaw(user, {
-    system: VOCAB_RELATED_LEARNING_SYSTEM,
-    temperature: 0.55,
-    maxTokens: 12288,
-  })
+  let parsed: unknown[] = []
+  try {
+    const raw = await deepseekChatRaw(user, {
+      system: VOCAB_RELATED_LEARNING_SYSTEM,
+      temperature: 0.45,
+      maxTokens: 16384,
+    })
+    parsed = extractRelatedPacksArray(raw)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : '批量生成请求失败'
+    input.onProgress?.(`${msg}，改为逐词补生成…`)
+  }
 
-  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
-  const out: VocabRelatedLearningPack[] = []
+  const out: (VocabRelatedLearningPack | null)[] = rows.map(() => null)
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]!
     const otherOptions = row.options
       .map((x, idx) => ({ text: String(x ?? '').trim(), index: idx }))
       .filter((x) => x.text && x.index !== row.correctIndex)
       .map((x) => x.text)
-    const pack = parseVocabRelatedLearningPack(parsed[i], {
+    const pack = parseVocabRelatedLearningPack(pickRelatedRawPack(parsed, row.term, i), {
       kind: input.kind,
       term: row.term,
       otherOptionTexts: otherOptions,
     })
-    if (!pack) {
-      throw new Error(`关联学习第 ${i + 1} 词「${row.term}」解析失败，请稍后重试`)
-    }
-    out.push(pack)
+    if (pack) out[i] = pack
   }
-  return out
+
+  for (let i = 0; i < rows.length; i++) {
+    if (out[i]) continue
+    const row = rows[i]!
+    input.onProgress?.(`补生成「${row.term}」（${i + 1}/${rows.length}）…`)
+    try {
+      out[i] = await requestVocabRelatedLearningPack({
+        kind: input.kind,
+        row,
+        onProgress: input.onProgress,
+      })
+    } catch {
+      /* keep null */
+    }
+  }
+
+  const failed = rows.filter((_, i) => !out[i]).map((r) => r.term)
+  if (failed.length) {
+    throw new Error(
+      `关联学习仍有 ${failed.length} 词未生成成功：${failed.slice(0, 5).join('、')}${failed.length > 5 ? '…' : ''}，请稍后重试`,
+    )
+  }
+  return out as VocabRelatedLearningPack[]
 }
 
 const CHAR_LITERACY_RELATED_LEARNING_SYSTEM = [
@@ -2272,7 +2333,7 @@ export async function requestCharLiteracyRelatedLearningPack(input: {
   return pack
 }
 
-/** 字音字形关联学习：一组未缓存词一次性生成 */
+/** 字音字形关联学习：优先整组一次生成，失败词再补生成 */
 export async function requestCharLiteracyRelatedLearningPackBatch(input: {
   rows: CharLiteracyRelatedSourceRow[]
   onProgress?: (message: string) => void
@@ -2280,7 +2341,12 @@ export async function requestCharLiteracyRelatedLearningPackBatch(input: {
   const rows = input.rows
   if (!rows.length) return []
   if (rows.length === 1) {
-    return [await requestCharLiteracyRelatedLearningPack({ row: rows[0]!, onProgress: input.onProgress })]
+    return [
+      await requestCharLiteracyRelatedLearningPack({
+        row: rows[0]!,
+        onProgress: input.onProgress,
+      }),
+    ]
   }
 
   input.onProgress?.(aiRequestProgressText(`字音字形关联学习（本组 ${rows.length} 词）`))
@@ -2308,8 +2374,9 @@ export async function requestCharLiteracyRelatedLearningPackBatch(input: {
 
   const user = [
     `请为下列 ${rows.length} 个「字音字形」目标词一次性生成【关联学习包】数组。`,
-    '每个元素含 layer1（meaning、phonologyOrForm）、layer2.confusables（≥1，字音字形易混）、layer3.otherOptions、quiz（2～3 题，仅 pronunciation/typo）。',
-    '硬性：一次返回完整 JSON 数组，长度恰好为输入词数，顺序一致；不要分多轮。',
+    '每个元素：layer1（meaning、phonologyOrForm）、layer2.confusables（≥1）、layer3.otherOptions、quiz（恰好 2 题，pronunciation/typo）。',
+    '篇幅控制：释义/解析各不超过约 40 字，确保 JSON 完整。',
+    '硬性：一次返回完整 JSON 数组，长度恰好为输入词数；不要分多轮。',
     '小测题干勿写「本题考查××」剧透。',
     '',
     items,
@@ -2319,14 +2386,20 @@ export async function requestCharLiteracyRelatedLearningPackBatch(input: {
     CHINESE_MCQ_CORRECTNESS_RULES,
   ].join('\n')
 
-  const raw = await deepseekChatRaw(user, {
-    system: CHAR_LITERACY_RELATED_LEARNING_SYSTEM,
-    temperature: 0.55,
-    maxTokens: 12288,
-  })
+  let parsed: unknown[] = []
+  try {
+    const raw = await deepseekChatRaw(user, {
+      system: CHAR_LITERACY_RELATED_LEARNING_SYSTEM,
+      temperature: 0.45,
+      maxTokens: 16384,
+    })
+    parsed = extractRelatedPacksArray(raw)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : '批量生成请求失败'
+    input.onProgress?.(`${msg}，改为逐词补生成…`)
+  }
 
-  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
-  const out: CharLiteracyRelatedLearningPack[] = []
+  const out: (CharLiteracyRelatedLearningPack | null)[] = rows.map(() => null)
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]!
     const qType =
@@ -2337,17 +2410,38 @@ export async function requestCharLiteracyRelatedLearningPackBatch(input: {
       .map((x, idx) => ({ text: String(x ?? '').trim(), index: idx }))
       .filter((x) => x.text && x.index !== row.correctIndex)
       .map((x) => x.text)
-    const pack = parseCharLiteracyRelatedLearningPack(parsed[i], {
-      term: row.term,
-      questionType: qType,
-      otherOptionTexts: otherOptions,
-    })
-    if (!pack) {
-      throw new Error(`字音字形关联学习第 ${i + 1} 词「${row.term}」解析失败，请稍后重试`)
-    }
-    out.push(pack)
+    const pack = parseCharLiteracyRelatedLearningPack(
+      pickRelatedRawPack(parsed, row.term, i),
+      {
+        term: row.term,
+        questionType: qType,
+        otherOptionTexts: otherOptions,
+      },
+    )
+    if (pack) out[i] = pack
   }
-  return out
+
+  for (let i = 0; i < rows.length; i++) {
+    if (out[i]) continue
+    const row = rows[i]!
+    input.onProgress?.(`补生成「${row.term}」（${i + 1}/${rows.length}）…`)
+    try {
+      out[i] = await requestCharLiteracyRelatedLearningPack({
+        row,
+        onProgress: input.onProgress,
+      })
+    } catch {
+      /* keep null */
+    }
+  }
+
+  const failed = rows.filter((_, i) => !out[i]).map((r) => r.term)
+  if (failed.length) {
+    throw new Error(
+      `字音字形关联学习仍有 ${failed.length} 词未生成成功：${failed.slice(0, 5).join('、')}${failed.length > 5 ? '…' : ''}，请稍后重试`,
+    )
+  }
+  return out as CharLiteracyRelatedLearningPack[]
 }
 
 const CLASSICAL_CHINESE_SYSTEM = [
