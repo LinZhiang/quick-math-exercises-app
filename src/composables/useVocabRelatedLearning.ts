@@ -4,6 +4,7 @@ import {
   DEEPSEEK_NOT_CONFIGURED_HINT,
   isAiChatConfigured,
   requestVocabRelatedLearningPackBatch,
+  requestVocabRelatedQuizOnly,
 } from '@/services/deepseek'
 import { appendPracticeSessionLog } from '@/utils/practiceSessionLog'
 import {
@@ -28,28 +29,6 @@ export type VocabRelatedLearningPhase =
 
 export type VocabRelatedStudyLayer = 1 | 2 | 3
 
-function shuffleCopy<T>(arr: T[]): T[] {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[a[i], a[j]] = [a[j]!, a[i]!]
-  }
-  return a
-}
-
-function reshuffleQuiz(quiz: VocabRelatedQuizQuestion[]): VocabRelatedQuizQuestion[] {
-  return quiz.map((q) => {
-    const paired = q.options.map((text, i) => ({ text, correct: i === q.correctIndex }))
-    const shuffled = shuffleCopy(paired)
-    const correctIndex = shuffled.findIndex((x) => x.correct)
-    return {
-      ...q,
-      options: shuffled.map((x) => x.text),
-      correctIndex: correctIndex >= 0 ? correctIndex : 0,
-    }
-  })
-}
-
 export function useVocabRelatedLearning() {
   const open = ref(false)
   const phase = ref<VocabRelatedLearningPhase>('idle')
@@ -60,6 +39,7 @@ export function useVocabRelatedLearning() {
   /** 本组全部学习包（开场一次性备齐） */
   const packs = ref<VocabRelatedLearningPack[]>([])
   const pack = computed(() => packs.value[queueIndex.value] ?? null)
+  const currentRow = computed(() => queue.value[queueIndex.value] ?? null)
   const studyLayer = ref<VocabRelatedStudyLayer>(1)
 
   const quizIndex = ref(0)
@@ -105,16 +85,61 @@ export function useVocabRelatedLearning() {
     quizAnswers.value = Array.from({ length: pack.value?.quiz.length ?? 0 }, () => null)
   }
 
-  function showCurrentPack(fromCache: boolean) {
+  function showCurrentPack(keepExistingQuiz: boolean) {
     const cur = packs.value[queueIndex.value]
     if (!cur) return
-    const quiz = fromCache ? reshuffleQuiz(cur.quiz) : cur.quiz
-    const next = [...packs.value]
-    next[queueIndex.value] = { ...cur, quiz }
-    packs.value = next
-    resetQuizState(quiz)
+    if (!keepExistingQuiz) {
+      const next = [...packs.value]
+      next[queueIndex.value] = { ...cur, quiz: [] }
+      packs.value = next
+      resetQuizState([])
+    } else {
+      resetQuizState(cur.quiz)
+    }
     studyLayer.value = 1
     phase.value = 'study'
+  }
+
+  async function regenerateQuizForCurrent(reason: 'open' | 'retry') {
+    const row = currentRow.value
+    const cur = packs.value[queueIndex.value]
+    if (!row || !cur) return
+    if (!isAiChatConfigured()) {
+      ElMessage.warning(DEEPSEEK_NOT_CONFIGURED_HINT)
+      return
+    }
+    phase.value = 'loading'
+    loadingMessage.value =
+      reason === 'retry' ? `正在重新生成「${cur.term}」小测…` : `正在生成本词小测…`
+    try {
+      const quiz = await requestVocabRelatedQuizOnly({
+        kind: kind.value,
+        row,
+        pack: cur,
+        avoidStems: cur.quiz.map((q) => q.stem).filter(Boolean),
+        onProgress: (m) => {
+          loadingMessage.value = m
+        },
+      })
+      const next = [...packs.value]
+      next[queueIndex.value] = { ...cur, quiz }
+      packs.value = next
+      resetQuizState(quiz)
+      if (reason === 'retry') {
+        studyLayer.value = 1
+        phase.value = 'study'
+      } else {
+        phase.value = 'quiz'
+        quizIndex.value = 0
+        selectedOption.value = null
+        quizSubmitted.value = false
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '小测生成失败'
+      ElMessage.error(msg)
+      phase.value = 'study'
+      studyLayer.value = 1
+    }
   }
 
   function close() {
@@ -203,7 +228,8 @@ export function useVocabRelatedLearning() {
         }
       }
       packs.value = all
-      showCurrentPack(!!cachedList[0])
+      // 缓存材料无小测；新生成的可保留本轮小测。重新打开时缓存侧已 strip quiz。
+      showCurrentPack((all[0]?.quiz.length ?? 0) >= 2)
     } catch (e) {
       const msg = e instanceof Error ? e.message : '生成失败'
       ElMessage.error(msg)
@@ -216,7 +242,7 @@ export function useVocabRelatedLearning() {
       studyLayer.value = (studyLayer.value + 1) as VocabRelatedStudyLayer
       return
     }
-    startQuiz()
+    void startQuiz()
   }
 
   function prevStudyLayer() {
@@ -225,7 +251,13 @@ export function useVocabRelatedLearning() {
     }
   }
 
-  function startQuiz() {
+  async function startQuiz() {
+    const cur = pack.value
+    if (!cur) return
+    if (cur.quiz.length < 2) {
+      await regenerateQuizForCurrent('open')
+      return
+    }
     phase.value = 'quiz'
     quizIndex.value = 0
     selectedOption.value = null
@@ -261,11 +293,10 @@ export function useVocabRelatedLearning() {
     if (!quizAllCorrect.value) sessionFailedAttempts.value += 1
   }
 
-  function retryModule() {
+  async function retryModule() {
     if (!pack.value) return
-    resetQuizState(reshuffleQuiz(pack.value.quiz))
     studyLayer.value = 1
-    phase.value = 'study'
+    await regenerateQuizForCurrent('retry')
   }
 
   function advanceToNextModule() {
@@ -275,7 +306,8 @@ export function useVocabRelatedLearning() {
       return
     }
     queueIndex.value += 1
-    showCurrentPack(true)
+    // 下一词作答前重新出题
+    showCurrentPack(false)
   }
 
   function finishSession() {

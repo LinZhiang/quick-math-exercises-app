@@ -265,14 +265,15 @@ export function parseCharLiteracyRelatedLearningPack(
   if (!otherOptions) return null
 
   const quizRaw = o.quiz ?? o.questions ?? o.practice
-  if (!Array.isArray(quizRaw)) return null
   const baseType = normalizeQuizType(o.questionType ?? input.questionType, 'pronunciation')
   const quiz: CharLiteracyRelatedQuizQuestion[] = []
-  quizRaw.forEach((item, idx) => {
-    const q = parseQuizItem(item, baseType, input.term, idx + 1)
-    if (q) quiz.push(q)
-  })
-  if (quiz.length < 2) return null
+  if (Array.isArray(quizRaw)) {
+    quizRaw.forEach((item, idx) => {
+      const q = parseQuizItem(item, baseType, input.term, idx + 1)
+      if (q) quiz.push(q)
+    })
+  }
+  if (quiz.length > 0 && quiz.length < 2) return null
 
   return {
     term: String(o.term ?? input.term).trim() || input.term,
@@ -285,7 +286,7 @@ export function parseCharLiteracyRelatedLearningPack(
   }
 }
 
-export function isCharLiteracyRelatedLearningPack(
+export function isCharLiteracyRelatedMaterialsPack(
   v: unknown,
 ): v is CharLiteracyRelatedLearningPack {
   if (!v || typeof v !== 'object') return false
@@ -302,6 +303,14 @@ export function isCharLiteracyRelatedLearningPack(
   ) {
     return false
   }
+  return true
+}
+
+export function isCharLiteracyRelatedLearningPack(
+  v: unknown,
+): v is CharLiteracyRelatedLearningPack {
+  if (!isCharLiteracyRelatedMaterialsPack(v)) return false
+  const o = v as CharLiteracyRelatedLearningPack
   if (!Array.isArray(o.quiz) || o.quiz.length < 2) return false
   return o.quiz.every((q) => {
     const norms = q.options.map((x) => String(x ?? '').trim().replace(/\s+/g, ''))
@@ -313,6 +322,34 @@ export function isCharLiteracyRelatedLearningPack(
       q.correctIndex < 4
     return basicOk || isPlayableFourChoiceMcq(q)
   })
+}
+
+export function stripCharLiteracyRelatedQuiz(
+  pack: CharLiteracyRelatedLearningPack,
+): CharLiteracyRelatedLearningPack {
+  return { ...pack, quiz: [] }
+}
+
+export function parseCharLiteracyRelatedQuizList(
+  raw: unknown,
+  input: { term: string; questionType: string },
+): CharLiteracyRelatedQuizQuestion[] | null {
+  const list = Array.isArray(raw)
+    ? raw
+    : raw && typeof raw === 'object'
+      ? ((raw as Record<string, unknown>).quiz ??
+        (raw as Record<string, unknown>).questions ??
+        (raw as Record<string, unknown>).practice)
+      : null
+  if (!Array.isArray(list)) return null
+  const baseType = normalizeQuizType(input.questionType, 'pronunciation')
+  const quiz: CharLiteracyRelatedQuizQuestion[] = []
+  list.forEach((item, idx) => {
+    const q = parseQuizItem(item, baseType, input.term, idx + 1)
+    if (q) quiz.push(q)
+  })
+  if (quiz.length < 2) return null
+  return quiz.slice(0, 3)
 }
 
 export function charLiteracyRelatedContentKey(

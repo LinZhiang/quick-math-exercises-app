@@ -3,7 +3,8 @@
  */
 import {
   charLiteracyRelatedContentKey,
-  isCharLiteracyRelatedLearningPack,
+  isCharLiteracyRelatedMaterialsPack,
+  stripCharLiteracyRelatedQuiz,
   type CharLiteracyRelatedLearningPack,
   type CharLiteracyRelatedSourceRow,
 } from '@/utils/charLiteracyRelatedLearning'
@@ -69,12 +70,12 @@ export function getCharLiteracyRelatedLearningCache(
   const entry = store.entries[fp]
   if (!entry || entry.fingerprint !== fp) return null
   if (entry.contentKey !== charLiteracyRelatedContentKey(row)) return null
-  if (!isCharLiteracyRelatedLearningPack(entry.pack)) {
+  if (!isCharLiteracyRelatedMaterialsPack(entry.pack)) {
     delete store.entries[fp]
     writeStore(store)
     return null
   }
-  return entry.pack
+  return stripCharLiteracyRelatedQuiz(entry.pack)
 }
 
 export function setCharLiteracyRelatedLearningCache(
@@ -85,13 +86,13 @@ export function setCharLiteracyRelatedLearningCache(
   pack: CharLiteracyRelatedLearningPack,
 ): void {
   const fp = String(row.fingerprint ?? '').trim()
-  if (!fp || !isCharLiteracyRelatedLearningPack(pack)) return
+  if (!fp || !isCharLiteracyRelatedMaterialsPack(pack)) return
   const store = readStore()
   store.entries[fp] = {
     fingerprint: fp,
     term: row.term.trim() || pack.term,
     contentKey: charLiteracyRelatedContentKey(row),
-    pack,
+    pack: stripCharLiteracyRelatedQuiz(pack),
     savedAt: Date.now(),
   }
   evictIfNeeded(store.entries)
