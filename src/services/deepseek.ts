@@ -4,6 +4,7 @@ import {
   isPlayableFourChoiceMcq,
 } from '@/utils/chineseMcqAiFields'
 import {
+  collectVocabRelatedStudyTerms,
   parseVocabRelatedLearningPack,
   parseVocabRelatedQuizList,
   type VocabRelatedKind,
@@ -2038,13 +2039,14 @@ export async function requestVocabRelatedLearningPack(input: {
     `  "term": "${input.row.term}",`,
     '  "layer1": {',
     '    "meaning": "当前词准确释义（1～3 句）",',
+    '    "example": "含当前词的自然例句（1 句）",',
     '    "sentiment": "褒义|贬义|中性|分情况",',
     '    "sentimentNote": "若为分情况，说明什么语境褒/贬/中；否则空字符串",',
     '    "phonologyNotes": "字音字形需注意点；若无则写空字符串"',
     '  },',
     '  "layer2": {',
     '    "confusables": [',
-    '      { "word": "易混词", "meaning": "该词释义", "sentiment": "褒义|贬义|中性|分情况", "sentimentNote": "", "howToDistinguish": "与目标词如何区分" }',
+    '      { "word": "易混词", "meaning": "该词释义", "example": "含该易混词的自然例句", "sentiment": "褒义|贬义|中性|分情况", "sentimentNote": "", "howToDistinguish": "与目标词如何区分" }',
     '    ]',
     '  },',
     '  "layer3": {',
@@ -2070,11 +2072,13 @@ export async function requestVocabRelatedLearningPack(input: {
     '1. layer2.confusables 至少 1 条，优先公考高频易混；',
     '2. layer3.otherOptions 须覆盖原题全部干扰项（非正确选项），每项必须有准确释义（meaning），禁止空字段；',
     '3. 所有释义处必须标注 sentiment（褒义/贬义/中性/分情况）；分情况时 sentimentNote 写清语境差异；',
-    '4. quiz 必须 2～3 题；questionType 仅 meaning（词义理解）或 fill（选词填空）；',
-    '5. quiz 各题 focusTerm 尽量轮换（目标词、易混词、近/反义词等），不要三题都只考同一个词面；',
-    '6. 小测四选一：correct + distractors 共 4 个互不相同选项；禁止靠选项长短/标点蒙对；',
-    '7. 近/反义词若确实少见可少给，但数组字段必须存在（可为 []）；',
-    '8. 小测题干禁止写「本题考查××」「考「××」」等剧透；选词填空题干不得提前给出正确答案。',
+    '4. layer1.example 与每个 confusable.example 必须各给 1 句自然例句，句中须原样出现对应词；',
+    '5. quiz 必须 2～3 题；questionType 仅 meaning（词义理解）或 fill（选词填空）；',
+    '6. 若 questionType=fill（选词填空）：correct 与 distractors 共 4 个选项必须全部是本学习包里出现过的词（目标词、易混词、近义词、反义词、otherOptions 的 text），禁止引入材料外的新词；词面不足 4 个时不要出 fill，改出 meaning；',
+    '7. quiz 各题 focusTerm 尽量轮换（目标词、易混词、近/反义词等），不要三题都只考同一个词面；',
+    '8. 小测四选一：correct + distractors 共 4 个互不相同选项；禁止靠选项长短/标点蒙对；',
+    '9. 近/反义词若确实少见可少给，但数组字段必须存在（可为 []）；',
+    '10. 小测题干禁止写「本题考查××」「考「××」」等剧透；选词填空题干不得提前给出正确答案。',
     '',
     CHINESE_MCQ_CORRECTNESS_RULES,
   ]
@@ -2110,17 +2114,22 @@ export async function requestVocabRelatedQuizOnly(input: {
   const kindLabel = input.kind === 'idiom' ? '成语' : '词语'
   input.onProgress?.(aiRequestProgressText(`${kindLabel}关联学习小测`))
   const avoid = (input.avoidStems ?? []).filter(Boolean).slice(0, 6)
+  const studyTerms = collectVocabRelatedStudyTerms(input.pack)
   const user = [
     `请根据下列「${kindLabel}」关联学习材料，重新生成 2～3 道学后小测（四选一），只考词义或选词填空。`,
     `目标词：${input.pack.term}`,
     `释义：${input.pack.meaning}（${input.pack.sentiment}${input.pack.sentimentNote ? `；${input.pack.sentimentNote}` : ''}）`,
-    `易混：${input.pack.confusables.map((c) => `${c.word}（${c.sentiment}）`).join('、')}`,
+    input.pack.example ? `例句：${input.pack.example}` : '',
+    `易混：${input.pack.confusables.map((c) => `${c.word}（${c.sentiment}${c.example ? `；例：${c.example}` : ''}）`).join('、')}`,
     `近义：${input.pack.synonyms.join('、') || '无'}；反义：${input.pack.antonyms.join('、') || '无'}`,
+    `其他选项词：${input.pack.otherOptions.map((o) => o.text).join('、') || '无'}`,
+    `选词填空可用词库（仅可从中选）：${studyTerms.join('、')}`,
     avoid.length ? `请避免与下列旧题干雷同：${avoid.join(' ｜ ')}` : '',
     '',
     '返回 JSON 对象：{"quiz":[...]} 或直接返回 quiz 数组。',
     '每题字段：questionType(meaning|fill)、focusTerm、stem、correct、distractors[3]、explanation。',
     '禁止题干写出「本题考查××」；选项互不相同。',
+    '若 questionType=fill：correct 与 distractors 必须全部来自上面的「选词填空可用词库」，禁止材料外新词；词库不足 4 个时不要出 fill。',
     '',
     CHINESE_MCQ_CORRECTNESS_RULES,
   ]
@@ -2135,8 +2144,16 @@ export async function requestVocabRelatedQuizOnly(input: {
   const parsedObj = parseAiJsonObjectLenient(stripAiJsonFence(raw))
   const parsedArr = parseAiJsonArrayLenient(stripAiJsonFence(raw))
   const quiz =
-    parseVocabRelatedQuizList(parsedObj, { kind: input.kind, term: input.pack.term }) ??
-    parseVocabRelatedQuizList(parsedArr, { kind: input.kind, term: input.pack.term })
+    parseVocabRelatedQuizList(parsedObj, {
+      kind: input.kind,
+      term: input.pack.term,
+      studyTerms,
+    }) ??
+    parseVocabRelatedQuizList(parsedArr, {
+      kind: input.kind,
+      term: input.pack.term,
+      studyTerms,
+    })
   if (!quiz) throw new Error('小测重新生成失败，请稍后重试')
   return quiz
 }
@@ -2213,8 +2230,8 @@ export async function requestVocabRelatedLearningPackBatch(input: {
 
   const user = [
     `请为下列 ${rows.length} 个「${kindLabel}识记」目标词一次性生成【关联学习包】数组。`,
-    '每个元素：layer1（meaning、sentiment、sentimentNote、phonologyNotes）、layer2.confusables（≥1，含 sentiment）、layer3（synonyms、antonyms、otherOptions 含 sentiment）、quiz（2 题）。',
-    '硬性：otherOptions 必须覆盖全部干扰项且有真实释义；sentiment 取褒义/贬义/中性/分情况，分情况须写 sentimentNote。',
+    '每个元素：layer1（meaning、example、sentiment、sentimentNote、phonologyNotes）、layer2.confusables（≥1，含 meaning/example/sentiment）、layer3（synonyms、antonyms、otherOptions 含 sentiment）、quiz（2 题）。',
+    '硬性：otherOptions 必须覆盖全部干扰项且有真实释义；sentiment 取褒义/贬义/中性/分情况，分情况须写 sentimentNote；layer1 与每个易混词都必须有含该词的例句 example；fill 题四个选项必须全部来自本包已出现词（目标/易混/近反义/otherOptions），禁止材料外新词。',
     '一次返回完整 JSON 数组，长度恰好为输入词数；不要分多轮。',
     '小测题干勿写「本题考查××」剧透。',
     '',
