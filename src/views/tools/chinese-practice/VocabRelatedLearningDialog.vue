@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { watch } from 'vue'
 import { useVocabRelatedLearning } from '@/composables/useVocabRelatedLearning'
+import { formatVocabExampleHtml } from '@/utils/vocabRelatedLearning'
 
 const emit = defineEmits<{ (e: 'active', v: boolean): void }>()
 
@@ -92,6 +93,10 @@ function optKey(i: number) {
         <p v-if="pack.sentimentNote" class="vr__line vr__sent-note">
           <strong>色彩说明：</strong>{{ pack.sentimentNote }}
         </p>
+        <p v-if="pack.example" class="vr__line vr__example">
+          <strong>例句：</strong>
+          <span v-html="formatVocabExampleHtml(pack.example, pack.term)" />
+        </p>
         <p v-if="pack.phonologyNotes" class="vr__line">
           <strong>字音字形：</strong>{{ pack.phonologyNotes }}
         </p>
@@ -117,6 +122,10 @@ function optKey(i: number) {
             <p class="vr__line"><strong>释义：</strong>{{ c.meaning }}</p>
             <p v-if="c.sentimentNote" class="vr__line vr__sent-note">
               <strong>色彩说明：</strong>{{ c.sentimentNote }}
+            </p>
+            <p v-if="c.example" class="vr__line vr__example">
+              <strong>例句：</strong>
+              <span v-html="formatVocabExampleHtml(c.example, c.word)" />
             </p>
             <p class="vr__line"><strong>区分：</strong>{{ c.howToDistinguish }}</p>
           </li>
@@ -386,6 +395,11 @@ function optKey(i: number) {
 .vr__sent-note {
   color: var(--app-text-muted, #666);
   font-size: 13px;
+}
+
+.vr__example :deep(.vr__ex-term) {
+  font-weight: 700;
+  color: var(--el-color-primary);
 }
 
 .vr__quiz-head {
