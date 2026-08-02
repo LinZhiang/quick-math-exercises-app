@@ -95,10 +95,12 @@ import {
   MENTAL_MATH_DIVISIBILITY_MODES,
   MENTAL_MATH_FRACTION_MODES,
   MENTAL_MATH_LIFE_SENSE_MODES,
+  MENTAL_MATH_WHAT_IS_THIS_MODES,
   MENTAL_MATH_GRAMMAR_JUDGMENT_MODES,
   MENTAL_MATH_POWER_MODES,
   MENTAL_MATH_SQUARE_CUBE_MODES,
   isLifeSensePracticeMode,
+  isWhatIsThisPracticeMode,
   isGrammarJudgmentPracticeMode,
   type MentalMathAnswerRecord,
   type MentalMathMode,
@@ -413,6 +415,16 @@ const isLifeSenseSession = computed(
     !isShortenSentenceMode(activeMode.value) &&
     isLifeSensePracticeMode(activeMode.value as MentalMathMode),
 )
+const isWhatIsThisSession = computed(
+  () =>
+    activeMode.value != null &&
+    !isGraphicMode(activeMode.value) &&
+    !isTwentyFourPointMode(activeMode.value) &&
+    !isSudokuMode(activeMode.value) &&
+    !isCircleGrammarMode(activeMode.value) &&
+    !isShortenSentenceMode(activeMode.value) &&
+    isWhatIsThisPracticeMode(activeMode.value as MentalMathMode),
+)
 const isGrammarJudgmentSession = computed(
   () =>
     activeMode.value != null &&
@@ -514,6 +526,7 @@ const showSquareCubeSection = computed(() => activeOutlineSection.value === 'squ
 const showFractionSection = computed(() => activeOutlineSection.value === 'fraction')
 const showDivisibilitySection = computed(() => activeOutlineSection.value === 'divisibility')
 const showLifeSenseSection = computed(() => activeOutlineSection.value === 'life-sense')
+const showWhatIsThisSection = computed(() => activeOutlineSection.value === 'what-is-this')
 const showGrammarJudgmentSection = computed(
   () => activeOutlineSection.value === 'grammar-judgment',
 )
@@ -1446,6 +1459,8 @@ onMounted(() => {
     activeOutlineSection.value = 'divisibility'
   } else if (hash === 'life-sense' || route.query.section === 'life-sense') {
     activeOutlineSection.value = 'life-sense'
+  } else if (hash === 'what-is-this' || route.query.section === 'what-is-this') {
+    activeOutlineSection.value = 'what-is-this'
   } else if (hash === 'grammar-judgment' || route.query.section === 'grammar-judgment') {
     activeOutlineSection.value = 'grammar-judgment'
   }
@@ -1679,6 +1694,27 @@ onBeforeUnmount(() => {
             </button>
           </div>
           <MentalMathWrongBookPanel section="life-sense" />
+        </section>
+
+        <section v-if="showWhatIsThisSection" class="mode-section" id="practice-what-is-this">
+          <h3 class="mode-section__title">这是什么</h3>
+          <p class="mode-section__hint">
+            题干为「什么是××」，选项为专有名词释义。干扰项取自同难度其他真实释义。答错记入下方错题集；作答中只提示对错，详解可结束后或在错题集查看。
+          </p>
+          <div class="mode-grid">
+            <button
+              v-for="m in MENTAL_MATH_WHAT_IS_THIS_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--what-is-this"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" /></h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+          </div>
+          <MentalMathWrongBookPanel section="what-is-this" />
         </section>
 
         <section
@@ -3209,7 +3245,8 @@ onBeforeUnmount(() => {
           <p
             class="question-expression"
             :class="{
-              'question-expression--prose': isLifeSenseSession || isGrammarJudgmentSession,
+              'question-expression--prose':
+                isLifeSenseSession || isWhatIsThisSession || isGrammarJudgmentSession,
               'question-expression--ok': feedback === 'correct',
               'question-expression--bad': feedback === 'wrong',
             }"
@@ -3493,6 +3530,15 @@ onBeforeUnmount(() => {
 .mode-card--life-sense:hover {
   border-color: color-mix(in srgb, #3d9b7a 50%, var(--app-border-soft));
   box-shadow: 0 4px 16px rgba(61, 155, 122, 0.12);
+}
+
+.mode-card--what-is-this {
+  border-color: color-mix(in srgb, #2563eb 28%, var(--app-border-soft));
+}
+
+.mode-card--what-is-this:hover {
+  border-color: color-mix(in srgb, #2563eb 50%, var(--app-border-soft));
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.12);
 }
 
 .mode-card--grammar-judgment {
