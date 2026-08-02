@@ -7,6 +7,9 @@ export type ChineseGeneratedHistoryKind =
   | 'word-memorization'
   | 'poetry'
   | 'poet-drill'
+  | 'current-affairs-drill'
+  | 'current-affairs-sentence-fill'
+  | 'current-affairs-sentence-order'
   | 'char-literacy'
   | 'classical-chinese'
   | 'rhetoric-usage'
@@ -45,6 +48,11 @@ const STORAGE_KEYS: Record<ChineseGeneratedHistoryKind, string> = {
   'word-memorization': 'chinese-generated-history-word-memorization-v1',
   poetry: 'chinese-generated-history-poetry-v1',
   'poet-drill': 'chinese-generated-history-poet-drill-v1',
+  'current-affairs-drill': 'chinese-generated-history-current-affairs-drill-v1',
+  'current-affairs-sentence-fill':
+    'chinese-generated-history-current-affairs-sentence-fill-v1',
+  'current-affairs-sentence-order':
+    'chinese-generated-history-current-affairs-sentence-order-v1',
   'char-literacy': 'chinese-generated-history-char-literacy-v1',
   'classical-chinese': 'chinese-generated-history-classical-chinese-v1',
   'rhetoric-usage': 'chinese-generated-history-rhetoric-usage-v1',
