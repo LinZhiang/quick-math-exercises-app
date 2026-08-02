@@ -14,6 +14,11 @@ import {
   type LifeSenseMode,
 } from '@/utils/lifeSensePractice'
 import {
+  WHAT_IS_THIS_MODES,
+  generateWhatIsThisQuestion,
+  type WhatIsThisMode,
+} from '@/utils/whatIsThisPractice'
+import {
   GRAMMAR_JUDGMENT_MODES,
   generateGrammarJudgmentQuestion,
   type GrammarJudgmentMode,
@@ -47,6 +52,7 @@ export type MentalMathMode =
   | FractionEstimateMode
   | DivisibilityMode
   | LifeSenseMode
+  | WhatIsThisMode
   | GrammarJudgmentMode
 
 export type MentalMathModeCategory =
@@ -56,6 +62,7 @@ export type MentalMathModeCategory =
   | 'fraction'
   | 'divisibility'
   | 'life-sense'
+  | 'what-is-this'
   | 'grammar-judgment'
 
 export type MentalMathAnswerValue = number | string
@@ -302,6 +309,11 @@ export const MENTAL_MATH_LIFE_SENSE_MODES: MentalMathModeConfig[] = LIFE_SENSE_M
   category: 'life-sense' as const,
 }))
 
+export const MENTAL_MATH_WHAT_IS_THIS_MODES: MentalMathModeConfig[] = WHAT_IS_THIS_MODES.map((m) => ({
+  ...m,
+  category: 'what-is-this' as const,
+}))
+
 export const MENTAL_MATH_GRAMMAR_JUDGMENT_MODES: MentalMathModeConfig[] = GRAMMAR_JUDGMENT_MODES.map(
   (m) => ({
     ...m,
@@ -341,6 +353,7 @@ export const MENTAL_MATH_MODES: MentalMathModeConfig[] = [
   ...MENTAL_MATH_FRACTION_MODES,
   ...MENTAL_MATH_DIVISIBILITY_MODES,
   ...MENTAL_MATH_LIFE_SENSE_MODES,
+  ...MENTAL_MATH_WHAT_IS_THIS_MODES,
   ...MENTAL_MATH_GRAMMAR_JUDGMENT_MODES,
 ]
 
@@ -381,6 +394,14 @@ export function isDivisibilityPracticeMode(mode: MentalMathMode): mode is Divisi
 
 export function isLifeSensePracticeMode(mode: MentalMathMode): mode is LifeSenseMode {
   return mode === 'life-sense-easy' || mode === 'life-sense-normal' || mode === 'life-sense-hard'
+}
+
+export function isWhatIsThisPracticeMode(mode: MentalMathMode): mode is WhatIsThisMode {
+  return (
+    mode === 'what-is-this-easy' ||
+    mode === 'what-is-this-normal' ||
+    mode === 'what-is-this-hard'
+  )
 }
 
 export function isGrammarJudgmentPracticeMode(mode: MentalMathMode): mode is GrammarJudgmentMode {
@@ -1940,6 +1961,10 @@ function buildMentalMathQuestionOnce(
 
   if (isLifeSensePracticeMode(mode)) {
     return generateLifeSenseQuestion(mode, id, optionCount, avoidFingerprints)
+  }
+
+  if (isWhatIsThisPracticeMode(mode)) {
+    return generateWhatIsThisQuestion(mode, id, optionCount, avoidFingerprints)
   }
 
   if (isGrammarJudgmentPracticeMode(mode)) {

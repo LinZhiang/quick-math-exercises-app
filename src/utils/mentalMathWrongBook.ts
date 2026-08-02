@@ -7,6 +7,7 @@ export type MentalMathWrongSection =
   | 'fraction'
   | 'divisibility'
   | 'life-sense'
+  | 'what-is-this'
   | 'grammar-judgment'
   | 'twentyfour'
   | 'data-analysis'
@@ -115,6 +116,7 @@ export const MENTAL_MATH_WRONG_SECTION_LABELS: Record<MentalMathWrongSection, st
   fraction: '估算分数',
   divisibility: '整除及其性质',
   'life-sense': '生活常识',
+  'what-is-this': '这是什么',
   'grammar-judgment': '语法判断',
   twentyfour: '二十四点',
   'data-analysis': '资料分析 · 百分数与百分点',
@@ -191,6 +193,13 @@ export function mentalMathModeToWrongSection(modeId: string): MentalMathWrongSec
     modeId === 'life-sense-hard'
   ) {
     return 'life-sense'
+  }
+  if (
+    modeId === 'what-is-this-easy' ||
+    modeId === 'what-is-this-normal' ||
+    modeId === 'what-is-this-hard'
+  ) {
+    return 'what-is-this'
   }
   if (
     modeId === 'grammar-judgment-easy' ||

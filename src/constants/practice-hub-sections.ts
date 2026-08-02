@@ -7,6 +7,7 @@ export type PracticeHubSectionId =
   | 'fraction'
   | 'divisibility'
   | 'life-sense'
+  | 'what-is-this'
   | 'grammar-judgment'
   | 'twentyfour'
   | 'sudoku'
@@ -33,6 +34,7 @@ export const PRACTICE_HUB_SECTIONS: PracticeHubSection[] = [
   { id: 'fraction', title: '估算分数' },
   { id: 'divisibility', title: '整除及其性质' },
   { id: 'life-sense', title: '生活常识' },
+  { id: 'what-is-this', title: '这是什么' },
   { id: 'grammar-judgment', title: '语法判断' },
   { id: 'twentyfour', title: '二十四点' },
   { id: 'sudoku', title: '数独' },
@@ -62,7 +64,7 @@ export const PRACTICE_HUB_GROUPS: PracticeHubGroup[] = [
     title: '口算',
     sectionIds: ['arithmetic', 'power', 'square-cube', 'fraction', 'divisibility'],
   },
-  { id: 'quick', title: '快判', sectionIds: ['life-sense', 'grammar-judgment'] },
+  { id: 'quick', title: '快判', sectionIds: ['life-sense', 'what-is-this', 'grammar-judgment'] },
   {
     id: 'puzzle',
     title: '数学推理',
