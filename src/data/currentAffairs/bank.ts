@@ -1,5 +1,9 @@
 /** 时政识记题库入口 */
 
+import { DEC_EARLY_ARTICLES } from '@/data/currentAffairs/decEarly'
+import { DEC_LATE_ARTICLES } from '@/data/currentAffairs/decLate'
+import { NOV_EARLY_ARTICLES } from '@/data/currentAffairs/novEarly'
+import { NOV_LATE_ARTICLES } from '@/data/currentAffairs/novLate'
 import { OCT_EARLY_ARTICLES } from '@/data/currentAffairs/octEarly'
 import { OCT_LATE_ARTICLES } from '@/data/currentAffairs/octLate'
 import {
@@ -13,6 +17,10 @@ import {
 export const CURRENT_AFFAIRS_BANK: CurrentAffairsArticle[] = [
   ...OCT_EARLY_ARTICLES,
   ...OCT_LATE_ARTICLES,
+  ...NOV_EARLY_ARTICLES,
+  ...NOV_LATE_ARTICLES,
+  ...DEC_EARLY_ARTICLES,
+  ...DEC_LATE_ARTICLES,
 ]
 
 export function articlesForPeriod(

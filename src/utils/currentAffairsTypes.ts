@@ -1,6 +1,12 @@
 /** 时政识记 · 类型 */
 
-export type CurrentAffairsPeriodId = 'oct-early' | 'oct-late'
+export type CurrentAffairsPeriodId =
+  | 'oct-early'
+  | 'oct-late'
+  | 'nov-early'
+  | 'nov-late'
+  | 'dec-early'
+  | 'dec-late'
 
 export type CurrentAffairsCategoryId = 'politics' | 'society'
 
@@ -35,6 +41,10 @@ export type CurrentAffairsArticle = {
 export const CURRENT_AFFAIRS_PERIODS: CurrentAffairsPeriod[] = [
   { id: 'oct-early', title: '十月上' },
   { id: 'oct-late', title: '十月下' },
+  { id: 'nov-early', title: '十一上' },
+  { id: 'nov-late', title: '十一下' },
+  { id: 'dec-early', title: '十二上' },
+  { id: 'dec-late', title: '十二下' },
 ]
 
 export const CURRENT_AFFAIRS_CATEGORIES: CurrentAffairsCategory[] = [

@@ -21,6 +21,21 @@ export const CURRENT_AFFAIRS_SENTENCE_ORDER_QUESTION_COUNT = 8
 export const CURRENT_AFFAIRS_SENTENCE_FILL_MIN_CHARS = 12
 export const CURRENT_AFFAIRS_SENTENCE_ORDER_SEGMENTS = 5
 
+/** 社会类题量 = 政治类的一半（向下取整，至少 1） */
+export function currentAffairsDrillQuestionCountFor(
+  mode: CurrentAffairsDrillMode,
+  category: 'politics' | 'society' | string,
+): number {
+  const base =
+    mode === 'sentence-fill'
+      ? CURRENT_AFFAIRS_SENTENCE_FILL_QUESTION_COUNT
+      : mode === 'sentence-order'
+        ? CURRENT_AFFAIRS_SENTENCE_ORDER_QUESTION_COUNT
+        : CURRENT_AFFAIRS_DRILL_QUESTION_COUNT
+  if (category === 'society') return Math.max(1, Math.floor(base / 2))
+  return base
+}
+
 export type CurrentAffairsDrillQuestion = {
   id: string
   questionType: CurrentAffairsDrillQuestionType

@@ -18,10 +18,8 @@ import {
   type CurrentAffairsDrillScope,
 } from '@/utils/currentAffairsDrillMaterial'
 import {
-  CURRENT_AFFAIRS_DRILL_QUESTION_COUNT,
-  CURRENT_AFFAIRS_SENTENCE_FILL_QUESTION_COUNT,
-  CURRENT_AFFAIRS_SENTENCE_ORDER_QUESTION_COUNT,
   currentAffairsDrillModeLabel,
+  currentAffairsDrillQuestionCountFor,
   currentAffairsDrillQuestionTypeLabel,
   type CurrentAffairsDrillMode,
   type CurrentAffairsDrillQuestion,
@@ -76,9 +74,8 @@ export function useChineseCurrentAffairsDrillTest() {
   const correctCount = computed(() => results.value.filter((r) => r.correct).length)
   const questionCount = computed(() => {
     if (questions.value.length > 0) return questions.value.length
-    if (drillMode.value === 'sentence-fill') return CURRENT_AFFAIRS_SENTENCE_FILL_QUESTION_COUNT
-    if (drillMode.value === 'sentence-order') return CURRENT_AFFAIRS_SENTENCE_ORDER_QUESTION_COUNT
-    return CURRENT_AFFAIRS_DRILL_QUESTION_COUNT
+    const category = activeScope.value?.category ?? 'politics'
+    return currentAffairsDrillQuestionCountFor(drillMode.value, category)
   })
   const scopeLabel = computed(() => activeScope.value?.scopeLabel ?? '')
   const modeLabel = computed(() => currentAffairsDrillModeLabel(drillMode.value))
@@ -172,6 +169,7 @@ export function useChineseCurrentAffairsDrillTest() {
           ? 'current-affairs-sentence-order'
           : 'current-affairs-drill'
     try {
+      const count = currentAffairsDrillQuestionCountFor(mode, scope.category)
       const generated =
         mode === 'sentence-fill'
           ? await requestCurrentAffairsSentenceFillMcqs({
@@ -179,7 +177,7 @@ export function useChineseCurrentAffairsDrillTest() {
               scopeLabel: scope.scopeLabel,
               scopeKey: `${scope.scopeKey}:sentence-fill`,
               allowedSourceTitles: listCurrentAffairsSourceTitles(scope),
-              count: CURRENT_AFFAIRS_SENTENCE_FILL_QUESTION_COUNT,
+              count,
               avoidTerms: listRecentGeneratedTerms(historyKind),
               onProgress: (msg) => {
                 loadingMessage.value = msg
@@ -191,7 +189,7 @@ export function useChineseCurrentAffairsDrillTest() {
                 scopeLabel: scope.scopeLabel,
                 scopeKey: `${scope.scopeKey}:sentence-order`,
                 allowedSourceTitles: listCurrentAffairsSourceTitles(scope),
-                count: CURRENT_AFFAIRS_SENTENCE_ORDER_QUESTION_COUNT,
+                count,
                 avoidTerms: listRecentGeneratedTerms(historyKind),
                 onProgress: (msg) => {
                   loadingMessage.value = msg
@@ -202,7 +200,7 @@ export function useChineseCurrentAffairsDrillTest() {
                 scopeLabel: scope.scopeLabel,
                 scopeKey: scope.scopeKey,
                 allowedSourceTitles: listCurrentAffairsSourceTitles(scope),
-                count: CURRENT_AFFAIRS_DRILL_QUESTION_COUNT,
+                count,
                 avoidTerms: listRecentGeneratedTerms(historyKind),
                 onProgress: (msg) => {
                   loadingMessage.value = msg
