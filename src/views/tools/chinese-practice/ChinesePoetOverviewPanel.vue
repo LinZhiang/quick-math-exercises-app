@@ -44,10 +44,11 @@ import {
   type PoetDrillQuestion,
 } from '@/utils/poetDrillPractice'
 import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+import ChineseCurrentAffairsPanel from '@/views/tools/chinese-practice/ChineseCurrentAffairsPanel.vue'
 import type { ChinesePoetDrillResultRow } from '@/composables/useChinesePoetDrillTest'
 
 type PoetViewMode = 'card' | 'compact'
-type PoetScreen = 'pick' | 'browse' | 'quiz'
+type PoetScreen = 'pick' | 'browse' | 'quiz' | 'current-affairs'
 
 const POET_DRILL_ASSIST_SYSTEM =
   '你是事业编与公务员考试古诗文识记教练，擅长根据应试材料讲解诗句出处、作者背景与分期考点。用简体中文讲解，可结合同类诗人对比与记忆口诀。回答要具体，避免空泛。'
@@ -226,6 +227,10 @@ function enterPoetryModule() {
   screen.value = 'browse'
 }
 
+function enterCurrentAffairsModule() {
+  screen.value = 'current-affairs'
+}
+
 function backToPick() {
   if (isRunningOrLoading.value) return
   test.resetToIdle()
@@ -384,8 +389,17 @@ function poemMetaBits(poem: {
         <span class="poet-pick__card-title">诗词模块</span>
         <span class="poet-pick__card-desc">唐 / 宋 / 其他文人应试速览与分期测试</span>
       </button>
+      <button type="button" class="poet-pick__card" @click="enterCurrentAffairsModule">
+        <span class="poet-pick__card-title">时政模块</span>
+        <span class="poet-pick__card-desc">十月上 · 政治 / 社会材料速览与挖空测试</span>
+      </button>
     </div>
   </section>
+
+  <ChineseCurrentAffairsPanel
+    v-else-if="screen === 'current-affairs'"
+    @back="backToPick"
+  />
 
   <section
     v-else-if="screen === 'quiz'"

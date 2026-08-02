@@ -4,7 +4,7 @@ import {
   isPlayableFourChoiceMcq,
 } from '@/utils/chineseMcqAiFields'
 import {
-  collectVocabRelatedStudyTerms,
+  collectVocabRelatedFillOptionBank,
   parseVocabRelatedLearningPack,
   parseVocabRelatedQuizList,
   type VocabRelatedKind,
@@ -71,6 +71,15 @@ import {
   extractPoetDrillAllowlist,
   poetDrillQuestionInMaterial,
 } from '@/utils/poetDrillMaterial'
+import {
+  buildCurrentAffairsDrillQuestionFromMcq,
+  CURRENT_AFFAIRS_DRILL_QUESTION_COUNT,
+  CURRENT_AFFAIRS_SENTENCE_FILL_QUESTION_COUNT,
+  CURRENT_AFFAIRS_SENTENCE_ORDER_QUESTION_COUNT,
+  currentAffairsDrillSourceInList,
+  parseCurrentAffairsDrillMcqAiObject,
+  type CurrentAffairsDrillQuestion,
+} from '@/utils/currentAffairsDrillPractice'
 import {
   buildTheoryPolicyQuestionFromMcq,
   THEORY_POLICY_QUESTION_COUNT,
@@ -932,6 +941,459 @@ export async function requestPoetDrillMcqs(input: {
 
   if (deduped.length < count) {
     throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复与超纲题），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const CURRENT_AFFAIRS_DRILL_SYSTEM = [
+  '你是公务员考试与事业单位考试「时政」命题专家，擅长根据给定材料出挖空识记题。',
+  '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
+  '硬性约束：考点必须严格来自用户提供的材料；严禁超纲。',
+].join('\n')
+
+const CURRENT_AFFAIRS_DRILL_FORMAT = `
+【题型】questionType 仅两种：
+- cloze-bold（重点挖空）：挖空必须来自材料中 **加粗** 的重点词/句
+- cloze-plain（通读挖空）：挖空来自未加粗的正文，但仍须是核心实词、官方术语、关键表述
+
+【比例·硬性】本批题目 cloze-bold : cloze-plain = **4:1**（20 题则重点挖空 16 题、通读挖空 4 题）
+
+【挖空规则】
+- stem 为挖空后的原句/原半句，用连续下划线 _______ 表示空缺；不得在 stem 中泄漏正确答案
+- correct 为被挖去的原文片段（词或半句）
+- 只挖核心实词、官方术语、关键政策表述；禁止只挖「的」「了」「是」「他」「我们」等助词/代词/虚词
+- 挖空长度建议 2～12 字；半句挖空也可，但选项仍须等长
+
+【干扰项·最高优先级】
+- distractors 必须 3 个，且与 correct **字数完全一致**（不计空格）
+- 干扰性必须很强：可改动其中一字/一词，或改半句关键表述，但整体读来像真考点
+- 例：原文「中华民族伟大复兴」→ 干扰「中华民族伟大改造」「中华民族共同复兴」等
+- 禁止无关长句、白话解释句、字数明显不同的选项
+
+【出处】
+- sourceTitle 必须填写材料中的「文章标题」原文（可与 ### 文章标题： 后一致）
+- explanation 用 1～2 句说明依据，并再次点明出处文章
+
+【JSON 字段】
+questionType, sourceTitle, term（可与 correct 相同）, stem, correct, distractors[3], explanation
+
+【JSON 示例】
+{"questionType":"cloze-bold","sourceTitle":"2025年第19期《求是》杂志发表习近平重要文章","term":"血脉相融","stem":"各民族_______，是中华民族共同体形成和发展的历史根基。","correct":"血脉相融","distractors":["血缘相融","血脉相通","血脉相连"],"explanation":"出处：求是文章。材料强调各民族血脉相融是历史根基。"}
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
+
+function dedupeCurrentAffairsDrillQuestions(
+  items: CurrentAffairsDrillQuestion[],
+  blockedTerms?: Set<string>,
+): CurrentAffairsDrillQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: CurrentAffairsDrillQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestCurrentAffairsDrillMcqs(input: {
+  material: string
+  scopeLabel: string
+  scopeKey: string
+  allowedSourceTitles: string[]
+  count?: number
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<CurrentAffairsDrillQuestion[]> {
+  const count = input.count ?? CURRENT_AFFAIRS_DRILL_QUESTION_COUNT
+  const material = input.material.trim()
+  if (!material) throw new Error('当前栏目没有可用材料，无法出题')
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  const titles = input.allowedSourceTitles.filter(Boolean)
+  input.onProgress?.(aiRequestProgressText('时政测试题'))
+
+  const boldTarget = Math.max(1, Math.round((count * 4) / 5))
+  const typeHints = Array.from({ length: count }, (_, i) => {
+    const kind = i < boldTarget ? '重点挖空(cloze-bold)' : '通读挖空(cloze-plain)'
+    return `第 ${i + 1} 题：${kind}`
+  }).join('；')
+
+  const historyHint = buildAvoidTermsHint('挖空答案', [...blocked])
+  const user = [
+    `请根据下列「${input.scopeLabel}」时政材料，生成 **${count} 道** 挖空四选一题（公考/事业编时政向）。`,
+    CURRENT_AFFAIRS_DRILL_FORMAT,
+    `本轮题型分配：${typeHints}`,
+    historyHint,
+    `本批 ${count} 道的 term（挖空答案）必须互不相同，严禁重复考点；优先覆盖不同文章与不同段落；sourceTitle 必须来自材料文章标题。`,
+    `【材料】\n${material}`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: CURRENT_AFFAIRS_DRILL_SYSTEM,
+    temperature: 0.62,
+    maxTokens: 16384,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: CurrentAffairsDrillQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseCurrentAffairsDrillMcqAiObject(item)
+    if (!fields) return
+    if (!currentAffairsDrillSourceInList(fields.sourceTitle, titles)) return
+    const q = buildCurrentAffairsDrillQuestionFromMcq({
+      ...fields,
+      scopeKey: input.scopeKey,
+      seq: idx + 1,
+    })
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
+  })
+
+  const deduped = dedupeCurrentAffairsDrillQuestions(questions, blocked)
+  // 尽量维持 4:1；不足时按缺的类型补生成
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 40; slot++) {
+    const boldCount = deduped.filter((q) => q.questionType === 'cloze-bold').length
+    const needBold = boldCount < boldTarget
+    const preferType = needBold ? 'cloze-bold' : 'cloze-plain'
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('挖空答案', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        [
+          `请根据「${input.scopeLabel}」时政材料再生成 1 道挖空四选一题。`,
+          CURRENT_AFFAIRS_DRILL_FORMAT,
+          `本题 questionType 必须为 ${preferType}。`,
+          avoidHint,
+          `【材料】\n${material}`,
+          '仅返回一个 JSON 对象。',
+        ].join('\n\n'),
+        { system: CURRENT_AFFAIRS_DRILL_SYSTEM, temperature: 0.68, maxTokens: 900 },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseCurrentAffairsDrillMcqAiObject(oneObj)
+      if (!fields) continue
+      if (!currentAffairsDrillSourceInList(fields.sourceTitle, titles)) continue
+      const q = buildCurrentAffairsDrillQuestionFromMcq({
+        ...fields,
+        questionType: preferType,
+        scopeKey: input.scopeKey,
+        seq: slot,
+      })
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(
+      `仅成功生成 ${deduped.length}/${count} 题（需等长强干扰项且避开重复），请稍后重试`,
+    )
+  }
+  return deduped.slice(0, count)
+}
+
+const CURRENT_AFFAIRS_SENTENCE_FILL_SYSTEM = [
+  '你是公务员考试与事业单位考试「时政」命题专家，擅长长句/半句挖空识记题。',
+  '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
+  '硬性约束：考点必须严格来自用户提供的材料；严禁超纲。',
+  '干扰项须多处改写、保持官方语感；禁止只改一两个字的近形项。',
+].join('\n')
+
+const CURRENT_AFFAIRS_SENTENCE_FILL_FORMAT = `
+【题型】questionType 固定为 sentence-fill（语句填充）
+
+【挖空规则】
+- 从材料原句中挖去一段 **不少于 12 字** 的连续半句/分句（核心表述），留下前后文
+- stem 用连续下划线 _______ 表示空缺，例如：「各民族血脉相融，_______。」
+- correct 必须是材料原文片段（≥12 字），不得改写正确答案
+- stem 中不得泄漏正确答案
+
+【干扰项·最高优先级】
+- distractors 必须 3 个；与 correct 字数大致相当即可（允许差约 1/3 字数，不必等长）
+- **禁止过细改写**：不得只改 1～2 个字（如仅「历史→时代」「形成→建设」「民族→各民族」）；此类一律不合格
+- **鼓励多处改写**：每个干扰项应改动 **多个关键词**，甚至改写大半句结构；可读起来仍像官方时政表述，具有真实迷惑性
+- 改写方向示例（可组合使用）：
+  · 换核心判断（历史根基→现实基础 / 内生动力→外在推力）
+  · 换主体或范围（中华民族共同体→各民族大家庭 / 命运共同体）
+  · 换动词链条（形成和发展→巩固与提升 / 交往交流交融）
+  · 改半句逻辑仍通顺但与原文不符
+- 例：原文「是中华民族共同体形成和发展的历史根基」
+  →「是各民族交往交流交融不断深化的现实基础」（多处改写）
+  →「构成中华文明多元一体格局的文化基因」（换概念但仍像考点）
+  →「推动统一的多民族国家巩固发展的内生动力」（大幅改写）
+- 禁止：白话解释、无关长篇、明显跑题空话、与 correct 几乎相同的近形项
+
+【上下文】
+- context 必填：给出含该挖空句的完整原文段落（去掉 ** 标记即可），供学员「查看上下文」
+- context 须包含 stem 所对应的原句（含被挖空的原文）
+
+【出处】
+- sourceTitle 必须为材料中的文章标题
+- explanation 1～2 句点明出处与依据
+
+【JSON 字段】
+questionType, sourceTitle, term, stem, correct, distractors[3], context, explanation
+
+【JSON 示例】
+{"questionType":"sentence-fill","sourceTitle":"2025年第19期《求是》杂志发表习近平重要文章","term":"是中华民族共同体形成和发展的历史根基","stem":"各民族血脉相融，_______。","correct":"是中华民族共同体形成和发展的历史根基","distractors":["是各民族交往交流交融不断深化的现实基础","构成中华文明多元一体格局的文化基因","推动统一的多民族国家巩固发展的内生动力"],"context":"——各民族血脉相融，是中华民族共同体形成和发展的历史根基。各民族共同在中华大地上繁衍生息……","explanation":"出处：求是文章。对应「血脉相融」条目原文。"}
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
+
+export async function requestCurrentAffairsSentenceFillMcqs(input: {
+  material: string
+  scopeLabel: string
+  scopeKey: string
+  allowedSourceTitles: string[]
+  count?: number
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<CurrentAffairsDrillQuestion[]> {
+  const count = input.count ?? CURRENT_AFFAIRS_SENTENCE_FILL_QUESTION_COUNT
+  const material = input.material.trim()
+  if (!material) throw new Error('当前栏目没有可用材料，无法出题')
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  const titles = input.allowedSourceTitles.filter(Boolean)
+  input.onProgress?.(aiRequestProgressText('时政语句填充'))
+
+  const historyHint = buildAvoidTermsHint('填充片段', [...blocked])
+  const user = [
+    `请根据下列「${input.scopeLabel}」时政材料，生成 **${count} 道** 语句填充四选一题。`,
+    CURRENT_AFFAIRS_SENTENCE_FILL_FORMAT,
+    historyHint,
+    `本批 ${count} 道的 correct/term 必须互不相同，严禁同一挖空片段重复；优先覆盖不同文章与不同原句；sourceTitle 必须来自材料文章标题。`,
+    `【材料】\n${material}`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: CURRENT_AFFAIRS_SENTENCE_FILL_SYSTEM,
+    temperature: 0.65,
+    maxTokens: 16384,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: CurrentAffairsDrillQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseCurrentAffairsDrillMcqAiObject(item)
+    if (!fields) return
+    if (!currentAffairsDrillSourceInList(fields.sourceTitle, titles)) return
+    const q = buildCurrentAffairsDrillQuestionFromMcq({
+      ...fields,
+      questionType: 'sentence-fill',
+      scopeKey: input.scopeKey,
+      seq: idx + 1,
+    })
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
+  })
+
+  const deduped = dedupeCurrentAffairsDrillQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 40; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('填充片段', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        [
+          `请根据「${input.scopeLabel}」时政材料再生成 1 道语句填充四选一题。`,
+          CURRENT_AFFAIRS_SENTENCE_FILL_FORMAT,
+          avoidHint,
+          `【材料】\n${material}`,
+          '仅返回一个 JSON 对象。',
+        ].join('\n\n'),
+        { system: CURRENT_AFFAIRS_SENTENCE_FILL_SYSTEM, temperature: 0.7, maxTokens: 1400 },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseCurrentAffairsDrillMcqAiObject(oneObj)
+      if (!fields) continue
+      if (!currentAffairsDrillSourceInList(fields.sourceTitle, titles)) continue
+      const q = buildCurrentAffairsDrillQuestionFromMcq({
+        ...fields,
+        questionType: 'sentence-fill',
+        scopeKey: input.scopeKey,
+        seq: slot,
+      })
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(
+      `仅成功生成 ${deduped.length}/${count} 道语句填充题（需≥12字挖空、多处改写干扰项与上下文），请稍后重试`,
+    )
+  }
+  return deduped.slice(0, count)
+}
+
+const CURRENT_AFFAIRS_SENTENCE_ORDER_SYSTEM = [
+  '你是公务员考试与事业单位考试「时政」命题专家，擅长语句排序/段落重组识记题。',
+  '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
+  '硬性约束：考点必须严格来自用户提供的材料；严禁超纲、严禁杜撰原文。',
+].join('\n')
+
+const CURRENT_AFFAIRS_SENTENCE_ORDER_FORMAT = `
+【题型】questionType 固定为 sentence-order（语句排序）
+
+【选材与拆分】
+- 从材料中选取一段连贯原文（一句长论述或紧密相连的数句），拆成恰好 **5** 段（segments）
+- 每段应是完整意群，长度尽量接近；去掉 ** 加粗标记
+- segments 数组按 **界面展示顺序** 给出：必须已经打乱，对应序号 1、2、3、4、5
+- 禁止把无关句子拼在一起；五段合起来应能还原为材料中的连贯表述
+
+【正确答案 correct】
+- 字符串格式固定为「数字、数字、数字、数字、数字」，如「3、4、5、2、1」
+- 含义：按该排列阅读 segments[序号-1]，即可还原原文逻辑顺序
+- 例：若正确阅读顺序是展示编号 3→4→5→2→1，则 correct 为「3、4、5、2、1」
+- 必须是 1～5 的全排列，不得重复、不得缺号
+
+【干扰项 distractors】
+- 恰好 3 个；同样写成「a、b、c、d、e」全排列格式
+- 必须与 correct 不同，且彼此不同
+- 干扰性必须很强：仅交换相邻两段、首尾对调、中间三段循环移位、因果/递进顺序颠倒等，读来仍像合理语序
+- 禁止明显胡乱排列（如一眼就乱的跳跃序）
+
+【上下文 context】
+- 必填：给出该题对应的原文完整段落（正确阅读顺序、去掉 **），供学员「查看上下文」
+
+【出处与题干】
+- sourceTitle 必须为材料中的文章标题
+- stem 可写：「下列五段文字顺序已打乱（序号 1～5）。请选择能还原原文逻辑顺序的排列：」
+- term 用该段原文前 20～40 字作去重键（勿与本批其它题重复）
+- explanation 1～2 句点明出处，并可简述正确语序依据（因果/总—分/时间等）
+
+【JSON 字段】
+questionType, sourceTitle, term, stem, segments[5], correct, distractors[3], context, explanation
+
+【JSON 示例】
+{"questionType":"sentence-order","sourceTitle":"2025年第19期《求是》杂志发表习近平重要文章","term":"各民族血脉相融是中华民族共同体","stem":"下列五段文字顺序已打乱（序号 1～5）。请选择能还原原文逻辑顺序的排列：","segments":["各民族共同开拓了祖国的锦绣河山。","是中华民族共同体形成和发展的历史根基。","各民族血脉相融，","各民族共同书写了悠久历史，","各民族共同创造了灿烂文化，"],"correct":"3、2、1、4、5","distractors":["3、2、4、5、1","3、1、2、4、5","2、3、1、4、5"],"context":"各民族血脉相融，是中华民族共同体形成和发展的历史根基。各民族共同开拓了祖国的锦绣河山。各民族共同书写了悠久历史，各民族共同创造了灿烂文化……","explanation":"出处：求是文章。先总起「血脉相融」与根基，再并列展开共同开拓、书写、创造。"}
+`.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
+
+export async function requestCurrentAffairsSentenceOrderMcqs(input: {
+  material: string
+  scopeLabel: string
+  scopeKey: string
+  allowedSourceTitles: string[]
+  count?: number
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<CurrentAffairsDrillQuestion[]> {
+  const count = input.count ?? CURRENT_AFFAIRS_SENTENCE_ORDER_QUESTION_COUNT
+  const material = input.material.trim()
+  if (!material) throw new Error('当前栏目没有可用材料，无法出题')
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  const titles = input.allowedSourceTitles.filter(Boolean)
+  input.onProgress?.(aiRequestProgressText('时政语句排序'))
+
+  const historyHint = buildAvoidTermsHint('排序语段', [...blocked])
+  const user = [
+    `请根据下列「${input.scopeLabel}」时政材料，生成 **${count} 道** 语句排序四选一题。`,
+    CURRENT_AFFAIRS_SENTENCE_ORDER_FORMAT,
+    historyHint,
+    `本批 ${count} 道的 term/语段必须互不相同，严禁同一段落重复出题；优先覆盖不同文章；sourceTitle 必须来自材料文章标题。`,
+    `【材料】\n${material}`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: CURRENT_AFFAIRS_SENTENCE_ORDER_SYSTEM,
+    temperature: 0.65,
+    maxTokens: 16384,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: CurrentAffairsDrillQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseCurrentAffairsDrillMcqAiObject(item)
+    if (!fields) return
+    if (!currentAffairsDrillSourceInList(fields.sourceTitle, titles)) return
+    const q = buildCurrentAffairsDrillQuestionFromMcq({
+      ...fields,
+      questionType: 'sentence-order',
+      scopeKey: input.scopeKey,
+      seq: idx + 1,
+    })
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
+  })
+
+  const deduped = dedupeCurrentAffairsDrillQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 40; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('排序语段', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        [
+          `请根据「${input.scopeLabel}」时政材料再生成 1 道语句排序四选一题。`,
+          CURRENT_AFFAIRS_SENTENCE_ORDER_FORMAT,
+          avoidHint,
+          `【材料】\n${material}`,
+          '仅返回一个 JSON 对象。',
+        ].join('\n\n'),
+        { system: CURRENT_AFFAIRS_SENTENCE_ORDER_SYSTEM, temperature: 0.7, maxTokens: 1800 },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseCurrentAffairsDrillMcqAiObject(oneObj)
+      if (!fields) continue
+      if (!currentAffairsDrillSourceInList(fields.sourceTitle, titles)) continue
+      const q = buildCurrentAffairsDrillQuestionFromMcq({
+        ...fields,
+        questionType: 'sentence-order',
+        scopeKey: input.scopeKey,
+        seq: slot,
+      })
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(
+      `仅成功生成 ${deduped.length}/${count} 道语句排序题（需 5 段打乱与强干扰排列），请稍后重试`,
+    )
   }
   return deduped.slice(0, count)
 }
@@ -2004,6 +2466,8 @@ const VOCAB_RELATED_LEARNING_SYSTEM = [
   '根据学员错题中的目标词，输出结构化关联学习材料与学后小测。',
   '只输出合法 JSON 对象，不要 markdown 代码围栏，不要其它说明文字。',
   '内容须准确、简洁，使用简体中文；小测只考词义理解或选词填空，不考典故出处 trivia。',
+  '选词填空选项必须是词语/成语词面，禁止释义长句；选词填空不得使用反义词作选项。',
+  '学后小测必须轮换考查对象：禁止整套小题都只考目标词；至少一题考查易混词/近义词/其他选项词。',
 ].join('\n')
 
 /**
@@ -2074,11 +2538,12 @@ export async function requestVocabRelatedLearningPack(input: {
     '3. 所有释义处必须标注 sentiment（褒义/贬义/中性/分情况）；分情况时 sentimentNote 写清语境差异；',
     '4. layer1.example 与每个 confusable.example 必须各给 1 句自然例句，句中须原样出现对应词；',
     '5. quiz 必须 2～3 题；questionType 仅 meaning（词义理解）或 fill（选词填空）；',
-    '6. 若 questionType=fill（选词填空）：correct 与 distractors 共 4 个选项必须全部是本学习包里出现过的词（目标词、易混词、近义词、反义词、otherOptions 的 text），禁止引入材料外的新词；词面不足 4 个时不要出 fill，改出 meaning；',
-    '7. quiz 各题 focusTerm 尽量轮换（目标词、易混词、近/反义词等），不要三题都只考同一个词面；',
-    '8. 小测四选一：correct + distractors 共 4 个互不相同选项；禁止靠选项长短/标点蒙对；',
-    '9. 近/反义词若确实少见可少给，但数组字段必须存在（可为 []）；',
-    '10. 小测题干禁止写「本题考查××」「考「××」」等剧透；选词填空题干不得提前给出正确答案。',
+    '6. 若 questionType=fill（选词填空）：correct 与 distractors 共 4 个选项必须全部是短词/成语词面，且只能来自「目标词、易混词、近义词、otherOptions 的 text」；禁止反义词入选；禁止白话释义长句（如「差别明显看得出不一样」）；词面不足 4 个时不要出 fill，改出 meaning；',
+    '7. 【考查轮换·硬性】2～3 道小测中，至少 1 题的考查对象不是目标词（focusTerm / fill 正确答案须为易混词或近义词或其他选项词）；严禁「第1题考目标词词义 + 第2题选词填空答案仍是目标词」这种固定套路；目标词最多作为其中 1 题的答案；',
+    '8. quiz 各题 focusTerm 必须写明本题真正考查的词，且尽量在目标词、易混、近义、其他选项词之间轮换；',
+    '9. 小测四选一：correct + distractors 共 4 个互不相同选项；禁止靠选项长短/标点蒙对；fill 四个选项长度应接近（都是词/成语），禁止一个成语配一条长解释；',
+    '10. 近/反义词若确实少见可少给，但数组字段必须存在（可为 []）；反义词仅供第三层学习展示，不得进入 fill 选项；',
+    '11. 小测题干禁止写「本题考查××」「考「××」」等剧透；选词填空题干不得提前给出正确答案。',
     '',
     CHINESE_MCQ_CORRECTNESS_RULES,
   ]
@@ -2092,13 +2557,26 @@ export async function requestVocabRelatedLearningPack(input: {
   })
 
   const parsed = parseAiJsonObjectLenient(stripAiJsonFence(raw))
-  const pack = parseVocabRelatedLearningPack(parsed, {
+  let pack = parseVocabRelatedLearningPack(parsed, {
     kind: input.kind,
     term: input.row.term,
     otherOptionTexts: otherOptions,
   })
-  if (!pack || pack.quiz.length < 2) {
+  if (!pack) {
     throw new Error('关联学习内容解析失败，请稍后重试')
+  }
+  if (pack.quiz.length < 2) {
+    input.onProgress?.(`「${pack.term}」材料已就绪，正在按轮换规则生成小测…`)
+    const quiz = await requestVocabRelatedQuizOnly({
+      kind: input.kind,
+      row: input.row,
+      pack,
+      onProgress: input.onProgress,
+    })
+    pack = { ...pack, quiz }
+  }
+  if (pack.quiz.length < 2) {
+    throw new Error('关联学习小测生成失败，请稍后重试')
   }
   return pack
 }
@@ -2114,22 +2592,34 @@ export async function requestVocabRelatedQuizOnly(input: {
   const kindLabel = input.kind === 'idiom' ? '成语' : '词语'
   input.onProgress?.(aiRequestProgressText(`${kindLabel}关联学习小测`))
   const avoid = (input.avoidStems ?? []).filter(Boolean).slice(0, 6)
-  const studyTerms = collectVocabRelatedStudyTerms(input.pack)
+  const fillOptionBank = collectVocabRelatedFillOptionBank(input.pack)
+  const antonymBlock = input.pack.antonyms.filter(Boolean)
+  const altFocus = fillOptionBank.filter(
+    (t) => t.trim() && t.trim() !== input.pack.term.trim(),
+  )
   const user = [
     `请根据下列「${kindLabel}」关联学习材料，重新生成 2～3 道学后小测（四选一），只考词义或选词填空。`,
     `目标词：${input.pack.term}`,
     `释义：${input.pack.meaning}（${input.pack.sentiment}${input.pack.sentimentNote ? `；${input.pack.sentimentNote}` : ''}）`,
     input.pack.example ? `例句：${input.pack.example}` : '',
     `易混：${input.pack.confusables.map((c) => `${c.word}（${c.sentiment}${c.example ? `；例：${c.example}` : ''}）`).join('、')}`,
-    `近义：${input.pack.synonyms.join('、') || '无'}；反义：${input.pack.antonyms.join('、') || '无'}`,
+    `近义：${input.pack.synonyms.join('、') || '无'}`,
     `其他选项词：${input.pack.otherOptions.map((o) => o.text).join('、') || '无'}`,
-    `选词填空可用词库（仅可从中选）：${studyTerms.join('、')}`,
+    antonymBlock.length
+      ? `反义词（仅学习展示，禁止作为选词填空选项）：${antonymBlock.join('、')}`
+      : '',
+    `选词填空可用词库（仅可从中选，已排除反义词）：${fillOptionBank.join('、') || '（不足，请只出 meaning 题）'}`,
+    altFocus.length
+      ? `优先轮换考查这些非目标词（至少 1 题）：${altFocus.join('、')}`
+      : '',
     avoid.length ? `请避免与下列旧题干雷同：${avoid.join(' ｜ ')}` : '',
     '',
     '返回 JSON 对象：{"quiz":[...]} 或直接返回 quiz 数组。',
     '每题字段：questionType(meaning|fill)、focusTerm、stem、correct、distractors[3]、explanation。',
     '禁止题干写出「本题考查××」；选项互不相同。',
-    '若 questionType=fill：correct 与 distractors 必须全部来自上面的「选词填空可用词库」，禁止材料外新词；词库不足 4 个时不要出 fill。',
+    '若 questionType=fill：四个选项必须是短词/成语词面，且全部来自「选词填空可用词库」；禁止反义词；禁止白话释义长句；词库不足 4 个时不要出 fill。',
+    'meaning 题选项才是释义句子；fill 题选项禁止写成释义。',
+    '【考查轮换·硬性】禁止整套都只考目标词；至少 1 题 focusTerm（fill 则以 correct 为准）必须是易混/近义/其他选项词；禁止「先问目标词释义、再填空答案仍是目标词」的套路；目标词最多作为 1 题的答案。',
     '',
     CHINESE_MCQ_CORRECTNESS_RULES,
   ]
@@ -2147,12 +2637,12 @@ export async function requestVocabRelatedQuizOnly(input: {
     parseVocabRelatedQuizList(parsedObj, {
       kind: input.kind,
       term: input.pack.term,
-      studyTerms,
+      fillOptionBank,
     }) ??
     parseVocabRelatedQuizList(parsedArr, {
       kind: input.kind,
       term: input.pack.term,
-      studyTerms,
+      fillOptionBank,
     })
   if (!quiz) throw new Error('小测重新生成失败，请稍后重试')
   return quiz
@@ -2231,7 +2721,7 @@ export async function requestVocabRelatedLearningPackBatch(input: {
   const user = [
     `请为下列 ${rows.length} 个「${kindLabel}识记」目标词一次性生成【关联学习包】数组。`,
     '每个元素：layer1（meaning、example、sentiment、sentimentNote、phonologyNotes）、layer2.confusables（≥1，含 meaning/example/sentiment）、layer3（synonyms、antonyms、otherOptions 含 sentiment）、quiz（2 题）。',
-    '硬性：otherOptions 必须覆盖全部干扰项且有真实释义；sentiment 取褒义/贬义/中性/分情况，分情况须写 sentimentNote；layer1 与每个易混词都必须有含该词的例句 example；fill 题四个选项必须全部来自本包已出现词（目标/易混/近反义/otherOptions），禁止材料外新词。',
+    '硬性：otherOptions 必须覆盖全部干扰项且有真实释义；sentiment 取褒义/贬义/中性/分情况，分情况须写 sentimentNote；layer1 与每个易混词都必须有含该词的例句 example；fill 题四个选项必须是短词/成语且仅来自目标/易混/近义/otherOptions，禁止反义词与白话长句；小测至少 1 题考查非目标词，禁止整套只考目标词。',
     '一次返回完整 JSON 数组，长度恰好为输入词数；不要分多轮。',
     '小测题干勿写「本题考查××」剧透。',
     '',
@@ -2256,6 +2746,7 @@ export async function requestVocabRelatedLearningPackBatch(input: {
   }
 
   const out: (VocabRelatedLearningPack | null)[] = rows.map(() => null)
+  const materialsOnly: (VocabRelatedLearningPack | null)[] = rows.map(() => null)
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]!
     const otherOptions = row.options
@@ -2267,12 +2758,32 @@ export async function requestVocabRelatedLearningPackBatch(input: {
       term: row.term,
       otherOptionTexts: otherOptions,
     })
-    if (pack && pack.quiz.length >= 2) out[i] = pack
+    if (!pack) continue
+    if (pack.quiz.length >= 2) out[i] = pack
+    else materialsOnly[i] = pack
   }
 
   for (let i = 0; i < rows.length; i++) {
     if (out[i]) continue
     const row = rows[i]!
+    const base = materialsOnly[i]
+    if (base) {
+      input.onProgress?.(`「${row.term}」按轮换规则补生成小测（${i + 1}/${rows.length}）…`)
+      try {
+        const quiz = await requestVocabRelatedQuizOnly({
+          kind: input.kind,
+          row,
+          pack: base,
+          onProgress: input.onProgress,
+        })
+        if (quiz.length >= 2) {
+          out[i] = { ...base, quiz }
+          continue
+        }
+      } catch {
+        /* fall through to full regen */
+      }
+    }
     input.onProgress?.(`补生成「${row.term}」（${i + 1}/${rows.length}）…`)
     try {
       out[i] = await requestVocabRelatedLearningPack({

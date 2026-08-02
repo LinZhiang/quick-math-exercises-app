@@ -272,7 +272,23 @@ function normalizeVocabTermKey(s: string): string {
   return String(s ?? '').trim().replace(/\s+/g, '')
 }
 
-/** 学习材料中出现过的词面（目标词、易混、近反义、其他选项） */
+/** 选词填空选项是否像「词/成语」而非白话长句 */
+export function isVocabRelatedFillOptionSurface(
+  text: string,
+  kind: VocabRelatedKind,
+): boolean {
+  const t = String(text ?? '').trim()
+  if (!t) return false
+  if (/[，。；、！？：:""''“”‘’（）()\[\]【】《》]/.test(t)) return false
+  const maxLen = kind === 'idiom' ? 8 : 10
+  if ([...t].length > maxLen) return false
+  // 常见释义/白话句痕迹
+  if (/看得出|不一样|指的是|意思是|表示|形容|用来|可以|不能|根本/.test(t)) return false
+  if (/的{2,}|得{2,}/.test(t)) return false
+  return true
+}
+
+/** 学习材料中出现过的词面（含反义词；供展示/材料用） */
 export function collectVocabRelatedStudyTerms(
   pack: Pick<
     VocabRelatedLearningPack,
@@ -297,6 +313,34 @@ export function collectVocabRelatedStudyTerms(
   return out
 }
 
+/**
+ * 选词填空专用词库：目标词 + 易混 + 近义 + 其他选项。
+ * 不含反义词；并过滤掉不像词面的长句。
+ */
+export function collectVocabRelatedFillOptionBank(
+  pack: Pick<
+    VocabRelatedLearningPack,
+    'term' | 'kind' | 'confusables' | 'synonyms' | 'otherOptions'
+  >,
+): string[] {
+  const kind = pack.kind === 'idiom' ? 'idiom' : 'word'
+  const seen = new Set<string>()
+  const out: string[] = []
+  const push = (raw: string) => {
+    const t = String(raw ?? '').trim()
+    if (!t || !isVocabRelatedFillOptionSurface(t, kind)) return
+    const k = normalizeVocabTermKey(t)
+    if (!k || seen.has(k)) return
+    seen.add(k)
+    out.push(t)
+  }
+  push(pack.term)
+  for (const c of pack.confusables ?? []) push(c.word)
+  for (const s of pack.synonyms ?? []) push(s)
+  for (const o of pack.otherOptions ?? []) push(o.text)
+  return out
+}
+
 function fillOptionsAllFromStudyTerms(
   options: string[],
   studyTerms: Iterable<string>,
@@ -313,7 +357,7 @@ function parseQuizItem(
   kind: VocabRelatedKind,
   focusFallback: string,
   seq: number,
-  studyTerms?: string[],
+  fillOptionBank?: string[],
 ): VocabRelatedQuizQuestion | null {
   if (!item || typeof item !== 'object') return null
   const o = item as Record<string, unknown>
@@ -328,13 +372,18 @@ function parseQuizItem(
   if (!stem || !picked) return null
   const assembled = assembleFourChoiceMcq(picked.correct, picked.distractors, shuffleInPlace)
   if (!assembled) return null
-  // 选词填空：四个选项必须全部来自本词学习材料中出现过的词
-  if (
-    questionType === 'fill' &&
-    studyTerms &&
-    !fillOptionsAllFromStudyTerms(assembled.options, studyTerms)
-  ) {
-    return null
+  if (questionType === 'fill') {
+    // 禁止白话长句；选项须是短词/成语
+    if (assembled.options.some((opt) => !isVocabRelatedFillOptionSurface(opt, kind))) {
+      return null
+    }
+    // 四个选项必须全部来自学习词库（不含反义词）
+    if (
+      fillOptionBank &&
+      !fillOptionsAllFromStudyTerms(assembled.options, fillOptionBank)
+    ) {
+      return null
+    }
   }
   const q: VocabRelatedQuizQuestion = {
     id: `vocab-rel-quiz-${kind}-${seq}-${Date.now()}`,
@@ -349,13 +398,40 @@ function parseQuizItem(
   return q
 }
 
+/** 小测是否过度集中考目标词（有可轮换词时，禁止全套都考同一个目标词） */
+export function quizFocusesTooMuchOnTarget(
+  quiz: VocabRelatedQuizQuestion[],
+  targetTerm: string,
+  fillOptionBank?: string[],
+): boolean {
+  const target = normalizeVocabTermKey(targetTerm)
+  if (!target || quiz.length < 2) return false
+  const altCount = (fillOptionBank ?? []).filter(
+    (t) => normalizeVocabTermKey(t) && normalizeVocabTermKey(t) !== target,
+  ).length
+  // 词库里几乎只有目标词时不强求轮换
+  if (altCount < 1) return false
+
+  const focusKeys = quiz.map((q) => {
+    if (q.questionType === 'fill') {
+      const correct = q.options[q.correctIndex] ?? ''
+      return normalizeVocabTermKey(correct) || normalizeVocabTermKey(q.focusTerm)
+    }
+    return normalizeVocabTermKey(q.focusTerm)
+  })
+  const nonTarget = focusKeys.filter((k) => k && k !== target).length
+  return nonTarget === 0
+}
+
 /** 仅解析小测数组（用于答错/重开时重出题） */
 export function parseVocabRelatedQuizList(
   raw: unknown,
   input: {
     kind: VocabRelatedKind
     term: string
-    /** 选词填空选项池；传入后 fill 题会校验 */
+    /** 选词填空选项池（不含反义词）；传入后 fill 题会校验 */
+    fillOptionBank?: string[]
+    /** @deprecated 用 fillOptionBank */
     studyTerms?: string[]
   },
 ): VocabRelatedQuizQuestion[] | null {
@@ -367,13 +443,16 @@ export function parseVocabRelatedQuizList(
         (raw as Record<string, unknown>).practice)
       : null
   if (!Array.isArray(list)) return null
+  const bank = input.fillOptionBank ?? input.studyTerms
   const quiz: VocabRelatedQuizQuestion[] = []
   list.forEach((item, idx) => {
-    const q = parseQuizItem(item, input.kind, input.term, idx + 1, input.studyTerms)
+    const q = parseQuizItem(item, input.kind, input.term, idx + 1, bank)
     if (q) quiz.push(q)
   })
   if (quiz.length < 2) return null
-  return quiz.slice(0, 3)
+  const sliced = quiz.slice(0, 3)
+  if (quizFocusesTooMuchOnTarget(sliced, input.term, bank)) return null
+  return sliced
 }
 
 export function parseVocabRelatedLearningPack(
@@ -443,11 +522,11 @@ export function parseVocabRelatedLearningPack(
   )
   if (!otherOptions) return null
 
-  const studyTerms = collectVocabRelatedStudyTerms({
+  const fillOptionBank = collectVocabRelatedFillOptionBank({
     term: String(o.term ?? input.term).trim() || input.term,
+    kind: input.kind,
     confusables,
     synonyms,
-    antonyms,
     otherOptions,
   })
 
@@ -455,12 +534,33 @@ export function parseVocabRelatedLearningPack(
   const quiz: VocabRelatedQuizQuestion[] = []
   if (Array.isArray(quizRaw)) {
     quizRaw.forEach((item, idx) => {
-      const q = parseQuizItem(item, input.kind, input.term, idx + 1, studyTerms)
+      const q = parseQuizItem(item, input.kind, input.term, idx + 1, fillOptionBank)
       if (q) quiz.push(q)
     })
   }
   // 首次整包生成须带小测；仅材料缓存可读时可为空，由调用方再生成小测
   if (quiz.length > 0 && quiz.length < 2) return null
+  const quizSliced = quiz.slice(0, 3)
+  if (
+    quizSliced.length >= 2 &&
+    quizFocusesTooMuchOnTarget(quizSliced, String(o.term ?? input.term).trim() || input.term, fillOptionBank)
+  ) {
+    // 过偏目标词：整包仍可用，但丢掉小测，由调用方按轮换规则重出
+    return {
+      term: String(o.term ?? input.term).trim() || input.term,
+      kind: input.kind,
+      meaning,
+      example,
+      sentiment,
+      sentimentNote: sentiment === '分情况' ? sentimentNote || '视具体语境而定。' : sentimentNote,
+      phonologyNotes,
+      confusables,
+      synonyms,
+      antonyms,
+      otherOptions,
+      quiz: [],
+    }
+  }
 
   return {
     term: String(o.term ?? input.term).trim() || input.term,
@@ -474,7 +574,7 @@ export function parseVocabRelatedLearningPack(
     synonyms,
     antonyms,
     otherOptions,
-    quiz: quiz.slice(0, 3),
+    quiz: quizSliced,
   }
 }
 
