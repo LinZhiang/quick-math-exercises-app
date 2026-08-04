@@ -68,6 +68,7 @@ const WRONG_FAVORITE_KEYS: string[] = [
   'chinese-life-common-sense-favorite-v1',
   'chinese-geography-common-sense-wrong-v1',
   'chinese-geography-common-sense-favorite-v1',
+  'chinese-memorization-wrong-v1',
 ]
 
 /** 全量用户练习数据额外键（不含密钥） */
@@ -76,8 +77,7 @@ const USER_DATA_EXTRA_KEYS: string[] = [
   'practice-completion-counts-v1',
   'practice-perfect-counts-v1',
   'fact-explanation-overrides-v1',
-  'fact-deepen-used-life-sense-v1',
-  'fact-deepen-used-what-is-this-v1',
+  'fact-deepen-group-stats-v1',
   'wengu-app-ui-settings-v1',
   'wengu-ai-provider-v1',
   'wengu-api-origin-v1',

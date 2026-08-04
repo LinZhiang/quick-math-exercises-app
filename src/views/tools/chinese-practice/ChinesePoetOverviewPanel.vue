@@ -45,6 +45,7 @@ import {
 } from '@/utils/poetDrillPractice'
 import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
 import ChineseCurrentAffairsPanel from '@/views/tools/chinese-practice/ChineseCurrentAffairsPanel.vue'
+import MemorizationWrongBookPanel from '@/views/tools/chinese-practice/MemorizationWrongBookPanel.vue'
 import type { ChinesePoetDrillResultRow } from '@/composables/useChinesePoetDrillTest'
 
 type PoetViewMode = 'card' | 'compact'
@@ -394,6 +395,8 @@ function poemMetaBits(poem: {
         <span class="poet-pick__card-desc">十月上 · 政治 / 社会材料速览与挖空测试</span>
       </button>
     </div>
+    <MemorizationWrongBookPanel module="poet-drill" />
+    <MemorizationWrongBookPanel module="current-affairs" />
   </section>
 
   <ChineseCurrentAffairsPanel
@@ -928,6 +931,7 @@ function poemMetaBits(poem: {
         </section>
       </article>
     </div>
+    <MemorizationWrongBookPanel module="poet-drill" />
   </section>
 </template>
 

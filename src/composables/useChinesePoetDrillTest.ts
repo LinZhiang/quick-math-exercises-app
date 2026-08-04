@@ -23,6 +23,8 @@ import {
 import type { ChinesePaperSource } from '@/types/chinese-practice'
 import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 import type { PoetOverviewDynastyId } from '@/constants/chinese-practice-tabs'
+import { createChineseWrongBookGate } from '@/utils/chineseWrongBookGate'
+import { upsertPoetDrillWrong } from '@/utils/memorizationWrongBook'
 
 export type ChinesePoetDrillPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -55,6 +57,13 @@ export function useChinesePoetDrillTest() {
   const quizElapsedMs = ref(0)
   const quizRunningDisplayMs = ref(0)
   const activeScope = ref<PoetDrillScope | null>(null)
+
+  const wrongGate = createChineseWrongBookGate((q: PoetDrillQuestion) => {
+    upsertPoetDrillWrong(q, {
+      scopeLabel: activeScope.value?.periodLabel ?? q.scopeKey,
+      chosenIndex: selectedIndex.value,
+    })
+  })
 
   let quizWallClockStartMs: number | null = null
   let quizElapsedIntervalId: number | null = null
@@ -218,10 +227,16 @@ export function useChinesePoetDrillTest() {
       question: q,
       chosenIndex: selectedIndex.value,
     })
+    if (!correct) wrongGate.noteWrongAnswer(q)
     submitted.value = true
   }
 
   function nextQuestion() {
+    try {
+      wrongGate.flushWrongIfNeeded()
+    } catch {
+      ElMessage.error('错题保存失败')
+    }
     resumeQuizTimer()
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
@@ -246,6 +261,7 @@ export function useChinesePoetDrillTest() {
   }
 
   function resetToIdle() {
+    wrongGate.clearWrongGate()
     clearQuizElapsedInterval()
     quizWallClockStartMs = null
     phase.value = 'idle'

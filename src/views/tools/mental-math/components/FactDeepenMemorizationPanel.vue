@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useFactDeepenMemorization } from '@/composables/useFactDeepenMemorization'
 import type { FactDeepenKind } from '@/utils/factDeepenMemorization'
 import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
 
 const emit = defineEmits<{ (e: 'active', v: boolean): void }>()
+
+const api = useFactDeepenMemorization()
 
 const {
   open,
@@ -12,6 +14,9 @@ const {
   phase,
   modes,
   modeConfig,
+  catalogRows,
+  activeGroup,
+  cards,
   studyIndex,
   currentCard,
   studyProgress,
@@ -20,24 +25,31 @@ const {
   currentQuiz,
   quizProgress,
   selectedOption,
-  quizSubmitted,
+  quizLocked,
   feedback,
   records,
   correctCount,
   countdownValue,
   remainingSec,
+  quizDurationSec,
   start,
   close,
-  beginStudy,
+  openCatalog,
+  backToCatalog,
+  backToPick,
+  beginStudyGroup,
   saveCurrentExplanation,
   resetExplanationToBase,
   nextStudy,
   prevStudy,
   startQuizFromStudy,
-  selectQuizOption,
-  submitQuizAnswer,
+  answerQuizOption,
   restartPick,
-} = useFactDeepenMemorization()
+} = api
+
+const cardsRemain = computed(
+  () => !!modeConfig.value && studyIndex.value + 1 < cards.value.length,
+)
 
 defineExpose({
   start: (kind: FactDeepenKind) => start(kind),
@@ -57,18 +69,35 @@ function optKey(i: number) {
     <div class="fd-panel__top">
       <div>
         <p class="fd-panel__title">加深识记 · {{ kindLabel }}</p>
-        <p v-if="modeConfig && phase !== 'pick'" class="fd-panel__sub">
-          {{ modeConfig.label }} · 一组 {{ modeConfig.batchSize }} 题
+        <p v-if="modeConfig && phase === 'catalog'" class="fd-panel__sub">
+          {{ modeConfig.label }} · 共 {{ catalogRows.length }} 组（每组最多
+          {{ modeConfig.batchSize }} 题）
+        </p>
+        <p v-else-if="modeConfig && activeGroup && phase !== 'pick'" class="fd-panel__sub">
+          {{ modeConfig.label }} · {{ activeGroup.title }}
           <template v-if="phase === 'study'"> · 识记 {{ studyProgress }}</template>
           <template v-else-if="phase === 'quiz'"> · 测验 {{ quizProgress }}</template>
         </p>
       </div>
-      <el-button size="small" @click="close">退出</el-button>
+      <div class="fd-panel__top-actions">
+        <el-button v-if="phase === 'catalog'" size="small" plain @click="backToPick">
+          返回难度
+        </el-button>
+        <el-button
+          v-else-if="phase === 'study' || phase === 'result'"
+          size="small"
+          plain
+          @click="backToCatalog"
+        >
+          返回目录
+        </el-button>
+        <el-button size="small" @click="close">退出</el-button>
+      </div>
     </div>
 
     <template v-if="phase === 'pick'">
       <p class="fd-hint">
-        按难度抽取 {{ modes[0]?.batchSize ?? 20 }} 题先看解析（可编辑），看完后限时测同批题目。答错记入错题本，完成后写入导览日志。
+        先选难度，再进固定分组目录（像书目一样一组一组点开）。每组先识记再限时测；解析可编辑；答错进错题本。
       </p>
       <div class="fd-mode-grid">
         <button
@@ -76,16 +105,34 @@ function optKey(i: number) {
           :key="m.modeId"
           type="button"
           class="fd-mode-card"
-          @click="beginStudy(m.modeId)"
+          @click="openCatalog(m.modeId)"
         >
           <h3 class="fd-mode-card__title">
             {{ m.label }}
             <PracticeCompletionStat :mode-id="m.modeId" perfect-label="全对" />
           </h3>
           <p class="fd-mode-card__desc">{{ m.desc }}</p>
-          <span class="fd-mode-card__cta">开始识记</span>
+          <span class="fd-mode-card__cta">打开目录</span>
         </button>
       </div>
+    </template>
+
+    <template v-else-if="phase === 'catalog'">
+      <p class="fd-hint">
+        以下分组按题库固定切分，组号不变，方便反复回看同一组。点开任一组开始识记。
+      </p>
+      <ol class="fd-toc">
+        <li v-for="g in catalogRows" :key="g.groupIndex">
+          <button type="button" class="fd-toc__btn" @click="beginStudyGroup(g.groupIndex)">
+            <span class="fd-toc__title">{{ g.title }}</span>
+            <span class="fd-toc__preview">{{ g.previewStem }}</span>
+            <span v-if="g.stat" class="fd-toc__stat">
+              上次 {{ g.stat.correct }}/{{ g.stat.total }}
+            </span>
+            <span v-else class="fd-toc__stat fd-toc__stat--muted">未测</span>
+          </button>
+        </li>
+      </ol>
     </template>
 
     <template v-else-if="phase === 'study' && currentCard">
@@ -108,23 +155,17 @@ function optKey(i: number) {
       </div>
       <div class="fd-actions">
         <el-button plain :disabled="studyIndex <= 0" @click="prevStudy">上一题</el-button>
-        <el-button
-          v-if="modeConfig && studyIndex + 1 < modeConfig.batchSize"
-          type="primary"
-          @click="nextStudy"
-        >
-          下一题
-        </el-button>
+        <el-button v-if="cardsRemain" type="primary" @click="nextStudy">下一题</el-button>
         <el-button
           v-else
           type="primary"
           :disabled="!allStudyVisited"
           @click="startQuizFromStudy"
         >
-          开始测验（{{ modeConfig?.durationSec }} 秒）
+          开始测验（{{ quizDurationSec || modeConfig?.durationSec || 40 }} 秒）
         </el-button>
         <el-button
-          v-if="allStudyVisited && modeConfig && studyIndex + 1 < modeConfig.batchSize"
+          v-if="allStudyVisited && cardsRemain"
           type="success"
           plain
           @click="startQuizFromStudy"
@@ -136,13 +177,16 @@ function optKey(i: number) {
 
     <div v-else-if="phase === 'countdown'" class="fd-countdown">
       <p class="fd-countdown__val">{{ countdownValue }}</p>
-      <p class="fd-muted">测验即将开始 · {{ modeConfig?.durationSec }} 秒内完成 {{ modeConfig?.batchSize }} 题</p>
+      <p class="fd-muted">
+        测验即将开始 · {{ quizDurationSec }} 秒内完成
+        {{ activeGroup?.count ?? modeConfig?.batchSize }} 题 · 点选项即判定
+      </p>
     </div>
 
     <template v-else-if="phase === 'quiz' && currentQuiz">
       <div class="fd-quiz-head">
         <span class="fd-timer" :class="{ 'is-low': remainingSec <= 8 }">{{ remainingSec }}s</span>
-        <span class="fd-muted">{{ quizProgress }}</span>
+        <span class="fd-muted">{{ quizProgress }} · 点选项即判</span>
       </div>
       <p class="fd-stem">{{ currentQuiz.expression }}</p>
       <ul class="fd-options">
@@ -151,53 +195,61 @@ function optKey(i: number) {
           :key="idx"
           class="fd-option"
           :class="{
-            'is-selected': selectedOption === idx && !quizSubmitted,
-            'is-correct': quizSubmitted && idx === currentQuiz.correctIndex,
+            'is-disabled': quizLocked,
+            'is-correct': feedback === 'correct' && idx === currentQuiz.correctIndex,
             'is-wrong':
-              quizSubmitted && selectedOption === idx && idx !== currentQuiz.correctIndex,
-            'is-feedback-correct': feedback === 'correct' && idx === currentQuiz.correctIndex,
-            'is-feedback-wrong':
               feedback === 'wrong' && selectedOption === idx && idx !== currentQuiz.correctIndex,
+            'is-reveal': feedback === 'wrong' && idx === currentQuiz.correctIndex,
           }"
-          @click="selectQuizOption(idx)"
+          @click="answerQuizOption(idx)"
         >
           <span class="fd-opt-key">{{ optKey(idx) }}</span>
           <span>{{ opt }}</span>
         </li>
       </ul>
-      <div class="fd-actions">
-        <el-button
-          type="primary"
-          :disabled="quizSubmitted || feedback != null"
-          @click="submitQuizAnswer"
-        >
-          确认
-        </el-button>
-      </div>
     </template>
 
     <template v-else-if="phase === 'result'">
       <div class="fd-result">
         <p class="fd-result__score">
-          本组测验：{{ correctCount }} / {{ records.length }}
-          <span v-if="records.length < (modeConfig?.batchSize ?? 20)" class="fd-muted">
+          {{ activeGroup?.title || '本组' }}测验：{{ correctCount }} / {{ records.length }}
+          <span
+            v-if="records.length < (activeGroup?.count ?? modeConfig?.batchSize ?? 20)"
+            class="fd-muted"
+          >
             （限时未完成全部）
           </span>
         </p>
-        <p v-if="correctCount === records.length && records.length === modeConfig?.batchSize" class="fd-ok">
+        <p
+          v-if="correctCount === records.length && records.length === (activeGroup?.count ?? 0)"
+          class="fd-ok"
+        >
           全对！
         </p>
-        <ul v-if="records.some((r) => !r.correct)" class="fd-wrong-list">
-          <li v-for="(r, i) in records.filter((x) => !x.correct)" :key="i">
-            <p class="fd-wrong-stem">{{ r.expression }}</p>
-            <p class="fd-muted">你的答案：{{ r.chosenAnswer }} · 正确：{{ r.correctAnswer }}</p>
-            <p v-if="r.explanation" class="fd-wrong-expl">{{ r.explanation }}</p>
+        <h4 class="fd-result__h">答题结果</h4>
+        <ol class="fd-result-list">
+          <li
+            v-for="(r, i) in records"
+            :key="i"
+            class="fd-result-item"
+            :class="{ 'is-ok': r.correct, 'is-bad': !r.correct }"
+          >
+            <p class="fd-wrong-stem">
+              <span class="fd-result-badge">{{ r.correct ? '对' : '错' }}</span>
+              {{ i + 1 }}. {{ r.expression }}
+            </p>
+            <p class="fd-muted">
+              你的答案：{{ r.chosenAnswer }}
+              <template v-if="!r.correct"> · 正确：{{ r.correctAnswer }}</template>
+            </p>
+            <p v-if="!r.correct && r.explanation" class="fd-wrong-expl">{{ r.explanation }}</p>
           </li>
-        </ul>
+        </ol>
       </div>
       <div class="fd-actions">
-        <el-button type="primary" @click="close">返回</el-button>
-        <el-button plain @click="restartPick">再来一组</el-button>
+        <el-button type="primary" @click="backToCatalog">返回目录</el-button>
+        <el-button plain @click="restartPick">换难度</el-button>
+        <el-button text @click="close">退出</el-button>
       </div>
     </template>
   </div>
@@ -218,6 +270,13 @@ function optKey(i: number) {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 14px;
+}
+
+.fd-panel__top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
 }
 
 .fd-panel__title {
@@ -275,6 +334,64 @@ function optKey(i: number) {
   font-size: 12px;
   font-weight: 600;
   color: var(--el-color-primary);
+}
+
+.fd-toc {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(62vh, 560px);
+  overflow: auto;
+}
+
+.fd-toc__btn {
+  width: 100%;
+  text-align: left;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 2px 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--app-border-soft, #e4e4e8);
+  background: var(--app-surface-alt, #f7f7f8);
+  cursor: pointer;
+}
+
+.fd-toc__btn:hover {
+  border-color: var(--el-color-primary-light-5, #a0cfff);
+  background: color-mix(in srgb, var(--el-color-primary) 6%, transparent);
+}
+
+.fd-toc__title {
+  grid-column: 1;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.fd-toc__preview {
+  grid-column: 1;
+  font-size: 12px;
+  color: var(--app-text-muted, #777);
+  line-height: 1.4;
+}
+
+.fd-toc__stat {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-color-primary);
+  white-space: nowrap;
+}
+
+.fd-toc__stat--muted {
+  color: var(--app-text-muted, #999);
+  font-weight: 500;
 }
 
 .fd-card {
@@ -375,23 +492,21 @@ function optKey(i: number) {
   line-height: 1.45;
 }
 
-.fd-option:hover {
+.fd-option:hover:not(.is-disabled) {
   border-color: var(--el-color-primary-light-5, #a0cfff);
 }
 
-.fd-option.is-selected {
-  border-color: var(--el-color-primary);
-  background: color-mix(in srgb, var(--el-color-primary) 8%, transparent);
+.fd-option.is-disabled {
+  pointer-events: none;
 }
 
 .fd-option.is-correct,
-.fd-option.is-feedback-correct {
+.fd-option.is-reveal {
   border-color: var(--el-color-success);
   background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
 }
 
-.fd-option.is-wrong,
-.fd-option.is-feedback-wrong {
+.fd-option.is-wrong {
   border-color: var(--el-color-danger);
   background: color-mix(in srgb, var(--el-color-danger) 10%, transparent);
 }
@@ -410,7 +525,7 @@ function optKey(i: number) {
 }
 
 .fd-result {
-  padding: 12px 4px;
+  padding: 4px 0 8px;
 }
 
 .fd-result__score {
@@ -420,26 +535,61 @@ function optKey(i: number) {
   text-align: center;
 }
 
+.fd-result__h {
+  margin: 12px 0 8px;
+  font-size: 14px;
+}
+
 .fd-ok {
   text-align: center;
   color: var(--el-color-success);
   margin: 0 0 12px;
 }
 
-.fd-wrong-list {
+.fd-result-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  max-height: min(50vh, 420px);
+  overflow: auto;
 }
 
-.fd-wrong-list li {
+.fd-result-item {
   padding: 10px 12px;
   border-radius: 8px;
   background: var(--app-surface-alt, #f7f7f8);
   border: 1px solid var(--app-border-soft, #eee);
+}
+
+.fd-result-item.is-ok {
+  border-color: color-mix(in srgb, var(--el-color-success) 35%, transparent);
+}
+
+.fd-result-item.is-bad {
+  border-color: color-mix(in srgb, var(--el-color-danger) 35%, transparent);
+}
+
+.fd-result-badge {
+  display: inline-block;
+  min-width: 1.5em;
+  margin-right: 6px;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.fd-result-item.is-ok .fd-result-badge {
+  color: #1a7f4b;
+  background: color-mix(in srgb, #1a7f4b 12%, transparent);
+}
+
+.fd-result-item.is-bad .fd-result-badge {
+  color: #b42318;
+  background: color-mix(in srgb, #b42318 12%, transparent);
 }
 
 .fd-wrong-stem {

@@ -1,5 +1,5 @@
 /**
- * 生活常识 / 这是什么 · 加深识记：先看 20 题解析，再限时测 20 题。
+ * 生活常识 / 这是什么 · 加深识记：按难度固定切成 20 题一组目录，可溯源。
  */
 import { LIFE_SENSE_BANK } from '@/utils/lifeSenseBank.generated'
 import type { LifeSenseBankItem } from '@/utils/lifeSenseBankTypes'
@@ -53,11 +53,36 @@ export type FactDeepenModeConfig = {
   kind: FactDeepenKind
   difficulty: FactDeepenDifficulty
   label: string
-  /** 测验整局倒计时（秒） */
+  /** 满组（20 题）测验整局倒计时（秒）；不足 20 题按时长比例缩放 */
   durationSec: number
   optionCount: number
   batchSize: number
   desc: string
+}
+
+/** 目录中的一组 */
+export type FactDeepenGroupMeta = {
+  modeId: FactDeepenModeId
+  kind: FactDeepenKind
+  difficulty: FactDeepenDifficulty
+  /** 从 0 起 */
+  groupIndex: number
+  /** 展示用从 1 起 */
+  groupNo: number
+  /** 本组题数（末组可能不足 20） */
+  count: number
+  /** 全局题号区间（1-based，本难度内） */
+  fromNo: number
+  toNo: number
+  /** 首题题干摘要，便于目录辨认 */
+  previewStem: string
+  title: string
+}
+
+export type FactDeepenGroupStat = {
+  correct: number
+  total: number
+  finishedAt: string
 }
 
 export const FACT_DEEPEN_BATCH_SIZE = 20
@@ -71,7 +96,7 @@ export const FACT_DEEPEN_MODES: FactDeepenModeConfig[] = [
     durationSec: 40,
     optionCount: 3,
     batchSize: FACT_DEEPEN_BATCH_SIZE,
-    desc: '先识记 20 题 → 限时测 20 题 · 40 秒',
+    desc: '固定分组目录 · 先识记再限时测 · 满组 40 秒',
   },
   {
     modeId: 'life-sense-deepen-normal',
@@ -81,7 +106,7 @@ export const FACT_DEEPEN_MODES: FactDeepenModeConfig[] = [
     durationSec: 52,
     optionCount: 4,
     batchSize: FACT_DEEPEN_BATCH_SIZE,
-    desc: '先识记 20 题 → 限时测 20 题 · 52 秒',
+    desc: '固定分组目录 · 先识记再限时测 · 满组 52 秒',
   },
   {
     modeId: 'life-sense-deepen-hard',
@@ -91,7 +116,7 @@ export const FACT_DEEPEN_MODES: FactDeepenModeConfig[] = [
     durationSec: 64,
     optionCount: 5,
     batchSize: FACT_DEEPEN_BATCH_SIZE,
-    desc: '先识记 20 题 → 限时测 20 题 · 64 秒',
+    desc: '固定分组目录 · 先识记再限时测 · 满组 64 秒',
   },
   {
     modeId: 'what-is-this-deepen-easy',
@@ -101,7 +126,7 @@ export const FACT_DEEPEN_MODES: FactDeepenModeConfig[] = [
     durationSec: 40,
     optionCount: 3,
     batchSize: FACT_DEEPEN_BATCH_SIZE,
-    desc: '先识记 20 题 → 限时测 20 题 · 40 秒',
+    desc: '固定分组目录 · 先识记再限时测 · 满组 40 秒',
   },
   {
     modeId: 'what-is-this-deepen-normal',
@@ -111,7 +136,7 @@ export const FACT_DEEPEN_MODES: FactDeepenModeConfig[] = [
     durationSec: 52,
     optionCount: 4,
     batchSize: FACT_DEEPEN_BATCH_SIZE,
-    desc: '先识记 20 题 → 限时测 20 题 · 52 秒',
+    desc: '固定分组目录 · 先识记再限时测 · 满组 52 秒',
   },
   {
     modeId: 'what-is-this-deepen-hard',
@@ -121,50 +146,14 @@ export const FACT_DEEPEN_MODES: FactDeepenModeConfig[] = [
     durationSec: 64,
     optionCount: 5,
     batchSize: FACT_DEEPEN_BATCH_SIZE,
-    desc: '先识记 20 题 → 限时测 20 题 · 64 秒',
+    desc: '固定分组目录 · 先识记再限时测 · 满组 64 秒',
   },
 ]
 
-const USED_STORAGE: Record<FactDeepenKind, string> = {
-  'life-sense': 'fact-deepen-used-life-sense-v1',
-  'what-is-this': 'fact-deepen-used-what-is-this-v1',
-}
-
-type UsedMap = Record<FactDeepenDifficulty, string[]>
-
-function emptyUsed(): UsedMap {
-  return { easy: [], normal: [], hard: [] }
-}
+const GROUP_STATS_KEY = 'fact-deepen-group-stats-v1'
 
 function normalizeKey(key: string): string {
   return key.trim().replace(/\s+/g, '')
-}
-
-function readUsed(kind: FactDeepenKind): UsedMap {
-  try {
-    const raw = localStorage.getItem(USED_STORAGE[kind])
-    if (!raw) return emptyUsed()
-    const parsed = JSON.parse(raw) as Partial<UsedMap>
-    const out = emptyUsed()
-    for (const d of ['easy', 'normal', 'hard'] as const) {
-      const arr = parsed[d]
-      if (!Array.isArray(arr)) continue
-      out[d] = arr
-        .map((t) => (typeof t === 'string' ? normalizeKey(t) : ''))
-        .filter(Boolean)
-    }
-    return out
-  } catch {
-    return emptyUsed()
-  }
-}
-
-function writeUsed(kind: FactDeepenKind, map: UsedMap) {
-  try {
-    localStorage.setItem(USED_STORAGE[kind], JSON.stringify(map))
-  } catch {
-    /* ignore */
-  }
 }
 
 function randInt(min: number, max: number): number {
@@ -195,6 +184,9 @@ function toDeepenItem(
   }
 }
 
+/**
+ * 本难度稳定题池：按 key 字典序，保证分组编号可溯源、跨会话不变。
+ */
 function poolFor(kind: FactDeepenKind, difficulty: FactDeepenDifficulty): FactDeepenBankItem[] {
   const bank = kind === 'life-sense' ? LIFE_SENSE_BANK : WHAT_IS_THIS_BANK
   const seen = new Set<string>()
@@ -206,6 +198,7 @@ function poolFor(kind: FactDeepenKind, difficulty: FactDeepenDifficulty): FactDe
     seen.add(k)
     out.push(toDeepenItem(kind, item))
   }
+  out.sort((a, b) => normalizeKey(a.key).localeCompare(normalizeKey(b.key), 'zh-CN'))
   return out
 }
 
@@ -227,6 +220,12 @@ export function factDeepenKindLabel(kind: FactDeepenKind): string {
   return kind === 'life-sense' ? '生活常识' : '这是什么'
 }
 
+export function factDeepenDifficultyLabel(d: FactDeepenDifficulty): string {
+  if (d === 'hard') return '复杂'
+  if (d === 'normal') return '普通'
+  return '简单'
+}
+
 function withResolvedExplanation(item: FactDeepenBankItem): FactDeepenStudyCard {
   return {
     ...item,
@@ -234,41 +233,63 @@ function withResolvedExplanation(item: FactDeepenBankItem): FactDeepenStudyCard 
   }
 }
 
-/**
- * 抽取一批加深识记题目（默认 20）；优先未出过的知识点，出完重置再循环。
- */
-export function pickFactDeepenBatch(
-  kind: FactDeepenKind,
-  difficulty: FactDeepenDifficulty,
-  count = FACT_DEEPEN_BATCH_SIZE,
-): FactDeepenStudyCard[] {
-  const pool = poolFor(kind, difficulty)
-  if (pool.length < count) {
-    throw new Error(`${factDeepenKindLabel(kind)}「${difficulty}」题库不足 ${count} 题`)
-  }
-
-  const usedMap = readUsed(kind)
-  const used = new Set(usedMap[difficulty])
-  let unused = pool.filter((x) => !used.has(normalizeKey(x.key)))
-  if (unused.length < count) {
-    usedMap[difficulty] = []
-    writeUsed(kind, usedMap)
-    unused = [...pool]
-  }
-
-  const picked = shuffle(unused).slice(0, count)
-  const nextUsed = [
-    ...usedMap[difficulty].filter((k) => !picked.some((p) => normalizeKey(p.key) === k)),
-    ...picked.map((p) => normalizeKey(p.key)),
-  ]
-  usedMap[difficulty] = nextUsed
-  writeUsed(kind, usedMap)
-
-  return picked.map(withResolvedExplanation)
-}
-
 export function refreshFactDeepenStudyCard(card: FactDeepenBankItem): FactDeepenStudyCard {
   return withResolvedExplanation(card)
+}
+
+/** 列出某难度下全部固定分组（书籍目录） */
+export function listFactDeepenGroups(modeId: FactDeepenModeId): FactDeepenGroupMeta[] {
+  const cfg = getFactDeepenModeConfig(modeId)
+  const pool = poolFor(cfg.kind, cfg.difficulty)
+  const size = cfg.batchSize
+  const groups: FactDeepenGroupMeta[] = []
+  for (let i = 0; i < pool.length; i += size) {
+    const slice = pool.slice(i, i + size)
+    if (!slice.length) continue
+    const groupIndex = groups.length
+    const fromNo = i + 1
+    const toNo = i + slice.length
+    const preview = slice[0]!.stem.trim()
+    groups.push({
+      modeId,
+      kind: cfg.kind,
+      difficulty: cfg.difficulty,
+      groupIndex,
+      groupNo: groupIndex + 1,
+      count: slice.length,
+      fromNo,
+      toNo,
+      previewStem: preview.length > 28 ? `${preview.slice(0, 28)}…` : preview,
+      title:
+        slice.length === size
+          ? `第 ${groupIndex + 1} 组 · 第 ${fromNo}–${toNo} 题`
+          : `第 ${groupIndex + 1} 组 · 第 ${fromNo}–${toNo} 题（末组 ${slice.length} 题）`,
+    })
+  }
+  return groups
+}
+
+/** 按组号加载识记卡片（固定内容，可溯源） */
+export function loadFactDeepenGroup(
+  modeId: FactDeepenModeId,
+  groupIndex: number,
+): FactDeepenStudyCard[] {
+  const cfg = getFactDeepenModeConfig(modeId)
+  const pool = poolFor(cfg.kind, cfg.difficulty)
+  const size = cfg.batchSize
+  const start = groupIndex * size
+  if (start < 0 || start >= pool.length) {
+    throw new Error('该组不存在')
+  }
+  return pool.slice(start, start + size).map(withResolvedExplanation)
+}
+
+/** 本组测验时长（秒）；末组不足 20 题按比例缩时，至少 12 秒 */
+export function factDeepenQuizDurationSec(cfg: FactDeepenModeConfig, questionCount: number): number {
+  const full = cfg.batchSize
+  if (questionCount >= full) return cfg.durationSec
+  const scaled = Math.round((cfg.durationSec * questionCount) / full)
+  return Math.max(12, scaled)
 }
 
 function buildQuizFromCard(
@@ -302,16 +323,58 @@ function buildQuizFromCard(
   }
 }
 
-/** 同一批卡片打乱顺序后生成测验题（选项重洗） */
+/** 测验选项重洗；题序保持本组目录顺序，便于对照溯源 */
 export function buildFactDeepenQuiz(
   cards: FactDeepenStudyCard[],
   optionCount: number,
 ): FactDeepenQuizQuestion[] {
-  return shuffle(cards).map((card, i) => buildQuizFromCard(i + 1, card, optionCount))
+  return cards.map((card, i) => buildQuizFromCard(i + 1, card, optionCount))
 }
 
-export function factDeepenDifficultyLabel(d: FactDeepenDifficulty): string {
-  if (d === 'hard') return '复杂'
-  if (d === 'normal') return '普通'
-  return '简单'
+function groupStatKey(modeId: FactDeepenModeId, groupIndex: number): string {
+  return `${modeId}:${groupIndex}`
 }
+
+function readGroupStats(): Record<string, FactDeepenGroupStat> {
+  try {
+    const raw = localStorage.getItem(GROUP_STATS_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object') return {}
+    return parsed as Record<string, FactDeepenGroupStat>
+  } catch {
+    return {}
+  }
+}
+
+function writeGroupStats(map: Record<string, FactDeepenGroupStat>) {
+  try {
+    localStorage.setItem(GROUP_STATS_KEY, JSON.stringify(map))
+  } catch {
+    /* ignore */
+  }
+}
+
+export function getFactDeepenGroupStat(
+  modeId: FactDeepenModeId,
+  groupIndex: number,
+): FactDeepenGroupStat | null {
+  return readGroupStats()[groupStatKey(modeId, groupIndex)] ?? null
+}
+
+export function setFactDeepenGroupStat(
+  modeId: FactDeepenModeId,
+  groupIndex: number,
+  correct: number,
+  total: number,
+): void {
+  const map = readGroupStats()
+  map[groupStatKey(modeId, groupIndex)] = {
+    correct,
+    total,
+    finishedAt: new Date().toISOString(),
+  }
+  writeGroupStats(map)
+}
+
+export const FACT_DEEPEN_GROUP_STATS_STORAGE_KEY = GROUP_STATS_KEY

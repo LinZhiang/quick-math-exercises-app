@@ -151,13 +151,14 @@ function parseConfusables(raw: unknown): VocabRelatedConfusable[] {
     const o = item as Record<string, unknown>
     const word = String(o.word ?? o.term ?? '').trim()
     const meaning = String(o.meaning ?? o.definition ?? '').trim()
-    const example = String(
+    let example = String(
       o.example ?? o.exampleSentence ?? o.sentence ?? o.例句 ?? '',
     ).trim()
     const howToDistinguish = String(
       o.howToDistinguish ?? o.distinguish ?? o.diff ?? o.note ?? '',
     ).trim()
-    if (!word || !meaning || !example) continue
+    if (!word || !meaning) continue
+    if (!example) example = `使用「${word}」时要注意语境与搭配。`
     const sentiment = parseVocabSentiment(
       o.sentiment ?? o.valence ?? o.connotation ?? o.感情色彩 ?? o.色彩,
     )
@@ -191,19 +192,20 @@ function asExampleList(raw: unknown): string[] {
 
 /**
  * 解析第四层快速识记。至少须含目标词一条；覆盖易混与其他选项优先。
+ * 返回 null 表示 AI 未给可用条目（调用方可用 synthesizeQuickMem 兜底）。
  */
 function parseQuickMem(
   raw: unknown,
   requiredWords: string[],
 ): VocabRelatedQuickMem[] | null {
-  if (!Array.isArray(raw)) return null
+  if (!Array.isArray(raw) || !raw.length) return null
   const byWord = new Map<string, VocabRelatedQuickMem>()
   for (const item of raw) {
     if (!item || typeof item !== 'object') continue
     const o = item as Record<string, unknown>
     const word = String(o.word ?? o.term ?? o.text ?? '').trim()
     const cue = String(
-      o.cue ?? o.emphasis ?? o.point ?? o.场景 ?? o.强调 ?? o.memoryPoint ?? '',
+      o.cue ?? o.emphasis ?? o.point ?? o.场景 ?? o.强调 ?? o.memoryPoint ?? o.meaning ?? '',
     ).trim()
     const examples = asExampleList(
       o.examples ?? o.example ?? o.例句 ?? o.scenes ?? o.usageExamples,
@@ -228,18 +230,58 @@ function parseQuickMem(
     seen.add(k)
     out.push(hit)
   }
-  // 若 required 顺序解析后为空（仅目标词缺），失败
   if (!out.length) return null
-  // 目标词必须在列
   const targetKey = normalizeVocabTermKey(requiredWords[0] ?? '')
   if (targetKey && !out.some((x) => normalizeVocabTermKey(x.word) === targetKey)) {
     return null
   }
-  // 附带 AI 多给的、不在 required 里的条目（仍排除已见）
   for (const [k, v] of byWord) {
     if (seen.has(k)) continue
     seen.add(k)
     out.push(v)
+  }
+  return out
+}
+
+/** 用已有释义/例句合成第四层，避免 AI 漏 layer4 导致整包失败 */
+function synthesizeQuickMem(input: {
+  term: string
+  meaning: string
+  example: string
+  confusables: VocabRelatedConfusable[]
+  otherOptions: VocabRelatedOtherOption[]
+  kind: VocabRelatedKind
+}): VocabRelatedQuickMem[] {
+  const out: VocabRelatedQuickMem[] = []
+  const seen = new Set<string>()
+  const push = (word: string, cue: string, examples: string[]) => {
+    const w = word.trim()
+    const c = cue.trim()
+    const ex = examples.map((x) => x.trim()).filter(Boolean)
+    if (!w || !c || !ex.length) return
+    const k = normalizeVocabTermKey(w)
+    if (!k || seen.has(k)) return
+    seen.add(k)
+    out.push({ word: w, cue: c.slice(0, 40), examples: ex.slice(0, 3) })
+  }
+
+  push(
+    input.term,
+    input.meaning.length > 36 ? `${input.meaning.slice(0, 34)}…` : input.meaning,
+    [input.example],
+  )
+  for (const c of input.confusables) {
+    push(
+      c.word,
+      c.meaning.length > 36 ? `${c.meaning.slice(0, 34)}…` : c.meaning,
+      [c.example],
+    )
+  }
+  for (const o of input.otherOptions) {
+    if (!isVocabRelatedFillOptionSurface(o.text, input.kind)) continue
+    const cue =
+      o.meaning.length > 36 ? `${o.meaning.slice(0, 34)}…` : o.meaning || '注意语境搭配'
+    push(o.text, cue, [`使用「${o.text}」时要注意对象与色彩。`])
   }
   return out
 }
@@ -334,6 +376,31 @@ function parseOtherOptions(
           break
         }
       }
+    }
+    // 长释义选项：允许包含关系 / 去标点后近似匹配（AI 常微调措辞）
+    if (!hit) {
+      const norm = t.replace(/\s+/g, '').replace(/[，。；、！？：:""''“”‘’（）()【】《》]/g, '')
+      let best: { meaning: string; sentiment: VocabSentiment; sentimentNote: string } | null =
+        null
+      let bestScore = 0
+      for (const [k, v] of byText) {
+        const kn = k.replace(/\s+/g, '').replace(/[，。；、！？：:""''“”‘’（）()【】《》]/g, '')
+        if (!kn) continue
+        if (kn === norm || kn.includes(norm) || norm.includes(kn)) {
+          const score = Math.min(kn.length, norm.length) / Math.max(kn.length, norm.length)
+          if (score > bestScore) {
+            bestScore = score
+            best = v
+          }
+        }
+      }
+      if (best && bestScore >= 0.55) hit = best
+    }
+    // 仍找不到时：若 AI 给了足够条目，按序号兜底对齐（避免整包因措辞差失败）
+    if (!hit && byText.size >= fallback.length) {
+      const vals = [...byText.values()]
+      const idx = out.length
+      if (vals[idx]) hit = vals[idx]!
     }
     if (!hit) return null
     out.push({ text: t, ...hit })
@@ -615,11 +682,21 @@ export function parseVocabRelatedLearningPack(
       .map((x) => x.text)
       .filter((t) => isVocabRelatedFillOptionSurface(t, input.kind)),
   ]
-  const quickMem = parseQuickMem(
+  let quickMem = parseQuickMem(
     layer4.quickMem ?? layer4.items ?? o.quickMem ?? o.quickMemorization,
     quickMemWords,
   )
-  if (!quickMem) return null
+  if (!quickMem?.length) {
+    quickMem = synthesizeQuickMem({
+      term,
+      meaning,
+      example,
+      confusables,
+      otherOptions,
+      kind: input.kind,
+    })
+  }
+  if (!quickMem.length) return null
 
   const fillOptionBank = collectVocabRelatedFillOptionBank({
     term,
@@ -637,9 +714,8 @@ export function parseVocabRelatedLearningPack(
       if (q) quiz.push(q)
     })
   }
-  // 首次整包生成须带小测；仅材料缓存可读时可为空，由调用方再生成小测
-  if (quiz.length > 0 && quiz.length < 2) return null
-  const quizSliced = quiz.slice(0, 3)
+  // 小测不足 2 题：保留材料，交由调用方补小测（勿整包作废）
+  const quizSliced = quiz.length >= 2 ? quiz.slice(0, 3) : []
   const baseMaterials = {
     term,
     kind: input.kind,
@@ -658,7 +734,6 @@ export function parseVocabRelatedLearningPack(
     quizSliced.length >= 2 &&
     quizFocusesTooMuchOnTarget(quizSliced, term, fillOptionBank)
   ) {
-    // 过偏目标词：整包仍可用，但丢掉小测，由调用方按轮换规则重出
     return {
       ...baseMaterials,
       quiz: [],
