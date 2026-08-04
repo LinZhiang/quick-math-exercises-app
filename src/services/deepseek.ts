@@ -2707,6 +2707,48 @@ export async function requestVocabRelatedLearningPackBatch(input: {
   const kindLabel = input.kind === 'idiom' ? '成语' : '词语'
   input.onProgress?.(aiRequestProgressText(`${kindLabel}关联学习（本组 ${rows.length} 词）`))
 
+  // 超过 5 词时拆成小批，降低 JSON 截断导致整组解析失败的概率
+  if (rows.length > 5) {
+    const merged: (VocabRelatedLearningPack | null)[] = rows.map(() => null)
+    const failedTerms: string[] = []
+    for (let i = 0; i < rows.length; i += 5) {
+      const chunk = rows.slice(i, i + 5)
+      input.onProgress?.(
+        `${kindLabel}关联学习：第 ${i + 1}–${i + chunk.length} / ${rows.length} 词…`,
+      )
+      try {
+        const part = await requestVocabRelatedLearningPackBatch({
+          kind: input.kind,
+          rows: chunk,
+          onProgress: input.onProgress,
+        })
+        part.forEach((p, j) => {
+          merged[i + j] = p
+        })
+      } catch {
+        for (let j = 0; j < chunk.length; j++) {
+          const row = chunk[j]!
+          input.onProgress?.(`补生成「${row.term}」（${i + j + 1}/${rows.length}）…`)
+          try {
+            merged[i + j] = await requestVocabRelatedLearningPack({
+              kind: input.kind,
+              row,
+              onProgress: input.onProgress,
+            })
+          } catch {
+            failedTerms.push(row.term)
+          }
+        }
+      }
+    }
+    if (failedTerms.length) {
+      throw new Error(
+        `关联学习仍有 ${failedTerms.length} 词未生成成功：${failedTerms.slice(0, 5).join('、')}${failedTerms.length > 5 ? '…' : ''}。可减少勾选数量后重试。`,
+      )
+    }
+    return merged as VocabRelatedLearningPack[]
+  }
+
   const items = rows
     .map((row, i) => {
       const correct =
@@ -2791,22 +2833,33 @@ export async function requestVocabRelatedLearningPackBatch(input: {
         /* fall through to full regen */
       }
     }
-    input.onProgress?.(`补生成「${row.term}」（${i + 1}/${rows.length}）…`)
-    try {
-      out[i] = await requestVocabRelatedLearningPack({
-        kind: input.kind,
-        row,
-        onProgress: input.onProgress,
-      })
-    } catch {
-      /* keep null */
+    // 整包补生成：最多 2 次，降低偶发 JSON/截断失败
+    let lastErr: unknown = null
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      input.onProgress?.(
+        `补生成「${row.term}」（${i + 1}/${rows.length}，第 ${attempt} 次）…`,
+      )
+      try {
+        out[i] = await requestVocabRelatedLearningPack({
+          kind: input.kind,
+          row,
+          onProgress: input.onProgress,
+        })
+        lastErr = null
+        break
+      } catch (e) {
+        lastErr = e
+      }
+    }
+    if (!out[i] && lastErr) {
+      console.warn('[vocab-related] 补生成失败', row.term, lastErr)
     }
   }
 
   const failed = rows.filter((_, i) => !out[i]).map((r) => r.term)
   if (failed.length) {
     throw new Error(
-      `关联学习仍有 ${failed.length} 词未生成成功：${failed.slice(0, 5).join('、')}${failed.length > 5 ? '…' : ''}，请稍后重试`,
+      `关联学习仍有 ${failed.length} 词未生成成功：${failed.slice(0, 5).join('、')}${failed.length > 5 ? '…' : ''}。可减少勾选数量后重试，或先清除该词缓存。`,
     )
   }
   return out as VocabRelatedLearningPack[]

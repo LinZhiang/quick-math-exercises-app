@@ -4,21 +4,27 @@ import {
   buildFactDeepenQuiz,
   factDeepenDifficultyLabel,
   factDeepenKindLabel,
+  factDeepenQuizDurationSec,
+  getFactDeepenGroupStat,
   getFactDeepenModeConfig,
+  listFactDeepenGroups,
   listFactDeepenModes,
-  pickFactDeepenBatch,
+  loadFactDeepenGroup,
   refreshFactDeepenStudyCard,
+  setFactDeepenGroupStat,
+  type FactDeepenGroupMeta,
   type FactDeepenKind,
   type FactDeepenModeConfig,
   type FactDeepenModeId,
   type FactDeepenQuizQuestion,
   type FactDeepenStudyCard,
 } from '@/utils/factDeepenMemorization'
-import {
-  setFactExplanationOverride,
-} from '@/utils/factExplanationOverrides'
+import { setFactExplanationOverride } from '@/utils/factExplanationOverrides'
 import { upsertMentalMathWrong } from '@/utils/mentalMathWrongBook'
-import { MENTAL_MATH_TIME_CORRECT_BONUS_SEC, MENTAL_MATH_TIME_WRONG_PENALTY_SEC } from '@/utils/mentalMathPractice'
+import {
+  MENTAL_MATH_TIME_CORRECT_BONUS_SEC,
+  MENTAL_MATH_TIME_WRONG_PENALTY_SEC,
+} from '@/utils/mentalMathPractice'
 import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 import {
   playMentalMathCorrectSound,
@@ -28,6 +34,7 @@ import {
 export type FactDeepenPhase =
   | 'idle'
   | 'pick'
+  | 'catalog'
   | 'study'
   | 'countdown'
   | 'quiz'
@@ -46,6 +53,11 @@ export function useFactDeepenMemorization() {
   const kind = ref<FactDeepenKind>('life-sense')
   const phase = ref<FactDeepenPhase>('idle')
   const modeConfig = ref<FactDeepenModeConfig | null>(null)
+  const catalog = ref<FactDeepenGroupMeta[]>([])
+  const activeGroup = ref<FactDeepenGroupMeta | null>(null)
+  /** 触发目录成绩刷新 */
+  const catalogTick = ref(0)
+
   const cards = ref<FactDeepenStudyCard[]>([])
   const studyIndex = ref(0)
   const studyVisited = ref<Set<number>>(new Set())
@@ -54,7 +66,7 @@ export function useFactDeepenMemorization() {
   const quiz = ref<FactDeepenQuizQuestion[]>([])
   const quizIndex = ref(0)
   const selectedOption = ref<number | null>(null)
-  const quizSubmitted = ref(false)
+  const quizLocked = ref(false)
   const records = ref<FactDeepenQuizRecord[]>([])
   const feedback = ref<'correct' | 'wrong' | null>(null)
 
@@ -64,6 +76,7 @@ export function useFactDeepenMemorization() {
   const totalMs = ref(0)
   const elapsedMs = ref(0)
   const sessionStartedAt = ref(0)
+  const quizDurationSec = ref(0)
 
   let tickTimer: ReturnType<typeof setInterval> | null = null
   let countdownTimer: ReturnType<typeof setTimeout> | null = null
@@ -86,6 +99,14 @@ export function useFactDeepenMemorization() {
   })
   const remainingSec = computed(() => Math.ceil(Math.max(0, remainingMs.value) / 1000))
 
+  const catalogRows = computed(() => {
+    void catalogTick.value
+    return catalog.value.map((g) => ({
+      ...g,
+      stat: getFactDeepenGroupStat(g.modeId, g.groupIndex),
+    }))
+  })
+
   function clearTimers() {
     if (tickTimer) {
       clearInterval(tickTimer)
@@ -101,11 +122,7 @@ export function useFactDeepenMemorization() {
     }
   }
 
-  function close() {
-    clearTimers()
-    open.value = false
-    phase.value = 'idle'
-    modeConfig.value = null
+  function resetSessionFields() {
     cards.value = []
     studyIndex.value = 0
     studyVisited.value = new Set()
@@ -113,11 +130,21 @@ export function useFactDeepenMemorization() {
     quiz.value = []
     quizIndex.value = 0
     selectedOption.value = null
-    quizSubmitted.value = false
+    quizLocked.value = false
     records.value = []
     feedback.value = null
     countdownValue.value = null
     remainingMs.value = 0
+    activeGroup.value = null
+  }
+
+  function close() {
+    clearTimers()
+    open.value = false
+    phase.value = 'idle'
+    modeConfig.value = null
+    catalog.value = []
+    resetSessionFields()
   }
 
   function start(inputKind: FactDeepenKind) {
@@ -125,27 +152,73 @@ export function useFactDeepenMemorization() {
     open.value = true
     phase.value = 'pick'
     modeConfig.value = null
-    cards.value = []
-    studyIndex.value = 0
-    studyVisited.value = new Set()
+    catalog.value = []
+    resetSessionFields()
   }
 
-  function beginStudy(modeId: FactDeepenModeId) {
+  /** 选难度 → 打开固定分组目录 */
+  function openCatalog(modeId: FactDeepenModeId) {
     try {
       const cfg = getFactDeepenModeConfig(modeId)
       if (cfg.kind !== kind.value) {
         ElMessage.error('难度与模块不匹配')
         return
       }
-      const batch = pickFactDeepenBatch(cfg.kind, cfg.difficulty, cfg.batchSize)
+      const groups = listFactDeepenGroups(modeId)
+      if (!groups.length) {
+        ElMessage.warning('该难度暂无题目')
+        return
+      }
       modeConfig.value = cfg
+      catalog.value = groups
+      catalogTick.value += 1
+      resetSessionFields()
+      phase.value = 'catalog'
+    } catch (e) {
+      ElMessage.error(e instanceof Error ? e.message : '打开目录失败')
+    }
+  }
+
+  function backToCatalog() {
+    clearTimers()
+    saveCurrentExplanation()
+    resetSessionFields()
+    if (modeConfig.value) {
+      catalog.value = listFactDeepenGroups(modeConfig.value.modeId)
+      catalogTick.value += 1
+      phase.value = 'catalog'
+    } else {
+      phase.value = 'pick'
+    }
+  }
+
+  function backToPick() {
+    clearTimers()
+    modeConfig.value = null
+    catalog.value = []
+    resetSessionFields()
+    phase.value = 'pick'
+  }
+
+  function beginStudyGroup(groupIndex: number) {
+    const cfg = modeConfig.value
+    if (!cfg) return
+    try {
+      const meta = catalog.value.find((g) => g.groupIndex === groupIndex)
+      if (!meta) {
+        ElMessage.error('该组不存在')
+        return
+      }
+      const batch = loadFactDeepenGroup(cfg.modeId, groupIndex)
+      activeGroup.value = meta
       cards.value = batch
+      quizDurationSec.value = factDeepenQuizDurationSec(cfg, batch.length)
       studyIndex.value = 0
       studyVisited.value = new Set([0])
       loadDraftFromCard(batch[0]!)
       phase.value = 'study'
     } catch (e) {
-      ElMessage.error(e instanceof Error ? e.message : '抽题失败')
+      ElMessage.error(e instanceof Error ? e.message : '加载失败')
     }
   }
 
@@ -214,13 +287,13 @@ export function useFactDeepenMemorization() {
     }
     const cfg = modeConfig.value
     if (!cfg || !cards.value.length) return
-    // 刷新解析覆盖后再出卷
     const refreshed = cards.value.map((c) => refreshFactDeepenStudyCard(c))
     cards.value = refreshed
     quiz.value = buildFactDeepenQuiz(refreshed, cfg.optionCount)
+    quizDurationSec.value = factDeepenQuizDurationSec(cfg, quiz.value.length)
     quizIndex.value = 0
     selectedOption.value = null
-    quizSubmitted.value = false
+    quizLocked.value = false
     records.value = []
     feedback.value = null
     sessionStartedAt.value = Date.now()
@@ -255,10 +328,11 @@ export function useFactDeepenMemorization() {
     if (!cfg) return
     clearTimers()
     phase.value = 'quiz'
-    totalMs.value = cfg.durationSec * 1000
+    totalMs.value = quizDurationSec.value * 1000
     sessionStartMs.value = Date.now()
     remainingMs.value = totalMs.value
     elapsedMs.value = 0
+    quizLocked.value = false
     tickTimer = setInterval(() => {
       syncRemaining()
       if (remainingMs.value <= 0) {
@@ -275,23 +349,17 @@ export function useFactDeepenMemorization() {
     syncRemaining()
   }
 
-  function selectQuizOption(idx: number) {
-    if (phase.value !== 'quiz' || quizSubmitted.value || feedback.value) return
-    selectedOption.value = idx
-  }
-
-  function submitQuizAnswer() {
-    if (phase.value !== 'quiz' || quizSubmitted.value || feedback.value) return
+  /** 点选项即判定（同四则口算） */
+  function answerQuizOption(idx: number) {
+    if (phase.value !== 'quiz' || quizLocked.value || feedback.value) return
     const q = currentQuiz.value
     const cfg = modeConfig.value
     if (!q || !cfg) return
-    if (selectedOption.value == null) {
-      ElMessage.warning('请先选择一个选项')
-      return
-    }
-    quizSubmitted.value = true
-    const chosen = q.options[selectedOption.value] ?? ''
-    const ok = selectedOption.value === q.correctIndex
+
+    quizLocked.value = true
+    selectedOption.value = idx
+    const chosen = q.options[idx] ?? ''
+    const ok = idx === q.correctIndex
     feedback.value = ok ? 'correct' : 'wrong'
     if (ok) playMentalMathCorrectSound()
     else playMentalMathWrongSound()
@@ -320,10 +388,12 @@ export function useFactDeepenMemorization() {
 
     applyTimeDelta(ok)
 
+    // 对：短反馈；错：立刻下一题
+    const delay = ok ? 380 : 80
     feedbackTimer = setTimeout(() => {
       feedback.value = null
-      quizSubmitted.value = false
       selectedOption.value = null
+      quizLocked.value = false
       if (remainingMs.value <= 0) {
         finishQuiz()
         return
@@ -333,7 +403,7 @@ export function useFactDeepenMemorization() {
         return
       }
       quizIndex.value += 1
-    }, ok ? 380 : 900)
+    }, delay)
   }
 
   function finishQuiz() {
@@ -341,17 +411,24 @@ export function useFactDeepenMemorization() {
     syncRemaining()
     elapsedMs.value = Math.max(0, Date.now() - sessionStartedAt.value)
     const cfg = modeConfig.value
+    const group = activeGroup.value
     if (cfg) {
       const answered = records.value.length
       const correct = records.value.filter((r) => r.correct).length
+      const total = quiz.value.length
+      if (group) {
+        setFactDeepenGroupStat(cfg.modeId, group.groupIndex, correct, Math.max(answered, total))
+        catalogTick.value += 1
+      }
+      const groupLabel = group ? `第 ${group.groupNo} 组` : '一组'
       incrementPracticeCompletion(cfg.modeId, {
         correctCount: correct,
-        totalCount: Math.max(answered, quiz.value.length),
+        totalCount: Math.max(answered, total),
         durationMs: elapsedMs.value,
-        perfect: answered === quiz.value.length && correct === quiz.value.length,
+        perfect: answered === total && correct === total && answered > 0,
         categoryId: cfg.kind,
         categoryLabel: factDeepenKindLabel(cfg.kind),
-        itemLabel: `${factDeepenKindLabel(cfg.kind)} · 加深识记 · ${factDeepenDifficultyLabel(cfg.difficulty)}题`,
+        itemLabel: `${factDeepenKindLabel(cfg.kind)} · 加深识记 · ${factDeepenDifficultyLabel(cfg.difficulty)}题 · ${groupLabel}`,
       })
     }
     phase.value = 'result'
@@ -361,18 +438,8 @@ export function useFactDeepenMemorization() {
     const k = kind.value
     clearTimers()
     modeConfig.value = null
-    cards.value = []
-    studyIndex.value = 0
-    studyVisited.value = new Set()
-    draftExplanation.value = ''
-    quiz.value = []
-    quizIndex.value = 0
-    selectedOption.value = null
-    quizSubmitted.value = false
-    records.value = []
-    feedback.value = null
-    countdownValue.value = null
-    remainingMs.value = 0
+    catalog.value = []
+    resetSessionFields()
     kind.value = k
     open.value = true
     phase.value = 'pick'
@@ -387,6 +454,8 @@ export function useFactDeepenMemorization() {
     phase,
     modes,
     modeConfig,
+    catalogRows,
+    activeGroup,
     cards,
     studyIndex,
     currentCard,
@@ -398,7 +467,7 @@ export function useFactDeepenMemorization() {
     currentQuiz,
     quizProgress,
     selectedOption,
-    quizSubmitted,
+    quizLocked,
     feedback,
     records,
     correctCount,
@@ -406,17 +475,20 @@ export function useFactDeepenMemorization() {
     remainingSec,
     remainingMs,
     elapsedMs,
+    quizDurationSec,
     start,
     close,
-    beginStudy,
+    openCatalog,
+    backToCatalog,
+    backToPick,
+    beginStudyGroup,
     saveCurrentExplanation,
     resetExplanationToBase,
     nextStudy,
     prevStudy,
     goStudy,
     startQuizFromStudy,
-    selectQuizOption,
-    submitQuizAnswer,
+    answerQuizOption,
     restartPick,
   }
 }

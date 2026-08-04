@@ -19,6 +19,7 @@ import {
   type CurrentAffairsPeriodId,
 } from '@/utils/currentAffairsTypes'
 import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+import MemorizationWrongBookPanel from '@/views/tools/chinese-practice/MemorizationWrongBookPanel.vue'
 import type { ChineseCurrentAffairsDrillResultRow } from '@/composables/useChineseCurrentAffairsDrillTest'
 
 const emit = defineEmits<{ (e: 'back'): void }>()
@@ -489,6 +490,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         </div>
       </article>
     </div>
+    <MemorizationWrongBookPanel module="current-affairs" />
   </section>
 </template>
 

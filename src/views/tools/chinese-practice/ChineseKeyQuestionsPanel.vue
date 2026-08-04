@@ -2069,27 +2069,42 @@ defineExpose({ refresh })
   border-top: 1px dashed var(--app-border-soft);
 }
 
-@media (max-width: 640px) {
-  .chinese-key__sources,
+@media (max-width: 640px), (display-mode: standalone) {
+  /* App/窄屏：模块标签换行竖排，禁止横向滚动 */
+  .chinese-key__sources {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    overflow: visible;
+  }
+
+  .chinese-key__source {
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    white-space: normal;
+    line-height: 1.25;
+    padding: 8px 6px;
+  }
+
   .chinese-key__tabs {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    overscroll-behavior-x: contain;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    gap: 6px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    overflow: visible;
+    gap: 8px;
   }
 
-  .chinese-key__sources::-webkit-scrollbar,
-  .chinese-key__tabs::-webkit-scrollbar {
-    display: none;
-  }
-
-  .chinese-key__source,
   .chinese-key__tab {
     flex: 0 0 auto;
     white-space: nowrap;
+  }
+
+  .chinese-key__tabs-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
   }
 
   .chinese-key__list {

@@ -31,6 +31,8 @@ import type {
   CurrentAffairsCategoryId,
   CurrentAffairsPeriodId,
 } from '@/utils/currentAffairsTypes'
+import { createChineseWrongBookGate } from '@/utils/chineseWrongBookGate'
+import { upsertCurrentAffairsDrillWrong } from '@/utils/memorizationWrongBook'
 
 export type ChineseCurrentAffairsDrillPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -64,6 +66,14 @@ export function useChineseCurrentAffairsDrillTest() {
   const quizRunningDisplayMs = ref(0)
   const activeScope = ref<CurrentAffairsDrillScope | null>(null)
   const drillMode = ref<CurrentAffairsDrillMode>('cloze')
+
+  const wrongGate = createChineseWrongBookGate((q: CurrentAffairsDrillQuestion) => {
+    upsertCurrentAffairsDrillWrong(q, {
+      scopeLabel: activeScope.value?.scopeLabel ?? q.scopeKey,
+      drillMode: drillMode.value,
+      chosenIndex: selectedIndex.value,
+    })
+  })
 
   let quizWallClockStartMs: number | null = null
   let quizElapsedIntervalId: number | null = null
@@ -283,10 +293,16 @@ export function useChineseCurrentAffairsDrillTest() {
       question: q,
       chosenIndex: selectedIndex.value,
     })
+    if (!correct) wrongGate.noteWrongAnswer(q)
     submitted.value = true
   }
 
   function nextQuestion() {
+    try {
+      wrongGate.flushWrongIfNeeded()
+    } catch {
+      ElMessage.error('错题保存失败')
+    }
     resumeQuizTimer()
     if (currentIndex.value >= questions.value.length - 1) {
       finalizeElapsed()
@@ -306,6 +322,7 @@ export function useChineseCurrentAffairsDrillTest() {
   }
 
   function resetToIdle() {
+    wrongGate.clearWrongGate()
     clearQuizElapsedInterval()
     quizWallClockStartMs = null
     phase.value = 'idle'

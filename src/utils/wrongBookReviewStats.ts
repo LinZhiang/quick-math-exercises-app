@@ -33,6 +33,8 @@ export type WrongBookReviewScope =
   | `mm-favorite:${MentalMathWrongSection}`
   | `cn-wrong:${ChineseKeyQuestionSource}`
   | `cn-favorite:${ChineseKeyQuestionSource}`
+  | 'mem:poet-drill'
+  | 'mem:current-affairs'
 
 type StatsMap = Record<string, WrongBookReviewBucket>
 
@@ -112,6 +114,8 @@ export function wrongReviewScopeLabel(scope: string): string {
     const title = CHINESE_KEY_QUESTION_SOURCES.find((s) => s.id === id)?.title ?? id
     return `关题收藏 · ${title}`
   }
+  if (scope === 'mem:poet-drill') return '识记错题 · 诗词'
+  if (scope === 'mem:current-affairs') return '识记错题 · 时政'
   return scope
 }
 
