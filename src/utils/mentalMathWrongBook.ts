@@ -190,14 +190,20 @@ export function mentalMathModeToWrongSection(modeId: string): MentalMathWrongSec
   if (
     modeId === 'life-sense-easy' ||
     modeId === 'life-sense-normal' ||
-    modeId === 'life-sense-hard'
+    modeId === 'life-sense-hard' ||
+    modeId === 'life-sense-deepen-easy' ||
+    modeId === 'life-sense-deepen-normal' ||
+    modeId === 'life-sense-deepen-hard'
   ) {
     return 'life-sense'
   }
   if (
     modeId === 'what-is-this-easy' ||
     modeId === 'what-is-this-normal' ||
-    modeId === 'what-is-this-hard'
+    modeId === 'what-is-this-hard' ||
+    modeId === 'what-is-this-deepen-easy' ||
+    modeId === 'what-is-this-deepen-normal' ||
+    modeId === 'what-is-this-deepen-hard'
   ) {
     return 'what-is-this'
   }

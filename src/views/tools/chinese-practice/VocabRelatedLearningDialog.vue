@@ -57,14 +57,14 @@ function optKey(i: number) {
 
     <div v-if="phase === 'loading'" class="vr__loading">
       <p>{{ loadingMessage || '正在一次性生成本组关联学习内容…' }}</p>
-      <p class="vr__muted">本组最多 10 词整组一次生成；学习时仍按三层逐步查看</p>
+      <p class="vr__muted">本组最多 10 词整组一次生成；学习时仍按四层逐步查看</p>
     </div>
 
     <template v-else-if="phase === 'study' && pack">
       <div class="vr__term">{{ pack.term }}</div>
       <div class="vr__layers">
         <span
-          v-for="n in 3"
+          v-for="n in 4"
           :key="n"
           class="vr__layer-dot"
           :class="{
@@ -132,7 +132,7 @@ function optKey(i: number) {
         </ul>
       </section>
 
-      <section v-else class="vr__block">
+      <section v-else-if="studyLayer === 3" class="vr__block">
         <h4 class="vr__h">第三层 · 近反义与其他选项</h4>
         <p class="vr__line">
           <strong>近义词：</strong>
@@ -164,10 +164,31 @@ function optKey(i: number) {
         </ul>
       </section>
 
+      <section v-else class="vr__block">
+        <h4 class="vr__h">第四层 · 快速识记</h4>
+        <p class="vr__muted vr__hint-top">
+          对已注释词再过一遍使用场景（不含近/反义词）；抓住强调点 + 短例句即可。
+        </p>
+        <ul class="vr__list">
+          <li v-for="(q, i) in pack.quickMem" :key="i" class="vr__list-item">
+            <p class="vr__word">{{ q.word }}</p>
+            <p class="vr__line"><strong>强调：</strong>{{ q.cue }}</p>
+            <p
+              v-for="(ex, j) in q.examples"
+              :key="j"
+              class="vr__line vr__example"
+            >
+              <strong>例：</strong>
+              <span v-html="formatVocabExampleHtml(ex, q.word)" />
+            </p>
+          </li>
+        </ul>
+      </section>
+
       <div class="vr__actions">
         <el-button v-if="studyLayer > 1" plain @click="prevStudyLayer">上一层</el-button>
         <el-button type="primary" @click="nextStudyLayer">
-          {{ studyLayer < 3 ? '下一层' : '开始小测' }}
+          {{ studyLayer < 4 ? '下一层' : '开始小测' }}
         </el-button>
       </div>
     </template>
@@ -279,6 +300,10 @@ function optKey(i: number) {
 
 .vr__hint {
   margin: 12px 0 0;
+}
+
+.vr__hint-top {
+  margin: 0 0 10px;
 }
 
 .vr__term {

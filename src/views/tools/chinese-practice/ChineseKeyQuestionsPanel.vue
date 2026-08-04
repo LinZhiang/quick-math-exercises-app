@@ -1445,7 +1445,7 @@ defineExpose({ refresh })
         {{ selected.size }} 题。
         <template v-if="supportsRelatedLearning(source)">
           关联学习按组进行（每组最多 {{ WRONG_BOOK_BATCH_SIZE }} 词）：AI
-          生成三层讲解后做小测；学习包本地缓存，未变复用、新增增量、删词清理（小测不进错题本，完成后写入导览日志）。
+          生成四层讲解后做小测；学习包本地缓存，未变复用、新增增量、删词清理（小测不进错题本，完成后写入导览日志）。
         </template>
       </p>
       <div

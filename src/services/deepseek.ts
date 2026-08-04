@@ -2471,7 +2471,7 @@ const VOCAB_RELATED_LEARNING_SYSTEM = [
 ].join('\n')
 
 /**
- * 重点题 · 成语/词语「关联学习」：一次生成三层学习材料 + 2～3 道学后小测。
+ * 重点题 · 成语/词语「关联学习」：一次生成四层学习材料 + 2～3 道学后小测。
  * 小测答错不进错题本（由调用方保证）。
  */
 export async function requestVocabRelatedLearningPack(input: {
@@ -2520,6 +2520,11 @@ export async function requestVocabRelatedLearningPack(input: {
     '      { "text": "原题干扰项原文", "meaning": "该选项释义", "sentiment": "褒义|贬义|中性|分情况", "sentimentNote": "" }',
     '    ]',
     '  },',
+    '  "layer4": {',
+    '    "quickMem": [',
+    '      { "word": "词面", "cue": "简短使用场景/记忆强调点（十来字内）", "examples": ["短例句1", "短例句2"] }',
+    '    ]',
+    '  },',
     '  "quiz": [',
     '    {',
     '      "questionType": "meaning 或 fill",',
@@ -2537,13 +2542,15 @@ export async function requestVocabRelatedLearningPack(input: {
     '2. layer3.otherOptions 须覆盖原题全部干扰项（非正确选项），每项必须有准确释义（meaning），禁止空字段；',
     '3. 所有释义处必须标注 sentiment（褒义/贬义/中性/分情况）；分情况时 sentimentNote 写清语境差异；',
     '4. layer1.example 与每个 confusable.example 必须各给 1 句自然例句，句中须原样出现对应词；',
-    '5. quiz 必须 2～3 题；questionType 仅 meaning（词义理解）或 fill（选词填空）；',
-    '6. 若 questionType=fill（选词填空）：correct 与 distractors 共 4 个选项必须全部是短词/成语词面，且只能来自「目标词、易混词、近义词、otherOptions 的 text」；禁止反义词入选；禁止白话释义长句（如「差别明显看得出不一样」）；词面不足 4 个时不要出 fill，改出 meaning；',
-    '7. 【考查轮换·硬性】2～3 道小测中，至少 1 题的考查对象不是目标词（focusTerm / fill 正确答案须为易混词或近义词或其他选项词）；严禁「第1题考目标词词义 + 第2题选词填空答案仍是目标词」这种固定套路；目标词最多作为其中 1 题的答案；',
-    '8. quiz 各题 focusTerm 必须写明本题真正考查的词，且尽量在目标词、易混、近义、其他选项词之间轮换；',
-    '9. 小测四选一：correct + distractors 共 4 个互不相同选项；禁止靠选项长短/标点蒙对；fill 四个选项长度应接近（都是词/成语），禁止一个成语配一条长解释；',
-    '10. 近/反义词若确实少见可少给，但数组字段必须存在（可为 []）；反义词仅供第三层学习展示，不得进入 fill 选项；',
-    '11. 小测题干禁止写「本题考查××」「考「××」」等剧透；选词填空题干不得提前给出正确答案。',
+    '5. 【第四层·快速识记】layer4.quickMem 须覆盖：目标词 + 全部易混词 + otherOptions 里像「词/成语」的 text（选词语题的干扰词）；禁止写入近义词、反义词；若 otherOptions 是释义长句（选释义题）则不必为其单独做 quickMem；',
+    '   每条 cue 写使用场景/记忆强调点（简短，如「形势顺利、不可逆推进」），examples 给 1～3 条极短例句（如「北伐军一路北上，势如破竹」），方便速记，勿写长句；',
+    '6. quiz 必须 2～3 题；questionType 仅 meaning（词义理解）或 fill（选词填空）；',
+    '7. 若 questionType=fill（选词填空）：correct 与 distractors 共 4 个选项必须全部是短词/成语词面，且只能来自「目标词、易混词、近义词、otherOptions 的 text」；禁止反义词入选；禁止白话释义长句（如「差别明显看得出不一样」）；词面不足 4 个时不要出 fill，改出 meaning；',
+    '8. 【考查轮换·硬性】2～3 道小测中，至少 1 题的考查对象不是目标词（focusTerm / fill 正确答案须为易混词或近义词或其他选项词）；严禁「第1题考目标词词义 + 第2题选词填空答案仍是目标词」这种固定套路；目标词最多作为其中 1 题的答案；',
+    '9. quiz 各题 focusTerm 必须写明本题真正考查的词，且尽量在目标词、易混、近义、其他选项词之间轮换；',
+    '10. 小测四选一：correct + distractors 共 4 个互不相同选项；禁止靠选项长短/标点蒙对；fill 四个选项长度应接近（都是词/成语），禁止一个成语配一条长解释；',
+    '11. 近/反义词若确实少见可少给，但数组字段必须存在（可为 []）；反义词仅供第三层学习展示，不得进入 fill 选项，也不得进入 layer4；',
+    '12. 小测题干禁止写「本题考查××」「考「××」」等剧透；选词填空题干不得提前给出正确答案。',
     '',
     CHINESE_MCQ_CORRECTNESS_RULES,
   ]
@@ -2553,7 +2560,7 @@ export async function requestVocabRelatedLearningPack(input: {
   const raw = await deepseekChatRaw(user, {
     system: VOCAB_RELATED_LEARNING_SYSTEM,
     temperature: 0.55,
-    maxTokens: 4096,
+    maxTokens: 6144,
   })
 
   const parsed = parseAiJsonObjectLenient(stripAiJsonFence(raw))
@@ -2720,8 +2727,8 @@ export async function requestVocabRelatedLearningPackBatch(input: {
 
   const user = [
     `请为下列 ${rows.length} 个「${kindLabel}识记」目标词一次性生成【关联学习包】数组。`,
-    '每个元素：layer1（meaning、example、sentiment、sentimentNote、phonologyNotes）、layer2.confusables（≥1，含 meaning/example/sentiment）、layer3（synonyms、antonyms、otherOptions 含 sentiment）、quiz（2 题）。',
-    '硬性：otherOptions 必须覆盖全部干扰项且有真实释义；sentiment 取褒义/贬义/中性/分情况，分情况须写 sentimentNote；layer1 与每个易混词都必须有含该词的例句 example；fill 题四个选项必须是短词/成语且仅来自目标/易混/近义/otherOptions，禁止反义词与白话长句；小测至少 1 题考查非目标词，禁止整套只考目标词。',
+    '每个元素：layer1（meaning、example、sentiment、sentimentNote、phonologyNotes）、layer2.confusables（≥1，含 meaning/example/sentiment）、layer3（synonyms、antonyms、otherOptions 含 sentiment）、layer4.quickMem（目标词+易混+词面干扰项，不含近反义与释义长句；每条 cue+短例句）、quiz（2 题）。',
+    '硬性：otherOptions 必须覆盖全部干扰项且有真实释义；sentiment 取褒义/贬义/中性/分情况，分情况须写 sentimentNote；layer1 与每个易混词都必须有含该词的例句 example；layer4 须给快速识记（cue 强调使用场景，examples 短句速记）；fill 题四个选项必须是短词/成语且仅来自目标/易混/近义/otherOptions，禁止反义词与白话长句；小测至少 1 题考查非目标词，禁止整套只考目标词。',
     '一次返回完整 JSON 数组，长度恰好为输入词数；不要分多轮。',
     '小测题干勿写「本题考查××」剧透。',
     '',

@@ -7,6 +7,7 @@ import {
   LIFE_SENSE_BANK,
   type LifeSenseBankItem,
 } from '@/utils/lifeSenseBank.generated'
+import { resolveFactExplanation } from '@/utils/factExplanationOverrides'
 
 export type LifeSenseMode = 'life-sense-easy' | 'life-sense-normal' | 'life-sense-hard'
 
@@ -212,7 +213,7 @@ function buildMcq(
     correctAnswer: item.correct,
     options,
     correctIndex: correctIndex >= 0 ? correctIndex : 0,
-    explanation: item.explanation,
+    explanation: resolveFactExplanation('life-sense', item.key, item.explanation),
   }
 }
 
