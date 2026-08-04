@@ -328,6 +328,17 @@ const OP_SKILL_NAMES: Record<string, string> = {
   'cross-method': '十字交叉法',
 }
 
+const LOGIC_REASON_NAMES: Record<string, string> = {
+  translation: '翻译推理',
+  'combo-arrange': '组合排列',
+  'truth-false': '真假推理',
+  'eval-reason': '评价推理',
+  strengthen: '加强论证',
+  weaken: '削弱论证',
+  'daily-conclusion': '日常结论',
+  explain: '解释现象',
+}
+
 const DATA_ANALYSIS_NAMES: Record<string, string> = {
   growth: '增长',
   'growth-inter-year': '隔年增长',
@@ -415,6 +426,16 @@ const PREFIX_RULES: PrefixRule[] = [
       const name = OP_SKILL_NAMES[mid] ?? mid
       const d = difficulty ? ` · ${difficultyLabel(difficulty)}` : ''
       return `运算技巧 · ${name}${d}`
+    },
+  },
+  {
+    prefix: 'logic-reason-',
+    categoryId: 'logic-reason',
+    categoryLabel: '逻辑推理',
+    labelFor: (mid, difficulty) => {
+      const name = LOGIC_REASON_NAMES[mid] ?? mid
+      const d = difficulty ? ` · ${difficultyLabel(difficulty)}` : ''
+      return `逻辑推理 · ${name}${d}`
     },
   },
   {
@@ -626,6 +647,7 @@ export const PRACTICE_LOG_CATEGORIES: { id: string; label: string }[] = [
   { id: 'twentyfour', label: '二十四点' },
   { id: 'sudoku', label: '数独' },
   { id: 'graphic', label: '图形推理' },
+  { id: 'logic-reason', label: '逻辑推理' },
   { id: 'data-analysis', label: '资料分析' },
   { id: 'op-skill', label: '运算技巧' },
   { id: 'op-highfreq', label: '高频运算' },

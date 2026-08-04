@@ -72,6 +72,14 @@ import CompetitionPanel from '@/views/tools/mental-math/components/CompetitionPa
 import ReversePanel from '@/views/tools/mental-math/components/ReversePanel.vue'
 import SectionalPanel from '@/views/tools/mental-math/components/SectionalPanel.vue'
 import GraphicReasoningCell from '@/views/tools/graphic-reasoning/components/GraphicReasoningCell.vue'
+import TranslationReasonPanel from '@/views/tools/mental-math/components/TranslationReasonPanel.vue'
+import ComboArrangePanel from '@/views/tools/mental-math/components/ComboArrangePanel.vue'
+import TruthFalsePanel from '@/views/tools/mental-math/components/TruthFalsePanel.vue'
+import EvalReasonPanel from '@/views/tools/mental-math/components/EvalReasonPanel.vue'
+import StrengthenReasonPanel from '@/views/tools/mental-math/components/StrengthenReasonPanel.vue'
+import WeakenReasonPanel from '@/views/tools/mental-math/components/WeakenReasonPanel.vue'
+import DailyConclusionPanel from '@/views/tools/mental-math/components/DailyConclusionPanel.vue'
+import ExplainPhenomPanel from '@/views/tools/mental-math/components/ExplainPhenomPanel.vue'
 import {
   clampGraphicReasoningScore,
   generateGraphicReasoningQuestion,
@@ -250,6 +258,14 @@ const subElimPanelRef = ref<InstanceType<typeof SubElimPanel> | null>(null)
 const equationMethodPanelRef = ref<InstanceType<typeof EquationMethodPanel> | null>(null)
 const specialValuePanelRef = ref<InstanceType<typeof SpecialValuePanel> | null>(null)
 const ratioMethodPanelRef = ref<InstanceType<typeof RatioMethodPanel> | null>(null)
+const translationReasonPanelRef = ref<InstanceType<typeof TranslationReasonPanel> | null>(null)
+const comboArrangePanelRef = ref<InstanceType<typeof ComboArrangePanel> | null>(null)
+const truthFalsePanelRef = ref<InstanceType<typeof TruthFalsePanel> | null>(null)
+const evalReasonPanelRef = ref<InstanceType<typeof EvalReasonPanel> | null>(null)
+const strengthenReasonPanelRef = ref<InstanceType<typeof StrengthenReasonPanel> | null>(null)
+const weakenReasonPanelRef = ref<InstanceType<typeof WeakenReasonPanel> | null>(null)
+const dailyConclusionPanelRef = ref<InstanceType<typeof DailyConclusionPanel> | null>(null)
+const explainPhenomPanelRef = ref<InstanceType<typeof ExplainPhenomPanel> | null>(null)
 const crossMethodPanelRef = ref<InstanceType<typeof CrossMethodPanel> | null>(null)
 const sumDiffRatioPanelRef = ref<InstanceType<typeof SumDiffRatioPanel> | null>(null)
 const geometryPanelRef = ref<InstanceType<typeof GeometryPanel> | null>(null)
@@ -317,6 +333,14 @@ const opSkillEqMethodFoldOpen = ref(false)
 const opSkillSpecValFoldOpen = ref(false)
 const opSkillRatioMethodFoldOpen = ref(false)
 const opSkillCrossMethodFoldOpen = ref(false)
+const logicReasonTranslationFoldOpen = ref(false)
+const logicReasonComboArrangeFoldOpen = ref(false)
+const logicReasonTruthFalseFoldOpen = ref(false)
+const logicReasonEvalReasonFoldOpen = ref(false)
+const logicReasonStrengthenFoldOpen = ref(false)
+const logicReasonWeakenFoldOpen = ref(false)
+const logicReasonDailyConclusionFoldOpen = ref(false)
+const logicReasonExplainFoldOpen = ref(false)
 const opHighfreqSumDiffRatioFoldOpen = ref(false)
 const opHighfreqGeometryFoldOpen = ref(false)
 const opHighfreqTravelFoldOpen = ref(false)
@@ -537,6 +561,7 @@ const showGrammarJudgmentSection = computed(
 const showTwentyFourSection = computed(() => activeOutlineSection.value === 'twentyfour')
 const showSudokuSection = computed(() => activeOutlineSection.value === 'sudoku')
 const showGraphicSection = computed(() => activeOutlineSection.value === 'graphic')
+const showLogicReasonSection = computed(() => activeOutlineSection.value === 'logic-reason')
 const showDataAnalysisSection = computed(() => activeOutlineSection.value === 'data-analysis')
 const showOpSkillSection = computed(() => activeOutlineSection.value === 'op-skill')
 const showOpHighfreqSection = computed(() => activeOutlineSection.value === 'op-highfreq')
@@ -581,6 +606,14 @@ const chineseSessionActive = computed(
     (equationMethodPanelRef.value?.isRunningOrLoading ?? false) ||
     (specialValuePanelRef.value?.isRunningOrLoading ?? false) ||
     (ratioMethodPanelRef.value?.isRunningOrLoading ?? false) ||
+    (translationReasonPanelRef.value?.isRunningOrLoading ?? false) ||
+    (comboArrangePanelRef.value?.isRunningOrLoading ?? false) ||
+    (truthFalsePanelRef.value?.isRunningOrLoading ?? false) ||
+    (evalReasonPanelRef.value?.isRunningOrLoading ?? false) ||
+    (strengthenReasonPanelRef.value?.isRunningOrLoading ?? false) ||
+    (weakenReasonPanelRef.value?.isRunningOrLoading ?? false) ||
+    (dailyConclusionPanelRef.value?.isRunningOrLoading ?? false) ||
+    (explainPhenomPanelRef.value?.isRunningOrLoading ?? false) ||
     (crossMethodPanelRef.value?.isRunningOrLoading ?? false) ||
     (sumDiffRatioPanelRef.value?.isRunningOrLoading ?? false) ||
     (geometryPanelRef.value?.isRunningOrLoading ?? false) ||
@@ -804,7 +837,7 @@ function finishSession(perfect = false) {
   }
   if (perfect) {
     if (!isElapsedOnlySession.value) {
-      syncRemainingFromSession()
+    syncRemainingFromSession()
     }
     prepareQbPerfectMidi()
     if (!tryPlayQbPerfectMidiSync()) {
@@ -867,7 +900,7 @@ function beginPlaying(mode: PracticeMode) {
           ? getCircleGrammarModeConfig(mode)
           : isShortenSentenceMode(mode)
             ? getShortenSentenceModeConfig(mode)
-            : getMentalMathModeConfig(mode as MentalMathMode)
+        : getMentalMathModeConfig(mode as MentalMathMode)
   score.value = 0
   finishedByPerfect.value = false
   records.value = []
@@ -1322,13 +1355,13 @@ function applyAnswer(choiceIndex: number) {
         explanation: q.explanation,
       })
     }
-    applyTimeDeltaForAnswer(ok)
-    feedback.value = ok ? 'correct' : 'wrong'
-    if (ok) playMentalMathCorrectSound()
-    else playMentalMathWrongSound()
+  applyTimeDeltaForAnswer(ok)
+  feedback.value = ok ? 'correct' : 'wrong'
+  if (ok) playMentalMathCorrectSound()
+  else playMentalMathWrongSound()
 
     if (finishIfReachedMaxScore(reachedCeiling)) {
-      return
+    return
     }
   } else {
     applyTimeDeltaForAnswer(ok)
@@ -1446,6 +1479,8 @@ onMounted(() => {
     activeOutlineSection.value = 'sudoku'
   } else if (hash === 'graphic' || route.query.section === 'graphic') {
     activeOutlineSection.value = 'graphic'
+  } else if (hash === 'logic-reason' || route.query.section === 'logic-reason') {
+    activeOutlineSection.value = 'logic-reason'
   } else if (hash === 'data-analysis' || route.query.section === 'data-analysis') {
     activeOutlineSection.value = 'data-analysis'
   } else if (hash === 'op-skill' || route.query.section === 'op-skill') {
@@ -1551,17 +1586,17 @@ onBeforeUnmount(() => {
           </button>
         </div>
         <div class="practice-sidebar__flat" aria-label="全部入口">
-          <button
-            v-for="section in PRACTICE_HUB_SECTIONS"
-            :key="section.id"
-            type="button"
-            class="practice-sidebar__item"
-            :class="{ 'practice-sidebar__item--active': activeOutlineSection === section.id }"
-            :disabled="chineseSessionActive && section.id !== activeOutlineSection"
-            @click="selectOutlineSection(section.id)"
-          >
-            {{ section.title }}
-          </button>
+        <button
+          v-for="section in PRACTICE_HUB_SECTIONS"
+          :key="section.id"
+          type="button"
+          class="practice-sidebar__item"
+          :class="{ 'practice-sidebar__item--active': activeOutlineSection === section.id }"
+          :disabled="chineseSessionActive && section.id !== activeOutlineSection"
+          @click="selectOutlineSection(section.id)"
+        >
+          {{ section.title }}
+        </button>
         </div>
       </aside>
 
@@ -1870,6 +1905,246 @@ onBeforeUnmount(() => {
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
+          </div>
+        </section>
+
+        <section v-if="showLogicReasonSection" class="mode-section" id="practice-logic-reason">
+          <h3 class="mode-section__title">逻辑推理</h3>
+          <p class="mode-section__hint">
+            对接公考 / 事业编「判断推理·逻辑判断」。开放「翻译推理」「组合排列」「真假推理」「评价推理」「加强论证」「削弱论证」「日常结论」「解释现象」；由网页
+            AI 出题，流程同运算技巧（正计时、提交后看解析、错题本）。解析含分步说明与干扰项错因。
+          </p>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="logicReasonTranslationFoldOpen"
+              @click="logicReasonTranslationFoldOpen = !logicReasonTranslationFoldOpen"
+            >
+              <span class="da-growth-fold__title">翻译推理</span>
+              <span class="da-growth-fold__meta">简单题 · 普通题 · 困难题 · AI 出题</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': logicReasonTranslationFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="logicReasonTranslationFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">翻译推理</h4>
+              </div>
+              <p class="mode-section__hint">
+                将「若…则…」「只有…才…」等译成逻辑关系后选可推出结论。简单题偏单层逆否；普通题含必要条件短链；困难题为多层必要条件链。需配置 AI
+                后生成，每轮 5 题。
+              </p>
+              <TranslationReasonPanel ref="translationReasonPanelRef" />
+              <MentalMathWrongBookPanel section="logic-reason-translation" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="logicReasonComboArrangeFoldOpen"
+              @click="logicReasonComboArrangeFoldOpen = !logicReasonComboArrangeFoldOpen"
+            >
+              <span class="da-growth-fold__title">组合排列</span>
+              <span class="da-growth-fold__meta">简单题 · 普通题 · 困难题 · AI 出题</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': logicReasonComboArrangeFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="logicReasonComboArrangeFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">组合排列</h4>
+              </div>
+              <p class="mode-section__hint">
+                根据条件做排序或一对一匹配。简单题元素少、条件更少；普通题对齐「半真半假推排序」；困难题对齐多条件分配（含假言/否定）。需配置
+                AI 后生成，每轮 5 题。
+              </p>
+              <ComboArrangePanel ref="comboArrangePanelRef" />
+              <MentalMathWrongBookPanel section="logic-reason-combo-arrange" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="logicReasonTruthFalseFoldOpen"
+              @click="logicReasonTruthFalseFoldOpen = !logicReasonTruthFalseFoldOpen"
+            >
+              <span class="da-growth-fold__title">真假推理</span>
+              <span class="da-growth-fold__meta">简单题 · 普通题 · 困难题 · AI 出题</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': logicReasonTruthFalseFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="logicReasonTruthFalseFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">真假推理</h4>
+              </div>
+              <p class="mode-section__hint">
+                几人说话有真有假（仅一真、一假、两真、两假等均可；人数也不固定）。简单题步骤少、直言为主；普通题常含矛盾对当；困难题假言混杂、多步排除。难度对齐例题手感，需配置
+                AI 后生成，每轮 5 题。
+              </p>
+              <TruthFalsePanel ref="truthFalsePanelRef" />
+              <MentalMathWrongBookPanel section="logic-reason-truth-false" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="logicReasonEvalReasonFoldOpen"
+              @click="logicReasonEvalReasonFoldOpen = !logicReasonEvalReasonFoldOpen"
+            >
+              <span class="da-growth-fold__title">评价推理</span>
+              <span class="da-growth-fold__meta">简单题 · 普通题 · 困难题 · AI 出题</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': logicReasonEvalReasonFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="logicReasonEvalReasonFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">评价推理</h4>
+              </div>
+              <p class="mode-section__hint">
+                评价论证漏洞或某方观点。简单题漏洞单一明显；普通题对齐「论证易受批评的原因」；困难题为多要点组合评价。需配置
+                AI 后生成，每轮 5 题。
+              </p>
+              <EvalReasonPanel ref="evalReasonPanelRef" />
+              <MentalMathWrongBookPanel section="logic-reason-eval-reason" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="logicReasonStrengthenFoldOpen"
+              @click="logicReasonStrengthenFoldOpen = !logicReasonStrengthenFoldOpen"
+            >
+              <span class="da-growth-fold__title">加强论证</span>
+              <span class="da-growth-fold__meta">简单题 · 普通题 · 困难题 · AI 出题</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': logicReasonStrengthenFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="logicReasonStrengthenFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">加强论证</h4>
+              </div>
+              <p class="mode-section__hint">
+                补强结论或找出隐含前提。简单题偏「结论基于的前提」；普通题偏排除他因式加强；困难题偏例证/机制支持。需配置
+                AI 后生成，每轮 5 题。
+              </p>
+              <StrengthenReasonPanel ref="strengthenReasonPanelRef" />
+              <MentalMathWrongBookPanel section="logic-reason-strengthen" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="logicReasonWeakenFoldOpen"
+              @click="logicReasonWeakenFoldOpen = !logicReasonWeakenFoldOpen"
+            >
+              <span class="da-growth-fold__title">削弱论证</span>
+              <span class="da-growth-fold__meta">简单题 · 普通题 · 困难题 · AI 出题</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': logicReasonWeakenFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="logicReasonWeakenFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">削弱论证</h4>
+              </div>
+              <p class="mode-section__hint">
+                找出最能削弱结论的一项。简单题偏切断外推/时段误读；普通题偏另有他因；困难题偏重复统计或基数陷阱。需配置
+                AI 后生成，每轮 5 题。
+              </p>
+              <WeakenReasonPanel ref="weakenReasonPanelRef" />
+              <MentalMathWrongBookPanel section="logic-reason-weaken" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="logicReasonDailyConclusionFoldOpen"
+              @click="logicReasonDailyConclusionFoldOpen = !logicReasonDailyConclusionFoldOpen"
+            >
+              <span class="da-growth-fold__title">日常结论</span>
+              <span class="da-growth-fold__meta">简单题 · 困难题 · AI 出题</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': logicReasonDailyConclusionFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="logicReasonDailyConclusionFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">日常结论</h4>
+              </div>
+              <p class="mode-section__hint">
+                从日常/科普材料推出必然成立的结论。简单题材料短、直接可推；困难题易踩过度推断陷阱。仅简单/困难两档。需配置
+                AI 后生成，每轮 5 题。
+              </p>
+              <DailyConclusionPanel ref="dailyConclusionPanelRef" />
+              <MentalMathWrongBookPanel section="logic-reason-daily-conclusion" />
+            </div>
+          </div>
+
+          <div class="da-growth-fold">
+            <button
+              type="button"
+              class="da-growth-fold__toggle"
+              :aria-expanded="logicReasonExplainFoldOpen"
+              @click="logicReasonExplainFoldOpen = !logicReasonExplainFoldOpen"
+            >
+              <span class="da-growth-fold__title">解释现象</span>
+              <span class="da-growth-fold__meta">简单题 · 困难题 · AI 出题</span>
+              <span
+                class="da-growth-fold__chevron"
+                :class="{ 'is-open': logicReasonExplainFoldOpen }"
+              >
+                ▾
+              </span>
+            </button>
+            <div v-show="logicReasonExplainFoldOpen" class="da-growth-fold__body">
+              <div class="da-topic-head">
+                <h4 class="mode-section__subtitle">解释现象</h4>
+              </div>
+              <p class="mode-section__hint">
+                解释反常现象或化解矛盾。简单题偏直接解释销量等反常；困难题含矛盾组合选肢或科学情境。仅简单/困难两档。需配置
+                AI 后生成，每轮 5 题。
+              </p>
+              <ExplainPhenomPanel ref="explainPhenomPanelRef" />
+              <MentalMathWrongBookPanel section="logic-reason-explain" />
+            </div>
           </div>
         </section>
 
