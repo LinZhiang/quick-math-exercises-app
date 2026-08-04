@@ -12,6 +12,7 @@ export type PracticeHubSectionId =
   | 'twentyfour'
   | 'sudoku'
   | 'graphic'
+  | 'logic-reason'
   | 'data-analysis'
   | 'op-skill'
   | 'op-highfreq'
@@ -39,6 +40,7 @@ export const PRACTICE_HUB_SECTIONS: PracticeHubSection[] = [
   { id: 'twentyfour', title: '二十四点' },
   { id: 'sudoku', title: '数独' },
   { id: 'graphic', title: '图形推理' },
+  { id: 'logic-reason', title: '逻辑推理' },
   { id: 'data-analysis', title: '资料分析' },
   { id: 'op-skill', title: '运算技巧' },
   { id: 'op-highfreq', title: '高频运算' },
@@ -72,6 +74,7 @@ export const PRACTICE_HUB_GROUPS: PracticeHubGroup[] = [
       'twentyfour',
       'sudoku',
       'graphic',
+      'logic-reason',
       'data-analysis',
       'op-skill',
       'op-highfreq',

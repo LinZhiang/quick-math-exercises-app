@@ -87,6 +87,62 @@ import {
   type TheoryPolicyQuestion,
 } from '@/utils/theoryPolicyPractice'
 import {
+  buildTranslationReasonQuestionFromMcq,
+  parseTranslationReasonMcqAiObject,
+  TRANSLATION_REASON_QUESTION_COUNT,
+  type TranslationReasonDifficulty,
+  type TranslationReasonQuestion,
+} from '@/utils/translationReasonPractice'
+import {
+  buildComboArrangeQuestionFromMcq,
+  parseComboArrangeMcqAiObject,
+  COMBO_ARRANGE_QUESTION_COUNT,
+  type ComboArrangeDifficulty,
+  type ComboArrangeQuestion,
+} from '@/utils/comboArrangePractice'
+import {
+  buildTruthFalseQuestionFromMcq,
+  parseTruthFalseMcqAiObject,
+  TRUTH_FALSE_QUESTION_COUNT,
+  type TruthFalseDifficulty,
+  type TruthFalseQuestion,
+} from '@/utils/truthFalsePractice'
+import {
+  buildEvalReasonQuestionFromMcq,
+  parseEvalReasonMcqAiObject,
+  EVAL_REASON_QUESTION_COUNT,
+  type EvalReasonDifficulty,
+  type EvalReasonQuestion,
+} from '@/utils/evalReasonPractice'
+import {
+  buildStrengthenReasonQuestionFromMcq,
+  parseStrengthenReasonMcqAiObject,
+  STRENGTHEN_REASON_QUESTION_COUNT,
+  type StrengthenReasonDifficulty,
+  type StrengthenReasonQuestion,
+} from '@/utils/strengthenReasonPractice'
+import {
+  buildWeakenReasonQuestionFromMcq,
+  parseWeakenReasonMcqAiObject,
+  WEAKEN_REASON_QUESTION_COUNT,
+  type WeakenReasonDifficulty,
+  type WeakenReasonQuestion,
+} from '@/utils/weakenReasonPractice'
+import {
+  buildDailyConclusionQuestionFromMcq,
+  parseDailyConclusionMcqAiObject,
+  DAILY_CONCLUSION_QUESTION_COUNT,
+  type DailyConclusionDifficulty,
+  type DailyConclusionQuestion,
+} from '@/utils/dailyConclusionPractice'
+import {
+  buildExplainPhenomQuestionFromMcq,
+  parseExplainPhenomMcqAiObject,
+  EXPLAIN_PHENOM_QUESTION_COUNT,
+  type ExplainPhenomDifficulty,
+  type ExplainPhenomQuestion,
+} from '@/utils/explainPhenomPractice'
+import {
   buildLegalCommonSenseQuestionFromMcq,
   LEGAL_COMMON_SENSE_QUESTION_COUNT,
   parseLegalCommonSenseMcqAiObject,
@@ -8301,4 +8357,1292 @@ export async function requestFunctionGraphMcqs(input: {
     throw new Error(`函数图象问题仅生成 ${out.length}/${count} 题，请重试。`)
   }
   return out.slice(0, count)
+}
+
+/** 逻辑判断各题型共用：公考/事业编定位 + 详细解析要求 */
+const LOGIC_REASON_COMMON_RULES = [
+  '命题对接公务员考试、事业单位考试「判断推理·逻辑判断」常见考法，干扰项设计贴近真题陷阱，难度对标相应考点真题手感。',
+  '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
+  [
+    '【explanation 详细解析·硬性】须写 4～8 句中文（约 120～280 字），按序包含：',
+    '①概括材料逻辑关系或论证结构；',
+    '②说明正确项为何必然成立/最能加强/最能削弱/唯一可推/最能解释；',
+    '③至少点破两个主要干扰项错因（如肯前否后、充分必要颠倒、另有他因、过度推断、无关选项等）；',
+    '④末句点明本题考点名称。',
+    '禁止只写「选某项」或一两句空话。method 写短考点名（约 8～20 字）。',
+  ].join(''),
+].join('\n')
+
+const TRANSLATION_REASON_SYSTEM = [
+  '你是公务员/事业编考试「判断推理·逻辑判断·翻译推理」命题专家，专精假言命题、充分必要条件、逆否等价。',
+  LOGIC_REASON_COMMON_RULES,
+  '题干表述可灵活（若…则…/只有…才…/前提/基础/必须等），题材不限；正确项须逻辑唯一，干扰项贴近常见翻译陷阱。',
+].join('\n')
+
+function translationReasonDiffLabel(d: TranslationReasonDifficulty): string {
+  if (d === 'easy') return '简单'
+  if (d === 'medium') return '普通'
+  return '困难'
+}
+
+function translationReasonFormat(difficulty: TranslationReasonDifficulty): string {
+  const flex = `
+【灵活·必读】联词与场景可换；勿整批同构。例题只定难度与陷阱类型，禁止照抄原文人物/名言/材料。
+【输出】JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 须按系统要求写详细分步解析（含干扰项错因）。
+`.trim()
+
+  if (difficulty === 'easy') {
+    return `
+【难度·简单】单层假言或一句条件句，1～2 步逆否/等价即可；干扰项含肯前否后、肯后否前、「只要…就」与原命题不等价等。
+【例题参考·难度手感】
+passage：法国剧作家博马舍《费加罗的婚礼》：「若批评不自由，则赞美无意义。」某报以此为报头。
+stem：由此可以推出该报纸最有可能赞同的说法是（ ）
+选项参考：A 只要批评自由则赞美有意义｜B 只要赞美自由则批评有意义｜C 赞美有意义可见批评自由｜D 批评不自由仍可有意义赞美
+正确思路：原命题「批评不自由→赞美无意义」等价逆否「赞美有意义→批评自由」，故 C。
+同类可换：若…则… / 如果…就… / 除非…否则…（译成等价假言）等，人物题材自拟。
+${flex}
+`.trim()
+  }
+  if (difficulty === 'medium') {
+    return `
+【难度·普通】「只有…才…」或 2～3 环短链条；正确项多为肯后推前/逆否，干扰项颠倒充分必要。
+【例题参考·难度手感】
+passage：农民是保护传承主体，让农民受益才能落到实处；发挥新型经营主体、健全利益联结、发展特色、惠及更多农户，才能擦亮农业文化遗产「招牌」。
+stem：由此可以推出（ ）
+选项参考含：若招牌得以擦亮，说明更多农户享受到发展成果（必要条件肯后）；以及「没保护→农民没受益」等混淆充分必要的干扰。
+正确思路：擦亮招牌←惠及农户等必要条件链条 → 「擦亮→已惠及」可推。
+链条长度与联词可灵活，勿照抄农业题材。
+${flex}
+`.trim()
+  }
+  return `
+【难度·困难】多层「只有 A 才能 B」必要条件链（≥3 环），正确项常为链上某环的逆否；干扰项把「只有…才」误当充分。
+【例题参考·难度手感】
+passage：明确数据财产权属→才能建要素市场；建立数据财产制度→才能调动积极性且静态变资产；真正成为资产→才能推动产业且实现数字化转型。
+stem：由此可以推出（ ）
+选项参考含：若未能真正成为资产就不能实现数字化转型（逆否）；以及「一旦明确权属就能建市场」等充分误读。
+正确思路：数字化转型→真正成为资产，故「未成资产→不能数字化转型」。
+可换科技/治理/教育等长链条题材，结构自拟。
+${flex}
+`.trim()
+}
+
+function dedupeTranslationReasonQuestions(
+  items: TranslationReasonQuestion[],
+  blockedTerms?: Set<string>,
+): TranslationReasonQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: TranslationReasonQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestTranslationReasonMcqs(input: {
+  count?: number
+  difficulty: TranslationReasonDifficulty
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<TranslationReasonQuestion[]> {
+  const count = input.count ?? TRANSLATION_REASON_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const diffLabel = translationReasonDiffLabel(difficulty)
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.(aiRequestProgressText(`翻译推理（${diffLabel}）`))
+
+  const format = translationReasonFormat(difficulty)
+  const historyHint = buildAvoidTermsHint('翻译推理主题', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 公考/事业编「判断推理·翻译推理」四选一，难度 **${diffLabel}**。`,
+    format,
+    historyHint,
+    `本批 ${count} 道的 term（主题标签）必须互不相同；材料题材多样（社会、经济、文化、科技、法律均可），勿重复同一名言或同一案例。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: TRANSLATION_REASON_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+    temperature: 0.72,
+    maxTokens: 12288,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: TranslationReasonQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseTranslationReasonMcqAiObject(item)
+    if (!fields) return
+    const q = buildTranslationReasonQuestionFromMcq({
+      ...fields,
+      difficulty,
+      seq: idx + 1,
+    })
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
+  })
+
+  const deduped = dedupeTranslationReasonQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('翻译推理主题', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        [
+          `请生成第 ${slot} 道翻译推理四选一题，难度 **${diffLabel}**。`,
+          format,
+          avoidHint,
+          '仅返回一个 JSON 对象。',
+        ].join('\n\n'),
+        {
+          system: TRANSLATION_REASON_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+          temperature: 0.7,
+          maxTokens: 2200,
+        },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseTranslationReasonMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildTranslationReasonQuestionFromMcq({
+        ...fields,
+        difficulty,
+        seq: slot,
+      })
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const COMBO_ARRANGE_SYSTEM = [
+  '你是公务员/事业编考试「判断推理·逻辑判断·组合排列」命题专家，专精排序、匹配、半真半假与条件分配。',
+  LOGIC_REASON_COMMON_RULES,
+  '元素个数、条件条数、题型（纯排序/一对一匹配/半真半假）可灵活；correct 在材料下须唯一可确定。',
+].join('\n')
+
+function comboArrangeDiffLabel(d: ComboArrangeDifficulty): string {
+  if (d === 'easy') return '简单'
+  if (d === 'medium') return '普通'
+  return '困难'
+}
+
+function comboArrangeFormat(difficulty: ComboArrangeDifficulty): string {
+  const flex = `
+【灵活·必读】元素个数、条件写法、场景均可换；例题只定难度，禁止照抄饮品/四队原文。本批尽量变换题型变体。
+JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 须按系统要求写详细分步解析（含干扰项错因）。
+`.trim()
+
+  if (difficulty === 'easy') {
+    return `
+【难度·简单】比普通题条件更少：约 3 个元素、2～3 条直接条件即可唯一确定；避免「每人对一半」多轮假设，也避免多层假言嵌套。
+题型可灵活：名次排序、书架顺序、三人三课匹配等；条件如「甲不是第一」「乙在丙前」「丙不选语文」等。
+stem：「据此可推出排序/匹配为（ ）」；选项写完整方案。
+${flex}
+`.trim()
+  }
+  if (difficulty === 'medium') {
+    return `
+【难度·普通】推理量对齐「半真半假推排序」：多人预测名次且各对一半（或类似对错比例），或条件稍多的中等排序/匹配。
+【例题参考·难度手感】
+passage：甲乙丙预测牛奶、豆浆、果汁、咖啡销量。甲：豆浆第二、咖啡最高。乙：咖啡第二、果汁第三。丙：牛奶第二、果汁垫底。各自预测正确一半。
+stem：据此推断 4 种饮品销量从高到低为（ ）
+选项为四条完整排序（如「咖啡、果汁、豆浆、牛奶」等）；正确项须与「各对一半」完全自洽。
+同类可换：比赛名次、成绩排名、节目收视等；「各对一半」也可改为「各对一句」等，但难度勿掉到简单档。
+${flex}
+`.trim()
+  }
+  return `
+【难度·困难】多条件一对一分配；条件含否定、析取否定、假言等，推出唯一匹配。
+【例题参考·难度手感】
+passage：红蓝黄绿四队分配搭帐篷、生火做饭、寻找水源、搞卫生。（1）红队不是生火做饭，也不寻找水源；（2）黄队既不寻找水源，也不生火做饭；（3）如果红队不是搭帐篷，那么绿队不是生火做饭；（4）有人说蓝队或者搭帐篷或者生火做饭，但事实并非如此。
+stem：由此可推出具体分配结果为（ ）
+选项为四人完整分配方案；正确项须满足全部条件。
+主体/任务/条件组合可自拟，保持同类推理负担。
+${flex}
+`.trim()
+}
+
+function dedupeComboArrangeQuestions(
+  items: ComboArrangeQuestion[],
+  blockedTerms?: Set<string>,
+): ComboArrangeQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: ComboArrangeQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestComboArrangeMcqs(input: {
+  count?: number
+  difficulty: ComboArrangeDifficulty
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<ComboArrangeQuestion[]> {
+  const count = input.count ?? COMBO_ARRANGE_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const diffLabel = comboArrangeDiffLabel(difficulty)
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.(aiRequestProgressText(`组合排列（${diffLabel}）`))
+
+  const format = comboArrangeFormat(difficulty)
+  const historyHint = buildAvoidTermsHint('组合排列主题', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 公考/事业编「判断推理·组合排列」四选一，难度 **${diffLabel}**。`,
+    format,
+    historyHint,
+    `本批 ${count} 道的 term（主题标签）必须互不相同；题材与条件结构尽量多样，勿重复同一案例。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: COMBO_ARRANGE_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+    temperature: 0.72,
+    maxTokens: 12288,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: ComboArrangeQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseComboArrangeMcqAiObject(item)
+    if (!fields) return
+    const q = buildComboArrangeQuestionFromMcq({
+      ...fields,
+      difficulty,
+      seq: idx + 1,
+    })
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
+  })
+
+  const deduped = dedupeComboArrangeQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('组合排列主题', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        [
+          `请生成第 ${slot} 道组合排列四选一题，难度 **${diffLabel}**。`,
+          format,
+          avoidHint,
+          '仅返回一个 JSON 对象。',
+        ].join('\n\n'),
+        {
+          system: COMBO_ARRANGE_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+          temperature: 0.7,
+          maxTokens: 2200,
+        },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseComboArrangeMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildComboArrangeQuestionFromMcq({
+        ...fields,
+        difficulty,
+        seq: slot,
+      })
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const TRUTH_FALSE_SYSTEM = [
+  '你是公务员/事业编考试「判断推理·逻辑判断·真假推理」命题专家，专精真话假话、矛盾对当、假设排除。',
+  LOGIC_REASON_COMMON_RULES,
+  '人数、陈述句数、真假数量均可灵活（仅一真/仅一假/恰两真/恰两假/一半真一半假等），但材料必须写清真假约束；在该约束下 correct 唯一；解析须标明谁真谁假及逐步排除。',
+].join('\n')
+
+function truthFalseDiffLabel(d: TruthFalseDifficulty): string {
+  if (d === 'easy') return '简单'
+  if (d === 'medium') return '普通'
+  return '困难'
+}
+
+function truthFalseFormat(difficulty: TruthFalseDifficulty): string {
+  const flexibleCommon = `
+【灵活命题·必读】
+- 人数不必固定（2～7 人均可）；陈述句数可与人数相同或略少。
+- 真假约束可多样：仅一真、仅一假、恰两真、恰两假、一半真一半假等——须在题干写清。
+- 本批尽量变换「真假约束类型」与场景，不要整批同一种「仅一真」。
+- 例题只定难度手感与结构，禁止照抄人名与原话。
+JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 须按系统要求写详细分步解析（含干扰项错因）。
+`.trim()
+
+  if (difficulty === 'easy') {
+    return `
+【难度·简单】一两轮假设即可；陈述多为直言，一般不含全称特称对当与假言连锁。
+【例题参考·难度手感】
+passage：小查、小白、小铭三人中只有一人会泰语。小查：「我不会泰语。」小铭：「小查不会泰语。」小白：「我会泰语。」三句话只有一句为真。
+stem：那么会泰语的是（ ）
+选项：小查 / 小白 / 小铭 / 无法判断（结构参考；你出题时须自洽唯一）。
+同类亦可：两人三句、四人仅一假、三人恰两真等，整体仍偏易。
+${flexibleCommon}
+`.trim()
+  }
+  if (difficulty === 'medium') {
+    return `
+【难度·普通】常用矛盾/对当（全称与特称等）先锁一真一假，再结合真假数量推其余。
+【例题参考·难度手感】
+passage：甲乙丙丁四人工作各不相同且至多一工具。甲：所有工作都要用老虎钳。乙：本人工作要用螺丝刀。丙：我的工作不需要扳手。丁：有的工作没有用到老虎钳。其中只有一句话为真。
+stem：以下哪项为真（ ）
+选项参考含：丙的工作要用扳手；有的工作要用螺丝刀；乙要用螺丝刀；所有工作都要用老虎钳。
+正确思路：甲与丁矛盾必有一真一假，又仅一真 → 乙丙假 → 可推「丙的工作要用扳手」一类结论。
+同类可换约束与对象，勿照抄工具题。
+${flexibleCommon}
+`.trim()
+  }
+  return `
+【难度·困难】多人、假言与直言混杂；真假数量 + 假言真值多步排除；干扰项区分「可能/必然」。
+【例题参考·难度手感】
+passage：甲～己六人推测录取。甲：若小赵没考上文学则一定考上语言学。乙：小汪一定考上法律。丙：若小刘没考上化学则小丽考上微电子。丁：小赵文学语言学都考不上。戊：小任能考上动漫。己：小丽考不上微电子。录取后发现两个人的推测与事实不符。
+stem：由此可以推出（ ）
+选项为复合事实判断；正确项须在「恰两假」下可必然推出。
+人数与真假数可改，保持困难档推理负担。
+${flexibleCommon}
+`.trim()
+}
+
+function dedupeTruthFalseQuestions(
+  items: TruthFalseQuestion[],
+  blockedTerms?: Set<string>,
+): TruthFalseQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: TruthFalseQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestTruthFalseMcqs(input: {
+  count?: number
+  difficulty: TruthFalseDifficulty
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<TruthFalseQuestion[]> {
+  const count = input.count ?? TRUTH_FALSE_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const diffLabel = truthFalseDiffLabel(difficulty)
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.(aiRequestProgressText(`真假推理（${diffLabel}）`))
+
+  const format = truthFalseFormat(difficulty)
+  const historyHint = buildAvoidTermsHint('真假推理主题', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 公考/事业编「判断推理·真假推理」四选一，难度 **${diffLabel}**。`,
+    format,
+    historyHint,
+    `本批 ${count} 道的 term（主题标签）必须互不相同；题材多样，勿重复同一案例。`,
+    `真假约束类型尽量多样（勿整批都是「仅一真」）；人数也可变化。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: TRUTH_FALSE_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+    temperature: 0.74,
+    maxTokens: 12288,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: TruthFalseQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseTruthFalseMcqAiObject(item)
+    if (!fields) return
+    const q = buildTruthFalseQuestionFromMcq({
+      ...fields,
+      difficulty,
+      seq: idx + 1,
+    })
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
+  })
+
+  const deduped = dedupeTruthFalseQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('真假推理主题', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        [
+          `请生成第 ${slot} 道真假推理四选一题，难度 **${diffLabel}**。`,
+          format,
+          avoidHint,
+          '仅返回一个 JSON 对象。',
+        ].join('\n\n'),
+        {
+          system: TRUTH_FALSE_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+          temperature: 0.7,
+          maxTokens: 2200,
+        },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseTruthFalseMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildTruthFalseQuestionFromMcq({
+        ...fields,
+        difficulty,
+        seq: slot,
+      })
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const EVAL_REASON_SYSTEM = [
+  '你是公务员/事业编考试「判断推理·逻辑判断·评价推理」命题专家，专精论证评价、谬误识别与观点评析。',
+  LOGIC_REASON_COMMON_RULES,
+  '题干问法可灵活（易受批评的原因 / 主要漏洞 / 评价正确的是）；谬误类型宜多样；correct 为最恰当评价。',
+].join('\n')
+
+function evalReasonDiffLabel(d: EvalReasonDifficulty): string {
+  if (d === 'easy') return '简单'
+  if (d === 'medium') return '普通'
+  return '困难'
+}
+
+function evalReasonFormat(difficulty: EvalReasonDifficulty): string {
+  const flex = `
+【灵活·必读】场景与谬误类型可换；例题只定难度，禁止照抄刘奶奶/斜杠青年原文。本批尽量覆盖不同谬误。
+JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 须按系统要求写详细分步解析（含干扰项错因）。
+`.trim()
+
+  if (difficulty === 'easy') {
+    return `
+【难度·简单】比普通题更轻：材料一两句即可，漏洞单一明显（人身攻击、诉诸权威、以偏概全、偷换概念、绝对化等其一）；选项直接对应一种批评，无需①②③④组合。
+stem：「上述论证的主要问题是（ ）」「最恰当的评价是（ ）」等。
+${flex}
+`.trim()
+  }
+  if (difficulty === 'medium') {
+    return `
+【难度·普通】一段论证，问「很容易受到批评，因为…」；正确项抓最核心漏洞，干扰项为次要或似是而非批评。
+【例题参考·难度手感】
+passage：刘奶奶称「全年物价涨幅低于5%」的官员明显错，因缺乏生活经验、没自己买过东西；并举早点涨10%、布鞋12%、高铁15%、汽油20%。
+stem：刘奶奶的上述论证很容易受到批评，因为（ ）
+选项参考：A 指责官员缺乏经验而非针对论证｜B 用不具代表性的小样本作证据｜C 诉诸感情｜D 「没买过东西」说法太绝对
+正确思路：个别品类涨价不能代表全年总物价指数 → 批评「小样本/以偏概全」最切中（B）；A/C/D 虽可挑剔但非最核心。
+同类可换统计、调查、个案推全体等题材。
+${flex}
+`.trim()
+  }
+  return `
+【难度·困难】双方讨论 +「对甲/乙观点评价正确的是」+ ①②③④ 要点组合选肢。
+【例题参考·难度手感】
+passage：「斜杠青年」定义后，甲：不可取，「术业有专攻」，专一才能成功。乙：认同，年轻人应多尝试才知适合什么。
+stem：对于甲的观点，评价正确的是（ ）
+要点参考：①带偏见名言支撑｜②结论过于绝对｜③有主观偏见｜④把普通情况代入特殊情形
+选项参考：A①② B②③ C③④ D①④
+正确思路：甲把专一说成成功必要条件，结论绝对且带主观排斥「斜杠」→ ②③ 一类组合更贴切。
+可换职场/教育/消费等辩论题材；要点集合与组合方式自拟。
+${flex}
+`.trim()
+}
+
+function dedupeEvalReasonQuestions(
+  items: EvalReasonQuestion[],
+  blockedTerms?: Set<string>,
+): EvalReasonQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: EvalReasonQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestEvalReasonMcqs(input: {
+  count?: number
+  difficulty: EvalReasonDifficulty
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<EvalReasonQuestion[]> {
+  const count = input.count ?? EVAL_REASON_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const diffLabel = evalReasonDiffLabel(difficulty)
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.(aiRequestProgressText(`评价推理（${diffLabel}）`))
+
+  const format = evalReasonFormat(difficulty)
+  const historyHint = buildAvoidTermsHint('评价推理主题', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 公考/事业编「判断推理·评价推理」四选一，难度 **${diffLabel}**。`,
+    format,
+    historyHint,
+    `本批 ${count} 道的 term（主题标签）必须互不相同；题材与谬误类型尽量多样，勿重复同一案例。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: EVAL_REASON_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+    temperature: 0.7,
+    maxTokens: 12288,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: EvalReasonQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseEvalReasonMcqAiObject(item)
+    if (!fields) return
+    const q = buildEvalReasonQuestionFromMcq({
+      ...fields,
+      difficulty,
+      seq: idx + 1,
+    })
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
+  })
+
+  const deduped = dedupeEvalReasonQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('评价推理主题', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        [
+          `请生成第 ${slot} 道评价推理四选一题，难度 **${diffLabel}**。`,
+          format,
+          avoidHint,
+          '仅返回一个 JSON 对象。',
+        ].join('\n\n'),
+        {
+          system: EVAL_REASON_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+          temperature: 0.72,
+          maxTokens: 2200,
+        },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseEvalReasonMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildEvalReasonQuestionFromMcq({
+        ...fields,
+        difficulty,
+        seq: slot,
+      })
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const STRENGTHEN_REASON_SYSTEM = [
+  '你是公务员/事业编考试「判断推理·逻辑判断·加强型/前提型」命题专家，专精补强结论、排除他因、例证支持与隐含前提。',
+  LOGIC_REASON_COMMON_RULES,
+  'correct 须最能支持/使结论成立；勿出削弱项当正确项。',
+].join('\n')
+
+function strengthenReasonDiffLabel(d: StrengthenReasonDifficulty): string {
+  if (d === 'easy') return '简单'
+  if (d === 'medium') return '普通'
+  return '困难'
+}
+
+function strengthenReasonFormat(difficulty: StrengthenReasonDifficulty): string {
+  const flex = `
+【灵活·必读】题材与问法可换；例题只定难度，禁止照抄招聘/金字塔/无人机原文。本批尽量变换加强方式（前提、排除他因、例证、补充机制等）。
+JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 须按系统要求写详细分步解析（含干扰项错因）。
+`.trim()
+
+  if (difficulty === 'easy') {
+    return `
+【难度·简单】偏「前提/假设」：材料给论证或结论，问「结论基于的前提是」「论证假设了什么」；正确项是结论成立所必需、且材料未明说的条件；干扰项过强、过窄或无关。
+【例题参考·难度手感】
+passage：某公司招聘要求身高1米7以上；严格按规则招聘后，结论「该公司所有人身高都高于1米7」。
+stem：以上结论基于的前提是？
+选项参考：A 招聘前原员工都超1米7｜B 领导岗位都超｜C 所有应聘者都超｜D 对1米7及以下优秀人员不设特殊招聘
+正确思路：若可对矮个子特招，则「严格按规则招聘」推不出「所有人都超1米7」→ D 类「无例外通道」是关键前提。
+同类可换其他规则→全称结论的隐含前提题。
+${flex}
+`.trim()
+  }
+  if (difficulty === 'medium') {
+    return `
+【难度·普通】经典加强：考古/调查等由证据推结论，问「最能支持/加强上述结论」；正确项常排除他因或堵住漏洞。
+【例题参考·难度手感】
+passage：原认为胡夫金字塔由奴隶建造；附近发现工匠村落、食宿有保障，墓穴有工匠骸骨及手术/骨折医治痕迹 → 考古学家认为由自由民建造而非奴隶。
+stem：最能支持考古学家观点的是（ ）（选项结构参考）
+选项参考：A 村落住了大量自由民｜B 古埃及奴隶死后不会在墓穴安葬｜C 自由民数量足以建造｜D 遗迹中有妇女婴儿骸骨
+正确思路：B 堵住「墓中工匠仍可能是奴隶」→ 加强「是自由民」。
+问法可为「最能支持/加强/以下哪项为真则结论更可信」等。
+${flex}
+`.trim()
+  }
+  return `
+【难度·困难】材料给较新做法/现象并下积极结论，选项多为事实陈述；正确项用具体例证或关键机制明显加强，干扰项为无关培训、比赛或弱相关。
+【例题参考·难度手感】
+passage：无人机应用变广；检察机关借无人机参与公益诉讼，专项监督以来航拍勘验取证，为办案提质增效提供支撑。
+stem：最能加强上述论证的是（ ）（选项结构参考）
+选项参考：A 某院航拍西瓜种植区采集农膜图片作公益诉讼证据｜B 无人机高机动宽视野等优势可打破地形限制勘查｜C 组织飞行勘查培训多次｜D 举办无人机取证比赛
+正确思路：A 类「办案实绩例证」最直接支持「提质增效」；B 也可加强但偏能力说明；C/D 偏组织活动，加强力弱。出题时须保证正确项唯一最强。
+${flex}
+`.trim()
+}
+
+function dedupeStrengthenReasonQuestions(
+  items: StrengthenReasonQuestion[],
+  blockedTerms?: Set<string>,
+): StrengthenReasonQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: StrengthenReasonQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestStrengthenReasonMcqs(input: {
+  count?: number
+  difficulty: StrengthenReasonDifficulty
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<StrengthenReasonQuestion[]> {
+  const count = input.count ?? STRENGTHEN_REASON_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const diffLabel = strengthenReasonDiffLabel(difficulty)
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.(aiRequestProgressText(`加强论证（${diffLabel}）`))
+
+  const format = strengthenReasonFormat(difficulty)
+  const historyHint = buildAvoidTermsHint('加强论证主题', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 公考/事业编「判断推理·加强论证（含前提型）」四选一，难度 **${diffLabel}**。`,
+    format,
+    historyHint,
+    `本批 ${count} 道的 term（主题标签）必须互不相同；题材与加强方式尽量多样，勿重复同一案例。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: STRENGTHEN_REASON_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+    temperature: 0.72,
+    maxTokens: 12288,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: StrengthenReasonQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseStrengthenReasonMcqAiObject(item)
+    if (!fields) return
+    const q = buildStrengthenReasonQuestionFromMcq({
+      ...fields,
+      difficulty,
+      seq: idx + 1,
+    })
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
+  })
+
+  const deduped = dedupeStrengthenReasonQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('加强论证主题', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        [
+          `请生成第 ${slot} 道加强论证四选一题，难度 **${diffLabel}**。`,
+          format,
+          avoidHint,
+          '仅返回一个 JSON 对象。',
+        ].join('\n\n'),
+        {
+          system: STRENGTHEN_REASON_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+          temperature: 0.74,
+          maxTokens: 2200,
+        },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseStrengthenReasonMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildStrengthenReasonQuestionFromMcq({
+        ...fields,
+        difficulty,
+        seq: slot,
+      })
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const WEAKEN_REASON_SYSTEM = [
+  '你是公务员/事业编考试「判断推理·逻辑判断·削弱型」命题专家，专精另有他因、切断外推、质疑样本与统计陷阱。',
+  LOGIC_REASON_COMMON_RULES,
+  'correct 须最能削弱结论；勿把加强项或无关项标为正确。',
+].join('\n')
+
+function weakenReasonDiffLabel(d: WeakenReasonDifficulty): string {
+  if (d === 'easy') return '简单'
+  if (d === 'medium') return '普通'
+  return '困难'
+}
+
+function weakenReasonFormat(difficulty: WeakenReasonDifficulty): string {
+  const flex = `
+【灵活·必读】题材与削弱方式可换；例题只定难度，禁止照抄照相机/茶咖啡/健身卡原文。本批尽量变换削弱手法。
+JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 须按系统要求写详细分步解析（含干扰项错因）。
+`.trim()
+
+  if (difficulty === 'easy') {
+    return `
+【难度·简单】由部分时段/局部数据外推全年或总体结论；正确削弱常指出「时段不具代表性」或切断外推。
+【例题参考·难度手感】
+passage：2022年1–6月售出约300万台照相机，仅是2021年全年销量的35% → 结论：2022年销量一定比2021年少。
+stem：最能削弱上述结论的是（ ）
+选项参考：A 2021比2020少｜B 2022售价更便宜｜C 多数家庭已有相机｜D 全年销量70%以上在年末两月完成
+正确思路：D 说明上半年占比本就可能偏低，外推「全年更少」不成立。
+${flex}
+`.trim()
+  }
+  if (difficulty === 'medium') {
+    return `
+【难度·普通】因果/实验结论；正确削弱多为「另有他因」（实验组还做了别的事），干扰项为无关、另项研究或背景常识。
+【例题参考·难度手感】
+passage：研究称茶中物质增强抵抗力而咖啡没有；20人各半喝茶/喝咖啡一个月后，接触大肠杆菌，喝茶组干扰素为实验前5倍，咖啡组无变化。
+stem：最能削弱以上研究结论的是（ ）
+选项参考：A 喝茶组更注重运动｜B 另有研究称多喝咖啡也增强体质｜C 细菌亿年未灭绝｜D 干净环境有助抵抗力
+正确思路：A 引入他因，削弱「是茶导致干扰素升高」。
+${flex}
+`.trim()
+  }
+  return `
+【难度·困难】用办卡数/人次增长证明举措有效；正确削弱常指出「重复办卡」「基数变化」等使「人数增加两倍」不可比或虚高，干扰项为成本、未锻炼等次要问题。
+【例题参考·难度手感】
+passage：建馆办免费健身卡，2015办3万、2018办7万、2020办11万；市政府认为举措有效，因5年间办卡学生增加两倍多。
+stem：最能削弱上述结论的是（ ）
+选项参考：A 中小学生总人数从20万增到30万｜B 维护成本高难平衡财政｜C 办第一馆卡的学生又办另外两馆卡｜D 部分办卡后从未去运动
+正确思路：C 说明办卡张数≠办卡学生人数，增长可能被重复办卡放大（亦可讨论 A 的人均比例，但题眼常落在重复统计）。出题时保证正确项唯一最强。
+${flex}
+`.trim()
+}
+
+function dedupeWeakenReasonQuestions(
+  items: WeakenReasonQuestion[],
+  blockedTerms?: Set<string>,
+): WeakenReasonQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: WeakenReasonQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestWeakenReasonMcqs(input: {
+  count?: number
+  difficulty: WeakenReasonDifficulty
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<WeakenReasonQuestion[]> {
+  const count = input.count ?? WEAKEN_REASON_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const diffLabel = weakenReasonDiffLabel(difficulty)
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.(aiRequestProgressText(`削弱论证（${diffLabel}）`))
+
+  const format = weakenReasonFormat(difficulty)
+  const historyHint = buildAvoidTermsHint('削弱论证主题', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 公考/事业编「判断推理·削弱论证」四选一，难度 **${diffLabel}**。`,
+    format,
+    historyHint,
+    `本批 ${count} 道的 term（主题标签）必须互不相同；题材与削弱方式尽量多样，勿重复同一案例。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: WEAKEN_REASON_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+    temperature: 0.72,
+    maxTokens: 12288,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: WeakenReasonQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseWeakenReasonMcqAiObject(item)
+    if (!fields) return
+    const q = buildWeakenReasonQuestionFromMcq({
+      ...fields,
+      difficulty,
+      seq: idx + 1,
+    })
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
+  })
+
+  const deduped = dedupeWeakenReasonQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('削弱论证主题', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        [
+          `请生成第 ${slot} 道削弱论证四选一题，难度 **${diffLabel}**。`,
+          format,
+          avoidHint,
+          '仅返回一个 JSON 对象。',
+        ].join('\n\n'),
+        {
+          system: WEAKEN_REASON_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+          temperature: 0.74,
+          maxTokens: 2200,
+        },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseWeakenReasonMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildWeakenReasonQuestionFromMcq({
+        ...fields,
+        difficulty,
+        seq: slot,
+      })
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const DAILY_CONCLUSION_SYSTEM = [
+  '你是公务员/事业编考试「判断推理·逻辑判断·日常结论」命题专家，专精从日常/科普陈述中做必然推出，避免过度推断。',
+  LOGIC_REASON_COMMON_RULES,
+  'correct 必须是材料可必然推出的结论；干扰项含夸大因果、绝对化、材料未提及信息等。',
+].join('\n')
+
+function dailyConclusionDiffLabel(d: DailyConclusionDifficulty): string {
+  return d === 'easy' ? '简单' : '困难'
+}
+
+function dailyConclusionFormat(difficulty: DailyConclusionDifficulty): string {
+  const flex = `
+【灵活·必读】题材可换（健康、运动、饮食、科技生活等）；例题只定难度，禁止照抄跑步机/糖尿病原文。
+JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 须按系统要求写详细分步解析（含干扰项错因）。
+`.trim()
+
+  if (difficulty === 'easy') {
+    return `
+【难度·简单】短日常材料，1～2 步即可推出；正确项紧扣材料已说内容，干扰项为目的臆测、比例臆测、材料未提细节。
+【例题参考·难度手感】
+passage：生活节奏加快、压力增加，更多人关注健康并以运动改善，跑步受青睐；除户外跑步外，很多人也会选择室内跑步机。
+stem：由此可以推出（ ）
+选项参考：A 锻炼目的是缓解压力｜B 压力会影响人的健康｜C 不健康的人占多数｜D 没有放在室外的跑步机
+正确思路：材料把压力增加与关注健康/运动改善健康相连 → B 可推；A 把目的说死、C 比例、D 与「室内跑步机」无关且妄断。
+${flex}
+`.trim()
+  }
+  return `
+【难度·困难】科普/医学类稍长材料；正确项多为谨慎、可推出的控制建议；干扰项常见「越多越好」「能规避」「完全不能摄入」等过度推断。
+【例题参考·难度手感】
+passage：糖尿病以高血糖为特征；胰岛素分泌不足或调节不佳致血糖升高；与糖类等热量摄入增加有关；尚无根治，但可通过饮食治疗、适当运动等控制。
+stem：如果上述言论为真，可以推出下列哪项结论？（ ）
+选项参考：A 胰岛素越多越不易得病｜B 诱因很多，体育锻炼能规避糖尿病｜C 患者不能摄入含糖食物｜D 调整膳食减少热量摄入有助于安全控制血糖
+正确思路：材料支持饮食治疗控制 → D；A/B/C 为过度推断或绝对化。
+${flex}
+`.trim()
+}
+
+function dedupeDailyConclusionQuestions(
+  items: DailyConclusionQuestion[],
+  blockedTerms?: Set<string>,
+): DailyConclusionQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: DailyConclusionQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestDailyConclusionMcqs(input: {
+  count?: number
+  difficulty: DailyConclusionDifficulty
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<DailyConclusionQuestion[]> {
+  const count = input.count ?? DAILY_CONCLUSION_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const diffLabel = dailyConclusionDiffLabel(difficulty)
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.(aiRequestProgressText(`日常结论（${diffLabel}）`))
+
+  const format = dailyConclusionFormat(difficulty)
+  const historyHint = buildAvoidTermsHint('日常结论主题', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 公考/事业编「判断推理·日常结论」四选一，难度 **${diffLabel}**。`,
+    format,
+    historyHint,
+    `本批 ${count} 道的 term（主题标签）必须互不相同；题材多样，勿重复同一案例。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: DAILY_CONCLUSION_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+    temperature: 0.72,
+    maxTokens: 12288,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: DailyConclusionQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseDailyConclusionMcqAiObject(item)
+    if (!fields) return
+    const q = buildDailyConclusionQuestionFromMcq({
+      ...fields,
+      difficulty,
+      seq: idx + 1,
+    })
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
+  })
+
+  const deduped = dedupeDailyConclusionQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('日常结论主题', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        [
+          `请生成第 ${slot} 道日常结论四选一题，难度 **${diffLabel}**。`,
+          format,
+          avoidHint,
+          '仅返回一个 JSON 对象。',
+        ].join('\n\n'),
+        {
+          system: DAILY_CONCLUSION_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+          temperature: 0.74,
+          maxTokens: 2200,
+        },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseDailyConclusionMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildDailyConclusionQuestionFromMcq({
+        ...fields,
+        difficulty,
+        seq: slot,
+      })
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
+
+const EXPLAIN_PHENOM_SYSTEM = [
+  '你是公务员/事业编考试「判断推理·逻辑判断·解释型」命题专家，专精解释反常现象与化解矛盾。',
+  LOGIC_REASON_COMMON_RULES,
+  'correct 须最能解释材料中的现象或矛盾；干扰项为无关、事后发生或无法对接矛盾双方的选项。',
+].join('\n')
+
+function explainPhenomDiffLabel(d: ExplainPhenomDifficulty): string {
+  return d === 'easy' ? '简单' : '困难'
+}
+
+function explainPhenomFormat(difficulty: ExplainPhenomDifficulty): string {
+  const flex = `
+【灵活·必读】场景可换；例题只定难度，禁止照抄咖啡促销/选举/冰川原文。困难档可轮换「组合选肢」与「科学矛盾」两类。
+JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 须按系统要求写详细分步解析（含干扰项错因）。
+`.trim()
+
+  if (difficulty === 'easy') {
+    return `
+【难度·简单】给出「预期应升/应好，结果却降/变差」类反常；问最能解释该现象。正确项直接说明为何销量/指标下降。
+【例题参考·难度手感】
+passage：咖啡店按往年在冷门时段半价促销，但一段时间后整体销量较往年同期明显减少。
+stem：下列哪项如果为真，最能解释上述现象？（ ）
+选项参考：A 促销期订单大导致服务下降｜B 周围新开多家其他品牌咖啡店｜C 品牌知名度不够缺固定客群｜D 促销结束后回调了价格
+正确思路：B 引入竞争分流，解释「促销仍整体减少」；D 若发生在促销结束后未必解释促销期间的减少；C 往年同样存在则难解释「较往年减少」。
+${flex}
+`.trim()
+  }
+  return `
+【难度·困难】解释「矛盾双方同时成立」：如负面曝光但支持率上升，或主流理论与新结论冲突。可选：①②③④组合选肢，或科学史情境找「缺失机制」。
+【例题参考1·矛盾组合】
+passage：候选人被揭篡改简历致部分选民怀疑诚信，但民意支持率仍节节上升并远超他人。
+要点：①执行力博得支持｜②多数候选人也美化简历｜③以往错误不代表今后表现｜④以往支持率一向很高
+stem：有助于解释这种矛盾现象的是（ ）选项为 ①④ / ②④ / ①② / ③④ 等组合。
+正确思路：需同时解释「为何仍上升」与不必然被诚信质疑打垮；常见有效组合如①②（能力吸票+简历美化普遍）等——出题时自洽唯一即可。
+【例题参考2·科学矛盾】
+passage：沟渠似河水冲凿，普遍认为冰川融化逐渐形成；地理学家认为短时大洪水冲凿；迅速形成有地形依据，但洪水论曾被排斥因「没有那么多冰忽然融化」。
+stem：最有助于解释上述矛盾的是（ ）
+选项参考含：冰川拦水成湖后溃决 → 可短时释放巨量洪水而无须「忽然融化那么多冰」。
+两类困难题本批宜混出，勿整批同构。
+${flex}
+`.trim()
+}
+
+function dedupeExplainPhenomQuestions(
+  items: ExplainPhenomQuestion[],
+  blockedTerms?: Set<string>,
+): ExplainPhenomQuestion[] {
+  const seenFp = new Set<string>()
+  const seenTerm = new Set<string>(blockedTerms ?? [])
+  const out: ExplainPhenomQuestion[] = []
+  for (const q of items) {
+    const termKey = normalizeAvoidTerm(q.term)
+    if (seenFp.has(q.fingerprint) || (termKey && seenTerm.has(termKey))) continue
+    seenFp.add(q.fingerprint)
+    if (termKey) seenTerm.add(termKey)
+    out.push(q)
+  }
+  return out
+}
+
+export async function requestExplainPhenomMcqs(input: {
+  count?: number
+  difficulty: ExplainPhenomDifficulty
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+}): Promise<ExplainPhenomQuestion[]> {
+  const count = input.count ?? EXPLAIN_PHENOM_QUESTION_COUNT
+  const difficulty = input.difficulty
+  const diffLabel = explainPhenomDiffLabel(difficulty)
+  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
+  input.onProgress?.(aiRequestProgressText(`解释现象（${diffLabel}）`))
+
+  const format = explainPhenomFormat(difficulty)
+  const historyHint = buildAvoidTermsHint('解释现象主题', [...blocked])
+  const user = [
+    `请生成 **${count} 道** 公考/事业编「判断推理·解释现象」四选一，难度 **${diffLabel}**。`,
+    format,
+    historyHint,
+    `本批 ${count} 道的 term（主题标签）必须互不相同；题材与解释手法尽量多样。`,
+    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: EXPLAIN_PHENOM_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+    temperature: 0.72,
+    maxTokens: 12288,
+  })
+
+  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
+  const questions: ExplainPhenomQuestion[] = []
+  parsed.forEach((item, idx) => {
+    const fields = parseExplainPhenomMcqAiObject(item)
+    if (!fields) return
+    const q = buildExplainPhenomQuestionFromMcq({
+      ...fields,
+      difficulty,
+      seq: idx + 1,
+    })
+    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
+  })
+
+  const deduped = dedupeExplainPhenomQuestions(questions, blocked)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
+  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
+    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
+    const avoidHint = buildAvoidTermsHint('解释现象主题', avoidTerms)
+    try {
+      const oneRaw = await deepseekChatRaw(
+        [
+          `请生成第 ${slot} 道解释现象四选一题，难度 **${diffLabel}**。`,
+          format,
+          avoidHint,
+          '仅返回一个 JSON 对象。',
+        ].join('\n\n'),
+        {
+          system: EXPLAIN_PHENOM_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+          temperature: 0.74,
+          maxTokens: 2200,
+        },
+      )
+      const oneObj = parseAiJsonObjectLenient(oneRaw)
+      const fields = parseExplainPhenomMcqAiObject(oneObj)
+      if (!fields) continue
+      const q = buildExplainPhenomQuestionFromMcq({
+        ...fields,
+        difficulty,
+        seq: slot,
+      })
+      if (!q || !isPlayableFourChoiceMcq(q)) continue
+      const termKey = normalizeAvoidTerm(q.term)
+      if (
+        deduped.some((x) => x.fingerprint === q.fingerprint) ||
+        (termKey && avoidTerms.includes(termKey))
+      ) {
+        continue
+      }
+      deduped.push(q)
+      if (termKey) avoidTerms.push(termKey)
+    } catch {
+      /* skip */
+    }
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
 }

@@ -42,6 +42,14 @@ export type ChineseGeneratedHistoryKind =
   | 'op-highfreq-geometry'
   | 'op-highfreq-probability'
   | 'op-other-function-graph'
+  | 'logic-reason-translation'
+  | 'logic-reason-combo-arrange'
+  | 'logic-reason-truth-false'
+  | 'logic-reason-eval-reason'
+  | 'logic-reason-strengthen'
+  | 'logic-reason-weaken'
+  | 'logic-reason-daily-conclusion'
+  | 'logic-reason-explain'
 
 const STORAGE_KEYS: Record<ChineseGeneratedHistoryKind, string> = {
   idiom: 'chinese-generated-history-idiom-v1',
@@ -94,6 +102,14 @@ const STORAGE_KEYS: Record<ChineseGeneratedHistoryKind, string> = {
   'op-highfreq-geometry': 'chinese-generated-history-op-highfreq-geometry-v1',
   'op-highfreq-probability': 'chinese-generated-history-op-highfreq-probability-v1',
   'op-other-function-graph': 'chinese-generated-history-op-other-function-graph-v1',
+  'logic-reason-translation': 'chinese-generated-history-logic-reason-translation-v1',
+  'logic-reason-combo-arrange': 'chinese-generated-history-logic-reason-combo-arrange-v1',
+  'logic-reason-truth-false': 'chinese-generated-history-logic-reason-truth-false-v1',
+  'logic-reason-eval-reason': 'chinese-generated-history-logic-reason-eval-reason-v1',
+  'logic-reason-strengthen': 'chinese-generated-history-logic-reason-strengthen-v1',
+  'logic-reason-weaken': 'chinese-generated-history-logic-reason-weaken-v1',
+  'logic-reason-daily-conclusion': 'chinese-generated-history-logic-reason-daily-conclusion-v1',
+  'logic-reason-explain': 'chinese-generated-history-logic-reason-explain-v1',
 }
 
 function normalizeTerm(term: string): string {

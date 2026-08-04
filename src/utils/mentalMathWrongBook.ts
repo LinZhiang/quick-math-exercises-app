@@ -34,6 +34,14 @@ export type MentalMathWrongSection =
   | 'op-skill-spec-val'
   | 'op-skill-ratio-method'
   | 'op-skill-cross-method'
+  | 'logic-reason-translation'
+  | 'logic-reason-combo-arrange'
+  | 'logic-reason-truth-false'
+  | 'logic-reason-eval-reason'
+  | 'logic-reason-strengthen'
+  | 'logic-reason-weaken'
+  | 'logic-reason-daily-conclusion'
+  | 'logic-reason-explain'
   | 'op-highfreq-sum-diff-ratio'
   | 'op-highfreq-geometry'
   | 'op-highfreq-right-triangle'
@@ -143,6 +151,14 @@ export const MENTAL_MATH_WRONG_SECTION_LABELS: Record<MentalMathWrongSection, st
   'op-skill-spec-val': '运算技巧 · 特值法',
   'op-skill-ratio-method': '运算技巧 · 比例法',
   'op-skill-cross-method': '运算技巧 · 十字交叉法',
+  'logic-reason-translation': '逻辑推理 · 翻译推理',
+  'logic-reason-combo-arrange': '逻辑推理 · 组合排列',
+  'logic-reason-truth-false': '逻辑推理 · 真假推理',
+  'logic-reason-eval-reason': '逻辑推理 · 评价推理',
+  'logic-reason-strengthen': '逻辑推理 · 加强论证',
+  'logic-reason-weaken': '逻辑推理 · 削弱论证',
+  'logic-reason-daily-conclusion': '逻辑推理 · 日常结论',
+  'logic-reason-explain': '逻辑推理 · 解释现象',
   'op-highfreq-sum-diff-ratio': '高频运算 · 和差倍比问题',
   'op-highfreq-geometry': '高频运算 · 几何问题',
   'op-highfreq-right-triangle': '高频运算 · 直角三角形常用结论',
@@ -344,6 +360,60 @@ export function mentalMathModeToWrongSection(modeId: string): MentalMathWrongSec
     modeId === 'op-skill-ratio-method-hard'
   ) {
     return 'op-skill-ratio-method'
+  }
+  if (
+    modeId === 'logic-reason-translation-easy' ||
+    modeId === 'logic-reason-translation-medium' ||
+    modeId === 'logic-reason-translation-hard'
+  ) {
+    return 'logic-reason-translation'
+  }
+  if (
+    modeId === 'logic-reason-combo-arrange-easy' ||
+    modeId === 'logic-reason-combo-arrange-medium' ||
+    modeId === 'logic-reason-combo-arrange-hard'
+  ) {
+    return 'logic-reason-combo-arrange'
+  }
+  if (
+    modeId === 'logic-reason-truth-false-easy' ||
+    modeId === 'logic-reason-truth-false-medium' ||
+    modeId === 'logic-reason-truth-false-hard'
+  ) {
+    return 'logic-reason-truth-false'
+  }
+  if (
+    modeId === 'logic-reason-eval-reason-easy' ||
+    modeId === 'logic-reason-eval-reason-medium' ||
+    modeId === 'logic-reason-eval-reason-hard'
+  ) {
+    return 'logic-reason-eval-reason'
+  }
+  if (
+    modeId === 'logic-reason-strengthen-easy' ||
+    modeId === 'logic-reason-strengthen-medium' ||
+    modeId === 'logic-reason-strengthen-hard'
+  ) {
+    return 'logic-reason-strengthen'
+  }
+  if (
+    modeId === 'logic-reason-weaken-easy' ||
+    modeId === 'logic-reason-weaken-medium' ||
+    modeId === 'logic-reason-weaken-hard'
+  ) {
+    return 'logic-reason-weaken'
+  }
+  if (
+    modeId === 'logic-reason-daily-conclusion-easy' ||
+    modeId === 'logic-reason-daily-conclusion-hard'
+  ) {
+    return 'logic-reason-daily-conclusion'
+  }
+  if (
+    modeId === 'logic-reason-explain-easy' ||
+    modeId === 'logic-reason-explain-hard'
+  ) {
+    return 'logic-reason-explain'
   }
   if (
     modeId === 'op-skill-cross-method-easy' ||
