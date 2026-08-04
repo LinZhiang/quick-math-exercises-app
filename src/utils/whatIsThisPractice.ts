@@ -6,6 +6,7 @@ import {
   WHAT_IS_THIS_BANK,
   type WhatIsThisBankItem,
 } from '@/utils/whatIsThisBank.generated'
+import { resolveFactExplanation } from '@/utils/factExplanationOverrides'
 
 export type WhatIsThisMode =
   | 'what-is-this-easy'
@@ -197,7 +198,7 @@ function buildMcq(
     correctAnswer: item.correct,
     options,
     correctIndex: correctIndex >= 0 ? correctIndex : 0,
-    explanation: item.explanation,
+    explanation: resolveFactExplanation('what-is-this', item.key, item.explanation),
   }
 }
 

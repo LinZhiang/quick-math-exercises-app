@@ -169,9 +169,11 @@ import ChinesePracticeSection from '@/views/tools/chinese-practice/ChinesePracti
 import PwaInstallPanel from '@/components/PwaInstallPanel.vue'
 import { clearWenguSessionOnAiLeave } from '@/utils/wenguAuthStore'
 import MentalMathWrongBookPanel from '@/views/tools/mental-math/components/MentalMathWrongBookPanel.vue'
+import FactDeepenMemorizationPanel from '@/views/tools/mental-math/components/FactDeepenMemorizationPanel.vue'
 import { upsertMentalMathWrong } from '@/utils/mentalMathWrongBook'
 import { wrongBookWorkspaceActive } from '@/utils/wrongBookWorkspaceGate'
 import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
+import type { FactDeepenKind } from '@/utils/factDeepenMemorization'
 
 type Phase = 'select' | 'countdown' | 'playing' | 'finished'
 type CountdownStep = 3 | 2 | 1 | 'GO'
@@ -201,6 +203,8 @@ const circleGrammarPanelRef = ref<InstanceType<typeof CircleGrammarPanel> | null
 const shortenSentenceQuestion = ref<ShortenSentenceQuestion | null>(null)
 const shortenSentencePanelRef = ref<InstanceType<typeof ShortenSentencePanel> | null>(null)
 const chinesePracticeRef = ref<InstanceType<typeof ChinesePracticeSection> | null>(null)
+const factDeepenRef = ref<InstanceType<typeof FactDeepenMemorizationPanel> | null>(null)
+const factDeepenActive = ref(false)
 const dataAnalysisPanelRef = ref<InstanceType<typeof DataAnalysisPanel> | null>(null)
 const dataAnalysisGrowthPanelRef = ref<InstanceType<typeof DataAnalysisGrowthPanel> | null>(null)
 const dataAnalysisGrowthInterYearPanelRef = ref<InstanceType<
@@ -551,6 +555,7 @@ const showLogSection = computed(() => activeOutlineSection.value === 'log')
 
 const chineseSessionActive = computed(
   () =>
+    factDeepenActive.value ||
     wrongBookWorkspaceActive.value ||
     (chinesePracticeRef.value?.isRunningOrLoading ?? false) ||
     (dataAnalysisPanelRef.value?.isRunningOrLoading ?? false) ||
@@ -931,6 +936,10 @@ function startMode(mode: PracticeMode) {
   phase.value = 'countdown'
   countdownValue.value = COUNTDOWN_STEPS[0]
   runCountdownStep(0, mode)
+}
+
+function openFactDeepen(kind: FactDeepenKind) {
+  factDeepenRef.value?.start(kind)
 }
 
 /** 测验中重来：重新倒计时并开新一局（同模式） */
@@ -1678,9 +1687,9 @@ onBeforeUnmount(() => {
         <section v-if="showLifeSenseSection" class="mode-section" id="practice-life-sense">
           <h3 class="mode-section__title">生活常识</h3>
           <p class="mode-section__hint">
-            本地校对题库短题快判（材料/种属/组成/用途等）。答错会记入下方错题集；作答中只提示对错，详解可结束后或在错题集查看。
+            本地校对题库短题快判（材料/种属/组成/用途等）。答错会记入下方错题集；作答中只提示对错，详解可结束后或在错题集查看。也可用「加深识记」：先看 20 题解析再限时测同批。
           </p>
-          <div class="mode-grid">
+          <div v-show="!factDeepenActive" class="mode-grid">
             <button
               v-for="m in MENTAL_MATH_LIFE_SENSE_MODES"
               :key="m.id"
@@ -1692,16 +1701,29 @@ onBeforeUnmount(() => {
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
+            <button
+              type="button"
+              class="mode-card mode-card--life-sense mode-card--deepen"
+              @click="openFactDeepen('life-sense')"
+            >
+              <h3 class="mode-card__title">加深识记</h3>
+              <p class="mode-card__desc">分难度 · 一组 20 题先识记（解析可编辑）→ 限时测 20 题（简单 40 秒 / 普通 52 秒 / 复杂 64 秒）</p>
+              <span class="mode-card__cta">进入</span>
+            </button>
           </div>
-          <MentalMathWrongBookPanel section="life-sense" />
+          <FactDeepenMemorizationPanel
+            ref="factDeepenRef"
+            @active="factDeepenActive = $event"
+          />
+          <MentalMathWrongBookPanel v-show="!factDeepenActive" section="life-sense" />
         </section>
 
         <section v-if="showWhatIsThisSection" class="mode-section" id="practice-what-is-this">
           <h3 class="mode-section__title">这是什么</h3>
           <p class="mode-section__hint">
-            题干为「什么是××」，选项为专有名词释义。干扰项取自同难度其他真实释义。答错记入下方错题集；作答中只提示对错，详解可结束后或在错题集查看。
+            题干为「什么是××」，选项为专有名词释义。干扰项取自同难度其他真实释义。答错记入下方错题集；作答中只提示对错，详解可结束后或在错题集查看。也可用「加深识记」先看后测。
           </p>
-          <div class="mode-grid">
+          <div v-show="!factDeepenActive" class="mode-grid">
             <button
               v-for="m in MENTAL_MATH_WHAT_IS_THIS_MODES"
               :key="m.id"
@@ -1713,8 +1735,21 @@ onBeforeUnmount(() => {
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
+            <button
+              type="button"
+              class="mode-card mode-card--what-is-this mode-card--deepen"
+              @click="openFactDeepen('what-is-this')"
+            >
+              <h3 class="mode-card__title">加深识记</h3>
+              <p class="mode-card__desc">分难度 · 一组 20 题先识记（解析可编辑）→ 限时测 20 题（简单 40 秒 / 普通 52 秒 / 复杂 64 秒）</p>
+              <span class="mode-card__cta">进入</span>
+            </button>
           </div>
-          <MentalMathWrongBookPanel section="what-is-this" />
+          <FactDeepenMemorizationPanel
+            ref="factDeepenRef"
+            @active="factDeepenActive = $event"
+          />
+          <MentalMathWrongBookPanel v-show="!factDeepenActive" section="what-is-this" />
         </section>
 
         <section

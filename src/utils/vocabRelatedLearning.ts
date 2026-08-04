@@ -40,6 +40,15 @@ export type VocabRelatedOtherOption = {
   sentimentNote: string
 }
 
+/** 第四层 · 快速识记：使用场景强调点 + 短例句（不含近/反义词） */
+export type VocabRelatedQuickMem = {
+  word: string
+  /** 简短记忆强调点，如「形势发展顺利、不可逆的过程」 */
+  cue: string
+  /** 简短例句，可多条 */
+  examples: string[]
+}
+
 export type VocabRelatedQuizType = 'meaning' | 'fill'
 
 export type VocabRelatedQuizQuestion = {
@@ -71,6 +80,11 @@ export type VocabRelatedLearningPack = {
   synonyms: string[]
   antonyms: string[]
   otherOptions: VocabRelatedOtherOption[]
+  /**
+   * 第四层 · 快速识记：目标词 + 易混 + 其他选项（不含近/反义词）
+   * 每条：场景强调点 + 短例句
+   */
+  quickMem: VocabRelatedQuickMem[]
   /** 学后小测 2～3 题（可空：表示待重新生成） */
   quiz: VocabRelatedQuizQuestion[]
 }
@@ -158,6 +172,74 @@ function parseConfusables(raw: unknown): VocabRelatedConfusable[] {
       sentimentNote: sentiment === '分情况' ? sentimentNote || '视具体语境而定。' : sentimentNote,
       howToDistinguish: howToDistinguish || '注意语境搭配与感情色彩差异。',
     })
+  }
+  return out
+}
+
+function asExampleList(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map((x) => String(x ?? '').trim()).filter(Boolean)
+  }
+  const s = String(raw ?? '').trim()
+  if (!s) return []
+  // 兼容单句或用分号/换行分隔
+  return s
+    .split(/[\n；;]+/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+}
+
+/**
+ * 解析第四层快速识记。至少须含目标词一条；覆盖易混与其他选项优先。
+ */
+function parseQuickMem(
+  raw: unknown,
+  requiredWords: string[],
+): VocabRelatedQuickMem[] | null {
+  if (!Array.isArray(raw)) return null
+  const byWord = new Map<string, VocabRelatedQuickMem>()
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const o = item as Record<string, unknown>
+    const word = String(o.word ?? o.term ?? o.text ?? '').trim()
+    const cue = String(
+      o.cue ?? o.emphasis ?? o.point ?? o.场景 ?? o.强调 ?? o.memoryPoint ?? '',
+    ).trim()
+    const examples = asExampleList(
+      o.examples ?? o.example ?? o.例句 ?? o.scenes ?? o.usageExamples,
+    )
+    if (!word || !cue || !examples.length) continue
+    const key = normalizeVocabTermKey(word)
+    if (!key || byWord.has(key)) continue
+    byWord.set(key, { word, cue, examples: examples.slice(0, 4) })
+  }
+
+  const out: VocabRelatedQuickMem[] = []
+  const seen = new Set<string>()
+  for (const w of requiredWords) {
+    const k = normalizeVocabTermKey(w)
+    if (!k || seen.has(k)) continue
+    const hit = byWord.get(k)
+    if (!hit) {
+      // 目标词缺失则整层失败；其余词缺则跳过（不整包作废）
+      if (out.length === 0) return null
+      continue
+    }
+    seen.add(k)
+    out.push(hit)
+  }
+  // 若 required 顺序解析后为空（仅目标词缺），失败
+  if (!out.length) return null
+  // 目标词必须在列
+  const targetKey = normalizeVocabTermKey(requiredWords[0] ?? '')
+  if (targetKey && !out.some((x) => normalizeVocabTermKey(x.word) === targetKey)) {
+    return null
+  }
+  // 附带 AI 多给的、不在 required 里的条目（仍排除已见）
+  for (const [k, v] of byWord) {
+    if (seen.has(k)) continue
+    seen.add(k)
+    out.push(v)
   }
   return out
 }
@@ -471,6 +553,8 @@ export function parseVocabRelatedLearningPack(
     o.layer2 && typeof o.layer2 === 'object' ? (o.layer2 as Record<string, unknown>) : o
   const layer3 =
     o.layer3 && typeof o.layer3 === 'object' ? (o.layer3 as Record<string, unknown>) : o
+  const layer4 =
+    o.layer4 && typeof o.layer4 === 'object' ? (o.layer4 as Record<string, unknown>) : o
 
   const meaning = String(
     layer1.meaning ?? layer1.definition ?? o.meaning ?? o.definition ?? '',
@@ -522,8 +606,23 @@ export function parseVocabRelatedLearningPack(
   )
   if (!otherOptions) return null
 
+  const term = String(o.term ?? input.term).trim() || input.term
+  // 快速识记覆盖：目标词 + 易混 + 像词面的其他选项（不含近/反义词；选释义题的长释义不入列）
+  const quickMemWords = [
+    term,
+    ...confusables.map((c) => c.word),
+    ...otherOptions
+      .map((x) => x.text)
+      .filter((t) => isVocabRelatedFillOptionSurface(t, input.kind)),
+  ]
+  const quickMem = parseQuickMem(
+    layer4.quickMem ?? layer4.items ?? o.quickMem ?? o.quickMemorization,
+    quickMemWords,
+  )
+  if (!quickMem) return null
+
   const fillOptionBank = collectVocabRelatedFillOptionBank({
-    term: String(o.term ?? input.term).trim() || input.term,
+    term,
     kind: input.kind,
     confusables,
     synonyms,
@@ -541,29 +640,8 @@ export function parseVocabRelatedLearningPack(
   // 首次整包生成须带小测；仅材料缓存可读时可为空，由调用方再生成小测
   if (quiz.length > 0 && quiz.length < 2) return null
   const quizSliced = quiz.slice(0, 3)
-  if (
-    quizSliced.length >= 2 &&
-    quizFocusesTooMuchOnTarget(quizSliced, String(o.term ?? input.term).trim() || input.term, fillOptionBank)
-  ) {
-    // 过偏目标词：整包仍可用，但丢掉小测，由调用方按轮换规则重出
-    return {
-      term: String(o.term ?? input.term).trim() || input.term,
-      kind: input.kind,
-      meaning,
-      example,
-      sentiment,
-      sentimentNote: sentiment === '分情况' ? sentimentNote || '视具体语境而定。' : sentimentNote,
-      phonologyNotes,
-      confusables,
-      synonyms,
-      antonyms,
-      otherOptions,
-      quiz: [],
-    }
-  }
-
-  return {
-    term: String(o.term ?? input.term).trim() || input.term,
+  const baseMaterials = {
+    term,
     kind: input.kind,
     meaning,
     example,
@@ -574,6 +652,21 @@ export function parseVocabRelatedLearningPack(
     synonyms,
     antonyms,
     otherOptions,
+    quickMem,
+  } as const
+  if (
+    quizSliced.length >= 2 &&
+    quizFocusesTooMuchOnTarget(quizSliced, term, fillOptionBank)
+  ) {
+    // 过偏目标词：整包仍可用，但丢掉小测，由调用方按轮换规则重出
+    return {
+      ...baseMaterials,
+      quiz: [],
+    }
+  }
+
+  return {
+    ...baseMaterials,
     quiz: quizSliced,
   }
 }
@@ -595,6 +688,18 @@ export function isVocabRelatedMaterialsPack(v: unknown): v is VocabRelatedLearni
   if (o.confusables.some((c) => !String(c.example ?? '').trim())) return false
   if (!Array.isArray(o.otherOptions) || o.otherOptions.length < 1) return false
   if (o.otherOptions.some((x) => /生成未返回/.test(x.meaning))) return false
+  if (!Array.isArray(o.quickMem) || o.quickMem.length < 1) return false
+  if (
+    o.quickMem.some(
+      (q) =>
+        !String(q.word ?? '').trim() ||
+        !String(q.cue ?? '').trim() ||
+        !Array.isArray(q.examples) ||
+        q.examples.every((e) => !String(e ?? '').trim()),
+    )
+  ) {
+    return false
+  }
   return true
 }
 

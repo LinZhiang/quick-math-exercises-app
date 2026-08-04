@@ -11,7 +11,7 @@ import {
   type VocabRelatedSourceRow,
 } from '@/utils/vocabRelatedLearning'
 
-const STORAGE_KEY = 'chinese-vocab-related-learning-cache-v1'
+const STORAGE_KEY = 'chinese-vocab-related-learning-cache-v2'
 const MAX_ENTRIES = 240
 
 export type VocabRelatedCacheEntry = {
@@ -24,7 +24,7 @@ export type VocabRelatedCacheEntry = {
 }
 
 type CacheStore = {
-  v: 1
+  v: 2
   entries: Record<string, VocabRelatedCacheEntry>
 }
 
@@ -34,16 +34,16 @@ function cacheKey(kind: VocabRelatedKind, fingerprint: string): string {
 
 function readStore(): CacheStore {
   try {
-    if (typeof localStorage === 'undefined') return { v: 1, entries: {} }
+    if (typeof localStorage === 'undefined') return { v: 2, entries: {} }
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { v: 1, entries: {} }
+    if (!raw) return { v: 2, entries: {} }
     const parsed = JSON.parse(raw) as unknown
-    if (!parsed || typeof parsed !== 'object') return { v: 1, entries: {} }
+    if (!parsed || typeof parsed !== 'object') return { v: 2, entries: {} }
     const entries = (parsed as CacheStore).entries
-    if (!entries || typeof entries !== 'object') return { v: 1, entries: {} }
-    return { v: 1, entries: entries as Record<string, VocabRelatedCacheEntry> }
+    if (!entries || typeof entries !== 'object') return { v: 2, entries: {} }
+    return { v: 2, entries: entries as Record<string, VocabRelatedCacheEntry> }
   } catch {
-    return { v: 1, entries: {} }
+    return { v: 2, entries: {} }
   }
 }
 

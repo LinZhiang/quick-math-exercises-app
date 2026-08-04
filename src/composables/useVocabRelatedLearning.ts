@@ -27,7 +27,7 @@ export type VocabRelatedLearningPhase =
   | 'quiz-result'
   | 'session-done'
 
-export type VocabRelatedStudyLayer = 1 | 2 | 3
+export type VocabRelatedStudyLayer = 1 | 2 | 3 | 4
 
 export function useVocabRelatedLearning() {
   const open = ref(false)
@@ -238,7 +238,7 @@ export function useVocabRelatedLearning() {
   }
 
   function nextStudyLayer() {
-    if (studyLayer.value < 3) {
+    if (studyLayer.value < 4) {
       studyLayer.value = (studyLayer.value + 1) as VocabRelatedStudyLayer
       return
     }

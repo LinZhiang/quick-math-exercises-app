@@ -191,6 +191,21 @@ const KNOWN_ITEM_LABELS: Record<string, { categoryId: string; categoryLabel: str
       categoryLabel: '生活常识',
       itemLabel: '生活常识 · 复杂题',
     },
+    'life-sense-deepen-easy': {
+      categoryId: 'life-sense',
+      categoryLabel: '生活常识',
+      itemLabel: '生活常识 · 加深识记 · 简单题',
+    },
+    'life-sense-deepen-normal': {
+      categoryId: 'life-sense',
+      categoryLabel: '生活常识',
+      itemLabel: '生活常识 · 加深识记 · 普通题',
+    },
+    'life-sense-deepen-hard': {
+      categoryId: 'life-sense',
+      categoryLabel: '生活常识',
+      itemLabel: '生活常识 · 加深识记 · 复杂题',
+    },
     'what-is-this-easy': {
       categoryId: 'what-is-this',
       categoryLabel: '这是什么',
@@ -205,6 +220,21 @@ const KNOWN_ITEM_LABELS: Record<string, { categoryId: string; categoryLabel: str
       categoryId: 'what-is-this',
       categoryLabel: '这是什么',
       itemLabel: '这是什么 · 复杂题',
+    },
+    'what-is-this-deepen-easy': {
+      categoryId: 'what-is-this',
+      categoryLabel: '这是什么',
+      itemLabel: '这是什么 · 加深识记 · 简单题',
+    },
+    'what-is-this-deepen-normal': {
+      categoryId: 'what-is-this',
+      categoryLabel: '这是什么',
+      itemLabel: '这是什么 · 加深识记 · 普通题',
+    },
+    'what-is-this-deepen-hard': {
+      categoryId: 'what-is-this',
+      categoryLabel: '这是什么',
+      itemLabel: '这是什么 · 加深识记 · 复杂题',
     },
     'chinese-idiom': { categoryId: 'chinese', categoryLabel: '语文练习', itemLabel: '语文 · 成语识记' },
     'chinese-word-memorization': {
