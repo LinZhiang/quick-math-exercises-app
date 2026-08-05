@@ -1,9 +1,14 @@
 /**
- * 生活常识 / 这是什么：用户可编辑的解析覆盖（按题库 key 持久化）。
+ * 生活常识 / 这是什么 / 经济学常识 / 体制管理 / 文言实词：用户可编辑的解析覆盖（按题库 key 持久化）。
  */
 import { ref } from 'vue'
 
-export type FactBankKind = 'life-sense' | 'what-is-this'
+export type FactBankKind =
+  | 'life-sense'
+  | 'what-is-this'
+  | 'economy-sense'
+  | 'system-mgmt'
+  | 'wenyan-shici'
 
 const STORAGE_KEY = 'fact-explanation-overrides-v1'
 const MAX_ENTRIES = 800

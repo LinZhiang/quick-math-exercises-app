@@ -101,14 +101,22 @@ import {
   MENTAL_MATH_TIME_WRONG_PENALTY_SEC,
   MENTAL_MATH_ARITHMETIC_MODES,
   MENTAL_MATH_DIVISIBILITY_MODES,
+  MENTAL_MATH_NUMBER_SEQUENCE_MODES,
   MENTAL_MATH_FRACTION_MODES,
   MENTAL_MATH_LIFE_SENSE_MODES,
   MENTAL_MATH_WHAT_IS_THIS_MODES,
+  MENTAL_MATH_ECONOMY_SENSE_MODES,
+  MENTAL_MATH_SYSTEM_MGMT_MODES,
+  MENTAL_MATH_WENYAN_SHICI_MODES,
   MENTAL_MATH_GRAMMAR_JUDGMENT_MODES,
   MENTAL_MATH_POWER_MODES,
   MENTAL_MATH_SQUARE_CUBE_MODES,
+  isNumberSequencePracticeMode,
   isLifeSensePracticeMode,
   isWhatIsThisPracticeMode,
+  isEconomySensePracticeMode,
+  isSystemMgmtPracticeMode,
+  isWenyanShiciPracticeMode,
   isGrammarJudgmentPracticeMode,
   type MentalMathAnswerRecord,
   type MentalMathMode,
@@ -178,9 +186,11 @@ import PwaInstallPanel from '@/components/PwaInstallPanel.vue'
 import { clearWenguSessionOnAiLeave } from '@/utils/wenguAuthStore'
 import MentalMathWrongBookPanel from '@/views/tools/mental-math/components/MentalMathWrongBookPanel.vue'
 import FactDeepenMemorizationPanel from '@/views/tools/mental-math/components/FactDeepenMemorizationPanel.vue'
+import SystemMgmtMindmapButton from '@/views/tools/mental-math/components/SystemMgmtMindmapButton.vue'
 import { upsertMentalMathWrong } from '@/utils/mentalMathWrongBook'
 import { wrongBookWorkspaceActive } from '@/utils/wrongBookWorkspaceGate'
 import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
+import { renderDataAnalysisMathHtml } from '@/utils/dataAnalysisMathDisplay'
 import type { FactDeepenKind } from '@/utils/factDeepenMemorization'
 
 type Phase = 'select' | 'countdown' | 'playing' | 'finished'
@@ -453,6 +463,36 @@ const isWhatIsThisSession = computed(
     !isShortenSentenceMode(activeMode.value) &&
     isWhatIsThisPracticeMode(activeMode.value as MentalMathMode),
 )
+const isEconomySenseSession = computed(
+  () =>
+    activeMode.value != null &&
+    !isGraphicMode(activeMode.value) &&
+    !isTwentyFourPointMode(activeMode.value) &&
+    !isSudokuMode(activeMode.value) &&
+    !isCircleGrammarMode(activeMode.value) &&
+    !isShortenSentenceMode(activeMode.value) &&
+    isEconomySensePracticeMode(activeMode.value as MentalMathMode),
+)
+const isSystemMgmtSession = computed(
+  () =>
+    activeMode.value != null &&
+    !isGraphicMode(activeMode.value) &&
+    !isTwentyFourPointMode(activeMode.value) &&
+    !isSudokuMode(activeMode.value) &&
+    !isCircleGrammarMode(activeMode.value) &&
+    !isShortenSentenceMode(activeMode.value) &&
+    isSystemMgmtPracticeMode(activeMode.value as MentalMathMode),
+)
+const isWenyanShiciSession = computed(
+  () =>
+    activeMode.value != null &&
+    !isGraphicMode(activeMode.value) &&
+    !isTwentyFourPointMode(activeMode.value) &&
+    !isSudokuMode(activeMode.value) &&
+    !isCircleGrammarMode(activeMode.value) &&
+    !isShortenSentenceMode(activeMode.value) &&
+    isWenyanShiciPracticeMode(activeMode.value as MentalMathMode),
+)
 const isGrammarJudgmentSession = computed(
   () =>
     activeMode.value != null &&
@@ -463,6 +503,20 @@ const isGrammarJudgmentSession = computed(
     !isShortenSentenceMode(activeMode.value) &&
     isGrammarJudgmentPracticeMode(activeMode.value as MentalMathMode),
 )
+const isNumberSequenceSession = computed(
+  () =>
+    activeMode.value != null &&
+    !isGraphicMode(activeMode.value) &&
+    !isTwentyFourPointMode(activeMode.value) &&
+    !isSudokuMode(activeMode.value) &&
+    !isCircleGrammarMode(activeMode.value) &&
+    !isShortenSentenceMode(activeMode.value) &&
+    isNumberSequencePracticeMode(activeMode.value as MentalMathMode),
+)
+
+function formatSequenceMath(text: string | number): string {
+  return renderDataAnalysisMathHtml(String(text ?? ''))
+}
 
 const modeConfig = computed(() => {
   if (!activeMode.value) return null
@@ -553,8 +607,12 @@ const showPowerSection = computed(() => activeOutlineSection.value === 'power')
 const showSquareCubeSection = computed(() => activeOutlineSection.value === 'square-cube')
 const showFractionSection = computed(() => activeOutlineSection.value === 'fraction')
 const showDivisibilitySection = computed(() => activeOutlineSection.value === 'divisibility')
+const showNumberSequenceSection = computed(() => activeOutlineSection.value === 'number-sequence')
 const showLifeSenseSection = computed(() => activeOutlineSection.value === 'life-sense')
 const showWhatIsThisSection = computed(() => activeOutlineSection.value === 'what-is-this')
+const showEconomySenseSection = computed(() => activeOutlineSection.value === 'economy-sense')
+const showSystemMgmtSection = computed(() => activeOutlineSection.value === 'system-mgmt')
+const showWenyanShiciSection = computed(() => activeOutlineSection.value === 'wenyan-shici')
 const showGrammarJudgmentSection = computed(
   () => activeOutlineSection.value === 'grammar-judgment',
 )
@@ -1501,10 +1559,18 @@ onMounted(() => {
     activeOutlineSection.value = 'fraction'
   } else if (hash === 'divisibility' || route.query.section === 'divisibility') {
     activeOutlineSection.value = 'divisibility'
+  } else if (hash === 'number-sequence' || route.query.section === 'number-sequence') {
+    activeOutlineSection.value = 'number-sequence'
   } else if (hash === 'life-sense' || route.query.section === 'life-sense') {
     activeOutlineSection.value = 'life-sense'
   } else if (hash === 'what-is-this' || route.query.section === 'what-is-this') {
     activeOutlineSection.value = 'what-is-this'
+  } else if (hash === 'economy-sense' || route.query.section === 'economy-sense') {
+    activeOutlineSection.value = 'economy-sense'
+  } else if (hash === 'system-mgmt' || route.query.section === 'system-mgmt') {
+    activeOutlineSection.value = 'system-mgmt'
+  } else if (hash === 'wenyan-shici' || route.query.section === 'wenyan-shici') {
+    activeOutlineSection.value = 'wenyan-shici'
   } else if (hash === 'grammar-judgment' || route.query.section === 'grammar-judgment') {
     activeOutlineSection.value = 'grammar-judgment'
   }
@@ -1719,6 +1785,29 @@ onBeforeUnmount(() => {
           <MentalMathWrongBookPanel section="divisibility" />
         </section>
 
+        <section v-if="showNumberSequenceSection" class="mode-section" id="practice-number-sequence">
+          <h3 class="mode-section__title">数列</h3>
+          <p class="mode-section__hint">
+            给出若干项，选下一项。简单题只考基础考点（等差、等比、机械、质数）；复杂题另含分数、多次方、组合、数字排序、运算关系等。每题只考一个考点。答错记入下方错题集。
+          </p>
+          <div class="mode-grid">
+            <button
+              v-for="m in MENTAL_MATH_NUMBER_SEQUENCE_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--number-sequence"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">
+                {{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" />
+              </h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+          </div>
+          <MentalMathWrongBookPanel section="number-sequence" />
+        </section>
+
         <section v-if="showLifeSenseSection" class="mode-section" id="practice-life-sense">
           <h3 class="mode-section__title">生活常识</h3>
           <p class="mode-section__hint">
@@ -1785,6 +1874,121 @@ onBeforeUnmount(() => {
             @active="factDeepenActive = $event"
           />
           <MentalMathWrongBookPanel v-show="!factDeepenActive" section="what-is-this" />
+        </section>
+
+        <section v-if="showEconomySenseSection" class="mode-section" id="practice-economy-sense">
+          <h3 class="mode-section__title">经济学常识</h3>
+          <p class="mode-section__hint">
+            题干为「什么是××」，选项为金融/税收/宏观等易混概念释义；干扰项取自易混成对概念。答错记入下方错题集。也可用「加深识记」先看定义与举例，再限时测同组。
+          </p>
+          <div v-show="!factDeepenActive" class="mode-grid">
+            <button
+              v-for="m in MENTAL_MATH_ECONOMY_SENSE_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--economy-sense"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">
+                {{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" />
+              </h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+            <button
+              type="button"
+              class="mode-card mode-card--economy-sense mode-card--deepen"
+              @click="openFactDeepen('economy-sense')"
+            >
+              <h3 class="mode-card__title">加深识记</h3>
+              <p class="mode-card__desc">
+                普通难度 · 固定 20 题一组目录可溯源 · 先识记（含举例，解析可编辑）→ 限时测（满组 52 秒）
+              </p>
+              <span class="mode-card__cta">进入</span>
+            </button>
+          </div>
+          <FactDeepenMemorizationPanel
+            ref="factDeepenRef"
+            @active="factDeepenActive = $event"
+          />
+          <MentalMathWrongBookPanel v-show="!factDeepenActive" section="economy-sense" />
+        </section>
+
+        <section v-if="showSystemMgmtSection" class="mode-section" id="practice-system-mgmt">
+          <h3 class="mode-section__title">体制管理</h3>
+          <p class="mode-section__hint">
+            体制/企业通用管理层与内勤岗位快判：题干含定义、层级、服务对象、易错区分与类比逻辑。答错记入下方错题集。也可「加深识记」先看后测；需要时可快速打开岗位思维导图。
+          </p>
+          <SystemMgmtMindmapButton v-show="!factDeepenActive" />
+          <div v-show="!factDeepenActive" class="mode-grid">
+            <button
+              v-for="m in MENTAL_MATH_SYSTEM_MGMT_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--system-mgmt"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">
+                {{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" />
+              </h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+            <button
+              type="button"
+              class="mode-card mode-card--system-mgmt mode-card--deepen"
+              @click="openFactDeepen('system-mgmt')"
+            >
+              <h3 class="mode-card__title">加深识记</h3>
+              <p class="mode-card__desc">
+                普通难度 · 固定 20 题一组目录可溯源 · 先识记（含举例与易错点）→ 限时测（满组 52 秒）
+              </p>
+              <span class="mode-card__cta">进入</span>
+            </button>
+          </div>
+          <FactDeepenMemorizationPanel
+            ref="factDeepenRef"
+            @active="factDeepenActive = $event"
+          />
+          <MentalMathWrongBookPanel v-show="!factDeepenActive" section="system-mgmt" />
+        </section>
+
+        <section v-if="showWenyanShiciSection" class="mode-section" id="practice-wenyan-shici">
+          <h3 class="mode-section__title">文言实词</h3>
+          <p class="mode-section__hint">
+            文言实词句中含义快判：官职变化、个性品行、情感态度、拜访往来、刑罚死亡、时间词与通假等。题干给例句，问该词在此句中的含义。答错记入下方错题集；也可「加深识记」先看后测。
+          </p>
+          <div v-show="!factDeepenActive" class="mode-grid">
+            <button
+              v-for="m in MENTAL_MATH_WENYAN_SHICI_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--wenyan-shici"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">
+                {{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" />
+              </h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+            <button
+              type="button"
+              class="mode-card mode-card--wenyan-shici mode-card--deepen"
+              @click="openFactDeepen('wenyan-shici')"
+            >
+              <h3 class="mode-card__title">加深识记</h3>
+              <p class="mode-card__desc">
+                普通难度 · 固定 20 题一组目录可溯源 · 先识记（类别/例句/义项）→ 限时测（满组 52 秒）
+              </p>
+              <span class="mode-card__cta">进入</span>
+            </button>
+          </div>
+          <FactDeepenMemorizationPanel
+            ref="factDeepenRef"
+            @active="factDeepenActive = $event"
+          />
+          <MentalMathWrongBookPanel v-show="!factDeepenActive" section="wenyan-shici" />
         </section>
 
         <section
@@ -3553,10 +3757,25 @@ onBeforeUnmount(() => {
       <template v-else-if="question">
         <div class="question-block">
           <p
+            v-if="isNumberSequenceSession"
+            class="question-expression question-expression--sequence"
+            :class="{
+              'question-expression--ok': feedback === 'correct',
+              'question-expression--bad': feedback === 'wrong',
+            }"
+            v-html="formatSequenceMath(question.expression)"
+          />
+          <p
+            v-else
             class="question-expression"
             :class="{
               'question-expression--prose':
-                isLifeSenseSession || isWhatIsThisSession || isGrammarJudgmentSession,
+                isLifeSenseSession ||
+                  isWhatIsThisSession ||
+                  isEconomySenseSession ||
+                  isSystemMgmtSession ||
+                  isWenyanShiciSession ||
+                  isGrammarJudgmentSession,
               'question-expression--ok': feedback === 'correct',
               'question-expression--bad': feedback === 'wrong',
             }"
@@ -3567,7 +3786,7 @@ onBeforeUnmount(() => {
           <p v-else-if="feedback === 'wrong'" class="feedback feedback--bad">答错了</p>
         </div>
 
-        <ul class="option-list">
+        <ul class="option-list" :class="{ 'option-list--sequence': isNumberSequenceSession }">
           <li v-for="(opt, idx) in question.options" :key="idx">
             <button
               type="button"
@@ -3576,7 +3795,12 @@ onBeforeUnmount(() => {
               @click="applyAnswer(idx)"
             >
               <span class="option-btn__key">{{ idx + 1 }}</span>
-              <span class="option-btn__val">{{ opt }}</span>
+              <span
+                v-if="isNumberSequenceSession"
+                class="option-btn__val"
+                v-html="formatSequenceMath(opt)"
+              />
+              <span v-else class="option-btn__val">{{ opt }}</span>
             </button>
           </li>
         </ul>
@@ -3833,6 +4057,15 @@ onBeforeUnmount(() => {
   box-shadow: 0 4px 16px rgba(13, 148, 136, 0.12);
 }
 
+.mode-card--number-sequence {
+  border-color: color-mix(in srgb, #db2777 28%, var(--app-border-soft));
+}
+
+.mode-card--number-sequence:hover {
+  border-color: color-mix(in srgb, #db2777 50%, var(--app-border-soft));
+  box-shadow: 0 4px 16px rgba(219, 39, 119, 0.12);
+}
+
 .mode-card--life-sense {
   border-color: color-mix(in srgb, #3d9b7a 28%, var(--app-border-soft));
 }
@@ -3849,6 +4082,33 @@ onBeforeUnmount(() => {
 .mode-card--what-is-this:hover {
   border-color: color-mix(in srgb, #2563eb 50%, var(--app-border-soft));
   box-shadow: 0 4px 16px rgba(37, 99, 235, 0.12);
+}
+
+.mode-card--economy-sense {
+  border-color: color-mix(in srgb, #c27803 28%, var(--app-border-soft));
+}
+
+.mode-card--economy-sense:hover {
+  border-color: color-mix(in srgb, #c27803 50%, var(--app-border-soft));
+  box-shadow: 0 4px 16px rgba(194, 120, 3, 0.12);
+}
+
+.mode-card--system-mgmt {
+  border-color: color-mix(in srgb, #6b5b95 28%, var(--app-border-soft));
+}
+
+.mode-card--system-mgmt:hover {
+  border-color: color-mix(in srgb, #6b5b95 50%, var(--app-border-soft));
+  box-shadow: 0 4px 16px rgba(107, 91, 149, 0.12);
+}
+
+.mode-card--wenyan-shici {
+  border-color: color-mix(in srgb, #b45309 28%, var(--app-border-soft));
+}
+
+.mode-card--wenyan-shici:hover {
+  border-color: color-mix(in srgb, #b45309 50%, var(--app-border-soft));
+  box-shadow: 0 4px 16px rgba(180, 83, 9, 0.12);
 }
 
 .mode-card--grammar-judgment {
@@ -4259,6 +4519,46 @@ onBeforeUnmount(() => {
   max-width: 36em;
   margin-left: auto;
   margin-right: auto;
+}
+
+.question-expression--sequence {
+  font-size: clamp(1.85rem, 5vw, 2.45rem);
+  font-weight: 750;
+  line-height: 1.55;
+  letter-spacing: 0.02em;
+}
+
+.option-list--sequence .option-btn__val {
+  font-size: 1.35em;
+  font-weight: 700;
+}
+
+.question-expression--sequence :deep(.da-math-frac),
+.option-list--sequence :deep(.da-math-frac) {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0 0.18em;
+  line-height: 1.15;
+}
+
+.question-expression--sequence :deep(.da-math-frac__num),
+.question-expression--sequence :deep(.da-math-frac__den),
+.option-list--sequence :deep(.da-math-frac__num),
+.option-list--sequence :deep(.da-math-frac__den) {
+  font-size: 0.92em;
+  padding: 0 0.28em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.question-expression--sequence :deep(.da-math-frac__rule),
+.option-list--sequence :deep(.da-math-frac__rule) {
+  display: block;
+  align-self: stretch;
+  border-top: 2px solid currentColor;
+  margin: 0.05em 0;
 }
 
 .question-expression--ok {

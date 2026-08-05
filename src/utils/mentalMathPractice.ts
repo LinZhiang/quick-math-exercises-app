@@ -9,6 +9,11 @@ import {
   type DivisibilityMode,
 } from '@/utils/divisibilityPractice'
 import {
+  NUMBER_SEQUENCE_MODES,
+  generateNumberSequenceQuestion,
+  type NumberSequenceMode,
+} from '@/utils/numberSequencePractice'
+import {
   LIFE_SENSE_MODES,
   generateLifeSenseQuestion,
   type LifeSenseMode,
@@ -18,6 +23,21 @@ import {
   generateWhatIsThisQuestion,
   type WhatIsThisMode,
 } from '@/utils/whatIsThisPractice'
+import {
+  ECONOMY_SENSE_MODES,
+  generateEconomySenseQuestion,
+  type EconomySenseMode,
+} from '@/utils/economySensePractice'
+import {
+  SYSTEM_MGMT_MODES,
+  generateSystemMgmtQuestion,
+  type SystemMgmtMode,
+} from '@/utils/systemMgmtPractice'
+import {
+  WENYAN_SHICI_MODES,
+  generateWenyanShiciQuestion,
+  type WenyanShiciMode,
+} from '@/utils/wenyanShiciPractice'
 import {
   GRAMMAR_JUDGMENT_MODES,
   generateGrammarJudgmentQuestion,
@@ -51,8 +71,12 @@ export type MentalMathMode =
   | 'square-cube-hard'
   | FractionEstimateMode
   | DivisibilityMode
+  | NumberSequenceMode
   | LifeSenseMode
   | WhatIsThisMode
+  | EconomySenseMode
+  | SystemMgmtMode
+  | WenyanShiciMode
   | GrammarJudgmentMode
 
 export type MentalMathModeCategory =
@@ -61,8 +85,12 @@ export type MentalMathModeCategory =
   | 'square-cube'
   | 'fraction'
   | 'divisibility'
+  | 'number-sequence'
   | 'life-sense'
   | 'what-is-this'
+  | 'economy-sense'
+  | 'system-mgmt'
+  | 'wenyan-shici'
   | 'grammar-judgment'
 
 export type MentalMathAnswerValue = number | string
@@ -304,6 +332,13 @@ export const MENTAL_MATH_DIVISIBILITY_MODES: MentalMathModeConfig[] = DIVISIBILI
   }),
 )
 
+export const MENTAL_MATH_NUMBER_SEQUENCE_MODES: MentalMathModeConfig[] = NUMBER_SEQUENCE_MODES.map(
+  (m) => ({
+    ...m,
+    category: 'number-sequence' as const,
+  }),
+)
+
 export const MENTAL_MATH_LIFE_SENSE_MODES: MentalMathModeConfig[] = LIFE_SENSE_MODES.map((m) => ({
   ...m,
   category: 'life-sense' as const,
@@ -312,6 +347,23 @@ export const MENTAL_MATH_LIFE_SENSE_MODES: MentalMathModeConfig[] = LIFE_SENSE_M
 export const MENTAL_MATH_WHAT_IS_THIS_MODES: MentalMathModeConfig[] = WHAT_IS_THIS_MODES.map((m) => ({
   ...m,
   category: 'what-is-this' as const,
+}))
+
+export const MENTAL_MATH_ECONOMY_SENSE_MODES: MentalMathModeConfig[] = ECONOMY_SENSE_MODES.map(
+  (m) => ({
+    ...m,
+    category: 'economy-sense' as const,
+  }),
+)
+
+export const MENTAL_MATH_SYSTEM_MGMT_MODES: MentalMathModeConfig[] = SYSTEM_MGMT_MODES.map((m) => ({
+  ...m,
+  category: 'system-mgmt' as const,
+}))
+
+export const MENTAL_MATH_WENYAN_SHICI_MODES: MentalMathModeConfig[] = WENYAN_SHICI_MODES.map((m) => ({
+  ...m,
+  category: 'wenyan-shici' as const,
 }))
 
 export const MENTAL_MATH_GRAMMAR_JUDGMENT_MODES: MentalMathModeConfig[] = GRAMMAR_JUDGMENT_MODES.map(
@@ -352,8 +404,12 @@ export const MENTAL_MATH_MODES: MentalMathModeConfig[] = [
   ...MENTAL_MATH_SQUARE_CUBE_MODES,
   ...MENTAL_MATH_FRACTION_MODES,
   ...MENTAL_MATH_DIVISIBILITY_MODES,
+  ...MENTAL_MATH_NUMBER_SEQUENCE_MODES,
   ...MENTAL_MATH_LIFE_SENSE_MODES,
   ...MENTAL_MATH_WHAT_IS_THIS_MODES,
+  ...MENTAL_MATH_ECONOMY_SENSE_MODES,
+  ...MENTAL_MATH_SYSTEM_MGMT_MODES,
+  ...MENTAL_MATH_WENYAN_SHICI_MODES,
   ...MENTAL_MATH_GRAMMAR_JUDGMENT_MODES,
 ]
 
@@ -392,6 +448,10 @@ export function isDivisibilityPracticeMode(mode: MentalMathMode): mode is Divisi
   )
 }
 
+export function isNumberSequencePracticeMode(mode: MentalMathMode): mode is NumberSequenceMode {
+  return mode === 'number-sequence-easy' || mode === 'number-sequence-hard'
+}
+
 export function isLifeSensePracticeMode(mode: MentalMathMode): mode is LifeSenseMode {
   return mode === 'life-sense-easy' || mode === 'life-sense-normal' || mode === 'life-sense-hard'
 }
@@ -402,6 +462,18 @@ export function isWhatIsThisPracticeMode(mode: MentalMathMode): mode is WhatIsTh
     mode === 'what-is-this-normal' ||
     mode === 'what-is-this-hard'
   )
+}
+
+export function isEconomySensePracticeMode(mode: MentalMathMode): mode is EconomySenseMode {
+  return mode === 'economy-sense-normal'
+}
+
+export function isSystemMgmtPracticeMode(mode: MentalMathMode): mode is SystemMgmtMode {
+  return mode === 'system-mgmt-normal'
+}
+
+export function isWenyanShiciPracticeMode(mode: MentalMathMode): mode is WenyanShiciMode {
+  return mode === 'wenyan-shici-normal'
 }
 
 export function isGrammarJudgmentPracticeMode(mode: MentalMathMode): mode is GrammarJudgmentMode {
@@ -1959,12 +2031,28 @@ function buildMentalMathQuestionOnce(
     return generateDivisibilityQuestion(mode, id, optionCount)
   }
 
+  if (isNumberSequencePracticeMode(mode)) {
+    return generateNumberSequenceQuestion(mode, id, optionCount, avoidFingerprints)
+  }
+
   if (isLifeSensePracticeMode(mode)) {
     return generateLifeSenseQuestion(mode, id, optionCount, avoidFingerprints)
   }
 
   if (isWhatIsThisPracticeMode(mode)) {
     return generateWhatIsThisQuestion(mode, id, optionCount, avoidFingerprints)
+  }
+
+  if (isEconomySensePracticeMode(mode)) {
+    return generateEconomySenseQuestion(mode, id, optionCount, avoidFingerprints)
+  }
+
+  if (isSystemMgmtPracticeMode(mode)) {
+    return generateSystemMgmtQuestion(mode, id, optionCount, avoidFingerprints)
+  }
+
+  if (isWenyanShiciPracticeMode(mode)) {
+    return generateWenyanShiciQuestion(mode, id, optionCount, avoidFingerprints)
   }
 
   if (isGrammarJudgmentPracticeMode(mode)) {

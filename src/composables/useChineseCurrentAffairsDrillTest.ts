@@ -21,6 +21,7 @@ import {
   currentAffairsDrillModeLabel,
   currentAffairsDrillQuestionCountFor,
   currentAffairsDrillQuestionTypeLabel,
+  orderArrangementToOption,
   type CurrentAffairsDrillMode,
   type CurrentAffairsDrillQuestion,
 } from '@/utils/currentAffairsDrillPractice'
@@ -43,6 +44,8 @@ export type ChineseCurrentAffairsDrillResultRow = {
   correct: boolean
   question: CurrentAffairsDrillQuestion
   chosenIndex: number | null
+  /** 语句排序：用户提交的序号串，如 3、2、1、4、5 */
+  chosenOrder?: string
 }
 
 function formatDuration(ms: number): string {
@@ -60,6 +63,8 @@ export function useChineseCurrentAffairsDrillTest() {
   const currentIndex = ref(0)
   const selectedIndex = ref<number | null>(null)
   const submitted = ref(false)
+  /** 语句排序：当前自上而下的段序号（1～5，对应题目 segments 下标+1） */
+  const orderArrangement = ref<number[]>([])
   const paperSource = ref<ChinesePaperSource>(null)
   const results = ref<ChineseCurrentAffairsDrillResultRow[]>([])
   const quizElapsedMs = ref(0)
@@ -68,10 +73,14 @@ export function useChineseCurrentAffairsDrillTest() {
   const drillMode = ref<CurrentAffairsDrillMode>('cloze')
 
   const wrongGate = createChineseWrongBookGate((q: CurrentAffairsDrillQuestion) => {
+    const isOrder = q.questionType === 'sentence-order'
     upsertCurrentAffairsDrillWrong(q, {
       scopeLabel: activeScope.value?.scopeLabel ?? q.scopeKey,
       drillMode: drillMode.value,
       chosenIndex: selectedIndex.value,
+      chosenAnswer: isOrder
+        ? orderArrangementToOption(orderArrangement.value) || undefined
+        : undefined,
     })
   })
 
@@ -235,6 +244,15 @@ export function useChineseCurrentAffairsDrillTest() {
     }
   }
 
+  function resetOrderArrangement() {
+    const q = currentQuestion.value
+    if (q?.questionType === 'sentence-order' && q.segments?.length === 5) {
+      orderArrangement.value = [1, 2, 3, 4, 5]
+    } else {
+      orderArrangement.value = []
+    }
+  }
+
   function startQuiz() {
     if (!questions.value.length) return
     paperSource.value = 'generated'
@@ -242,6 +260,7 @@ export function useChineseCurrentAffairsDrillTest() {
     selectedIndex.value = null
     submitted.value = false
     results.value = []
+    resetOrderArrangement()
     phase.value = 'running'
     playMentalMathStartSound()
   }
@@ -276,13 +295,46 @@ export function useChineseCurrentAffairsDrillTest() {
     selectedIndex.value = idx
   }
 
+  function setOrderArrangement(next: number[]) {
+    if (phase.value !== 'running' || submitted.value) return
+    orderArrangement.value = next
+  }
+
   async function submitCurrent() {
     const q = currentQuestion.value
-    if (!q || selectedIndex.value == null) {
+    if (!q) return
+    if (submitted.value) return
+
+    const isOrder = q.questionType === 'sentence-order'
+    if (isOrder) {
+      const userOrder = orderArrangementToOption(orderArrangement.value)
+      if (!userOrder) {
+        ElMessage.warning('请先完成五段排序')
+        return
+      }
+      pauseQuizTimer()
+      const correctAnswer = String(q.options[q.correctIndex] ?? '')
+      const correct = userOrder === correctAnswer
+      const matchedIdx = q.options.findIndex((o) => o === userOrder)
+      selectedIndex.value = matchedIdx >= 0 ? matchedIdx : null
+      results.value.push({
+        unitIndex: currentIndex.value + 1,
+        typeLabel: currentAffairsDrillQuestionTypeLabel(q.questionType),
+        title: q.sourceTitle,
+        correct,
+        question: q,
+        chosenIndex: selectedIndex.value,
+        chosenOrder: userOrder,
+      })
+      if (!correct) wrongGate.noteWrongAnswer(q)
+      submitted.value = true
+      return
+    }
+
+    if (selectedIndex.value == null) {
       ElMessage.warning('请先选择一个选项')
       return
     }
-    if (submitted.value) return
     pauseQuizTimer()
     const correct = selectedIndex.value === q.correctIndex
     results.value.push({
@@ -319,6 +371,7 @@ export function useChineseCurrentAffairsDrillTest() {
     currentIndex.value++
     selectedIndex.value = null
     submitted.value = false
+    resetOrderArrangement()
   }
 
   function resetToIdle() {
@@ -330,6 +383,7 @@ export function useChineseCurrentAffairsDrillTest() {
     questions.value = []
     currentIndex.value = 0
     selectedIndex.value = null
+    orderArrangement.value = []
     submitted.value = false
     paperSource.value = null
     results.value = []
@@ -372,6 +426,7 @@ export function useChineseCurrentAffairsDrillTest() {
     questions,
     currentIndex,
     selectedIndex,
+    orderArrangement,
     submitted,
     paperSource,
     results,
@@ -391,6 +446,7 @@ export function useChineseCurrentAffairsDrillTest() {
     startDrillFor,
     regenerateAndStart,
     selectOption,
+    setOrderArrangement,
     submitCurrent,
     nextQuestion,
     resetToIdle,

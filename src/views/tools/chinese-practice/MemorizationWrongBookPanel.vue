@@ -15,7 +15,7 @@ import {
   type MemorizationWrongQuizItem,
   type MemorizationWrongRecord,
 } from '@/utils/memorizationWrongBook'
-import { currentAffairsDrillQuestionTypeLabel } from '@/utils/currentAffairsDrillPractice'
+import { currentAffairsDrillQuestionTypeLabel, normalizeOrderOption, orderArrangementToOption } from '@/utils/currentAffairsDrillPractice'
 import { poetDrillQuestionTypeLabel } from '@/utils/poetDrillPractice'
 import { shouldShowPoetDrillTermBeforeSubmit } from '@/utils/poetDrillPractice'
 import type { PoetDrillQuestion } from '@/utils/poetDrillPractice'
@@ -25,6 +25,7 @@ import {
   type WrongBookReviewScope,
 } from '@/utils/wrongBookReviewStats'
 import WrongBookReviewStat from '@/views/tools/mental-math/components/WrongBookReviewStat.vue'
+import SentenceOrderBoard from '@/views/tools/chinese-practice/SentenceOrderBoard.vue'
 import {
   enterWrongBookWorkspace,
   leaveWrongBookWorkspace,
@@ -44,11 +45,11 @@ const quizPhase = ref<QuizPhase>('idle')
 const quizItems = ref<MemorizationWrongQuizItem[]>([])
 const quizCursor = ref(0)
 const quizChoice = ref<number | null>(null)
+const quizOrderArrangement = ref<number[]>([])
 const quizRevealed = ref(false)
 const quizCorrectCount = ref(0)
 const quizAnswered = ref(0)
 const quizCompleteRecorded = ref(false)
-const contextVisible = ref(false)
 
 const reviewScope = computed<WrongBookReviewScope>(() =>
   props.module === 'poet-drill' ? 'mem:poet-drill' : 'mem:current-affairs',
@@ -104,6 +105,28 @@ const batches = computed(() => {
 })
 
 const currentQuiz = computed(() => quizItems.value[quizCursor.value] ?? null)
+
+const isOrderQuiz = computed(() => currentQuiz.value?.questionType === 'sentence-order')
+
+function parseOrderLabels(raw: string | undefined | null): number[] | null {
+  const n = normalizeOrderOption(String(raw ?? ''))
+  if (!n) return null
+  return n.split('、').map(Number)
+}
+
+const quizRevealCorrectOrder = computed(() => {
+  if (!quizRevealed.value || !isOrderQuiz.value || !currentQuiz.value) return null
+  return parseOrderLabels(currentQuiz.value.options[currentQuiz.value.correctIndex])
+})
+
+function resetQuizOrderArrangement() {
+  const q = currentQuiz.value
+  if (q?.questionType === 'sentence-order' && q.segments?.length === 5) {
+    quizOrderArrangement.value = [1, 2, 3, 4, 5]
+  } else {
+    quizOrderArrangement.value = []
+  }
+}
 const quizTotal = computed(() => quizItems.value.length)
 
 const moduleTitle = computed(() =>
@@ -194,6 +217,7 @@ function startBatchQuiz(batchIndex: number) {
   quizAnswered.value = 0
   quizCompleteRecorded.value = false
   quizPhase.value = 'playing'
+  resetQuizOrderArrangement()
   open.value = true
 }
 
@@ -205,6 +229,28 @@ function selectQuizOption(idx: number) {
 function submitQuizAnswer() {
   const q = currentQuiz.value
   if (!q || quizRevealed.value) return
+
+  if (q.questionType === 'sentence-order') {
+    const userOrder = orderArrangementToOption(quizOrderArrangement.value)
+    if (!userOrder) {
+      ElMessage.warning('请先完成五段排序')
+      return
+    }
+    const correctAnswer = String(q.options[q.correctIndex] ?? '')
+    const ok = userOrder === correctAnswer
+    quizChoice.value = q.options.findIndex((o) => o === userOrder)
+    if (quizChoice.value < 0) quizChoice.value = null
+    quizRevealed.value = true
+    if (ok) quizCorrectCount.value += 1
+    quizAnswered.value += 1
+    recordWrongBookReviewAttempt(reviewScope.value, ok)
+    if (!ok) {
+      bumpMemorizationWrongCount(q.originFingerprint)
+      ElMessage.info('答错，已累计错题次数（原题复测，未出变式）')
+    }
+    return
+  }
+
   if (quizChoice.value == null) {
     ElMessage.warning('请先选择选项')
     return
@@ -229,6 +275,7 @@ function nextQuizQuestion() {
   quizCursor.value += 1
   quizChoice.value = null
   quizRevealed.value = false
+  resetQuizOrderArrangement()
 }
 
 function finishBatchQuiz() {
@@ -247,6 +294,7 @@ function resetQuiz() {
   quizItems.value = []
   quizCursor.value = 0
   quizChoice.value = null
+  quizOrderArrangement.value = []
   quizRevealed.value = false
 }
 
@@ -350,7 +398,11 @@ function exitQuiz() {
                 <p v-if="row.sourceTitle" class="mem-wrong__src">出处：{{ row.sourceTitle }}</p>
                 <p class="mem-wrong__stem">{{ row.stem }}</p>
                 <p class="mem-wrong__ans">
-                  正确：{{ row.options[row.correctIndex] }}
+                  正确：{{
+                    row.questionType === 'sentence-order'
+                      ? row.options[row.correctIndex]
+                      : row.options[row.correctIndex]
+                  }}
                 </p>
               </div>
               <el-button size="small" text type="danger" @click="removeRow(row.fingerprint)">
@@ -378,15 +430,17 @@ function exitQuiz() {
           {{ currentQuiz.term }}
         </p>
         <p class="mem-wrong-quiz__stem">{{ currentQuiz.stem }}</p>
-        <ol v-if="currentQuiz.segments?.length" class="mem-wrong-quiz__segs">
-          <li v-for="(seg, si) in currentQuiz.segments" :key="si">
-            <strong>{{ Number(si) + 1 }}.</strong> {{ seg }}
-          </li>
-        </ol>
-        <div v-if="currentQuiz.context" class="mem-wrong-quiz__ctx-btn">
-          <el-button size="small" plain @click="contextVisible = true">查看上下文</el-button>
-        </div>
-        <div class="mem-wrong-quiz__options">
+        <SentenceOrderBoard
+          v-if="currentQuiz.questionType === 'sentence-order' && currentQuiz.segments?.length"
+          :segments="currentQuiz.segments"
+          v-model="quizOrderArrangement"
+          :disabled="quizRevealed"
+          :reveal-correct-order="quizRevealCorrectOrder"
+        />
+        <div
+          v-else
+          class="mem-wrong-quiz__options"
+        >
           <button
             v-for="(opt, idx) in currentQuiz.options"
             :key="idx"
@@ -407,23 +461,29 @@ function exitQuiz() {
         <p v-if="quizRevealed && currentQuiz.explanation" class="mem-wrong-quiz__explain">
           {{ currentQuiz.explanation }}
         </p>
+        <p
+          v-if="quizRevealed && currentQuiz.questionType === 'sentence-order'"
+          class="mem-wrong-quiz__explain"
+        >
+          正确答案：{{ currentQuiz.options[currentQuiz.correctIndex] }}
+        </p>
         <div class="mem-wrong-quiz__actions">
           <el-button
             v-if="!quizRevealed"
             type="primary"
-            :disabled="quizChoice == null"
+            :disabled="
+              currentQuiz.questionType === 'sentence-order'
+                ? quizOrderArrangement.length !== 5
+                : quizChoice == null
+            "
             @click="submitQuizAnswer"
           >
-            提交
+            {{ currentQuiz.questionType === 'sentence-order' ? '确认' : '提交' }}
           </el-button>
           <el-button v-else type="primary" @click="nextQuizQuestion">
             {{ quizCursor + 1 >= quizTotal ? '查看结果' : '下一题' }}
           </el-button>
         </div>
-        <el-dialog v-model="contextVisible" title="上下文" width="min(560px, 94vw)" append-to-body>
-          <p v-if="currentQuiz.sourceTitle">出处：{{ currentQuiz.sourceTitle }}</p>
-          <div style="white-space: pre-wrap; line-height: 1.6">{{ currentQuiz.context }}</div>
-        </el-dialog>
       </template>
 
       <template v-else-if="quizPhase === 'result'">
@@ -609,10 +669,6 @@ function exitQuiz() {
   padding-left: 1.2em;
   font-size: 14px;
   line-height: 1.5;
-}
-
-.mem-wrong-quiz__ctx-btn {
-  margin-bottom: 8px;
 }
 
 .mem-wrong-quiz__options {

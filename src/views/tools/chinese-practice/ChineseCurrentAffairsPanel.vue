@@ -9,6 +9,7 @@ import { useChineseCurrentAffairsDrillTest } from '@/composables/useChineseCurre
 import { isAiChatConfigured } from '@/services/deepseek'
 import {
   currentAffairsDrillQuestionTypeLabel,
+  normalizeOrderOption,
   type CurrentAffairsDrillMode,
 } from '@/utils/currentAffairsDrillPractice'
 import {
@@ -19,7 +20,7 @@ import {
   type CurrentAffairsPeriodId,
 } from '@/utils/currentAffairsTypes'
 import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
-import MemorizationWrongBookPanel from '@/views/tools/chinese-practice/MemorizationWrongBookPanel.vue'
+import SentenceOrderBoard from '@/views/tools/chinese-practice/SentenceOrderBoard.vue'
 import type { ChineseCurrentAffairsDrillResultRow } from '@/composables/useChineseCurrentAffairsDrillTest'
 
 const emit = defineEmits<{ (e: 'back'): void }>()
@@ -33,7 +34,6 @@ const activeArticleId = ref<string | null>(null)
 const regenerating = ref(false)
 const detailVisible = ref(false)
 const detailRow = ref<ChineseCurrentAffairsDrillResultRow | null>(null)
-const contextVisible = ref(false)
 
 const test = useChineseCurrentAffairsDrillTest()
 
@@ -64,6 +64,13 @@ function selectArticle(id: string) {
   activeArticleId.value = id
 }
 
+/** 条目胶囊短标题，避免横向导航被长文题挤爆 */
+function shortArticleLabel(title: string): string {
+  const t = String(title ?? '').trim()
+  if (t.length <= 10) return t
+  return `${t.slice(0, 9)}…`
+}
+
 function backToModulePick() {
   if (test.phase === 'loading' || test.phase === 'running') return
   test.resetToIdle()
@@ -73,7 +80,6 @@ function backToModulePick() {
 function backToBrowse() {
   detailVisible.value = false
   detailRow.value = null
-  contextVisible.value = false
   test.resetToIdle()
   screen.value = 'browse'
 }
@@ -107,13 +113,24 @@ function closeResultDetail() {
   detailRow.value = null
 }
 
-function openContext() {
-  if (!test.currentQuestion?.context) return
-  contextVisible.value = true
+const isOrderQuestion = computed(
+  () => test.currentQuestion?.questionType === 'sentence-order',
+)
+
+function parseOrderLabels(raw: string | undefined | null): number[] | null {
+  const n = normalizeOrderOption(String(raw ?? ''))
+  if (!n) return null
+  return n.split('、').map(Number)
 }
+
+const revealCorrectOrderLabels = computed(() => {
+  if (!test.submitted || !isOrderQuestion.value || !test.currentQuestion) return null
+  return parseOrderLabels(test.currentQuestion.options[test.currentQuestion.correctIndex])
+})
 
 function onKeydown(e: KeyboardEvent) {
   if (screen.value !== 'quiz' || test.phase !== 'running' || test.submitted) return
+  if (isOrderQuestion.value) return
   const n = Number(e.key)
   if (n >= 1 && n <= 4) {
     e.preventDefault()
@@ -136,11 +153,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         <p class="ca-drill__hint">
           <template v-if="test.drillMode === 'sentence-fill'">
             根据「{{ test.scopeLabel }}」材料 AI 出 {{ test.questionCount }} 道语句填充：挖 ≥12
-            字半句；干扰项多处改写、官方语感；本批考点不重复；可查看上下文。
+            字半句；干扰项多处改写、官方语感；本批考点不重复。
           </template>
           <template v-else-if="test.drillMode === 'sentence-order'">
-            根据「{{ test.scopeLabel }}」材料 AI 出 {{ test.questionCount }} 道语句排序：段落拆成
-            5 段打乱编号，选择正确排列；强干扰序；本批语段不重复；可查看原文上下文。
+            根据「{{ test.scopeLabel }}」材料 AI 出 {{ test.questionCount }} 道语句排序：拆成
+            5 段完整句子（须句末标点），拖动或点击交换排序后确认；本批语段不重复。
           </template>
           <template v-else>
             根据「{{ test.scopeLabel || `${CURRENT_AFFAIRS_PERIODS.find((p) => p.id === activePeriod)?.title ?? ''}·${activeCategory === 'politics' ? '政治' : '社会'}` }}」材料
@@ -169,14 +186,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             {{ test.quizRunningElapsedText }}
           </span>
           <div class="chinese-quiz__actions-top">
-            <el-button
-              v-if="test.currentQuestion?.context"
-              size="small"
-              plain
-              @click="openContext"
-            >
-              查看上下文
-            </el-button>
             <el-button size="small" plain @click="backToBrowse">返回</el-button>
           </div>
         </div>
@@ -186,22 +195,26 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             出处：{{ test.currentQuestion.sourceTitle }}
           </p>
           <p class="chinese-quiz__question">{{ test.currentQuestion.stem }}</p>
-          <ol
-            v-if="test.currentQuestion.segments?.length"
-            class="ca-order-segments"
-          >
-            <li
-              v-for="(seg, si) in test.currentQuestion.segments"
-              :key="si"
-              class="ca-order-segments__item"
-            >
-              <span class="ca-order-segments__num">{{ Number(si) + 1 }}</span>
-              <span class="ca-order-segments__text">{{ seg }}</span>
-            </li>
-          </ol>
+          <SentenceOrderBoard
+            v-if="
+              test.currentQuestion.questionType === 'sentence-order' &&
+              test.currentQuestion.segments?.length
+            "
+            :segments="test.currentQuestion.segments"
+            :model-value="test.orderArrangement"
+            :disabled="test.submitted"
+            :reveal-correct-order="revealCorrectOrderLabels"
+            @update:model-value="test.setOrderArrangement($event)"
+          />
         </div>
 
-        <div v-if="test.currentQuestion" class="chinese-quiz__options">
+        <div
+          v-if="
+            test.currentQuestion &&
+            test.currentQuestion.questionType !== 'sentence-order'
+          "
+          class="chinese-quiz__options"
+        >
           <button
             v-for="(opt, idx) in test.currentQuestion.options"
             :key="idx"
@@ -231,11 +244,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
                 : 'feedback feedback--bad'
             "
           >
-            {{
-              test.results[test.results.length - 1]?.correct
-                ? '回答正确'
-                : `回答错误 · 正确答案：${test.currentQuestion.options[test.currentQuestion.correctIndex]}`
-            }}
+            <template v-if="test.results[test.results.length - 1]?.correct">
+              回答正确
+            </template>
+            <template v-else>
+              回答错误 · 正确答案：{{
+                test.currentQuestion.options[test.currentQuestion.correctIndex]
+              }}
+            </template>
           </p>
           <p v-if="test.currentQuestion.explanation" class="chinese-quiz__explain">
             {{ test.currentQuestion.explanation }}
@@ -246,28 +262,31 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           <el-button
             v-if="!test.submitted"
             type="primary"
-            :disabled="test.selectedIndex == null"
+            :disabled="
+              test.currentQuestion?.questionType === 'sentence-order'
+                ? test.orderArrangement.length !== 5
+                : test.selectedIndex == null
+            "
             @click="test.submitCurrent()"
           >
-            提交
+            {{ test.currentQuestion?.questionType === 'sentence-order' ? '确认' : '提交' }}
           </el-button>
           <el-button v-else type="primary" @click="test.nextQuestion()">
             {{ test.currentIndex >= test.questionCount - 1 ? '查看结果' : '下一题' }}
           </el-button>
         </div>
-        <p v-if="!test.submitted" class="hint">键盘按 <kbd>1</kbd>～<kbd>4</kbd> 选择，再点「提交」</p>
-
-        <el-dialog
-          v-model="contextVisible"
-          title="上下文"
-          width="min(560px, 94vw)"
-          append-to-body
+        <p
+          v-if="!test.submitted && test.currentQuestion?.questionType === 'sentence-order'"
+          class="hint"
         >
-          <p v-if="test.currentQuestion" class="ca-context__source">
-            出处：{{ test.currentQuestion.sourceTitle }}
-          </p>
-          <div class="ca-context__body">{{ test.currentQuestion?.context }}</div>
-        </el-dialog>
+          拖动或点选两段交换顺序，满意后点「确认」
+        </p>
+        <p
+          v-else-if="!test.submitted"
+          class="hint"
+        >
+          键盘按 <kbd>1</kbd>～<kbd>4</kbd> 选择，再点「提交」
+        </p>
       </template>
 
       <template v-else-if="test.phase === 'summary'">
@@ -327,7 +346,23 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
                 <span class="ca-order-segments__text">{{ seg }}</span>
               </li>
             </ol>
-            <ul class="ca-drill-detail__options">
+            <p
+              v-if="detailRow.question.questionType === 'sentence-order'"
+              class="ca-drill-detail__explain"
+            >
+              正确顺序：{{ detailRow.question.options[detailRow.question.correctIndex] }}
+              <template v-if="detailRow.chosenOrder || detailRow.chosenIndex != null">
+                · 你的作答：{{
+                  detailRow.chosenOrder ||
+                  detailRow.question.options[detailRow.chosenIndex!] ||
+                  '—'
+                }}
+              </template>
+            </p>
+            <ul
+              v-else
+              class="ca-drill-detail__options"
+            >
               <li
                 v-for="(opt, idx) in detailRow.question.options"
                 :key="idx"
@@ -343,9 +378,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
                 <span>{{ opt }}</span>
               </li>
             </ul>
-            <p v-if="detailRow.question.context" class="ca-drill-detail__context">
-              <strong>上下文：</strong>{{ detailRow.question.context }}
-            </p>
             <p v-if="detailRow.question.explanation" class="ca-drill-detail__explain">
               {{ detailRow.question.explanation }}
             </p>
@@ -365,48 +397,30 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             class="ca-panel__test-btn"
             :class="{ 'is-ready': canStartDrill }"
             :disabled="!canStartDrill || !isAiChatConfigured()"
-            :title="
-              !canStartDrill
-                ? '当前栏目无材料'
-                : !isAiChatConfigured()
-                  ? '请先配置 AI'
-                  : '词语/术语挖空测试'
-            "
+            title="词语/术语挖空"
             @click="onStartDrill('cloze')"
           >
             测试
           </button>
           <button
             type="button"
-            class="ca-panel__test-btn"
+            class="ca-panel__test-btn ca-panel__test-btn--ghost"
             :class="{ 'is-ready': canStartDrill }"
             :disabled="!canStartDrill || !isAiChatConfigured()"
-            :title="
-              !canStartDrill
-                ? '当前栏目无材料'
-                : !isAiChatConfigured()
-                  ? '请先配置 AI'
-                  : '长句/半句填充测试'
-            "
+            title="长句/半句填充"
             @click="onStartDrill('sentence-fill')"
           >
-            语句填充
+            填充
           </button>
           <button
             type="button"
-            class="ca-panel__test-btn"
+            class="ca-panel__test-btn ca-panel__test-btn--ghost"
             :class="{ 'is-ready': canStartDrill }"
             :disabled="!canStartDrill || !isAiChatConfigured()"
-            :title="
-              !canStartDrill
-                ? '当前栏目无材料'
-                : !isAiChatConfigured()
-                  ? '请先配置 AI'
-                  : '段落拆分排序测试'
-            "
+            title="段落排序"
             @click="onStartDrill('sentence-order')"
           >
-            语句排序
+            排序
           </button>
         </div>
       </div>
@@ -451,11 +465,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           type="button"
           class="ca-panel__toc-item"
           :class="{ 'is-active': activeArticle?.id === a.id }"
+          :title="a.title"
           @click="selectArticle(a.id)"
         >
           <span class="ca-panel__toc-idx">{{ idx + 1 }}</span>
-          <span class="ca-panel__toc-title">{{ a.title }}</span>
-          <span class="ca-panel__toc-tag">【{{ a.tag }}】</span>
+          <span class="ca-panel__toc-title">{{ shortArticleLabel(a.title) }}</span>
         </button>
       </nav>
     </header>
@@ -490,28 +504,33 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         </div>
       </article>
     </div>
-    <MemorizationWrongBookPanel module="current-affairs" />
   </section>
 </template>
 
 <style scoped>
 .ca-panel {
-  --ca-ink: #1f2a24;
-  --ca-ink-soft: #3d4a42;
-  --ca-muted: #6b776f;
-  --ca-line: #d8e0da;
-  --ca-card: #f7faf7;
-  --ca-paper: #fff;
-  --ca-accent: #3d6b52;
-  --ca-accent-deep: #2f4a3a;
-  --ca-accent-soft: #e4efe8;
+  --ca-ink: #2f3a32;
+  --ca-ink-soft: #5a6a5e;
+  --ca-muted: #7a8a7e;
+  --ca-line: #dce4db;
+  --ca-card: #ffffff;
+  --ca-paper: #f4f6f2;
+  --ca-accent: #5f7f64;
+  --ca-accent-deep: #45634b;
+  --ca-accent-soft: #e8f0e9;
 
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  min-width: 0;
   min-height: 0;
   height: 100%;
+  padding: 8px;
+  border-radius: 16px;
+  background: var(--ca-paper);
+  border: 1px solid var(--ca-line);
   color: var(--ca-ink);
+  box-sizing: border-box;
 }
 
 .ca-panel--quiz {
@@ -521,7 +540,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .ca-panel__chrome {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
@@ -534,8 +553,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 .ca-panel__test-group {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-wrap: nowrap;
+  gap: 4px;
   justify-content: flex-end;
 }
 
@@ -575,73 +594,89 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   border-color: var(--ca-accent-deep);
 }
 
-.ca-panel__seg {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.ca-panel__test-btn--ghost.is-ready:not(:disabled) {
+  color: var(--ca-accent-deep);
+  background: var(--ca-accent-soft);
+  border-color: color-mix(in srgb, var(--ca-accent) 35%, transparent);
 }
 
-.ca-panel__seg--cat .ca-panel__seg-btn {
-  min-width: 4.5rem;
+.ca-panel__seg {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ca-line) 55%, white);
+}
+
+.ca-panel__seg--cat {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .ca-panel__seg-btn {
   appearance: none;
-  border: 1px solid var(--ca-line);
+  border: none;
   margin: 0;
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: var(--ca-paper);
+  padding: 7px 4px;
+  border-radius: 10px;
+  background: transparent;
   color: var(--ca-ink-soft);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 650;
+  line-height: 1.2;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 4px;
 }
 
 .ca-panel__seg-btn.is-active {
-  border-color: var(--ca-accent);
-  background: var(--ca-accent-soft);
-  color: var(--ca-accent-deep);
+  background: var(--ca-accent-deep);
+  color: #f7faf7;
+  box-shadow: 0 1px 3px rgba(47, 58, 50, 0.18);
 }
 
 .ca-panel__count {
   font-size: 0.68rem;
   font-weight: 700;
-  opacity: 0.75;
+  opacity: 0.85;
 }
 
 .ca-panel__toc {
   display: flex;
-  flex-direction: column;
+  flex-wrap: nowrap;
   gap: 4px;
-  max-height: 9.5rem;
-  overflow-y: auto;
-  padding: 4px;
-  border-radius: 10px;
-  border: 1px solid var(--ca-line);
-  background: var(--ca-card);
-  scrollbar-width: thin;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding: 1px 0;
+}
+
+.ca-panel__toc::-webkit-scrollbar {
+  display: none;
 }
 
 .ca-panel__toc-item {
   appearance: none;
   border: none;
   margin: 0;
-  padding: 7px 8px;
-  border-radius: 8px;
+  padding: 5px 11px;
+  border-radius: 999px;
   background: transparent;
-  color: var(--ca-ink);
+  color: var(--ca-ink-soft);
   font: inherit;
-  text-align: left;
+  font-size: 0.8rem;
+  font-weight: 650;
   cursor: pointer;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 8px;
-  align-items: start;
+  flex-shrink: 0;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .ca-panel__toc-item:hover {
@@ -650,25 +685,20 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 .ca-panel__toc-item.is-active {
   background: var(--ca-accent-soft);
+  color: var(--ca-accent-deep);
 }
 
 .ca-panel__toc-idx {
   font-size: 0.72rem;
   font-weight: 800;
   color: var(--ca-accent);
-  min-width: 1.1rem;
 }
 
 .ca-panel__toc-title {
   font-size: 0.78rem;
-  font-weight: 650;
-  line-height: 1.35;
-}
-
-.ca-panel__toc-tag {
-  font-size: 0.68rem;
-  color: var(--ca-muted);
-  white-space: nowrap;
+  max-width: 9.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ca-panel__empty-box {
@@ -702,7 +732,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   padding: 14px 14px 18px;
   border-radius: 14px;
   border: 1px solid var(--ca-line);
-  background: var(--ca-paper);
+  background: var(--ca-card);
 }
 
 .ca-article__head {
@@ -862,37 +892,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   font-size: 13px;
   line-height: 1.5;
   color: var(--ca-ink-soft);
-}
-
-.ca-drill-detail__context {
-  margin: 0 0 10px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: var(--ca-card);
-  border: 1px solid var(--ca-line);
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--ca-ink-soft);
-}
-
-.ca-context__source {
-  margin: 0 0 10px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--ca-accent-deep);
-}
-
-.ca-context__body {
-  margin: 0;
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: var(--ca-card);
-  border: 1px solid var(--ca-line);
-  font-size: 0.9rem;
-  line-height: 1.7;
-  color: var(--ca-ink-soft);
-  white-space: pre-wrap;
-  text-align: justify;
 }
 
 .chinese-quiz__top {
@@ -1155,5 +1154,78 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 .practice-completion-line {
   margin: 0;
+}
+
+@media (max-width: 640px), (display-mode: standalone) {
+  .ca-panel {
+    max-height: none;
+    height: 100%;
+    min-height: 0;
+    padding: 6px 6px 4px;
+    border-radius: 14px;
+    gap: 6px;
+    border: none;
+    background: #eef2ec;
+  }
+
+  .ca-panel__chrome {
+    gap: 5px;
+  }
+
+  .ca-panel__seg {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  /* 时段很多时横向滚动，避免换行占高 */
+  .ca-panel__seg:not(.ca-panel__seg--cat) {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 2px;
+  }
+
+  .ca-panel__seg:not(.ca-panel__seg--cat)::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ca-panel__seg:not(.ca-panel__seg--cat) .ca-panel__seg-btn {
+    flex: 0 0 auto;
+    min-width: 3.6rem;
+    padding: 6px 8px;
+    font-size: 0.74rem;
+  }
+
+  .ca-panel__seg-btn {
+    padding: 6px 2px;
+    font-size: 0.76rem;
+  }
+
+  .ca-panel__test-btn {
+    padding: 4px 9px;
+    font-size: 0.72rem;
+  }
+
+  .ca-panel__toc-item {
+    padding: 4px 10px;
+    font-size: 0.76rem;
+  }
+
+  .ca-article {
+    padding: 11px 12px 14px;
+  }
+
+  .ca-article__meta {
+    display: none;
+  }
+
+  .ca-article__title {
+    font-size: 0.9rem;
+  }
+
+  .ca-article__p {
+    font-size: 0.86rem;
+    line-height: 1.65;
+  }
 }
 </style>
