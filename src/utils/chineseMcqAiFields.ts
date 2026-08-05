@@ -125,6 +125,38 @@ export function isPlayableFourChoiceMcq(q: {
   return true
 }
 
+/** 逻辑判断四选一：选项常为完整排序/长句，不宜套用语文短释义的严表面校验 */
+export function isPlayableLogicReasonMcq(q: {
+  options: string[]
+  correctIndex: number
+}): boolean {
+  if (!Array.isArray(q.options) || q.options.length !== 4) return false
+  if (q.correctIndex < 0 || q.correctIndex >= q.options.length) return false
+  const correct = q.options[q.correctIndex]
+  if (!correct || !String(correct).trim()) return false
+  const norms = q.options.map((o) => normalizeMcqOptionText(String(o)))
+  if (norms.some((n) => !n)) return false
+  if (new Set(norms).size !== 4) return false
+
+  const lengths = q.options.map(mcqOptionVisibleLength)
+  const maxLen = Math.max(...lengths)
+  const cLen = lengths[q.correctIndex]!
+  const otherLens = lengths.filter((_, i) => i !== q.correctIndex)
+  const maxOtherLen = Math.max(...otherLens)
+
+  // 短选项仍防「选最长」；长选项仅拦甩开过大的极端情况
+  if (maxLen <= 18) {
+    if (mcqOptionSurfaceLeakFailure(q.options, q.correctIndex) != null) return false
+  } else if (
+    cLen === maxLen &&
+    lengths.filter((n) => n === maxLen).length === 1 &&
+    cLen - maxOtherLen >= 10
+  ) {
+    return false
+  }
+  return true
+}
+
 /** 选项可见长度（去空白） */
 export function mcqOptionVisibleLength(s: string): number {
   return String(s ?? '')

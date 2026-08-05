@@ -1,11 +1,11 @@
-﻿/**
+/**
  * 逻辑推理 · 组合排列
  * 组合排列（排序、匹配、条件推理）四选一；由网页 AI 出题，本地只做结构校验。
  */
 import {
   assembleFourChoiceMcq,
   extractMcqCorrectAndDistractors,
-  isPlayableFourChoiceMcq,
+  isPlayableLogicReasonMcq,
 } from '@/utils/chineseMcqAiFields'
 
 export type ComboArrangeDifficulty = 'easy' | 'medium' | 'hard'
@@ -127,7 +127,7 @@ export function buildComboArrangeQuestionFromMcq(input: {
     explanation: (input.explanation ?? '').trim(),
     fingerprint,
   }
-  if (!isPlayableFourChoiceMcq(q)) return null
+  if (!isPlayableLogicReasonMcq(q)) return null
   return q
 }
 

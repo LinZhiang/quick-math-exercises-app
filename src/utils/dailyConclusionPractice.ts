@@ -5,7 +5,7 @@
 import {
   assembleFourChoiceMcq,
   extractMcqCorrectAndDistractors,
-  isPlayableFourChoiceMcq,
+  isPlayableLogicReasonMcq,
 } from '@/utils/chineseMcqAiFields'
 
 export type DailyConclusionDifficulty = 'easy' | 'hard'
@@ -118,7 +118,7 @@ export function buildDailyConclusionQuestionFromMcq(input: {
     explanation: (input.explanation ?? '').trim(),
     fingerprint,
   }
-  if (!isPlayableFourChoiceMcq(q)) return null
+  if (!isPlayableLogicReasonMcq(q)) return null
   return q
 }
 
