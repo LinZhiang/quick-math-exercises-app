@@ -23,12 +23,12 @@ export const ECONOMY_SENSE_MODES: EconomySenseModeConfig[] = [
   {
     id: 'economy-sense-normal',
     label: '普通题',
-    durationSec: 40,
+    durationSec: 52,
     optionCount: 4,
     correctDelta: 8,
     wrongDelta: -15,
     maxScore: 100,
-    desc: '40 秒 · 经济学易混概念释义 · 按知识点未出优先 · 对 +8 / 错 -15',
+    desc: '52 秒 · 经济学易混概念释义 · 按知识点未出优先 · 对 +8 / 错 -15',
   },
 ]
 

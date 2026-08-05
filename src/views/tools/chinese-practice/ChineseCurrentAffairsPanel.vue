@@ -10,6 +10,7 @@ import { isAiChatConfigured } from '@/services/deepseek'
 import {
   currentAffairsDrillQuestionTypeLabel,
   normalizeOrderOption,
+  orderSegmentsToReadingText,
   type CurrentAffairsDrillMode,
 } from '@/utils/currentAffairsDrillPractice'
 import {
@@ -157,7 +158,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           </template>
           <template v-else-if="test.drillMode === 'sentence-order'">
             根据「{{ test.scopeLabel }}」材料 AI 出 {{ test.questionCount }} 道语句排序：拆成
-            5 段完整句子（须句末标点），拖动或点击交换排序后确认；本批语段不重复。
+            5 段（标点照搬原文，整段须以句末收尾）；点选填入排序区并可拖动；本批语段不重复。
           </template>
           <template v-else>
             根据「{{ test.scopeLabel || `${CURRENT_AFFAIRS_PERIODS.find((p) => p.id === activePeriod)?.title ?? ''}·${activeCategory === 'politics' ? '政治' : '社会'}` }}」材料
@@ -248,10 +249,25 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
               回答正确
             </template>
             <template v-else>
-              回答错误 · 正确答案：{{
+              回答错误 · 正确序号：{{
                 test.currentQuestion.options[test.currentQuestion.correctIndex]
               }}
             </template>
+          </p>
+          <p
+            v-if="
+              test.submitted &&
+              test.currentQuestion.questionType === 'sentence-order' &&
+              test.currentQuestion.segments?.length
+            "
+            class="chinese-quiz__explain"
+          >
+            正确原文：{{
+              orderSegmentsToReadingText(
+                test.currentQuestion.segments,
+                test.currentQuestion.options[test.currentQuestion.correctIndex] || '',
+              )
+            }}
           </p>
           <p v-if="test.currentQuestion.explanation" class="chinese-quiz__explain">
             {{ test.currentQuestion.explanation }}
@@ -279,7 +295,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           v-if="!test.submitted && test.currentQuestion?.questionType === 'sentence-order'"
           class="hint"
         >
-          拖动或点选两段交换顺序，满意后点「确认」
+          点选片段填入下方排序区，可拖动调整；排满 5 段后点「确认」
         </p>
         <p
           v-else-if="!test.submitted"
@@ -358,6 +374,20 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
                   '—'
                 }}
               </template>
+            </p>
+            <p
+              v-if="
+                detailRow.question.questionType === 'sentence-order' &&
+                detailRow.question.segments?.length
+              "
+              class="ca-drill-detail__explain"
+            >
+              正确原文：{{
+                orderSegmentsToReadingText(
+                  detailRow.question.segments,
+                  detailRow.question.options[detailRow.question.correctIndex] || '',
+                )
+              }}
             </p>
             <ul
               v-else

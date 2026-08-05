@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { onBeforeUnmount, computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import {
   buildMemorizationWrongQuizItems,
   bumpMemorizationWrongCount,
@@ -15,7 +15,12 @@ import {
   type MemorizationWrongQuizItem,
   type MemorizationWrongRecord,
 } from '@/utils/memorizationWrongBook'
-import { currentAffairsDrillQuestionTypeLabel, normalizeOrderOption, orderArrangementToOption } from '@/utils/currentAffairsDrillPractice'
+import {
+  currentAffairsDrillQuestionTypeLabel,
+  normalizeOrderOption,
+  orderArrangementToOption,
+  orderSegmentsToReadingText,
+} from '@/utils/currentAffairsDrillPractice'
 import { poetDrillQuestionTypeLabel } from '@/utils/poetDrillPractice'
 import { shouldShowPoetDrillTermBeforeSubmit } from '@/utils/poetDrillPractice'
 import type { PoetDrillQuestion } from '@/utils/poetDrillPractice'
@@ -30,12 +35,16 @@ import {
   enterWrongBookWorkspace,
   leaveWrongBookWorkspace,
 } from '@/utils/wrongBookWorkspaceGate'
+import {
+  acquireWrongBookOverlayLock,
+  releaseWrongBookOverlayLock,
+} from '@/utils/wrongBookOverlayLock'
 
 const props = defineProps<{
   module: MemorizationWrongModule
 }>()
 
-const open = ref(false)
+const workspaceOpen = ref(false)
 const filterWrongCount = ref<number | undefined>()
 const filterDate = ref<string | undefined>()
 const selected = ref<Set<string>>(new Set())
@@ -120,12 +129,7 @@ const quizRevealCorrectOrder = computed(() => {
 })
 
 function resetQuizOrderArrangement() {
-  const q = currentQuiz.value
-  if (q?.questionType === 'sentence-order' && q.segments?.length === 5) {
-    quizOrderArrangement.value = [1, 2, 3, 4, 5]
-  } else {
-    quizOrderArrangement.value = []
-  }
+  quizOrderArrangement.value = []
 }
 const quizTotal = computed(() => quizItems.value.length)
 
@@ -133,28 +137,40 @@ const moduleTitle = computed(() =>
   props.module === 'poet-drill' ? '诗词识记' : '时政识记',
 )
 
-watch(open, (v) => {
-  if (!v) exitQuiz()
-})
-
-watch(
-  () => quizPhase.value,
-  (p, prev) => {
-    const nowBusy = p === 'playing' || p === 'result'
-    const wasBusy = prev === 'playing' || prev === 'result'
-    if (nowBusy && !wasBusy) enterWrongBookWorkspace()
-    if (!nowBusy && wasBusy) leaveWrongBookWorkspace()
-  },
-)
-
-onBeforeUnmount(() => {
-  if (quizPhase.value === 'playing' || quizPhase.value === 'result') {
+watch(workspaceOpen, (v) => {
+  if (v) {
+    enterWrongBookWorkspace()
+    acquireWrongBookOverlayLock()
+  } else {
     leaveWrongBookWorkspace()
+    releaseWrongBookOverlayLock()
+    exitQuiz()
   }
 })
 
-function toggleOpen() {
-  open.value = !open.value
+onUnmounted(() => {
+  if (workspaceOpen.value) workspaceOpen.value = false
+})
+
+function openWorkspace() {
+  if (!wrongCount.value) {
+    ElMessage.info('暂无错题')
+    return
+  }
+  filterWrongCount.value = undefined
+  filterDate.value = undefined
+  selected.value = new Set()
+  resetQuiz()
+  workspaceOpen.value = true
+}
+
+function closeWorkspace() {
+  workspaceOpen.value = false
+}
+
+function resetFilters() {
+  filterWrongCount.value = undefined
+  filterDate.value = undefined
 }
 
 function toggleSelect(fp: string) {
@@ -193,6 +209,9 @@ function removeRow(fp: string) {
   next.delete(fp)
   selected.value = next
   ElMessage.success('已移出错题本')
+  if (!listMemorizationWrongRecords(props.module).length) {
+    closeWorkspace()
+  }
 }
 
 function startBatchQuiz(batchIndex: number) {
@@ -206,7 +225,7 @@ function startBatchQuiz(batchIndex: number) {
   }
   const items = buildMemorizationWrongQuizItems(slice)
   if (!items.length) {
-    ElMessage.warning('错题数据不完整，无法组卷')
+    ElMessage.warning('错题数据不完整，无法组卷（排序题须含 5 段原文）')
     return
   }
   quizItems.value = chunkMemorizationWrongQuizItems(items)[0] ?? items
@@ -218,7 +237,6 @@ function startBatchQuiz(batchIndex: number) {
   quizCompleteRecorded.value = false
   quizPhase.value = 'playing'
   resetQuizOrderArrangement()
-  open.value = true
 }
 
 function selectQuizOption(idx: number) {
@@ -236,9 +254,9 @@ function submitQuizAnswer() {
       ElMessage.warning('请先完成五段排序')
       return
     }
-    const correctAnswer = String(q.options[q.correctIndex] ?? '')
+    const correctAnswer = normalizeOrderOption(String(q.options[q.correctIndex] ?? ''))
     const ok = userOrder === correctAnswer
-    quizChoice.value = q.options.findIndex((o) => o === userOrder)
+    quizChoice.value = q.options.findIndex((o) => normalizeOrderOption(o) === userOrder)
     if (quizChoice.value < 0) quizChoice.value = null
     quizRevealed.value = true
     if (ok) quizCorrectCount.value += 1
@@ -317,293 +335,318 @@ function exitQuiz() {
 <template>
   <div class="mem-wrong">
     <div class="mem-wrong__bar">
-      <button type="button" class="mem-wrong__toggle" @click="toggleOpen">
+      <button type="button" class="mem-wrong__toggle" @click="openWorkspace">
         <span>{{ moduleTitle }}错题本</span>
         <strong>{{ wrongCount }}</strong>
       </button>
-      <span class="mem-wrong__hint">复测用原题，不出 AI 变式</span>
+      <div class="mem-wrong__bar-actions">
+        <el-button
+          size="small"
+          type="primary"
+          :disabled="!wrongCount"
+          @click="openWorkspace"
+        >
+          进入
+        </el-button>
+      </div>
     </div>
+    <p class="mem-wrong__hint">复测用原题，不出 AI 变式 · 点进入打开错题本页面</p>
 
-    <div v-if="open" class="mem-wrong__body">
-      <template v-if="quizPhase === 'idle'">
-        <p v-if="!allRows.length" class="mem-wrong__empty">暂无错题。测验答错后会自动收入。</p>
-        <template v-else>
-          <div class="mem-wrong__filters">
-            <label>
-              错题次数
-              <el-select
-                v-model="filterWrongCount"
-                clearable
-                placeholder="不限"
-                size="small"
-                style="width: 100px"
-              >
-                <el-option
-                  v-for="n in wrongCountOptions"
-                  :key="n"
-                  :label="`${n} 次`"
-                  :value="n"
-                />
-              </el-select>
-            </label>
-            <label>
-              日期
-              <el-select
-                v-model="filterDate"
-                clearable
-                placeholder="不限"
-                size="small"
-                style="width: 130px"
-              >
-                <el-option v-for="d in dateOptions" :key="d" :label="d" :value="d" />
-              </el-select>
-            </label>
-            <el-button size="small" plain @click="selectAllFiltered">全选当前</el-button>
-            <el-button size="small" text @click="clearSelected">清空勾选</el-button>
-          </div>
-
-          <p class="mem-wrong__batch-label">
-            分批原题测验（每组最多 {{ WRONG_BOOK_BATCH_SIZE }} 题
-            <template v-if="selected.size">；已勾选 {{ selected.size }}</template>
-            ）
-          </p>
-          <div class="mem-wrong__batches">
-            <el-button
-              v-for="b in batches"
-              :key="b.index"
-              size="small"
-              type="primary"
-              plain
-              @click="startBatchQuiz(b.index)"
-            >
-              第 {{ b.index + 1 }} 组（{{ b.from }}–{{ b.to }}）
-            </el-button>
-          </div>
-
-          <ul class="mem-wrong__list">
-            <li v-for="row in filteredRows" :key="row.fingerprint" class="mem-wrong__item">
-              <label class="mem-wrong__check">
-                <input
-                  type="checkbox"
-                  :checked="selected.has(row.fingerprint)"
-                  @change="toggleSelect(row.fingerprint)"
-                />
-              </label>
-              <div class="mem-wrong__main">
-                <p class="mem-wrong__meta">
-                  <span>{{ typeLabel(row) }}</span>
-                  <span>· {{ row.scopeLabel }}</span>
-                  <span>· 错 {{ row.wrongCount }} 次</span>
-                </p>
-                <p v-if="row.sourceTitle" class="mem-wrong__src">出处：{{ row.sourceTitle }}</p>
-                <p class="mem-wrong__stem">{{ row.stem }}</p>
-                <p class="mem-wrong__ans">
-                  正确：{{
-                    row.questionType === 'sentence-order'
-                      ? row.options[row.correctIndex]
-                      : row.options[row.correctIndex]
-                  }}
-                </p>
+    <Teleport to="body">
+      <div
+        v-if="workspaceOpen"
+        class="wb-workspace"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="`${moduleTitle}错题本`"
+      >
+        <div class="wb-workspace__panel play-panel">
+          <div class="play-top">
+            <div class="play-meta">
+              <div class="play-meta__main">
+                <span class="play-mode">{{ moduleTitle }} · 错题本</span>
+                <span class="play-score">
+                  共 <strong>{{ filteredRows.length }}</strong> / {{ wrongCount }} 题
+                </span>
               </div>
-              <el-button size="small" text type="danger" @click="removeRow(row.fingerprint)">
-                移除
+              <div class="session-actions session-actions--inline">
+                <el-button size="small" @click="closeWorkspace">退出</el-button>
+              </div>
+            </div>
+          </div>
+
+          <template v-if="quizPhase === 'playing' && currentQuiz">
+            <div class="mem-wrong-quiz__top">
+              <span>第 {{ quizCursor + 1 }} / {{ quizTotal }} 题</span>
+              <span class="mem-wrong-quiz__badge">原题复测</span>
+              <el-button size="small" plain @click="exitQuiz">结束测验</el-button>
+            </div>
+            <p v-if="currentQuiz.sourceTitle" class="mem-wrong-quiz__src">
+              出处：{{ currentQuiz.sourceTitle }}
+            </p>
+            <p
+              v-if="showTerm(currentQuiz, quizRevealed)"
+              class="mem-wrong-quiz__term"
+            >
+              {{ currentQuiz.term }}
+            </p>
+            <p class="mem-wrong-quiz__stem">{{ currentQuiz.stem }}</p>
+            <SentenceOrderBoard
+              v-if="
+                currentQuiz.questionType === 'sentence-order' &&
+                currentQuiz.segments?.length
+              "
+              :segments="currentQuiz.segments"
+              v-model="quizOrderArrangement"
+              :disabled="quizRevealed"
+              :reveal-correct-order="quizRevealCorrectOrder"
+            />
+            <div v-else class="mem-wrong-quiz__options">
+              <button
+                v-for="(opt, idx) in currentQuiz.options"
+                :key="idx"
+                type="button"
+                class="mem-wrong-quiz__opt"
+                :class="{
+                  'is-selected': quizChoice === idx && !quizRevealed,
+                  'is-correct': quizRevealed && idx === currentQuiz.correctIndex,
+                  'is-wrong':
+                    quizRevealed && quizChoice === idx && idx !== currentQuiz.correctIndex,
+                }"
+                :disabled="quizRevealed"
+                @click="selectQuizOption(Number(idx))"
+              >
+                <span>{{ Number(idx) + 1 }}.</span> {{ opt }}
+              </button>
+            </div>
+            <p v-if="quizRevealed && currentQuiz.explanation" class="mem-wrong-quiz__explain">
+              {{ currentQuiz.explanation }}
+            </p>
+            <p
+              v-if="quizRevealed && currentQuiz.questionType === 'sentence-order'"
+              class="mem-wrong-quiz__explain"
+            >
+              正确序号：{{ currentQuiz.options[currentQuiz.correctIndex] }}
+            </p>
+            <p
+              v-if="
+                quizRevealed &&
+                currentQuiz.questionType === 'sentence-order' &&
+                currentQuiz.segments?.length
+              "
+              class="mem-wrong-quiz__explain"
+            >
+              正确原文：{{
+                orderSegmentsToReadingText(
+                  currentQuiz.segments,
+                  currentQuiz.options[currentQuiz.correctIndex] || '',
+                )
+              }}
+            </p>
+            <div class="mem-wrong-quiz__actions">
+              <el-button
+                v-if="!quizRevealed"
+                type="primary"
+                :disabled="
+                  currentQuiz.questionType === 'sentence-order'
+                    ? quizOrderArrangement.length !== 5
+                    : quizChoice == null
+                "
+                @click="submitQuizAnswer"
+              >
+                {{ currentQuiz.questionType === 'sentence-order' ? '确认' : '提交' }}
               </el-button>
-            </li>
-          </ul>
-          <WrongBookReviewStat :scope="reviewScope" />
-        </template>
-      </template>
+              <el-button v-else type="primary" @click="nextQuizQuestion">
+                {{ quizCursor + 1 >= quizTotal ? '查看结果' : '下一题' }}
+              </el-button>
+            </div>
+          </template>
 
-      <template v-else-if="quizPhase === 'playing' && currentQuiz">
-        <div class="mem-wrong-quiz__top">
-          <span>第 {{ quizCursor + 1 }} / {{ quizTotal }} 题</span>
-          <span class="mem-wrong-quiz__badge">原题复测</span>
-          <el-button size="small" plain @click="exitQuiz">退出测验</el-button>
-        </div>
-        <p v-if="currentQuiz.sourceTitle" class="mem-wrong-quiz__src">
-          出处：{{ currentQuiz.sourceTitle }}
-        </p>
-        <p
-          v-if="showTerm(currentQuiz, quizRevealed)"
-          class="mem-wrong-quiz__term"
-        >
-          {{ currentQuiz.term }}
-        </p>
-        <p class="mem-wrong-quiz__stem">{{ currentQuiz.stem }}</p>
-        <SentenceOrderBoard
-          v-if="currentQuiz.questionType === 'sentence-order' && currentQuiz.segments?.length"
-          :segments="currentQuiz.segments"
-          v-model="quizOrderArrangement"
-          :disabled="quizRevealed"
-          :reveal-correct-order="quizRevealCorrectOrder"
-        />
-        <div
-          v-else
-          class="mem-wrong-quiz__options"
-        >
-          <button
-            v-for="(opt, idx) in currentQuiz.options"
-            :key="idx"
-            type="button"
-            class="mem-wrong-quiz__opt"
-            :class="{
-              'is-selected': quizChoice === idx && !quizRevealed,
-              'is-correct': quizRevealed && idx === currentQuiz.correctIndex,
-              'is-wrong':
-                quizRevealed && quizChoice === idx && idx !== currentQuiz.correctIndex,
-            }"
-            :disabled="quizRevealed"
-            @click="selectQuizOption(Number(idx))"
-          >
-            <span>{{ Number(idx) + 1 }}.</span> {{ opt }}
-          </button>
-        </div>
-        <p v-if="quizRevealed && currentQuiz.explanation" class="mem-wrong-quiz__explain">
-          {{ currentQuiz.explanation }}
-        </p>
-        <p
-          v-if="quizRevealed && currentQuiz.questionType === 'sentence-order'"
-          class="mem-wrong-quiz__explain"
-        >
-          正确答案：{{ currentQuiz.options[currentQuiz.correctIndex] }}
-        </p>
-        <div class="mem-wrong-quiz__actions">
-          <el-button
-            v-if="!quizRevealed"
-            type="primary"
-            :disabled="
-              currentQuiz.questionType === 'sentence-order'
-                ? quizOrderArrangement.length !== 5
-                : quizChoice == null
-            "
-            @click="submitQuizAnswer"
-          >
-            {{ currentQuiz.questionType === 'sentence-order' ? '确认' : '提交' }}
-          </el-button>
-          <el-button v-else type="primary" @click="nextQuizQuestion">
-            {{ quizCursor + 1 >= quizTotal ? '查看结果' : '下一题' }}
-          </el-button>
-        </div>
-      </template>
+          <template v-else-if="quizPhase === 'result'">
+            <p class="mem-wrong-quiz__score">
+              本组原题复测：{{ quizCorrectCount }} / {{ quizTotal }}
+            </p>
+            <div class="mem-wrong-quiz__actions">
+              <el-button type="primary" @click="exitQuiz">返回错题本</el-button>
+            </div>
+          </template>
 
-      <template v-else-if="quizPhase === 'result'">
-        <p class="mem-wrong-quiz__score">
-          本组原题复测：{{ quizCorrectCount }} / {{ quizTotal }}
-        </p>
-        <div class="mem-wrong-quiz__actions">
-          <el-button type="primary" @click="exitQuiz">返回错题本</el-button>
+          <template v-else>
+            <p v-if="!wrongCount" class="mem-wrong__empty wb-workspace__empty">
+              暂无错题。测验答错后会自动收入。
+            </p>
+            <template v-else>
+              <form class="wb-filter" @submit.prevent>
+                <label class="wb-filter__field">
+                  <span>错题次数</span>
+                  <el-select
+                    v-model="filterWrongCount"
+                    clearable
+                    placeholder="不限"
+                    style="width: 120px"
+                  >
+                    <el-option
+                      v-for="n in wrongCountOptions"
+                      :key="n"
+                      :label="`${n} 次`"
+                      :value="n"
+                    />
+                  </el-select>
+                </label>
+                <label class="wb-filter__field">
+                  <span>错题日期</span>
+                  <el-select
+                    v-model="filterDate"
+                    clearable
+                    placeholder="不限"
+                    style="width: 150px"
+                  >
+                    <el-option v-for="d in dateOptions" :key="d" :label="d" :value="d" />
+                  </el-select>
+                </label>
+                <el-button size="small" plain @click="resetFilters">重置</el-button>
+                <el-button size="small" plain @click="selectAllFiltered">全选当前</el-button>
+                <el-button size="small" text @click="clearSelected">清空勾选</el-button>
+              </form>
+
+              <section v-if="batches.length" class="wb-batches">
+                <p class="wb-batches__label">
+                  分批原题测验（每组最多 {{ WRONG_BOOK_BATCH_SIZE }} 题
+                  <template v-if="selected.size">；已勾选 {{ selected.size }}</template>
+                  ）
+                </p>
+                <div class="wb-batches__btns">
+                  <el-button
+                    v-for="b in batches"
+                    :key="b.index"
+                    size="small"
+                    type="primary"
+                    plain
+                    @click="startBatchQuiz(b.index)"
+                  >
+                    第 {{ b.index + 1 }} 组（{{ b.from }}–{{ b.to }}）
+                  </el-button>
+                </div>
+              </section>
+
+              <p v-if="!filteredRows.length" class="mem-wrong__empty wb-workspace__empty">
+                当前筛选下没有题目
+              </p>
+              <ul v-else class="mem-wrong__list wb-workspace__list">
+                <li v-for="row in filteredRows" :key="row.fingerprint" class="mem-wrong__item">
+                  <label class="mem-wrong__check">
+                    <input
+                      type="checkbox"
+                      :checked="selected.has(row.fingerprint)"
+                      @change="toggleSelect(row.fingerprint)"
+                    />
+                  </label>
+                  <div class="mem-wrong__main">
+                    <p class="mem-wrong__meta">
+                      <span>{{ typeLabel(row) }}</span>
+                      <span>· {{ row.scopeLabel }}</span>
+                      <span>· 错 {{ row.wrongCount }} 次</span>
+                    </p>
+                    <p v-if="row.sourceTitle" class="mem-wrong__src">
+                      出处：{{ row.sourceTitle }}
+                    </p>
+                    <p class="mem-wrong__stem">{{ row.stem }}</p>
+                    <p class="mem-wrong__ans">
+                      正确：{{ row.options[row.correctIndex] }}
+                    </p>
+                  </div>
+                  <el-button
+                    size="small"
+                    text
+                    type="danger"
+                    @click="removeRow(row.fingerprint)"
+                  >
+                    移除
+                  </el-button>
+                </li>
+              </ul>
+              <div class="wb-workspace__footer-stat">
+                <WrongBookReviewStat :scope="reviewScope" />
+              </div>
+            </template>
+          </template>
         </div>
-      </template>
-    </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
 .mem-wrong {
-  margin-top: 14px;
-  border: 1px solid var(--app-border-soft, #e8e8ea);
-  border-radius: 12px;
-  background: var(--app-surface, #fff);
-  overflow: hidden;
+  margin-top: 12px;
 }
 
 .mem-wrong__bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: var(--app-surface-alt, #f7f7f8);
+  gap: 8px;
+}
+
+.mem-wrong__bar-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .mem-wrong__toggle {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: none;
-  background: transparent;
+  padding: 6px 12px;
+  border: 1px solid var(--app-border-soft, #e8e8ea);
+  border-radius: 999px;
+  background: var(--app-surface-alt, #f7f7f8);
   font: inherit;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  padding: 0;
 }
 
 .mem-wrong__toggle strong {
-  min-width: 1.5em;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--el-color-primary) 14%, transparent);
-  color: var(--el-color-primary);
-  font-size: 13px;
+  min-width: 1.2em;
+  color: var(--el-color-danger);
 }
 
 .mem-wrong__hint {
+  margin: 6px 0 0;
   font-size: 12px;
-  color: var(--app-text-muted, #888);
-}
-
-.mem-wrong__body {
-  padding: 12px;
-  border-top: 1px solid var(--app-border-soft, #eee);
+  color: var(--app-text-muted, #64748b);
 }
 
 .mem-wrong__empty {
   margin: 0;
+  padding: 14px 16px;
   font-size: 13px;
-  color: var(--app-text-muted, #888);
-}
-
-.mem-wrong__filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: flex-end;
-  margin-bottom: 10px;
-  font-size: 12px;
-}
-
-.mem-wrong__filters label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-weight: 600;
-  color: var(--app-text-muted, #666);
-}
-
-.mem-wrong__batch-label {
-  margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.mem-wrong__batches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
+  color: var(--app-text-muted, #64748b);
+  line-height: 1.5;
 }
 
 .mem-wrong__list {
   list-style: none;
-  margin: 0 0 10px;
+  margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: min(42vh, 360px);
-  overflow: auto;
 }
 
 .mem-wrong__item {
   display: flex;
-  gap: 8px;
   align-items: flex-start;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid var(--app-border-soft, #eee);
-  background: var(--app-surface-alt, #fafafa);
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--app-border-soft, #e8e8ea);
+}
+
+.mem-wrong__item:last-child {
+  border-bottom: none;
 }
 
 .mem-wrong__check {
+  flex-shrink: 0;
   padding-top: 2px;
 }
 
@@ -615,78 +658,79 @@ function exitQuiz() {
 .mem-wrong__meta {
   margin: 0 0 4px;
   font-size: 12px;
-  color: var(--app-text-muted, #777);
+  color: var(--app-text-muted, #64748b);
 }
 
 .mem-wrong__src,
+.mem-wrong__stem,
 .mem-wrong__ans {
   margin: 0 0 4px;
-  font-size: 12px;
-  color: var(--app-text-muted, #666);
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
 }
 
 .mem-wrong__stem {
-  margin: 0 0 4px;
-  font-size: 14px;
-  line-height: 1.45;
   font-weight: 600;
+}
+
+.mem-wrong__ans {
+  color: var(--el-color-success);
+  font-size: 12px;
 }
 
 .mem-wrong-quiz__top {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
   align-items: center;
-  margin-bottom: 10px;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .mem-wrong-quiz__badge {
-  font-size: 12px;
-  font-weight: 600;
   padding: 2px 8px;
-  border-radius: 6px;
-  color: var(--el-color-primary);
+  border-radius: 999px;
   background: color-mix(in srgb, var(--el-color-primary) 12%, transparent);
+  color: var(--el-color-primary);
+  font-size: 12px;
 }
 
 .mem-wrong-quiz__src,
 .mem-wrong-quiz__term {
   margin: 0 0 6px;
-  font-size: 13px;
-  color: var(--app-text-muted, #666);
+  font-size: 12px;
+  color: var(--app-text-muted, #64748b);
 }
 
 .mem-wrong-quiz__stem {
-  margin: 0 0 10px;
-  font-size: 16px;
-  font-weight: 600;
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 700;
   line-height: 1.55;
-  white-space: pre-wrap;
-}
-
-.mem-wrong-quiz__segs {
-  margin: 0 0 10px;
-  padding-left: 1.2em;
-  font-size: 14px;
-  line-height: 1.5;
 }
 
 .mem-wrong-quiz__options {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-bottom: 12px;
 }
 
 .mem-wrong-quiz__opt {
-  text-align: left;
+  appearance: none;
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
   padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--app-border-soft, #ddd);
+  border: 1px solid var(--app-border-soft, #e8e8ea);
+  border-radius: 10px;
   background: var(--app-surface, #fff);
-  cursor: pointer;
   font: inherit;
-  font-size: 14px;
-  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
 }
 
 .mem-wrong-quiz__opt.is-selected {
@@ -696,33 +740,147 @@ function exitQuiz() {
 
 .mem-wrong-quiz__opt.is-correct {
   border-color: var(--el-color-success);
-  background: color-mix(in srgb, var(--el-color-success) 12%, transparent);
+  background: color-mix(in srgb, var(--el-color-success) 8%, transparent);
 }
 
 .mem-wrong-quiz__opt.is-wrong {
   border-color: var(--el-color-danger);
-  background: color-mix(in srgb, var(--el-color-danger) 10%, transparent);
+  background: color-mix(in srgb, var(--el-color-danger) 8%, transparent);
 }
 
 .mem-wrong-quiz__explain {
-  margin: 10px 0 0;
-  padding: 10px;
-  border-radius: 8px;
-  background: var(--app-surface-alt, #f7f7f8);
+  margin: 0 0 10px;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.55;
+  color: var(--app-text-muted, #64748b);
 }
 
 .mem-wrong-quiz__actions {
-  margin-top: 12px;
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  margin-top: 8px;
 }
 
 .mem-wrong-quiz__score {
-  margin: 8px 0 12px;
-  font-size: 18px;
-  font-weight: 700;
+  margin: 24px 0 16px;
   text-align: center;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.wb-workspace {
+  position: fixed;
+  inset: 0;
+  z-index: 3200;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--app-bg, #f5f7fb) 92%, #0f172a 8%);
+}
+
+.wb-workspace__panel {
+  width: min(720px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  margin: 0 auto;
+  padding: 16px 18px 28px;
+  border-radius: 16px;
+  background: var(--app-surface, #fff);
+  border: 1px solid var(--app-border-soft, #e8e8ea);
+  box-shadow: 0 12px 40px rgb(15 23 42 / 12%);
+}
+
+.play-top {
+  margin-bottom: 14px;
+}
+
+.play-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.play-meta__main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.play-mode {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.play-score {
+  font-size: 13px;
+  color: var(--app-text-muted, #64748b);
+}
+
+.play-score strong {
+  color: var(--el-color-primary);
+}
+
+.session-actions--inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wb-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--app-border-soft, #e8e8ea);
+  border-radius: 12px;
+  background: var(--app-surface-alt, #f7f7f8);
+}
+
+.wb-filter__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-text-muted, #64748b);
+}
+
+.wb-batches {
+  margin-bottom: 14px;
+}
+
+.wb-batches__label {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.wb-batches__btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wb-workspace__list {
+  border: 1px solid var(--app-border-soft, #e8e8ea);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.wb-workspace__empty {
+  border: 1px dashed var(--app-border-soft, #e8e8ea);
+  border-radius: 10px;
+}
+
+.wb-workspace__footer-stat {
+  margin-top: 12px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--app-border-soft, #e8e8ea);
 }
 </style>

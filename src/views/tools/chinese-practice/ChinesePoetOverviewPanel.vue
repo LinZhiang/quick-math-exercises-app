@@ -395,8 +395,10 @@ function poemMetaBits(poem: {
         <span class="poet-pick__card-desc">十月上 · 政治 / 社会材料速览与挖空测试</span>
       </button>
     </div>
-    <MemorizationWrongBookPanel module="poet-drill" />
-    <MemorizationWrongBookPanel module="current-affairs" />
+    <div class="poet-pick__wrong-books">
+      <MemorizationWrongBookPanel module="poet-drill" />
+      <MemorizationWrongBookPanel module="current-affairs" />
+    </div>
   </section>
 
   <ChineseCurrentAffairsPanel
@@ -993,6 +995,15 @@ function poemMetaBits(poem: {
   max-width: 420px;
   margin: 0 auto;
   width: 100%;
+}
+
+.poet-pick__wrong-books {
+  max-width: 420px;
+  margin: 16px auto 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .poet-pick__card {
