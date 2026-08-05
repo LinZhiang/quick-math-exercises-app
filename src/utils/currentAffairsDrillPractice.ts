@@ -49,7 +49,7 @@ export type CurrentAffairsDrillQuestion = {
   explanation: string
   fingerprint: string
   scopeKey: string
-  /** 查看上下文：含挖空句的原文段落（去加粗标记） */
+  /** 可选：历史字段，界面已不再展示上下文 */
   context?: string
   /** 语句排序：界面展示的 5 段（已打乱，序号 1～5） */
   segments?: string[]
@@ -197,7 +197,7 @@ export function buildCurrentAffairsDrillQuestionFromMcq(input: {
   let correct = input.correct.trim()
   let distractors = input.distractors.map((d) => d.trim()).filter(Boolean)
   const context = String(input.context ?? '').trim()
-  if (!sourceTitle || !correct || distractors.length !== 3) return null
+  if (!sourceTitle || !correct) return null
 
   const isSentence = input.questionType === 'sentence-fill'
   const isOrder = input.questionType === 'sentence-order'
@@ -207,21 +207,30 @@ export function buildCurrentAffairsDrillQuestionFromMcq(input: {
     segments = (input.segments ?? [])
       .map((s) => String(s ?? '').trim().replace(/\*\*/g, ''))
       .filter(Boolean)
-    if (segments.length !== CURRENT_AFFAIRS_SENTENCE_ORDER_SEGMENTS) return null
+    if (!orderSegmentsAllValid(segments)) return null
     const correctNorm = normalizeOrderOption(correct)
-    const distractorsNorm = distractors
+    if (!correctNorm) return null
+    let distractorsNorm = distractors
       .map((d) => normalizeOrderOption(d))
       .filter(Boolean)
-    if (!correctNorm || distractorsNorm.length !== 3) return null
-    if (!context) return null
+      .filter((d) => d !== correctNorm)
+    distractorsNorm = [...new Set(distractorsNorm)]
+    if (distractorsNorm.length < 3) {
+      distractorsNorm = [
+        ...distractorsNorm,
+        ...generateOrderDistractors(correctNorm).filter((d) => !distractorsNorm.includes(d)),
+      ].slice(0, 3)
+    }
+    if (distractorsNorm.length !== 3) return null
     if (new Set([correctNorm, ...distractorsNorm]).size !== 4) return null
     correct = correctNorm
     distractors = distractorsNorm
     term = (input.term || segments.join('|')).trim().slice(0, 96) || correctNorm
     stem =
       stem ||
-      '下列五段文字顺序已打乱（序号 1～5）。请选择能还原原文逻辑顺序的排列：'
+      '下列五段文字顺序已打乱。请拖动或点击交换调整为原文顺序，完成后点击确认。'
   } else {
+    if (distractors.length !== 3) return null
     if (!term || !stem) return null
     if (!stemHasBlank(stem)) return null
     if (stemLeaksAnswer(stem, correct)) return null
@@ -230,7 +239,6 @@ export function buildCurrentAffairsDrillQuestionFromMcq(input: {
         return null
       }
       if (!sentenceFillDistractorsOk(correct, distractors)) return null
-      if (!context) return null
     } else if (!optionsSameCharCount(correct, distractors)) {
       return null
     }
@@ -277,6 +285,66 @@ export function normalizeOrderOption(raw: string): string {
 
 export function isValidOrderOption(raw: string): boolean {
   return Boolean(normalizeOrderOption(raw))
+}
+
+/** 排序段：须以句末标点收束，避免「第一」之类过短碎片 */
+export function isValidOrderSegment(text: string): boolean {
+  const s = String(text ?? '')
+    .trim()
+    .replace(/\*\*/g, '')
+  if (s.length < 8) return false
+  if (!/[。！？]$/.test(s)) return false
+  if (/^第[一二三四五六七八九十百零〇两\d]+[、，,：:．.]?$/.test(s)) return false
+  return true
+}
+
+export function orderSegmentsAllValid(segments: string[]): boolean {
+  return (
+    segments.length === CURRENT_AFFAIRS_SENTENCE_ORDER_SEGMENTS &&
+    segments.every(isValidOrderSegment)
+  )
+}
+
+/** 本地生成强干扰排列（邻位交换 / 旋转等） */
+export function generateOrderDistractors(correct: string): string[] {
+  const base = normalizeOrderOption(correct)
+  if (!base) return []
+  const nums = base.split('、').map(Number)
+  const out: string[] = []
+  const tryAdd = (arr: number[]) => {
+    if (arr.length !== 5 || new Set(arr).size !== 5) return
+    const s = arr.join('、')
+    if (s !== base && !out.includes(s)) out.push(s)
+  }
+  for (let i = 0; i < 4; i++) {
+    const a = [...nums]
+    const x = a[i]!
+    a[i] = a[i + 1]!
+    a[i + 1] = x
+    tryAdd(a)
+  }
+  tryAdd([...nums].reverse())
+  tryAdd([...nums.slice(1), nums[0]!])
+  tryAdd([nums[4]!, ...nums.slice(0, 4)])
+  if (nums.length >= 4) {
+    const a = [...nums]
+    const x = a[0]!
+    a[0] = a[2]!
+    a[2] = x
+    tryAdd(a)
+  }
+  if (nums.length >= 5) {
+    const a = [...nums]
+    const x = a[1]!
+    a[1] = a[3]!
+    a[3] = x
+    tryAdd(a)
+  }
+  return out.slice(0, 3)
+}
+
+export function orderArrangementToOption(labels: number[]): string {
+  return normalizeOrderOption(labels.join('、'))
 }
 
 function parseOrderOptionList(raw: unknown): string | null {
@@ -360,33 +428,13 @@ export function parseCurrentAffairsDrillMcqAiObject(item: unknown): {
         .map((d) => parseOrderOptionList(d))
         .filter((d): d is string => Boolean(d))
     }
-    if (distractors.length !== 3) {
-      const picked = extractMcqCorrectAndDistractors({
-        ...o,
-        correct: correct || o.correct,
-      })
-      if (picked) {
-        const c2 = parseOrderOptionList(picked.correct) ?? correct
-        distractors = picked.distractors
-          .map((d) => parseOrderOptionList(d))
-          .filter((d): d is string => Boolean(d))
-        if (c2 && distractors.length === 3) {
-          return {
-            questionType,
-            sourceTitle,
-            term: String(o.term ?? c2).trim() || c2,
-            stem: String(o.stem ?? o.question ?? '').trim(),
-            correct: c2,
-            distractors,
-            explanation: String(o.explanation ?? o.explain ?? '').trim(),
-            context,
-            segments,
-          }
-        }
-      }
-      return null
+    if (distractors.length < 3 && correct) {
+      distractors = [
+        ...distractors,
+        ...generateOrderDistractors(correct).filter((d) => !distractors.includes(d)),
+      ].slice(0, 3)
     }
-    if (!sourceTitle || !correct) return null
+    if (!sourceTitle || !correct || distractors.length !== 3) return null
     return {
       questionType,
       sourceTitle,

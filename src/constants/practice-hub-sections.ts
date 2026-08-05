@@ -6,8 +6,12 @@ export type PracticeHubSectionId =
   | 'square-cube'
   | 'fraction'
   | 'divisibility'
+  | 'number-sequence'
   | 'life-sense'
   | 'what-is-this'
+  | 'economy-sense'
+  | 'system-mgmt'
+  | 'wenyan-shici'
   | 'grammar-judgment'
   | 'twentyfour'
   | 'sudoku'
@@ -34,8 +38,12 @@ export const PRACTICE_HUB_SECTIONS: PracticeHubSection[] = [
   { id: 'square-cube', title: '平方与立方' },
   { id: 'fraction', title: '估算分数' },
   { id: 'divisibility', title: '整除及其性质' },
+  { id: 'number-sequence', title: '数列' },
   { id: 'life-sense', title: '生活常识' },
   { id: 'what-is-this', title: '这是什么' },
+  { id: 'economy-sense', title: '经济学常识' },
+  { id: 'system-mgmt', title: '体制管理' },
+  { id: 'wenyan-shici', title: '文言实词' },
   { id: 'grammar-judgment', title: '语法判断' },
   { id: 'twentyfour', title: '二十四点' },
   { id: 'sudoku', title: '数独' },
@@ -64,9 +72,20 @@ export const PRACTICE_HUB_GROUPS: PracticeHubGroup[] = [
   {
     id: 'mental',
     title: '口算',
-    sectionIds: ['arithmetic', 'power', 'square-cube', 'fraction', 'divisibility'],
+    sectionIds: ['arithmetic', 'power', 'square-cube', 'fraction', 'divisibility', 'number-sequence'],
   },
-  { id: 'quick', title: '快判', sectionIds: ['life-sense', 'what-is-this', 'grammar-judgment'] },
+  {
+    id: 'quick',
+    title: '快判',
+    sectionIds: [
+      'life-sense',
+      'what-is-this',
+      'economy-sense',
+      'system-mgmt',
+      'wenyan-shici',
+      'grammar-judgment',
+    ],
+  },
   {
     id: 'puzzle',
     title: '数学推理',

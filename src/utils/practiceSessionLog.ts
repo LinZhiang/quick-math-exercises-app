@@ -176,6 +176,16 @@ const KNOWN_ITEM_LABELS: Record<string, { categoryId: string; categoryLabel: str
       categoryLabel: '平方与立方',
       itemLabel: '平方与立方 · 复杂题',
     },
+    'number-sequence-easy': {
+      categoryId: 'number-sequence',
+      categoryLabel: '数列',
+      itemLabel: '数列 · 简单题',
+    },
+    'number-sequence-hard': {
+      categoryId: 'number-sequence',
+      categoryLabel: '数列',
+      itemLabel: '数列 · 复杂题',
+    },
     'life-sense-easy': {
       categoryId: 'life-sense',
       categoryLabel: '生活常识',
@@ -235,6 +245,36 @@ const KNOWN_ITEM_LABELS: Record<string, { categoryId: string; categoryLabel: str
       categoryId: 'what-is-this',
       categoryLabel: '这是什么',
       itemLabel: '这是什么 · 加深识记 · 复杂题',
+    },
+    'economy-sense-normal': {
+      categoryId: 'economy-sense',
+      categoryLabel: '经济学常识',
+      itemLabel: '经济学常识 · 普通题',
+    },
+    'economy-sense-deepen-normal': {
+      categoryId: 'economy-sense',
+      categoryLabel: '经济学常识',
+      itemLabel: '经济学常识 · 加深识记 · 普通题',
+    },
+    'system-mgmt-normal': {
+      categoryId: 'system-mgmt',
+      categoryLabel: '体制管理',
+      itemLabel: '体制管理 · 普通题',
+    },
+    'system-mgmt-deepen-normal': {
+      categoryId: 'system-mgmt',
+      categoryLabel: '体制管理',
+      itemLabel: '体制管理 · 加深识记 · 普通题',
+    },
+    'wenyan-shici-normal': {
+      categoryId: 'wenyan-shici',
+      categoryLabel: '文言实词',
+      itemLabel: '文言实词 · 普通题',
+    },
+    'wenyan-shici-deepen-normal': {
+      categoryId: 'wenyan-shici',
+      categoryLabel: '文言实词',
+      itemLabel: '文言实词 · 加深识记 · 普通题',
     },
     'chinese-idiom': { categoryId: 'chinese', categoryLabel: '语文练习', itemLabel: '语文 · 成语识记' },
     'chinese-word-memorization': {
@@ -482,6 +522,42 @@ const PREFIX_RULES: PrefixRule[] = [
     },
   },
   {
+    prefix: 'economy-sense-',
+    categoryId: 'economy-sense',
+    categoryLabel: '经济学常识',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      if (String(mid).includes('deepen')) {
+        return `经济学常识 · 加深识记 · ${difficultyLabel(d) || d}题`
+      }
+      return `经济学常识 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
+    prefix: 'system-mgmt-',
+    categoryId: 'system-mgmt',
+    categoryLabel: '体制管理',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      if (String(mid).includes('deepen')) {
+        return `体制管理 · 加深识记 · ${difficultyLabel(d) || d}题`
+      }
+      return `体制管理 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
+    prefix: 'wenyan-shici-',
+    categoryId: 'wenyan-shici',
+    categoryLabel: '文言实词',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      if (String(mid).includes('deepen')) {
+        return `文言实词 · 加深识记 · ${difficultyLabel(d) || d}题`
+      }
+      return `文言实词 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
     prefix: 'grammar-judgment-',
     categoryId: 'grammar-judgment',
     categoryLabel: '语法判断',
@@ -524,6 +600,15 @@ const PREFIX_RULES: PrefixRule[] = [
     labelFor: (mid, difficulty) => {
       const d = difficulty || mid
       return `整除及其性质 · ${difficultyLabel(d) || d}`
+    },
+  },
+  {
+    prefix: 'number-sequence-',
+    categoryId: 'number-sequence',
+    categoryLabel: '数列',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      return `数列 · ${difficultyLabel(d) || d}`
     },
   },
   {
@@ -639,8 +724,12 @@ export const PRACTICE_LOG_CATEGORIES: { id: string; label: string }[] = [
   { id: 'square-cube', label: '平方与立方' },
   { id: 'fraction', label: '估算分数' },
   { id: 'divisibility', label: '整除及其性质' },
+  { id: 'number-sequence', label: '数列' },
   { id: 'life-sense', label: '生活常识' },
   { id: 'what-is-this', label: '这是什么' },
+  { id: 'economy-sense', label: '经济学常识' },
+  { id: 'system-mgmt', label: '体制管理' },
+  { id: 'wenyan-shici', label: '文言实词' },
   { id: 'grammar-judgment', label: '语法判断' },
   { id: 'circle-grammar', label: '圈出所有语法' },
   { id: 'shorten-sentence', label: '缩句练习' },

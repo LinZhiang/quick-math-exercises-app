@@ -6,8 +6,12 @@ export type MentalMathWrongSection =
   | 'square-cube'
   | 'fraction'
   | 'divisibility'
+  | 'number-sequence'
   | 'life-sense'
   | 'what-is-this'
+  | 'economy-sense'
+  | 'system-mgmt'
+  | 'wenyan-shici'
   | 'grammar-judgment'
   | 'twentyfour'
   | 'data-analysis'
@@ -123,8 +127,12 @@ export const MENTAL_MATH_WRONG_SECTION_LABELS: Record<MentalMathWrongSection, st
   'square-cube': '平方与立方',
   fraction: '估算分数',
   divisibility: '整除及其性质',
+  'number-sequence': '数列',
   'life-sense': '生活常识',
   'what-is-this': '这是什么',
+  'economy-sense': '经济学常识',
+  'system-mgmt': '体制管理',
+  'wenyan-shici': '文言实词',
   'grammar-judgment': '语法判断',
   twentyfour: '二十四点',
   'data-analysis': '资料分析 · 百分数与百分点',
@@ -203,6 +211,9 @@ export function mentalMathModeToWrongSection(modeId: string): MentalMathWrongSec
   ) {
     return 'divisibility'
   }
+  if (modeId === 'number-sequence-easy' || modeId === 'number-sequence-hard') {
+    return 'number-sequence'
+  }
   if (
     modeId === 'life-sense-easy' ||
     modeId === 'life-sense-normal' ||
@@ -222,6 +233,15 @@ export function mentalMathModeToWrongSection(modeId: string): MentalMathWrongSec
     modeId === 'what-is-this-deepen-hard'
   ) {
     return 'what-is-this'
+  }
+  if (modeId === 'economy-sense-normal' || modeId === 'economy-sense-deepen-normal') {
+    return 'economy-sense'
+  }
+  if (modeId === 'system-mgmt-normal' || modeId === 'system-mgmt-deepen-normal') {
+    return 'system-mgmt'
+  }
+  if (modeId === 'wenyan-shici-normal' || modeId === 'wenyan-shici-deepen-normal') {
+    return 'wenyan-shici'
   }
   if (
     modeId === 'grammar-judgment-easy' ||

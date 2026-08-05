@@ -138,10 +138,12 @@ export function upsertCurrentAffairsDrillWrong(
     scopeLabel: string
     drillMode: CurrentAffairsDrillMode
     chosenIndex: number | null
+    chosenAnswer?: string
   },
 ) {
   const chosen =
-    input.chosenIndex != null ? String(q.options[input.chosenIndex] ?? '') : ''
+    (input.chosenAnswer && input.chosenAnswer.trim()) ||
+    (input.chosenIndex != null ? String(q.options[input.chosenIndex] ?? '') : '')
   upsertRecord({
     fingerprint: q.fingerprint,
     module: 'current-affairs',

@@ -598,6 +598,37 @@ export const MENTAL_MATH_GUIDE_GROUPS: MentalMathGuideGroup[] = [
     ],
   },
   {
+    id: 'number-sequence',
+    title: '数列',
+    articles: [
+      {
+        id: 'number-sequence-overview',
+        title: '怎么练数列',
+        category: 'number-sequence',
+        practiceModeId: 'number-sequence-easy',
+        blocks: [
+          {
+            type: 'p',
+            text: '给出若干项，选下一项。每题只考一个考点。简单题仅基础：等差、等比、机械、质数。复杂题再加入分数、多次方、组合、数字排序、运算关系，且数字更大。流程与计分类似「累加/减数（乘除）」。',
+          },
+          {
+            type: 'h3',
+            text: '怎么看规律',
+          },
+          {
+            type: 'ul',
+            items: [
+              '先看相邻差是否恒定（等差）或相邻商是否恒定（等比）。',
+              '分数题分母/分子常等差递推；界面用上下分式显示。',
+              '组合型从第三项起常是前两项之和；运算关系则是统一的 ×n±k。',
+              '复杂题数字更大，选项干扰更靠近正解。',
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
     id: 'life-sense',
     title: '生活常识',
     articles: [
@@ -667,6 +698,96 @@ export const MENTAL_MATH_GUIDE_GROUPS: MentalMathGuideGroup[] = [
               '复杂：宏观/科技等高阶概念，如超导材料、宏观调控、结构性失业、三元悖论、碳中和等。',
               '每难度本地题库各 300 题；优先出未做过的题，出完重置再循环。',
               '「加深识记」：固定分组目录可溯源；先看解析（可编辑）再限时测同组；点选项即判定。',
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'economy-sense',
+    title: '经济学常识',
+    articles: [
+      {
+        id: 'economy-sense-overview',
+        title: '怎么练经济学常识',
+        category: 'economy-sense',
+        practiceModeId: 'economy-sense-normal',
+        blocks: [
+          {
+            type: 'p',
+            text: '快判菜单下的本地识记题：题干为「什么是××」，正确项为给定材料中的核心释义；干扰项多用易混成对概念（如投资/担保、定金/订金、抵押/质押）。与语文里 AI「经济常识」不是同一套。',
+          },
+          {
+            type: 'h3',
+            text: '怎么练',
+          },
+          {
+            type: 'ul',
+            items: [
+              '仅「普通题」：40 秒限时，四选一，对 +8 / 错 -15；优先出未做过的知识点，出完重置再循环。',
+              '「加深识记」：按固定分组（每组最多 20 题）先看定义与举例，再限时测同组（满组 52 秒）；解析可编辑覆盖。',
+              '覆盖范围：金融核心行为、钱款法律易混词、税收、宏观成对概念、商业模式、企业财务、外贸及配套对应关系等给定材料，不外扩考点。',
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'system-mgmt',
+    title: '体制管理',
+    articles: [
+      {
+        id: 'system-mgmt-overview',
+        title: '怎么练体制管理',
+        category: 'system-mgmt',
+        practiceModeId: 'system-mgmt-normal',
+        blocks: [
+          {
+            type: 'p',
+            text: '快判本地题：覆盖体制/企业决策层、高管、中层、文职支线、平行职能岗与类比逻辑。题干比「什么是××」更灵活（层级、服务对象、顺承、易错区分等）。页面可快速打开岗位思维导图对照。',
+          },
+          {
+            type: 'h3',
+            text: '怎么练',
+          },
+          {
+            type: 'ul',
+            items: [
+              '仅「普通题」：40 秒四选一，对 +8 / 错 -15；优先未做过知识点。',
+              '「加深识记」：固定分组先看解析（含举例/易错）再限时测同组（满组 52 秒）。',
+              '重点区分：秘书≠文秘、董事长≠总经理、前台/人事/财务不属于文秘体系；记住收文→传阅→归档等顺承。',
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'wenyan-shici',
+    title: '文言实词',
+    articles: [
+      {
+        id: 'wenyan-shici-overview',
+        title: '怎么练文言实词',
+        category: 'wenyan-shici',
+        practiceModeId: 'wenyan-shici-normal',
+        blocks: [
+          {
+            type: 'p',
+            text: '快判本地题：按考前必做题库「文言知识」重点梳理整理实词（官职变化、个性品行、情感态度、拜访往来、刑罚死亡、时间词及通假等）。题干给出例句，问该实词在句中的含义。',
+          },
+          {
+            type: 'h3',
+            text: '怎么练',
+          },
+          {
+            type: 'ul',
+            items: [
+              '仅「普通题」：40 秒四选一，对 +8 / 错 -15；优先未做过知识点，出完重置再循环。',
+              '「加深识记」：固定分组（每组最多 20 题）先看类别、例句与义项，再限时测同组（满组 52 秒）；解析可编辑覆盖。',
+              '做题要点：结合整句语境选义，勿只记字面；通假题注意本字。',
             ],
           },
         ],

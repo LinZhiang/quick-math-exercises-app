@@ -931,7 +931,6 @@ function poemMetaBits(poem: {
         </section>
       </article>
     </div>
-    <MemorizationWrongBookPanel module="poet-drill" />
   </section>
 </template>
 

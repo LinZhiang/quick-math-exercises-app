@@ -415,6 +415,12 @@ defineExpose({
     margin: 0 10px;
   }
 
+  .chinese-practice-section--poet :deep(.ca-panel) {
+    flex: 1;
+    min-height: 0;
+    margin: 0 10px;
+  }
+
   .chinese-practice-section__nav {
     display: flex;
     flex-direction: column;

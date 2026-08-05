@@ -1197,19 +1197,15 @@ const CURRENT_AFFAIRS_SENTENCE_FILL_FORMAT = `
   →「推动统一的多民族国家巩固发展的内生动力」（大幅改写）
 - 禁止：白话解释、无关长篇、明显跑题空话、与 correct 几乎相同的近形项
 
-【上下文】
-- context 必填：给出含该挖空句的完整原文段落（去掉 ** 标记即可），供学员「查看上下文」
-- context 须包含 stem 所对应的原句（含被挖空的原文）
-
 【出处】
 - sourceTitle 必须为材料中的文章标题
 - explanation 1～2 句点明出处与依据
 
 【JSON 字段】
-questionType, sourceTitle, term, stem, correct, distractors[3], context, explanation
+questionType, sourceTitle, term, stem, correct, distractors[3], explanation
 
 【JSON 示例】
-{"questionType":"sentence-fill","sourceTitle":"2025年第19期《求是》杂志发表习近平重要文章","term":"是中华民族共同体形成和发展的历史根基","stem":"各民族血脉相融，_______。","correct":"是中华民族共同体形成和发展的历史根基","distractors":["是各民族交往交流交融不断深化的现实基础","构成中华文明多元一体格局的文化基因","推动统一的多民族国家巩固发展的内生动力"],"context":"——各民族血脉相融，是中华民族共同体形成和发展的历史根基。各民族共同在中华大地上繁衍生息……","explanation":"出处：求是文章。对应「血脉相融」条目原文。"}
+{"questionType":"sentence-fill","sourceTitle":"2025年第19期《求是》杂志发表习近平重要文章","term":"是中华民族共同体形成和发展的历史根基","stem":"各民族血脉相融，_______。","correct":"是中华民族共同体形成和发展的历史根基","distractors":["是各民族交往交流交融不断深化的现实基础","构成中华文明多元一体格局的文化基因","推动统一的多民族国家巩固发展的内生动力"],"explanation":"出处：求是文章。对应「血脉相融」条目原文。"}
 `.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 export async function requestCurrentAffairsSentenceFillMcqs(input: {
@@ -1306,7 +1302,7 @@ export async function requestCurrentAffairsSentenceFillMcqs(input: {
 
   if (deduped.length < count) {
     throw new Error(
-      `仅成功生成 ${deduped.length}/${count} 道语句填充题（需≥12字挖空、多处改写干扰项与上下文），请稍后重试`,
+      `仅成功生成 ${deduped.length}/${count} 道语句填充题（需≥12字挖空、多处改写干扰项），请稍后重试`,
     )
   }
   return deduped.slice(0, count)
@@ -1323,7 +1319,9 @@ const CURRENT_AFFAIRS_SENTENCE_ORDER_FORMAT = `
 
 【选材与拆分】
 - 从材料中选取一段连贯原文（一句长论述或紧密相连的数句），拆成恰好 **5** 段（segments）
-- 每段应是完整意群，长度尽量接近；去掉 ** 加粗标记
+- **每段必须以句号「。」或叹号/问号「！」「？」收尾**；禁止以逗号「，」、顿号、分号收尾；不以句末标点收束的半截句子不要选入
+- 每段应是完整意群（一整句或并列完整分句），长度尽量接近；去掉 ** 加粗标记
+- **禁止过短碎片**：如只拆出「第一」「第二」；若原文是「提出四点主张：第一……。第二……。」，应把「第一……。」整句作为一段，同理「第二……。」等，勿把序号与后文割裂
 - segments 数组按 **界面展示顺序** 给出：必须已经打乱，对应序号 1、2、3、4、5
 - 禁止把无关句子拼在一起；五段合起来应能还原为材料中的连贯表述
 
@@ -1332,27 +1330,19 @@ const CURRENT_AFFAIRS_SENTENCE_ORDER_FORMAT = `
 - 含义：按该排列阅读 segments[序号-1]，即可还原原文逻辑顺序
 - 例：若正确阅读顺序是展示编号 3→4→5→2→1，则 correct 为「3、4、5、2、1」
 - 必须是 1～5 的全排列，不得重复、不得缺号
-
-【干扰项 distractors】
-- 恰好 3 个；同样写成「a、b、c、d、e」全排列格式
-- 必须与 correct 不同，且彼此不同
-- 干扰性必须很强：仅交换相邻两段、首尾对调、中间三段循环移位、因果/递进顺序颠倒等，读来仍像合理语序
-- 禁止明显胡乱排列（如一眼就乱的跳跃序）
-
-【上下文 context】
-- 必填：给出该题对应的原文完整段落（正确阅读顺序、去掉 **），供学员「查看上下文」
+- distractors 可省略（服务端会补强干扰序）；若填写则须为另 3 个不同全排列
 
 【出处与题干】
 - sourceTitle 必须为材料中的文章标题
-- stem 可写：「下列五段文字顺序已打乱（序号 1～5）。请选择能还原原文逻辑顺序的排列：」
+- stem 可写：「下列五段文字顺序已打乱。请拖动或点击交换调整为原文顺序，完成后点击确认。」
 - term 用该段原文前 20～40 字作去重键（勿与本批其它题重复）
 - explanation 1～2 句点明出处，并可简述正确语序依据（因果/总—分/时间等）
 
 【JSON 字段】
-questionType, sourceTitle, term, stem, segments[5], correct, distractors[3], context, explanation
+questionType, sourceTitle, term, stem, segments[5], correct, explanation
 
 【JSON 示例】
-{"questionType":"sentence-order","sourceTitle":"2025年第19期《求是》杂志发表习近平重要文章","term":"各民族血脉相融是中华民族共同体","stem":"下列五段文字顺序已打乱（序号 1～5）。请选择能还原原文逻辑顺序的排列：","segments":["各民族共同开拓了祖国的锦绣河山。","是中华民族共同体形成和发展的历史根基。","各民族血脉相融，","各民族共同书写了悠久历史，","各民族共同创造了灿烂文化，"],"correct":"3、2、1、4、5","distractors":["3、2、4、5、1","3、1、2、4、5","2、3、1、4、5"],"context":"各民族血脉相融，是中华民族共同体形成和发展的历史根基。各民族共同开拓了祖国的锦绣河山。各民族共同书写了悠久历史，各民族共同创造了灿烂文化……","explanation":"出处：求是文章。先总起「血脉相融」与根基，再并列展开共同开拓、书写、创造。"}
+{"questionType":"sentence-order","sourceTitle":"2025年第19期《求是》杂志发表习近平重要文章","term":"各民族血脉相融是中华民族共同体","stem":"下列五段文字顺序已打乱。请拖动或点击交换调整为原文顺序，完成后点击确认。","segments":["各民族共同开拓了祖国的锦绣河山。","各民族血脉相融，是中华民族共同体形成和发展的历史根基。","各民族共同书写了悠久历史。","各民族共同创造了灿烂文化。","各民族共同培育了伟大精神。"],"correct":"2、1、3、4、5","explanation":"出处：求是文章。先总起「血脉相融」与根基，再并列展开共同开拓、书写、创造、培育。"}
 `.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 export async function requestCurrentAffairsSentenceOrderMcqs(input: {
@@ -1373,7 +1363,7 @@ export async function requestCurrentAffairsSentenceOrderMcqs(input: {
 
   const historyHint = buildAvoidTermsHint('排序语段', [...blocked])
   const user = [
-    `请根据下列「${input.scopeLabel}」时政材料，生成 **${count} 道** 语句排序四选一题。`,
+    `请根据下列「${input.scopeLabel}」时政材料，生成 **${count} 道** 语句排序题（学员拖动/点击排序，非四选一）。`,
     CURRENT_AFFAIRS_SENTENCE_ORDER_FORMAT,
     historyHint,
     `本批 ${count} 道的 term/语段必须互不相同，严禁同一段落重复出题；优先覆盖不同文章；sourceTitle 必须来自材料文章标题。`,
@@ -1414,7 +1404,7 @@ export async function requestCurrentAffairsSentenceOrderMcqs(input: {
     try {
       const oneRaw = await deepseekChatRaw(
         [
-          `请根据「${input.scopeLabel}」时政材料再生成 1 道语句排序四选一题。`,
+          `请根据「${input.scopeLabel}」时政材料再生成 1 道语句排序题（拖动/点击排序）。`,
           CURRENT_AFFAIRS_SENTENCE_ORDER_FORMAT,
           avoidHint,
           `【材料】\n${material}`,
@@ -1449,7 +1439,7 @@ export async function requestCurrentAffairsSentenceOrderMcqs(input: {
 
   if (deduped.length < count) {
     throw new Error(
-      `仅成功生成 ${deduped.length}/${count} 道语句排序题（需 5 段打乱与强干扰排列），请稍后重试`,
+      `仅成功生成 ${deduped.length}/${count} 道语句排序题（需 5 段完整句末标点语段），请稍后重试`,
     )
   }
   return deduped.slice(0, count)

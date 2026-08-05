@@ -1,12 +1,18 @@
 /**
- * 生活常识 / 这是什么 · 加深识记：按难度固定切成 20 题一组目录，可溯源。
+ * 生活常识 / 这是什么 / 经济学常识 / 体制管理 / 文言实词 · 加深识记：按难度固定切成 20 题一组目录，可溯源。
  */
+import { ECONOMY_SENSE_BANK } from '@/utils/economySenseBank'
+import type { EconomySenseBankItem } from '@/utils/economySenseBankTypes'
 import { LIFE_SENSE_BANK } from '@/utils/lifeSenseBank.generated'
 import type { LifeSenseBankItem } from '@/utils/lifeSenseBankTypes'
 import {
   resolveFactExplanation,
   type FactBankKind,
 } from '@/utils/factExplanationOverrides'
+import { SYSTEM_MGMT_BANK } from '@/utils/systemMgmtBank'
+import type { SystemMgmtBankItem } from '@/utils/systemMgmtBankTypes'
+import { WENYAN_SHICI_BANK } from '@/utils/wenyanShiciBank'
+import type { WenyanShiciBankItem } from '@/utils/wenyanShiciBankTypes'
 import { WHAT_IS_THIS_BANK } from '@/utils/whatIsThisBank.generated'
 import type { WhatIsThisBankItem } from '@/utils/whatIsThisBankTypes'
 
@@ -21,6 +27,9 @@ export type FactDeepenModeId =
   | 'what-is-this-deepen-easy'
   | 'what-is-this-deepen-normal'
   | 'what-is-this-deepen-hard'
+  | 'economy-sense-deepen-normal'
+  | 'system-mgmt-deepen-normal'
+  | 'wenyan-shici-deepen-normal'
 
 export type FactDeepenBankItem = {
   kind: FactDeepenKind
@@ -148,6 +157,36 @@ export const FACT_DEEPEN_MODES: FactDeepenModeConfig[] = [
     batchSize: FACT_DEEPEN_BATCH_SIZE,
     desc: '固定分组目录 · 先识记再限时测 · 满组 64 秒',
   },
+  {
+    modeId: 'economy-sense-deepen-normal',
+    kind: 'economy-sense',
+    difficulty: 'normal',
+    label: '普通题',
+    durationSec: 52,
+    optionCount: 4,
+    batchSize: FACT_DEEPEN_BATCH_SIZE,
+    desc: '固定分组目录 · 先识记再限时测 · 满组 52 秒',
+  },
+  {
+    modeId: 'system-mgmt-deepen-normal',
+    kind: 'system-mgmt',
+    difficulty: 'normal',
+    label: '普通题',
+    durationSec: 52,
+    optionCount: 4,
+    batchSize: FACT_DEEPEN_BATCH_SIZE,
+    desc: '固定分组目录 · 先识记再限时测 · 满组 52 秒',
+  },
+  {
+    modeId: 'wenyan-shici-deepen-normal',
+    kind: 'wenyan-shici',
+    difficulty: 'normal',
+    label: '普通题',
+    durationSec: 52,
+    optionCount: 4,
+    batchSize: FACT_DEEPEN_BATCH_SIZE,
+    desc: '固定分组目录 · 先识记再限时测 · 满组 52 秒',
+  },
 ]
 
 const GROUP_STATS_KEY = 'fact-deepen-group-stats-v1'
@@ -171,7 +210,12 @@ function shuffle<T>(arr: T[]): T[] {
 
 function toDeepenItem(
   kind: FactDeepenKind,
-  item: LifeSenseBankItem | WhatIsThisBankItem,
+  item:
+    | LifeSenseBankItem
+    | WhatIsThisBankItem
+    | EconomySenseBankItem
+    | SystemMgmtBankItem
+    | WenyanShiciBankItem,
 ): FactDeepenBankItem {
   return {
     kind,
@@ -188,7 +232,16 @@ function toDeepenItem(
  * 本难度稳定题池：按 key 字典序，保证分组编号可溯源、跨会话不变。
  */
 function poolFor(kind: FactDeepenKind, difficulty: FactDeepenDifficulty): FactDeepenBankItem[] {
-  const bank = kind === 'life-sense' ? LIFE_SENSE_BANK : WHAT_IS_THIS_BANK
+  const bank =
+    kind === 'life-sense'
+      ? LIFE_SENSE_BANK
+      : kind === 'what-is-this'
+        ? WHAT_IS_THIS_BANK
+        : kind === 'economy-sense'
+          ? ECONOMY_SENSE_BANK
+          : kind === 'system-mgmt'
+            ? SYSTEM_MGMT_BANK
+            : WENYAN_SHICI_BANK
   const seen = new Set<string>()
   const out: FactDeepenBankItem[] = []
   for (const item of bank) {
@@ -217,7 +270,11 @@ export function isFactDeepenModeId(id: string): id is FactDeepenModeId {
 }
 
 export function factDeepenKindLabel(kind: FactDeepenKind): string {
-  return kind === 'life-sense' ? '生活常识' : '这是什么'
+  if (kind === 'life-sense') return '生活常识'
+  if (kind === 'what-is-this') return '这是什么'
+  if (kind === 'economy-sense') return '经济学常识'
+  if (kind === 'system-mgmt') return '体制管理'
+  return '文言实词'
 }
 
 export function factDeepenDifficultyLabel(d: FactDeepenDifficulty): string {
