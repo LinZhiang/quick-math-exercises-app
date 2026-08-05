@@ -2,6 +2,7 @@ import { parseAiJsonArrayLenient, parseAiJsonObjectLenient, stripAiJsonFence } f
 import {
   CHINESE_MCQ_CORRECTNESS_RULES,
   isPlayableFourChoiceMcq,
+  isPlayableLogicReasonMcq,
 } from '@/utils/chineseMcqAiFields'
 import {
   collectVocabRelatedFillOptionBank,
@@ -8359,19 +8360,153 @@ export async function requestFunctionGraphMcqs(input: {
   return out.slice(0, count)
 }
 
-/** 逻辑判断各题型共用：公考/事业编定位 + 详细解析要求 */
+/** 逻辑判断各题型共用：公考/事业编定位 + 解析要求（控制长度，避免整批 JSON 截断） */
 const LOGIC_REASON_COMMON_RULES = [
   '命题对接公务员考试、事业单位考试「判断推理·逻辑判断」常见考法，干扰项设计贴近真题陷阱，难度对标相应考点真题手感。',
   '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
   [
-    '【explanation 详细解析·硬性】须写 4～8 句中文（约 120～280 字），按序包含：',
-    '①概括材料逻辑关系或论证结构；',
-    '②说明正确项为何必然成立/最能加强/最能削弱/唯一可推/最能解释；',
-    '③至少点破两个主要干扰项错因（如肯前否后、充分必要颠倒、另有他因、过度推断、无关选项等）；',
-    '④末句点明本题考点名称。',
-    '禁止只写「选某项」或一两句空话。method 写短考点名（约 8～20 字）。',
+    '【explanation】写 3～5 句中文（约 80～160 字）即可：①概括逻辑/论证结构；②正确项为何成立；',
+    '③点破两个主要干扰项错因；④末句点明考点名。禁止只写「选某项」。method 写短考点名（约 8～20 字）。',
   ].join(''),
 ].join('\n')
+
+const LOGIC_REASON_TOPIC_SEEDS = [
+  '社会治理',
+  '经济民生',
+  '科技创新',
+  '教育文化',
+  '生态环境',
+  '医疗卫生',
+  '法律权益',
+  '职场管理',
+  '城乡发展',
+  '公共安全',
+] as const
+
+/** 逻辑判断：并行单题生成，避免一次吐 5 道长解析导致 JSON 截断 */
+async function requestOneLogicReasonMcqObject(input: {
+  system: string
+  format: string
+  examTypeHint: string
+  diffLabel: string
+  seq: number
+  avoidTerms: string[]
+  topicLabel: string
+  topicHint?: string
+  temperature: number
+  extraHints?: string[]
+}): Promise<unknown | null> {
+  const avoidHint = buildAvoidTermsHint(input.topicLabel, input.avoidTerms)
+  const topicLine = input.topicHint
+    ? `本题题材方向优先贴近「${input.topicHint}」（可换具体案例，勿照抄旧题）。`
+    : ''
+  const user = [
+    `请生成第 ${input.seq} 道公考/事业编「${input.examTypeHint}」四选一，难度 **${input.diffLabel}**。`,
+    input.format,
+    avoidHint,
+    topicLine,
+    ...(input.extraHints ?? []),
+    '仅返回一个 JSON 对象（不要数组）。',
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: input.system,
+    temperature: input.temperature,
+    maxTokens: 2000,
+  })
+  return parseAiJsonObjectLenient(raw)
+}
+
+async function requestLogicReasonMcqBatch<T extends { fingerprint: string; term: string }>(input: {
+  count: number
+  progressLabel: string
+  diffLabel: string
+  avoidTerms?: string[]
+  onProgress?: (message: string) => void
+  system: string
+  format: string
+  topicLabel: string
+  examTypeHint: string
+  extraHints?: string[]
+  temperature?: number
+  tryBuild: (raw: unknown, seq: number) => T | null
+}): Promise<T[]> {
+  const count = input.count
+  const historyBlocked = new Set(
+    (input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean),
+  )
+  const deduped: T[] = []
+  const usedTerms = new Set<string>(historyBlocked)
+  const baseTemp = input.temperature ?? 0.72
+
+  const pushIfNew = (q: T | null) => {
+    if (!q) return false
+    if (deduped.some((x) => x.fingerprint === q.fingerprint)) return false
+    const termKey = normalizeAvoidTerm(q.term)
+    // 历史主题尽量避开；本批主题撞车仍可保留不同题干（并行时否则易凑不满）
+    if (termKey && historyBlocked.has(termKey)) return false
+    deduped.push(q)
+    if (termKey) usedTerms.add(termKey)
+    return true
+  }
+
+  const topicFor = (i: number, wave: number) =>
+    LOGIC_REASON_TOPIC_SEEDS[(i + wave * 3) % LOGIC_REASON_TOPIC_SEEDS.length]!
+
+  const fetchOne = async (seq: number, wave: number, avoid: string[]) => {
+    try {
+      const raw = await requestOneLogicReasonMcqObject({
+        system: input.system,
+        format: input.format,
+        examTypeHint: input.examTypeHint,
+        diffLabel: input.diffLabel,
+        seq,
+        avoidTerms: avoid,
+        topicLabel: input.topicLabel,
+        topicHint: topicFor(seq, wave),
+        temperature: baseTemp + wave * 0.04,
+        extraHints: input.extraHints,
+      })
+      return input.tryBuild(raw, seq)
+    } catch {
+      return null
+    }
+  }
+
+  input.onProgress?.(`并行生成 ${count} 道${input.progressLabel}…`)
+  const wave1 = await Promise.all(
+    Array.from({ length: count }, (_, i) => fetchOne(i + 1, 0, [...historyBlocked])),
+  )
+  for (const q of wave1) pushIfNew(q)
+  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+
+  for (let wave = 1; deduped.length < count && wave <= 3; wave++) {
+    const need = count - deduped.length
+    input.onProgress?.(`补生成 ${need} 题（第 ${wave} 波）…`)
+    const more = await Promise.all(
+      Array.from({ length: need }, (_, i) =>
+        fetchOne(100 * wave + i + 1, wave, [...usedTerms]),
+      ),
+    )
+    for (const q of more) pushIfNew(q)
+  }
+
+  let guard = 0
+  while (deduped.length < count && guard < 12) {
+    guard += 1
+    const slot = deduped.length + 1
+    input.onProgress?.(`兜底补第 ${slot}/${count} 题（${guard}/12）…`)
+    const q = await fetchOne(900 + guard, guard, [...usedTerms])
+    pushIfNew(q)
+  }
+
+  if (deduped.length < count) {
+    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+  }
+  return deduped.slice(0, count)
+}
 
 const TRANSLATION_REASON_SYSTEM = [
   '你是公务员/事业编考试「判断推理·逻辑判断·翻译推理」命题专家，专精假言命题、充分必要条件、逆否等价。',
@@ -8388,7 +8523,7 @@ function translationReasonDiffLabel(d: TranslationReasonDifficulty): string {
 function translationReasonFormat(difficulty: TranslationReasonDifficulty): string {
   const flex = `
 【灵活·必读】联词与场景可换；勿整批同构。例题只定难度与陷阱类型，禁止照抄原文人物/名言/材料。
-【输出】JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 须按系统要求写详细分步解析（含干扰项错因）。
+【输出】JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 按系统要求写清结构、正确项与两个干扰错因即可（勿过长）。
 `.trim()
 
   if (difficulty === 'easy') {
@@ -8453,88 +8588,24 @@ export async function requestTranslationReasonMcqs(input: {
   const count = input.count ?? TRANSLATION_REASON_QUESTION_COUNT
   const difficulty = input.difficulty
   const diffLabel = translationReasonDiffLabel(difficulty)
-  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.(aiRequestProgressText(`翻译推理（${diffLabel}）`))
-
-  const format = translationReasonFormat(difficulty)
-  const historyHint = buildAvoidTermsHint('翻译推理主题', [...blocked])
-  const user = [
-    `请生成 **${count} 道** 公考/事业编「判断推理·翻译推理」四选一，难度 **${diffLabel}**。`,
-    format,
-    historyHint,
-    `本批 ${count} 道的 term（主题标签）必须互不相同；材料题材多样（社会、经济、文化、科技、法律均可），勿重复同一名言或同一案例。`,
-    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
-  ]
-    .filter(Boolean)
-    .join('\n\n')
-
-  const raw = await deepseekChatRaw(user, {
+  return requestLogicReasonMcqBatch({
+    count,
+    progressLabel: `翻译推理（${diffLabel}）`,
+    diffLabel,
+    avoidTerms: input.avoidTerms,
+    onProgress: input.onProgress,
     system: TRANSLATION_REASON_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+    format: translationReasonFormat(difficulty),
+    topicLabel: '翻译推理主题',
+    examTypeHint: '判断推理·翻译推理',
     temperature: 0.72,
-    maxTokens: 12288,
+    tryBuild: (raw, seq) => {
+      const fields = parseTranslationReasonMcqAiObject(raw)
+      if (!fields) return null
+      const q = buildTranslationReasonQuestionFromMcq({ ...fields, difficulty, seq })
+      return q && isPlayableLogicReasonMcq(q) ? q : null
+    },
   })
-
-  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
-  const questions: TranslationReasonQuestion[] = []
-  parsed.forEach((item, idx) => {
-    const fields = parseTranslationReasonMcqAiObject(item)
-    if (!fields) return
-    const q = buildTranslationReasonQuestionFromMcq({
-      ...fields,
-      difficulty,
-      seq: idx + 1,
-    })
-    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
-  })
-
-  const deduped = dedupeTranslationReasonQuestions(questions, blocked)
-  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
-
-  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
-  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
-    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
-    const avoidHint = buildAvoidTermsHint('翻译推理主题', avoidTerms)
-    try {
-      const oneRaw = await deepseekChatRaw(
-        [
-          `请生成第 ${slot} 道翻译推理四选一题，难度 **${diffLabel}**。`,
-          format,
-          avoidHint,
-          '仅返回一个 JSON 对象。',
-        ].join('\n\n'),
-        {
-          system: TRANSLATION_REASON_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
-          temperature: 0.7,
-          maxTokens: 2200,
-        },
-      )
-      const oneObj = parseAiJsonObjectLenient(oneRaw)
-      const fields = parseTranslationReasonMcqAiObject(oneObj)
-      if (!fields) continue
-      const q = buildTranslationReasonQuestionFromMcq({
-        ...fields,
-        difficulty,
-        seq: slot,
-      })
-      if (!q || !isPlayableFourChoiceMcq(q)) continue
-      const termKey = normalizeAvoidTerm(q.term)
-      if (
-        deduped.some((x) => x.fingerprint === q.fingerprint) ||
-        (termKey && avoidTerms.includes(termKey))
-      ) {
-        continue
-      }
-      deduped.push(q)
-      if (termKey) avoidTerms.push(termKey)
-    } catch {
-      /* skip */
-    }
-  }
-
-  if (deduped.length < count) {
-    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
-  }
-  return deduped.slice(0, count)
 }
 
 const COMBO_ARRANGE_SYSTEM = [
@@ -8552,7 +8623,7 @@ function comboArrangeDiffLabel(d: ComboArrangeDifficulty): string {
 function comboArrangeFormat(difficulty: ComboArrangeDifficulty): string {
   const flex = `
 【灵活·必读】元素个数、条件写法、场景均可换；例题只定难度，禁止照抄饮品/四队原文。本批尽量变换题型变体。
-JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 须按系统要求写详细分步解析（含干扰项错因）。
+JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 按系统要求写清结构、正确项与两个干扰错因即可（勿过长）。
 `.trim()
 
   if (difficulty === 'easy') {
@@ -8611,88 +8682,24 @@ export async function requestComboArrangeMcqs(input: {
   const count = input.count ?? COMBO_ARRANGE_QUESTION_COUNT
   const difficulty = input.difficulty
   const diffLabel = comboArrangeDiffLabel(difficulty)
-  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.(aiRequestProgressText(`组合排列（${diffLabel}）`))
-
-  const format = comboArrangeFormat(difficulty)
-  const historyHint = buildAvoidTermsHint('组合排列主题', [...blocked])
-  const user = [
-    `请生成 **${count} 道** 公考/事业编「判断推理·组合排列」四选一，难度 **${diffLabel}**。`,
-    format,
-    historyHint,
-    `本批 ${count} 道的 term（主题标签）必须互不相同；题材与条件结构尽量多样，勿重复同一案例。`,
-    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
-  ]
-    .filter(Boolean)
-    .join('\n\n')
-
-  const raw = await deepseekChatRaw(user, {
+  return requestLogicReasonMcqBatch({
+    count,
+    progressLabel: `组合排列（${diffLabel}）`,
+    diffLabel,
+    avoidTerms: input.avoidTerms,
+    onProgress: input.onProgress,
     system: COMBO_ARRANGE_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+    format: comboArrangeFormat(difficulty),
+    topicLabel: '组合排列主题',
+    examTypeHint: '判断推理·组合排列',
     temperature: 0.72,
-    maxTokens: 12288,
+    tryBuild: (raw, seq) => {
+      const fields = parseComboArrangeMcqAiObject(raw)
+      if (!fields) return null
+      const q = buildComboArrangeQuestionFromMcq({ ...fields, difficulty, seq })
+      return q && isPlayableLogicReasonMcq(q) ? q : null
+    },
   })
-
-  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
-  const questions: ComboArrangeQuestion[] = []
-  parsed.forEach((item, idx) => {
-    const fields = parseComboArrangeMcqAiObject(item)
-    if (!fields) return
-    const q = buildComboArrangeQuestionFromMcq({
-      ...fields,
-      difficulty,
-      seq: idx + 1,
-    })
-    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
-  })
-
-  const deduped = dedupeComboArrangeQuestions(questions, blocked)
-  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
-
-  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
-  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
-    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
-    const avoidHint = buildAvoidTermsHint('组合排列主题', avoidTerms)
-    try {
-      const oneRaw = await deepseekChatRaw(
-        [
-          `请生成第 ${slot} 道组合排列四选一题，难度 **${diffLabel}**。`,
-          format,
-          avoidHint,
-          '仅返回一个 JSON 对象。',
-        ].join('\n\n'),
-        {
-          system: COMBO_ARRANGE_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
-          temperature: 0.7,
-          maxTokens: 2200,
-        },
-      )
-      const oneObj = parseAiJsonObjectLenient(oneRaw)
-      const fields = parseComboArrangeMcqAiObject(oneObj)
-      if (!fields) continue
-      const q = buildComboArrangeQuestionFromMcq({
-        ...fields,
-        difficulty,
-        seq: slot,
-      })
-      if (!q || !isPlayableFourChoiceMcq(q)) continue
-      const termKey = normalizeAvoidTerm(q.term)
-      if (
-        deduped.some((x) => x.fingerprint === q.fingerprint) ||
-        (termKey && avoidTerms.includes(termKey))
-      ) {
-        continue
-      }
-      deduped.push(q)
-      if (termKey) avoidTerms.push(termKey)
-    } catch {
-      /* skip */
-    }
-  }
-
-  if (deduped.length < count) {
-    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
-  }
-  return deduped.slice(0, count)
 }
 
 const TRUTH_FALSE_SYSTEM = [
@@ -8714,7 +8721,7 @@ function truthFalseFormat(difficulty: TruthFalseDifficulty): string {
 - 真假约束可多样：仅一真、仅一假、恰两真、恰两假、一半真一半假等——须在题干写清。
 - 本批尽量变换「真假约束类型」与场景，不要整批同一种「仅一真」。
 - 例题只定难度手感与结构，禁止照抄人名与原话。
-JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 须按系统要求写详细分步解析（含干扰项错因）。
+JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 按系统要求写清结构、正确项与两个干扰错因即可（勿过长）。
 `.trim()
 
   if (difficulty === 'easy') {
@@ -8777,89 +8784,25 @@ export async function requestTruthFalseMcqs(input: {
   const count = input.count ?? TRUTH_FALSE_QUESTION_COUNT
   const difficulty = input.difficulty
   const diffLabel = truthFalseDiffLabel(difficulty)
-  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.(aiRequestProgressText(`真假推理（${diffLabel}）`))
-
-  const format = truthFalseFormat(difficulty)
-  const historyHint = buildAvoidTermsHint('真假推理主题', [...blocked])
-  const user = [
-    `请生成 **${count} 道** 公考/事业编「判断推理·真假推理」四选一，难度 **${diffLabel}**。`,
-    format,
-    historyHint,
-    `本批 ${count} 道的 term（主题标签）必须互不相同；题材多样，勿重复同一案例。`,
-    `真假约束类型尽量多样（勿整批都是「仅一真」）；人数也可变化。`,
-    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
-  ]
-    .filter(Boolean)
-    .join('\n\n')
-
-  const raw = await deepseekChatRaw(user, {
+  return requestLogicReasonMcqBatch({
+    count,
+    progressLabel: `真假推理（${diffLabel}）`,
+    diffLabel,
+    avoidTerms: input.avoidTerms,
+    onProgress: input.onProgress,
     system: TRUTH_FALSE_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+    format: truthFalseFormat(difficulty),
+    topicLabel: '真假推理主题',
+    examTypeHint: '判断推理·真假推理',
     temperature: 0.74,
-    maxTokens: 12288,
+    extraHints: ['真假约束类型尽量多样（勿总是「仅一真」）；人数也可变化。'],
+    tryBuild: (raw, seq) => {
+      const fields = parseTruthFalseMcqAiObject(raw)
+      if (!fields) return null
+      const q = buildTruthFalseQuestionFromMcq({ ...fields, difficulty, seq })
+      return q && isPlayableLogicReasonMcq(q) ? q : null
+    },
   })
-
-  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
-  const questions: TruthFalseQuestion[] = []
-  parsed.forEach((item, idx) => {
-    const fields = parseTruthFalseMcqAiObject(item)
-    if (!fields) return
-    const q = buildTruthFalseQuestionFromMcq({
-      ...fields,
-      difficulty,
-      seq: idx + 1,
-    })
-    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
-  })
-
-  const deduped = dedupeTruthFalseQuestions(questions, blocked)
-  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
-
-  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
-  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
-    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
-    const avoidHint = buildAvoidTermsHint('真假推理主题', avoidTerms)
-    try {
-      const oneRaw = await deepseekChatRaw(
-        [
-          `请生成第 ${slot} 道真假推理四选一题，难度 **${diffLabel}**。`,
-          format,
-          avoidHint,
-          '仅返回一个 JSON 对象。',
-        ].join('\n\n'),
-        {
-          system: TRUTH_FALSE_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
-          temperature: 0.7,
-          maxTokens: 2200,
-        },
-      )
-      const oneObj = parseAiJsonObjectLenient(oneRaw)
-      const fields = parseTruthFalseMcqAiObject(oneObj)
-      if (!fields) continue
-      const q = buildTruthFalseQuestionFromMcq({
-        ...fields,
-        difficulty,
-        seq: slot,
-      })
-      if (!q || !isPlayableFourChoiceMcq(q)) continue
-      const termKey = normalizeAvoidTerm(q.term)
-      if (
-        deduped.some((x) => x.fingerprint === q.fingerprint) ||
-        (termKey && avoidTerms.includes(termKey))
-      ) {
-        continue
-      }
-      deduped.push(q)
-      if (termKey) avoidTerms.push(termKey)
-    } catch {
-      /* skip */
-    }
-  }
-
-  if (deduped.length < count) {
-    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
-  }
-  return deduped.slice(0, count)
 }
 
 const EVAL_REASON_SYSTEM = [
@@ -8877,7 +8820,7 @@ function evalReasonDiffLabel(d: EvalReasonDifficulty): string {
 function evalReasonFormat(difficulty: EvalReasonDifficulty): string {
   const flex = `
 【灵活·必读】场景与谬误类型可换；例题只定难度，禁止照抄刘奶奶/斜杠青年原文。本批尽量覆盖不同谬误。
-JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 须按系统要求写详细分步解析（含干扰项错因）。
+JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 按系统要求写清结构、正确项与两个干扰错因即可（勿过长）。
 `.trim()
 
   if (difficulty === 'easy') {
@@ -8938,88 +8881,24 @@ export async function requestEvalReasonMcqs(input: {
   const count = input.count ?? EVAL_REASON_QUESTION_COUNT
   const difficulty = input.difficulty
   const diffLabel = evalReasonDiffLabel(difficulty)
-  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.(aiRequestProgressText(`评价推理（${diffLabel}）`))
-
-  const format = evalReasonFormat(difficulty)
-  const historyHint = buildAvoidTermsHint('评价推理主题', [...blocked])
-  const user = [
-    `请生成 **${count} 道** 公考/事业编「判断推理·评价推理」四选一，难度 **${diffLabel}**。`,
-    format,
-    historyHint,
-    `本批 ${count} 道的 term（主题标签）必须互不相同；题材与谬误类型尽量多样，勿重复同一案例。`,
-    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
-  ]
-    .filter(Boolean)
-    .join('\n\n')
-
-  const raw = await deepseekChatRaw(user, {
+  return requestLogicReasonMcqBatch({
+    count,
+    progressLabel: `评价推理（${diffLabel}）`,
+    diffLabel,
+    avoidTerms: input.avoidTerms,
+    onProgress: input.onProgress,
     system: EVAL_REASON_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+    format: evalReasonFormat(difficulty),
+    topicLabel: '评价推理主题',
+    examTypeHint: '判断推理·评价推理',
     temperature: 0.7,
-    maxTokens: 12288,
+    tryBuild: (raw, seq) => {
+      const fields = parseEvalReasonMcqAiObject(raw)
+      if (!fields) return null
+      const q = buildEvalReasonQuestionFromMcq({ ...fields, difficulty, seq })
+      return q && isPlayableLogicReasonMcq(q) ? q : null
+    },
   })
-
-  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
-  const questions: EvalReasonQuestion[] = []
-  parsed.forEach((item, idx) => {
-    const fields = parseEvalReasonMcqAiObject(item)
-    if (!fields) return
-    const q = buildEvalReasonQuestionFromMcq({
-      ...fields,
-      difficulty,
-      seq: idx + 1,
-    })
-    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
-  })
-
-  const deduped = dedupeEvalReasonQuestions(questions, blocked)
-  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
-
-  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
-  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
-    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
-    const avoidHint = buildAvoidTermsHint('评价推理主题', avoidTerms)
-    try {
-      const oneRaw = await deepseekChatRaw(
-        [
-          `请生成第 ${slot} 道评价推理四选一题，难度 **${diffLabel}**。`,
-          format,
-          avoidHint,
-          '仅返回一个 JSON 对象。',
-        ].join('\n\n'),
-        {
-          system: EVAL_REASON_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
-          temperature: 0.72,
-          maxTokens: 2200,
-        },
-      )
-      const oneObj = parseAiJsonObjectLenient(oneRaw)
-      const fields = parseEvalReasonMcqAiObject(oneObj)
-      if (!fields) continue
-      const q = buildEvalReasonQuestionFromMcq({
-        ...fields,
-        difficulty,
-        seq: slot,
-      })
-      if (!q || !isPlayableFourChoiceMcq(q)) continue
-      const termKey = normalizeAvoidTerm(q.term)
-      if (
-        deduped.some((x) => x.fingerprint === q.fingerprint) ||
-        (termKey && avoidTerms.includes(termKey))
-      ) {
-        continue
-      }
-      deduped.push(q)
-      if (termKey) avoidTerms.push(termKey)
-    } catch {
-      /* skip */
-    }
-  }
-
-  if (deduped.length < count) {
-    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
-  }
-  return deduped.slice(0, count)
 }
 
 const STRENGTHEN_REASON_SYSTEM = [
@@ -9037,7 +8916,7 @@ function strengthenReasonDiffLabel(d: StrengthenReasonDifficulty): string {
 function strengthenReasonFormat(difficulty: StrengthenReasonDifficulty): string {
   const flex = `
 【灵活·必读】题材与问法可换；例题只定难度，禁止照抄招聘/金字塔/无人机原文。本批尽量变换加强方式（前提、排除他因、例证、补充机制等）。
-JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 须按系统要求写详细分步解析（含干扰项错因）。
+JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 按系统要求写清结构、正确项与两个干扰错因即可（勿过长）。
 `.trim()
 
   if (difficulty === 'easy') {
@@ -9101,88 +8980,24 @@ export async function requestStrengthenReasonMcqs(input: {
   const count = input.count ?? STRENGTHEN_REASON_QUESTION_COUNT
   const difficulty = input.difficulty
   const diffLabel = strengthenReasonDiffLabel(difficulty)
-  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.(aiRequestProgressText(`加强论证（${diffLabel}）`))
-
-  const format = strengthenReasonFormat(difficulty)
-  const historyHint = buildAvoidTermsHint('加强论证主题', [...blocked])
-  const user = [
-    `请生成 **${count} 道** 公考/事业编「判断推理·加强论证（含前提型）」四选一，难度 **${diffLabel}**。`,
-    format,
-    historyHint,
-    `本批 ${count} 道的 term（主题标签）必须互不相同；题材与加强方式尽量多样，勿重复同一案例。`,
-    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
-  ]
-    .filter(Boolean)
-    .join('\n\n')
-
-  const raw = await deepseekChatRaw(user, {
+  return requestLogicReasonMcqBatch({
+    count,
+    progressLabel: `加强论证（${diffLabel}）`,
+    diffLabel,
+    avoidTerms: input.avoidTerms,
+    onProgress: input.onProgress,
     system: STRENGTHEN_REASON_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+    format: strengthenReasonFormat(difficulty),
+    topicLabel: '加强论证主题',
+    examTypeHint: '判断推理·加强论证（含前提型）',
     temperature: 0.72,
-    maxTokens: 12288,
+    tryBuild: (raw, seq) => {
+      const fields = parseStrengthenReasonMcqAiObject(raw)
+      if (!fields) return null
+      const q = buildStrengthenReasonQuestionFromMcq({ ...fields, difficulty, seq })
+      return q && isPlayableLogicReasonMcq(q) ? q : null
+    },
   })
-
-  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
-  const questions: StrengthenReasonQuestion[] = []
-  parsed.forEach((item, idx) => {
-    const fields = parseStrengthenReasonMcqAiObject(item)
-    if (!fields) return
-    const q = buildStrengthenReasonQuestionFromMcq({
-      ...fields,
-      difficulty,
-      seq: idx + 1,
-    })
-    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
-  })
-
-  const deduped = dedupeStrengthenReasonQuestions(questions, blocked)
-  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
-
-  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
-  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
-    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
-    const avoidHint = buildAvoidTermsHint('加强论证主题', avoidTerms)
-    try {
-      const oneRaw = await deepseekChatRaw(
-        [
-          `请生成第 ${slot} 道加强论证四选一题，难度 **${diffLabel}**。`,
-          format,
-          avoidHint,
-          '仅返回一个 JSON 对象。',
-        ].join('\n\n'),
-        {
-          system: STRENGTHEN_REASON_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
-          temperature: 0.74,
-          maxTokens: 2200,
-        },
-      )
-      const oneObj = parseAiJsonObjectLenient(oneRaw)
-      const fields = parseStrengthenReasonMcqAiObject(oneObj)
-      if (!fields) continue
-      const q = buildStrengthenReasonQuestionFromMcq({
-        ...fields,
-        difficulty,
-        seq: slot,
-      })
-      if (!q || !isPlayableFourChoiceMcq(q)) continue
-      const termKey = normalizeAvoidTerm(q.term)
-      if (
-        deduped.some((x) => x.fingerprint === q.fingerprint) ||
-        (termKey && avoidTerms.includes(termKey))
-      ) {
-        continue
-      }
-      deduped.push(q)
-      if (termKey) avoidTerms.push(termKey)
-    } catch {
-      /* skip */
-    }
-  }
-
-  if (deduped.length < count) {
-    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
-  }
-  return deduped.slice(0, count)
 }
 
 const WEAKEN_REASON_SYSTEM = [
@@ -9200,7 +9015,7 @@ function weakenReasonDiffLabel(d: WeakenReasonDifficulty): string {
 function weakenReasonFormat(difficulty: WeakenReasonDifficulty): string {
   const flex = `
 【灵活·必读】题材与削弱方式可换；例题只定难度，禁止照抄照相机/茶咖啡/健身卡原文。本批尽量变换削弱手法。
-JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 须按系统要求写详细分步解析（含干扰项错因）。
+JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 按系统要求写清结构、正确项与两个干扰错因即可（勿过长）。
 `.trim()
 
   if (difficulty === 'easy') {
@@ -9262,88 +9077,24 @@ export async function requestWeakenReasonMcqs(input: {
   const count = input.count ?? WEAKEN_REASON_QUESTION_COUNT
   const difficulty = input.difficulty
   const diffLabel = weakenReasonDiffLabel(difficulty)
-  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.(aiRequestProgressText(`削弱论证（${diffLabel}）`))
-
-  const format = weakenReasonFormat(difficulty)
-  const historyHint = buildAvoidTermsHint('削弱论证主题', [...blocked])
-  const user = [
-    `请生成 **${count} 道** 公考/事业编「判断推理·削弱论证」四选一，难度 **${diffLabel}**。`,
-    format,
-    historyHint,
-    `本批 ${count} 道的 term（主题标签）必须互不相同；题材与削弱方式尽量多样，勿重复同一案例。`,
-    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
-  ]
-    .filter(Boolean)
-    .join('\n\n')
-
-  const raw = await deepseekChatRaw(user, {
+  return requestLogicReasonMcqBatch({
+    count,
+    progressLabel: `削弱论证（${diffLabel}）`,
+    diffLabel,
+    avoidTerms: input.avoidTerms,
+    onProgress: input.onProgress,
     system: WEAKEN_REASON_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+    format: weakenReasonFormat(difficulty),
+    topicLabel: '削弱论证主题',
+    examTypeHint: '判断推理·削弱论证',
     temperature: 0.72,
-    maxTokens: 12288,
+    tryBuild: (raw, seq) => {
+      const fields = parseWeakenReasonMcqAiObject(raw)
+      if (!fields) return null
+      const q = buildWeakenReasonQuestionFromMcq({ ...fields, difficulty, seq })
+      return q && isPlayableLogicReasonMcq(q) ? q : null
+    },
   })
-
-  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
-  const questions: WeakenReasonQuestion[] = []
-  parsed.forEach((item, idx) => {
-    const fields = parseWeakenReasonMcqAiObject(item)
-    if (!fields) return
-    const q = buildWeakenReasonQuestionFromMcq({
-      ...fields,
-      difficulty,
-      seq: idx + 1,
-    })
-    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
-  })
-
-  const deduped = dedupeWeakenReasonQuestions(questions, blocked)
-  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
-
-  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
-  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
-    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
-    const avoidHint = buildAvoidTermsHint('削弱论证主题', avoidTerms)
-    try {
-      const oneRaw = await deepseekChatRaw(
-        [
-          `请生成第 ${slot} 道削弱论证四选一题，难度 **${diffLabel}**。`,
-          format,
-          avoidHint,
-          '仅返回一个 JSON 对象。',
-        ].join('\n\n'),
-        {
-          system: WEAKEN_REASON_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
-          temperature: 0.74,
-          maxTokens: 2200,
-        },
-      )
-      const oneObj = parseAiJsonObjectLenient(oneRaw)
-      const fields = parseWeakenReasonMcqAiObject(oneObj)
-      if (!fields) continue
-      const q = buildWeakenReasonQuestionFromMcq({
-        ...fields,
-        difficulty,
-        seq: slot,
-      })
-      if (!q || !isPlayableFourChoiceMcq(q)) continue
-      const termKey = normalizeAvoidTerm(q.term)
-      if (
-        deduped.some((x) => x.fingerprint === q.fingerprint) ||
-        (termKey && avoidTerms.includes(termKey))
-      ) {
-        continue
-      }
-      deduped.push(q)
-      if (termKey) avoidTerms.push(termKey)
-    } catch {
-      /* skip */
-    }
-  }
-
-  if (deduped.length < count) {
-    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
-  }
-  return deduped.slice(0, count)
 }
 
 const DAILY_CONCLUSION_SYSTEM = [
@@ -9359,7 +9110,7 @@ function dailyConclusionDiffLabel(d: DailyConclusionDifficulty): string {
 function dailyConclusionFormat(difficulty: DailyConclusionDifficulty): string {
   const flex = `
 【灵活·必读】题材可换（健康、运动、饮食、科技生活等）；例题只定难度，禁止照抄跑步机/糖尿病原文。
-JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 须按系统要求写详细分步解析（含干扰项错因）。
+JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 按系统要求写清结构、正确项与两个干扰错因即可（勿过长）。
 `.trim()
 
   if (difficulty === 'easy') {
@@ -9410,88 +9161,24 @@ export async function requestDailyConclusionMcqs(input: {
   const count = input.count ?? DAILY_CONCLUSION_QUESTION_COUNT
   const difficulty = input.difficulty
   const diffLabel = dailyConclusionDiffLabel(difficulty)
-  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.(aiRequestProgressText(`日常结论（${diffLabel}）`))
-
-  const format = dailyConclusionFormat(difficulty)
-  const historyHint = buildAvoidTermsHint('日常结论主题', [...blocked])
-  const user = [
-    `请生成 **${count} 道** 公考/事业编「判断推理·日常结论」四选一，难度 **${diffLabel}**。`,
-    format,
-    historyHint,
-    `本批 ${count} 道的 term（主题标签）必须互不相同；题材多样，勿重复同一案例。`,
-    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
-  ]
-    .filter(Boolean)
-    .join('\n\n')
-
-  const raw = await deepseekChatRaw(user, {
+  return requestLogicReasonMcqBatch({
+    count,
+    progressLabel: `日常结论（${diffLabel}）`,
+    diffLabel,
+    avoidTerms: input.avoidTerms,
+    onProgress: input.onProgress,
     system: DAILY_CONCLUSION_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+    format: dailyConclusionFormat(difficulty),
+    topicLabel: '日常结论主题',
+    examTypeHint: '判断推理·日常结论',
     temperature: 0.72,
-    maxTokens: 12288,
+    tryBuild: (raw, seq) => {
+      const fields = parseDailyConclusionMcqAiObject(raw)
+      if (!fields) return null
+      const q = buildDailyConclusionQuestionFromMcq({ ...fields, difficulty, seq })
+      return q && isPlayableLogicReasonMcq(q) ? q : null
+    },
   })
-
-  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
-  const questions: DailyConclusionQuestion[] = []
-  parsed.forEach((item, idx) => {
-    const fields = parseDailyConclusionMcqAiObject(item)
-    if (!fields) return
-    const q = buildDailyConclusionQuestionFromMcq({
-      ...fields,
-      difficulty,
-      seq: idx + 1,
-    })
-    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
-  })
-
-  const deduped = dedupeDailyConclusionQuestions(questions, blocked)
-  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
-
-  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
-  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
-    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
-    const avoidHint = buildAvoidTermsHint('日常结论主题', avoidTerms)
-    try {
-      const oneRaw = await deepseekChatRaw(
-        [
-          `请生成第 ${slot} 道日常结论四选一题，难度 **${diffLabel}**。`,
-          format,
-          avoidHint,
-          '仅返回一个 JSON 对象。',
-        ].join('\n\n'),
-        {
-          system: DAILY_CONCLUSION_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
-          temperature: 0.74,
-          maxTokens: 2200,
-        },
-      )
-      const oneObj = parseAiJsonObjectLenient(oneRaw)
-      const fields = parseDailyConclusionMcqAiObject(oneObj)
-      if (!fields) continue
-      const q = buildDailyConclusionQuestionFromMcq({
-        ...fields,
-        difficulty,
-        seq: slot,
-      })
-      if (!q || !isPlayableFourChoiceMcq(q)) continue
-      const termKey = normalizeAvoidTerm(q.term)
-      if (
-        deduped.some((x) => x.fingerprint === q.fingerprint) ||
-        (termKey && avoidTerms.includes(termKey))
-      ) {
-        continue
-      }
-      deduped.push(q)
-      if (termKey) avoidTerms.push(termKey)
-    } catch {
-      /* skip */
-    }
-  }
-
-  if (deduped.length < count) {
-    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
-  }
-  return deduped.slice(0, count)
 }
 
 const EXPLAIN_PHENOM_SYSTEM = [
@@ -9507,7 +9194,7 @@ function explainPhenomDiffLabel(d: ExplainPhenomDifficulty): string {
 function explainPhenomFormat(difficulty: ExplainPhenomDifficulty): string {
   const flex = `
 【灵活·必读】场景可换；例题只定难度，禁止照抄咖啡促销/选举/冰川原文。困难档可轮换「组合选肢」与「科学矛盾」两类。
-JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 须按系统要求写详细分步解析（含干扰项错因）。
+JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation 按系统要求写清结构、正确项与两个干扰错因即可（勿过长）。
 `.trim()
 
   if (difficulty === 'easy') {
@@ -9563,86 +9250,22 @@ export async function requestExplainPhenomMcqs(input: {
   const count = input.count ?? EXPLAIN_PHENOM_QUESTION_COUNT
   const difficulty = input.difficulty
   const diffLabel = explainPhenomDiffLabel(difficulty)
-  const blocked = new Set((input.avoidTerms ?? []).map(normalizeAvoidTerm).filter(Boolean))
-  input.onProgress?.(aiRequestProgressText(`解释现象（${diffLabel}）`))
-
-  const format = explainPhenomFormat(difficulty)
-  const historyHint = buildAvoidTermsHint('解释现象主题', [...blocked])
-  const user = [
-    `请生成 **${count} 道** 公考/事业编「判断推理·解释现象」四选一，难度 **${diffLabel}**。`,
-    format,
-    historyHint,
-    `本批 ${count} 道的 term（主题标签）必须互不相同；题材与解释手法尽量多样。`,
-    `**仅返回 JSON 数组**，长度恰好 ${count}，每项为单题对象。`,
-  ]
-    .filter(Boolean)
-    .join('\n\n')
-
-  const raw = await deepseekChatRaw(user, {
+  return requestLogicReasonMcqBatch({
+    count,
+    progressLabel: `解释现象（${diffLabel}）`,
+    diffLabel,
+    avoidTerms: input.avoidTerms,
+    onProgress: input.onProgress,
     system: EXPLAIN_PHENOM_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
+    format: explainPhenomFormat(difficulty),
+    topicLabel: '解释现象主题',
+    examTypeHint: '判断推理·解释现象',
     temperature: 0.72,
-    maxTokens: 12288,
+    tryBuild: (raw, seq) => {
+      const fields = parseExplainPhenomMcqAiObject(raw)
+      if (!fields) return null
+      const q = buildExplainPhenomQuestionFromMcq({ ...fields, difficulty, seq })
+      return q && isPlayableLogicReasonMcq(q) ? q : null
+    },
   })
-
-  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
-  const questions: ExplainPhenomQuestion[] = []
-  parsed.forEach((item, idx) => {
-    const fields = parseExplainPhenomMcqAiObject(item)
-    if (!fields) return
-    const q = buildExplainPhenomQuestionFromMcq({
-      ...fields,
-      difficulty,
-      seq: idx + 1,
-    })
-    if (q && isPlayableFourChoiceMcq(q)) questions.push(q)
-  })
-
-  const deduped = dedupeExplainPhenomQuestions(questions, blocked)
-  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
-
-  const avoidTerms = [...blocked, ...deduped.map((q) => normalizeAvoidTerm(q.term))]
-  for (let slot = deduped.length + 1; deduped.length < count && slot <= count + 24; slot++) {
-    input.onProgress?.(`补生成第 ${deduped.length + 1}/${count} 题…`)
-    const avoidHint = buildAvoidTermsHint('解释现象主题', avoidTerms)
-    try {
-      const oneRaw = await deepseekChatRaw(
-        [
-          `请生成第 ${slot} 道解释现象四选一题，难度 **${diffLabel}**。`,
-          format,
-          avoidHint,
-          '仅返回一个 JSON 对象。',
-        ].join('\n\n'),
-        {
-          system: EXPLAIN_PHENOM_SYSTEM + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES,
-          temperature: 0.74,
-          maxTokens: 2200,
-        },
-      )
-      const oneObj = parseAiJsonObjectLenient(oneRaw)
-      const fields = parseExplainPhenomMcqAiObject(oneObj)
-      if (!fields) continue
-      const q = buildExplainPhenomQuestionFromMcq({
-        ...fields,
-        difficulty,
-        seq: slot,
-      })
-      if (!q || !isPlayableFourChoiceMcq(q)) continue
-      const termKey = normalizeAvoidTerm(q.term)
-      if (
-        deduped.some((x) => x.fingerprint === q.fingerprint) ||
-        (termKey && avoidTerms.includes(termKey))
-      ) {
-        continue
-      }
-      deduped.push(q)
-      if (termKey) avoidTerms.push(termKey)
-    } catch {
-      /* skip */
-    }
-  }
-
-  if (deduped.length < count) {
-    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
-  }
-  return deduped.slice(0, count)
 }

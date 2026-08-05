@@ -5,7 +5,7 @@
 import {
   assembleFourChoiceMcq,
   extractMcqCorrectAndDistractors,
-  isPlayableFourChoiceMcq,
+  isPlayableLogicReasonMcq,
 } from '@/utils/chineseMcqAiFields'
 
 export type TruthFalseDifficulty = 'easy' | 'medium' | 'hard'
@@ -127,7 +127,7 @@ export function buildTruthFalseQuestionFromMcq(input: {
     explanation: (input.explanation ?? '').trim(),
     fingerprint,
   }
-  if (!isPlayableFourChoiceMcq(q)) return null
+  if (!isPlayableLogicReasonMcq(q)) return null
   return q
 }
 
