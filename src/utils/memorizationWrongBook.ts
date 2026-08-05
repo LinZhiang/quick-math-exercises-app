@@ -197,9 +197,43 @@ export function memorizationWrongToQuizItem(
   seq: number,
 ): MemorizationWrongQuizItem | null {
   const options = [...(row.options ?? [])].map((o) => String(o).trim()).filter(Boolean)
+  const correctRaw = options[row.correctIndex] ?? options[0] ?? ''
+  if (!correctRaw) return null
+
+  /** 语句排序：交互排序，不依赖四选一干扰项；须有 5 段 + 正确序号 */
+  if (row.questionType === 'sentence-order') {
+    const segments = (row.segments ?? [])
+      .map((s) => String(s ?? '').trim())
+      .filter(Boolean)
+    if (segments.length !== 5) return null
+    const correctText = correctRaw
+    const keep = options.length >= 1 ? options : [correctText]
+    const correctIndex = Math.max(
+      0,
+      keep.findIndex((o) => o === correctText),
+    )
+    if (!keep[correctIndex]) return null
+    return {
+      id: `mem-wb-${seq}-${row.fingerprint.slice(0, 10)}`,
+      originFingerprint: row.fingerprint,
+      module: row.module,
+      scopeKey: row.scopeKey,
+      scopeLabel: row.scopeLabel,
+      drillMode: row.drillMode,
+      questionType: row.questionType,
+      term: row.term,
+      stem: row.stem,
+      options: keep,
+      correctIndex,
+      explanation: row.explanation,
+      sourceTitle: row.sourceTitle,
+      context: row.context,
+      segments,
+    }
+  }
+
   if (options.length < 2) return null
-  const correctText = options[row.correctIndex] ?? ''
-  if (!correctText) return null
+  const correctText = correctRaw
   const shuffled = shuffleInPlace([...options])
   const correctIndex = shuffled.findIndex((o) => o === correctText)
   if (correctIndex < 0) return null

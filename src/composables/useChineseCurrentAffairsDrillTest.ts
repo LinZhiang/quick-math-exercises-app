@@ -247,7 +247,7 @@ export function useChineseCurrentAffairsDrillTest() {
   function resetOrderArrangement() {
     const q = currentQuestion.value
     if (q?.questionType === 'sentence-order' && q.segments?.length === 5) {
-      orderArrangement.value = [1, 2, 3, 4, 5]
+      orderArrangement.value = []
     } else {
       orderArrangement.value = []
     }

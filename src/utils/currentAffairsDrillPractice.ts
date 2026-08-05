@@ -207,9 +207,9 @@ export function buildCurrentAffairsDrillQuestionFromMcq(input: {
     segments = (input.segments ?? [])
       .map((s) => String(s ?? '').trim().replace(/\*\*/g, ''))
       .filter(Boolean)
-    if (!orderSegmentsAllValid(segments)) return null
     const correctNorm = normalizeOrderOption(correct)
     if (!correctNorm) return null
+    if (!orderSegmentsAllValid(segments, correctNorm)) return null
     let distractorsNorm = distractors
       .map((d) => normalizeOrderOption(d))
       .filter(Boolean)
@@ -228,7 +228,7 @@ export function buildCurrentAffairsDrillQuestionFromMcq(input: {
     term = (input.term || segments.join('|')).trim().slice(0, 96) || correctNorm
     stem =
       stem ||
-      '下列五段文字顺序已打乱。请拖动或点击交换调整为原文顺序，完成后点击确认。'
+      '下列五段文字顺序已打乱。请点选片段填入下方排序区，可拖动调整，完成后点击确认。'
   } else {
     if (distractors.length !== 3) return null
     if (!term || !stem) return null
@@ -287,22 +287,40 @@ export function isValidOrderOption(raw: string): boolean {
   return Boolean(normalizeOrderOption(raw))
 }
 
-/** 排序段：须以句末标点收束，避免「第一」之类过短碎片 */
+/** 排序段：标点照搬原文；禁止过短碎片（如单独「第一」） */
 export function isValidOrderSegment(text: string): boolean {
   const s = String(text ?? '')
     .trim()
     .replace(/\*\*/g, '')
-  if (s.length < 8) return false
-  if (!/[。！？]$/.test(s)) return false
+  if (s.length < 4) return false
   if (/^第[一二三四五六七八九十百零〇两\d]+[、，,：:．.]?$/.test(s)) return false
   return true
 }
 
-export function orderSegmentsAllValid(segments: string[]): boolean {
-  return (
-    segments.length === CURRENT_AFFAIRS_SENTENCE_ORDER_SEGMENTS &&
-    segments.every(isValidOrderSegment)
-  )
+/** 按正确序拼接后，整段摘抄须以句末标点收尾 */
+export function orderCombinedEndsWithStop(segments: string[], correctOrder: string): boolean {
+  const text = orderSegmentsToReadingText(segments, correctOrder)
+  return Boolean(text) && /[。！？]$/.test(text)
+}
+
+export function orderSegmentsToReadingText(segments: string[], correctOrder: string): string {
+  const norm = normalizeOrderOption(correctOrder)
+  if (!norm || segments.length !== CURRENT_AFFAIRS_SENTENCE_ORDER_SEGMENTS) return ''
+  return norm
+    .split('、')
+    .map((n) => segments[Number(n) - 1] ?? '')
+    .join('')
+}
+
+export function orderSegmentsAllValid(segments: string[], correctOrder?: string): boolean {
+  if (
+    segments.length !== CURRENT_AFFAIRS_SENTENCE_ORDER_SEGMENTS ||
+    !segments.every(isValidOrderSegment)
+  ) {
+    return false
+  }
+  if (correctOrder) return orderCombinedEndsWithStop(segments, correctOrder)
+  return true
 }
 
 /** 本地生成强干扰排列（邻位交换 / 旋转等） */

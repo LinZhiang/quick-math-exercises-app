@@ -1318,10 +1318,11 @@ const CURRENT_AFFAIRS_SENTENCE_ORDER_FORMAT = `
 【题型】questionType 固定为 sentence-order（语句排序）
 
 【选材与拆分】
-- 从材料中选取一段连贯原文（一句长论述或紧密相连的数句），拆成恰好 **5** 段（segments）
-- **每段必须以句号「。」或叹号/问号「！」「？」收尾**；禁止以逗号「，」、顿号、分号收尾；不以句末标点收束的半截句子不要选入
-- 每段应是完整意群（一整句或并列完整分句），长度尽量接近；去掉 ** 加粗标记
-- **禁止过短碎片**：如只拆出「第一」「第二」；若原文是「提出四点主张：第一……。第二……。」，应把「第一……。」整句作为一段，同理「第二……。」等，勿把序号与后文割裂
+- 从材料中选取一段连贯原文，拆成恰好 **5** 段（segments）
+- **标点必须照搬原文**（逗号、顿号、分号、句号等一律保留原样）；禁止擅自改标点
+- 五段按正确顺序拼接后的整段文字，**末尾必须以句号「。」（或！？）收尾**；中间各段可以逗号等收尾
+- 每段应是完整意群；去掉 ** 加粗标记
+- **禁止过短碎片**：如只拆出「第一」「第二」；若原文是「提出四点主张：第一……。第二……。」，应把「第一……。」整句作为一段
 - segments 数组按 **界面展示顺序** 给出：必须已经打乱，对应序号 1、2、3、4、5
 - 禁止把无关句子拼在一起；五段合起来应能还原为材料中的连贯表述
 
@@ -1334,7 +1335,7 @@ const CURRENT_AFFAIRS_SENTENCE_ORDER_FORMAT = `
 
 【出处与题干】
 - sourceTitle 必须为材料中的文章标题
-- stem 可写：「下列五段文字顺序已打乱。请拖动或点击交换调整为原文顺序，完成后点击确认。」
+- stem 可写：「下列五段文字顺序已打乱。请点选片段填入下方排序区，可拖动调整，完成后点击确认。」
 - term 用该段原文前 20～40 字作去重键（勿与本批其它题重复）
 - explanation 1～2 句点明出处，并可简述正确语序依据（因果/总—分/时间等）
 
@@ -1342,7 +1343,7 @@ const CURRENT_AFFAIRS_SENTENCE_ORDER_FORMAT = `
 questionType, sourceTitle, term, stem, segments[5], correct, explanation
 
 【JSON 示例】
-{"questionType":"sentence-order","sourceTitle":"2025年第19期《求是》杂志发表习近平重要文章","term":"各民族血脉相融是中华民族共同体","stem":"下列五段文字顺序已打乱。请拖动或点击交换调整为原文顺序，完成后点击确认。","segments":["各民族共同开拓了祖国的锦绣河山。","各民族血脉相融，是中华民族共同体形成和发展的历史根基。","各民族共同书写了悠久历史。","各民族共同创造了灿烂文化。","各民族共同培育了伟大精神。"],"correct":"2、1、3、4、5","explanation":"出处：求是文章。先总起「血脉相融」与根基，再并列展开共同开拓、书写、创造、培育。"}
+{"questionType":"sentence-order","sourceTitle":"2025年第19期《求是》杂志发表习近平重要文章","term":"各民族血脉相融是中华民族共同体","stem":"下列五段文字顺序已打乱。请点选片段填入下方排序区，可拖动调整，完成后点击确认。","segments":["各民族共同开拓了祖国的锦绣河山，","各民族血脉相融，是中华民族共同体形成和发展的历史根基。","各民族共同书写了悠久历史，","各民族共同创造了灿烂文化，","各民族共同培育了伟大精神。"],"correct":"2、1、3、4、5","explanation":"出处：求是文章。先总起「血脉相融」与根基，再并列展开共同开拓、书写、创造、培育。"}
 `.trim() + '\n\n' + CHINESE_MCQ_CORRECTNESS_RULES
 
 export async function requestCurrentAffairsSentenceOrderMcqs(input: {
@@ -1439,7 +1440,7 @@ export async function requestCurrentAffairsSentenceOrderMcqs(input: {
 
   if (deduped.length < count) {
     throw new Error(
-      `仅成功生成 ${deduped.length}/${count} 道语句排序题（需 5 段完整句末标点语段），请稍后重试`,
+      `仅成功生成 ${deduped.length}/${count} 道语句排序题（需 5 段原文语段且整段以句末收尾），请稍后重试`,
     )
   }
   return deduped.slice(0, count)

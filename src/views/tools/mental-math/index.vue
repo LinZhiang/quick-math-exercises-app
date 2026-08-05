@@ -1831,7 +1831,7 @@ onBeforeUnmount(() => {
               @click="openFactDeepen('life-sense')"
             >
               <h3 class="mode-card__title">加深识记</h3>
-              <p class="mode-card__desc">分难度 · 固定 20 题一组目录可溯源 · 先识记（解析可编辑）→ 限时测（简单 40 秒 / 普通 52 秒 / 复杂 64 秒）</p>
+              <p class="mode-card__desc">分难度 · 固定 20 题一组目录可溯源 · 先识记（解析可编辑）→ 限时测（简单 65 秒 / 普通 77 秒 / 复杂 89 秒）</p>
               <span class="mode-card__cta">进入</span>
             </button>
           </div>
@@ -1865,7 +1865,7 @@ onBeforeUnmount(() => {
               @click="openFactDeepen('what-is-this')"
             >
               <h3 class="mode-card__title">加深识记</h3>
-              <p class="mode-card__desc">分难度 · 固定 20 题一组目录可溯源 · 先识记（解析可编辑）→ 限时测（简单 40 秒 / 普通 52 秒 / 复杂 64 秒）</p>
+              <p class="mode-card__desc">分难度 · 固定 20 题一组目录可溯源 · 先识记（解析可编辑）→ 限时测（简单 65 秒 / 普通 77 秒 / 复杂 89 秒）</p>
               <span class="mode-card__cta">进入</span>
             </button>
           </div>
@@ -1902,7 +1902,7 @@ onBeforeUnmount(() => {
             >
               <h3 class="mode-card__title">加深识记</h3>
               <p class="mode-card__desc">
-                普通难度 · 固定 20 题一组目录可溯源 · 先识记（含举例，解析可编辑）→ 限时测（满组 52 秒）
+                普通难度 · 固定 20 题一组目录可溯源 · 先识记（含举例，解析可编辑）→ 限时测（满组 77 秒）
               </p>
               <span class="mode-card__cta">进入</span>
             </button>
@@ -1941,7 +1941,7 @@ onBeforeUnmount(() => {
             >
               <h3 class="mode-card__title">加深识记</h3>
               <p class="mode-card__desc">
-                普通难度 · 固定 20 题一组目录可溯源 · 先识记（含举例与易错点）→ 限时测（满组 52 秒）
+                普通难度 · 固定 20 题一组目录可溯源 · 先识记（含举例与易错点）→ 限时测（满组 77 秒）
               </p>
               <span class="mode-card__cta">进入</span>
             </button>
@@ -1979,7 +1979,7 @@ onBeforeUnmount(() => {
             >
               <h3 class="mode-card__title">加深识记</h3>
               <p class="mode-card__desc">
-                普通难度 · 固定 20 题一组目录可溯源 · 先识记（类别/例句/义项）→ 限时测（满组 52 秒）
+                普通难度 · 固定 20 题一组目录可溯源 · 先识记（类别/例句/义项）→ 限时测（满组 77 秒）
               </p>
               <span class="mode-card__cta">进入</span>
             </button>
