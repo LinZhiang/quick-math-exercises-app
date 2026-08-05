@@ -8360,15 +8360,103 @@ export async function requestFunctionGraphMcqs(input: {
   return out.slice(0, count)
 }
 
-/** 逻辑判断各题型共用：公考/事业编定位 + 解析要求（控制长度，避免整批 JSON 截断） */
+/** 逻辑判断各题型共用：公考/事业编定位 + 唯一解/题答对齐 + 解析要求 */
 const LOGIC_REASON_COMMON_RULES = [
   '命题对接公务员考试、事业单位考试「判断推理·逻辑判断」常见考法，干扰项设计贴近真题陷阱，难度对标相应考点真题手感。',
   '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
   [
-    '【explanation】写 3～5 句中文（约 80～160 字）即可：①概括逻辑/论证结构；②正确项为何成立；',
+    '【答案唯一·硬性·出题前自检】必须按此顺序：①写材料与设问；②不看选项先独立推导唯一结论；③再写 correct；④写三个明确错误的干扰项。',
+    '四个选项中只能有一个满足题干要求；禁止两选项都说得通、半对半错、或「选哪个都行」。',
+    'correct 必须与 passage+stem 严丝合缝：问「推出」则正确项须必然推出；问「加强/前提」不得给削弱；问「削弱」不得给加强；问「解释」须真正化解矛盾/反常。',
+    '干扰项须有明确错因（充分必要颠倒、肯前否后、过度推断、另有他因、无关、答非所问等），禁止「也勉强对」。',
+    '若无法保证唯一正确解，宁可换材料重出，禁止勉强拼题。',
+  ].join(''),
+  [
+    '【explanation】写 3～5 句中文（约 80～160 字）：①概括逻辑/论证结构；②正确项为何唯一成立；',
     '③点破两个主要干扰项错因；④末句点明考点名。禁止只写「选某项」。method 写短考点名（约 8～20 字）。',
   ].join(''),
 ].join('\n')
+
+const LOGIC_REASON_PROOFREAD_SYSTEM = [
+  '你是公务员/事业编「判断推理·逻辑判断」严格审题官，只做校对，不出新题。',
+  '任务：判断「标为正确的选项」是否与材料+设问严丝合缝，且四个选项中是否仅此一项成立。',
+  '宁可判不合格，也不放过：题干与答案对不上、多解、正确项其实推不出、干扰项其实也对、问法与答案类型错位（如问削弱却给加强）。',
+  '只输出合法 JSON 对象，不要 markdown，不要其它文字。',
+].join('\n')
+
+type LogicReasonVerifiable = {
+  fingerprint: string
+  term: string
+  passage: string
+  stem: string
+  options: string[]
+  correctIndex: number
+  explanation?: string
+  method?: string
+}
+
+/** AI 校对：题答对齐 + 唯一正确解；不过关则丢弃 */
+async function verifyLogicReasonMcqWithAi(
+  q: LogicReasonVerifiable,
+  examTypeHint: string,
+): Promise<boolean> {
+  if (!Array.isArray(q.options) || q.options.length !== 4) return false
+  if (q.correctIndex < 0 || q.correctIndex > 3) return false
+  const letters = ['A', 'B', 'C', 'D'] as const
+  const optionLines = q.options
+    .map((opt, i) => `${letters[i]}. ${String(opt ?? '').trim()}`)
+    .join('\n')
+  const marked = letters[q.correctIndex]!
+  const user = [
+    `题型：${examTypeHint}`,
+    `材料：\n${(q.passage || '（无独立材料，见设问）').trim()}`,
+    `设问：\n${q.stem.trim()}`,
+    `选项：\n${optionLines}`,
+    `命题标注正确答案：${marked}`,
+    q.method ? `命题标注考点：${q.method}` : '',
+    q.explanation ? `命题给出的解析（仅供参考，你须独立复核）：${q.explanation}` : '',
+    [
+      '请独立复核后只返回 JSON：',
+      '{',
+      '  "markedCorrectIsRight": true/false,  // 标注项是否确实满足设问',
+      '  "uniqueAnswer": true/false,          // 是否仅有一个选项能成立',
+      '  "alsoAcceptable": ["B"],             // 除标注项外仍可成立的选项字母；无可填 []',
+      '  "stemAnswerMatch": true/false,       // 设问类型与答案类型是否对齐',
+      '  "ok": true/false,                    // 仅当前三项都通过时为 true',
+      '  "reason": "一句话中文理由"',
+      '}',
+      '判定标准：ok 为 true 当且仅当 markedCorrectIsRight、uniqueAnswer、stemAnswerMatch 均为 true，且 alsoAcceptable 为空。',
+      '有疑点一律 ok=false。',
+    ].join('\n'),
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  try {
+    const raw = await deepseekChatRaw(user, {
+      system: LOGIC_REASON_PROOFREAD_SYSTEM,
+      temperature: 0.1,
+      maxTokens: 500,
+    })
+    const obj = parseAiJsonObjectLenient(raw) as Record<string, unknown> | null
+    if (!obj || typeof obj !== 'object') return false
+
+    const truthy = (v: unknown) => v === true || v === 'true' || v === 1 || v === '1'
+    const markedOk = truthy(obj.markedCorrectIsRight)
+    const unique = truthy(obj.uniqueAnswer)
+    const match = truthy(obj.stemAnswerMatch)
+    const ok = truthy(obj.ok)
+    const also = Array.isArray(obj.alsoAcceptable)
+      ? obj.alsoAcceptable.map((x) => String(x).trim().toUpperCase()).filter(Boolean)
+      : []
+    // 排除误把标注项自己写进 alsoAcceptable
+    const alsoOthers = also.filter((x) => x !== marked)
+
+    return ok && markedOk && unique && match && alsoOthers.length === 0
+  } catch {
+    return false
+  }
+}
 
 const LOGIC_REASON_TOPIC_SEEDS = [
   '社会治理',
@@ -8406,7 +8494,13 @@ async function requestOneLogicReasonMcqObject(input: {
     avoidHint,
     topicLine,
     ...(input.extraHints ?? []),
-    '仅返回一个 JSON 对象（不要数组）。',
+    [
+      '【交卷前自检·必须】',
+      '1）遮住选项，仅凭材料+设问能否唯一推出你写的 correct？不能则重写。',
+      '2）逐个检查三个 distractors：是否有任何一个其实也成立？有则改掉。',
+      '3）设问类型与 correct 类型是否对齐（推出/加强/削弱/解释/评价）？不对齐则重写。',
+      '仅返回一个 JSON 对象（不要数组）。',
+    ].join('\n'),
   ]
     .filter(Boolean)
     .join('\n\n')
@@ -8419,7 +8513,7 @@ async function requestOneLogicReasonMcqObject(input: {
   return parseAiJsonObjectLenient(raw)
 }
 
-async function requestLogicReasonMcqBatch<T extends { fingerprint: string; term: string }>(input: {
+async function requestLogicReasonMcqBatch<T extends LogicReasonVerifiable>(input: {
   count: number
   progressLabel: string
   diffLabel: string
@@ -8439,7 +8533,8 @@ async function requestLogicReasonMcqBatch<T extends { fingerprint: string; term:
   )
   const deduped: T[] = []
   const usedTerms = new Set<string>(historyBlocked)
-  const baseTemp = input.temperature ?? 0.72
+  // 略降温度，优先唯一解与题答对齐
+  const baseTemp = input.temperature ?? 0.58
 
   const pushIfNew = (q: T | null) => {
     if (!q) return false
@@ -8466,25 +8561,29 @@ async function requestLogicReasonMcqBatch<T extends { fingerprint: string; term:
         avoidTerms: avoid,
         topicLabel: input.topicLabel,
         topicHint: topicFor(seq, wave),
-        temperature: baseTemp + wave * 0.04,
+        temperature: Math.min(0.78, baseTemp + wave * 0.04),
         extraHints: input.extraHints,
       })
-      return input.tryBuild(raw, seq)
+      const q = input.tryBuild(raw, seq)
+      if (!q) return null
+      const passed = await verifyLogicReasonMcqWithAi(q, input.examTypeHint)
+      if (!passed) return null
+      return q
     } catch {
       return null
     }
   }
 
-  input.onProgress?.(`并行生成 ${count} 道${input.progressLabel}…`)
+  input.onProgress?.(`并行生成并校对 ${count} 道${input.progressLabel}…`)
   const wave1 = await Promise.all(
     Array.from({ length: count }, (_, i) => fetchOne(i + 1, 0, [...historyBlocked])),
   )
   for (const q of wave1) pushIfNew(q)
-  input.onProgress?.(`已解析 ${deduped.length}/${count} 题…`)
+  input.onProgress?.(`校对通过 ${deduped.length}/${count} 题…`)
 
-  for (let wave = 1; deduped.length < count && wave <= 3; wave++) {
+  for (let wave = 1; deduped.length < count && wave <= 4; wave++) {
     const need = count - deduped.length
-    input.onProgress?.(`补生成 ${need} 题（第 ${wave} 波）…`)
+    input.onProgress?.(`补生成并校对 ${need} 题（第 ${wave} 波）…`)
     const more = await Promise.all(
       Array.from({ length: need }, (_, i) =>
         fetchOne(100 * wave + i + 1, wave, [...usedTerms]),
@@ -8494,16 +8593,18 @@ async function requestLogicReasonMcqBatch<T extends { fingerprint: string; term:
   }
 
   let guard = 0
-  while (deduped.length < count && guard < 12) {
+  while (deduped.length < count && guard < 16) {
     guard += 1
     const slot = deduped.length + 1
-    input.onProgress?.(`兜底补第 ${slot}/${count} 题（${guard}/12）…`)
+    input.onProgress?.(`兜底补第 ${slot}/${count} 题并校对（${guard}/16）…`)
     const q = await fetchOne(900 + guard, guard, [...usedTerms])
     pushIfNew(q)
   }
 
   if (deduped.length < count) {
-    throw new Error(`仅成功生成 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`)
+    throw new Error(
+      `仅成功生成并通过校对 ${deduped.length}/${count} 题（已避开近期重复），请稍后重试`,
+    )
   }
   return deduped.slice(0, count)
 }
@@ -8598,7 +8699,7 @@ export async function requestTranslationReasonMcqs(input: {
     format: translationReasonFormat(difficulty),
     topicLabel: '翻译推理主题',
     examTypeHint: '判断推理·翻译推理',
-    temperature: 0.72,
+    temperature: 0.52,
     tryBuild: (raw, seq) => {
       const fields = parseTranslationReasonMcqAiObject(raw)
       if (!fields) return null
@@ -8692,7 +8793,7 @@ export async function requestComboArrangeMcqs(input: {
     format: comboArrangeFormat(difficulty),
     topicLabel: '组合排列主题',
     examTypeHint: '判断推理·组合排列',
-    temperature: 0.72,
+    temperature: 0.52,
     tryBuild: (raw, seq) => {
       const fields = parseComboArrangeMcqAiObject(raw)
       if (!fields) return null
@@ -8794,7 +8895,7 @@ export async function requestTruthFalseMcqs(input: {
     format: truthFalseFormat(difficulty),
     topicLabel: '真假推理主题',
     examTypeHint: '判断推理·真假推理',
-    temperature: 0.74,
+    temperature: 0.5,
     extraHints: ['真假约束类型尽量多样（勿总是「仅一真」）；人数也可变化。'],
     tryBuild: (raw, seq) => {
       const fields = parseTruthFalseMcqAiObject(raw)
@@ -8891,7 +8992,7 @@ export async function requestEvalReasonMcqs(input: {
     format: evalReasonFormat(difficulty),
     topicLabel: '评价推理主题',
     examTypeHint: '判断推理·评价推理',
-    temperature: 0.7,
+    temperature: 0.52,
     tryBuild: (raw, seq) => {
       const fields = parseEvalReasonMcqAiObject(raw)
       if (!fields) return null
@@ -8990,7 +9091,7 @@ export async function requestStrengthenReasonMcqs(input: {
     format: strengthenReasonFormat(difficulty),
     topicLabel: '加强论证主题',
     examTypeHint: '判断推理·加强论证（含前提型）',
-    temperature: 0.72,
+    temperature: 0.52,
     tryBuild: (raw, seq) => {
       const fields = parseStrengthenReasonMcqAiObject(raw)
       if (!fields) return null
@@ -9087,7 +9188,7 @@ export async function requestWeakenReasonMcqs(input: {
     format: weakenReasonFormat(difficulty),
     topicLabel: '削弱论证主题',
     examTypeHint: '判断推理·削弱论证',
-    temperature: 0.72,
+    temperature: 0.52,
     tryBuild: (raw, seq) => {
       const fields = parseWeakenReasonMcqAiObject(raw)
       if (!fields) return null
@@ -9171,7 +9272,7 @@ export async function requestDailyConclusionMcqs(input: {
     format: dailyConclusionFormat(difficulty),
     topicLabel: '日常结论主题',
     examTypeHint: '判断推理·日常结论',
-    temperature: 0.72,
+    temperature: 0.52,
     tryBuild: (raw, seq) => {
       const fields = parseDailyConclusionMcqAiObject(raw)
       if (!fields) return null
@@ -9260,7 +9361,7 @@ export async function requestExplainPhenomMcqs(input: {
     format: explainPhenomFormat(difficulty),
     topicLabel: '解释现象主题',
     examTypeHint: '判断推理·解释现象',
-    temperature: 0.72,
+    temperature: 0.52,
     tryBuild: (raw, seq) => {
       const fields = parseExplainPhenomMcqAiObject(raw)
       if (!fields) return null
