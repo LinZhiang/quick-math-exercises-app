@@ -12,6 +12,9 @@ export type MentalMathWrongSection =
   | 'economy-sense'
   | 'system-mgmt'
   | 'wenyan-shici'
+  | 'hanzi-pattern'
+  | 'wenyan-xuci'
+  | 'wenyan-jushi'
   | 'grammar-judgment'
   | 'twentyfour'
   | 'data-analysis'
@@ -133,6 +136,9 @@ export const MENTAL_MATH_WRONG_SECTION_LABELS: Record<MentalMathWrongSection, st
   'economy-sense': '经济学常识',
   'system-mgmt': '体制管理',
   'wenyan-shici': '文言实词',
+  'hanzi-pattern': '汉字规律',
+  'wenyan-xuci': '文言虚词',
+  'wenyan-jushi': '文言句式',
   'grammar-judgment': '语法判断',
   twentyfour: '二十四点',
   'data-analysis': '资料分析 · 百分数与百分点',
@@ -242,6 +248,15 @@ export function mentalMathModeToWrongSection(modeId: string): MentalMathWrongSec
   }
   if (modeId === 'wenyan-shici-normal' || modeId === 'wenyan-shici-deepen-normal') {
     return 'wenyan-shici'
+  }
+  if (modeId === 'hanzi-pattern-normal') {
+    return 'hanzi-pattern'
+  }
+  if (modeId === 'wenyan-xuci-normal' || modeId === 'wenyan-xuci-deepen-normal') {
+    return 'wenyan-xuci'
+  }
+  if (modeId === 'wenyan-jushi-normal' || modeId === 'wenyan-jushi-deepen-normal') {
+    return 'wenyan-jushi'
   }
   if (
     modeId === 'grammar-judgment-easy' ||

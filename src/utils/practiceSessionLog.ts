@@ -276,6 +276,31 @@ const KNOWN_ITEM_LABELS: Record<string, { categoryId: string; categoryLabel: str
       categoryLabel: '文言实词',
       itemLabel: '文言实词 · 加深识记 · 普通题',
     },
+    'hanzi-pattern-normal': {
+      categoryId: 'hanzi-pattern',
+      categoryLabel: '汉字规律',
+      itemLabel: '汉字规律 · 普通题',
+    },
+    'wenyan-xuci-normal': {
+      categoryId: 'wenyan-xuci',
+      categoryLabel: '文言虚词',
+      itemLabel: '文言虚词 · 普通题',
+    },
+    'wenyan-xuci-deepen-normal': {
+      categoryId: 'wenyan-xuci',
+      categoryLabel: '文言虚词',
+      itemLabel: '文言虚词 · 加深识记 · 普通题',
+    },
+    'wenyan-jushi-normal': {
+      categoryId: 'wenyan-jushi',
+      categoryLabel: '文言句式',
+      itemLabel: '文言句式 · 普通题',
+    },
+    'wenyan-jushi-deepen-normal': {
+      categoryId: 'wenyan-jushi',
+      categoryLabel: '文言句式',
+      itemLabel: '文言句式 · 加深识记 · 普通题',
+    },
     'chinese-idiom': { categoryId: 'chinese', categoryLabel: '语文练习', itemLabel: '语文 · 成语识记' },
     'chinese-word-memorization': {
       categoryId: 'chinese',
@@ -558,6 +583,39 @@ const PREFIX_RULES: PrefixRule[] = [
     },
   },
   {
+    prefix: 'hanzi-pattern-',
+    categoryId: 'hanzi-pattern',
+    categoryLabel: '汉字规律',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      return `汉字规律 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
+    prefix: 'wenyan-xuci-',
+    categoryId: 'wenyan-xuci',
+    categoryLabel: '文言虚词',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      if (String(mid).includes('deepen')) {
+        return `文言虚词 · 加深识记 · ${difficultyLabel(d) || d}题`
+      }
+      return `文言虚词 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
+    prefix: 'wenyan-jushi-',
+    categoryId: 'wenyan-jushi',
+    categoryLabel: '文言句式',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      if (String(mid).includes('deepen')) {
+        return `文言句式 · 加深识记 · ${difficultyLabel(d) || d}题`
+      }
+      return `文言句式 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
     prefix: 'grammar-judgment-',
     categoryId: 'grammar-judgment',
     categoryLabel: '语法判断',
@@ -730,6 +788,9 @@ export const PRACTICE_LOG_CATEGORIES: { id: string; label: string }[] = [
   { id: 'economy-sense', label: '经济学常识' },
   { id: 'system-mgmt', label: '体制管理' },
   { id: 'wenyan-shici', label: '文言实词' },
+  { id: 'hanzi-pattern', label: '汉字规律' },
+  { id: 'wenyan-xuci', label: '文言虚词' },
+  { id: 'wenyan-jushi', label: '文言句式' },
   { id: 'grammar-judgment', label: '语法判断' },
   { id: 'circle-grammar', label: '圈出所有语法' },
   { id: 'shorten-sentence', label: '缩句练习' },

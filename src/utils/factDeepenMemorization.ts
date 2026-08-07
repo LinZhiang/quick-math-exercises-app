@@ -1,5 +1,5 @@
 /**
- * 生活常识 / 这是什么 / 经济学常识 / 体制管理 / 文言实词 · 加深识记：按难度固定切成 20 题一组目录，可溯源。
+ * 生活常识 / 这是什么 / 经济学常识 / 体制管理 / 文言实词 / 文言虚词 / 文言句式 · 加深识记：按难度固定切成 20 题一组目录，可溯源。
  */
 import { ECONOMY_SENSE_BANK } from '@/utils/economySenseBank'
 import type { EconomySenseBankItem } from '@/utils/economySenseBankTypes'
@@ -13,6 +13,10 @@ import { SYSTEM_MGMT_BANK } from '@/utils/systemMgmtBank'
 import type { SystemMgmtBankItem } from '@/utils/systemMgmtBankTypes'
 import { WENYAN_SHICI_BANK } from '@/utils/wenyanShiciBank'
 import type { WenyanShiciBankItem } from '@/utils/wenyanShiciBankTypes'
+import { WENYAN_XUCI_BANK } from '@/utils/wenyanXuciBank'
+import type { WenyanXuciBankItem } from '@/utils/wenyanXuciBankTypes'
+import { WENYAN_JUSHI_BANK } from '@/utils/wenyanJushiBank'
+import type { WenyanJushiBankItem } from '@/utils/wenyanJushiBankTypes'
 import { WHAT_IS_THIS_BANK } from '@/utils/whatIsThisBank.generated'
 import type { WhatIsThisBankItem } from '@/utils/whatIsThisBankTypes'
 
@@ -30,6 +34,8 @@ export type FactDeepenModeId =
   | 'economy-sense-deepen-normal'
   | 'system-mgmt-deepen-normal'
   | 'wenyan-shici-deepen-normal'
+  | 'wenyan-xuci-deepen-normal'
+  | 'wenyan-jushi-deepen-normal'
 
 export type FactDeepenBankItem = {
   kind: FactDeepenKind
@@ -187,6 +193,26 @@ export const FACT_DEEPEN_MODES: FactDeepenModeConfig[] = [
     batchSize: FACT_DEEPEN_BATCH_SIZE,
     desc: '固定分组目录 · 先识记再限时测 · 满组 77 秒',
   },
+  {
+    modeId: 'wenyan-xuci-deepen-normal',
+    kind: 'wenyan-xuci',
+    difficulty: 'normal',
+    label: '普通题',
+    durationSec: 92,
+    optionCount: 4,
+    batchSize: FACT_DEEPEN_BATCH_SIZE,
+    desc: '固定分组目录 · 先识记再限时测 · 满组 92 秒',
+  },
+  {
+    modeId: 'wenyan-jushi-deepen-normal',
+    kind: 'wenyan-jushi',
+    difficulty: 'normal',
+    label: '普通题',
+    durationSec: 92,
+    optionCount: 4,
+    batchSize: FACT_DEEPEN_BATCH_SIZE,
+    desc: '固定分组目录 · 先识记再限时测 · 满组 92 秒',
+  },
 ]
 
 const GROUP_STATS_KEY = 'fact-deepen-group-stats-v1'
@@ -215,7 +241,9 @@ function toDeepenItem(
     | WhatIsThisBankItem
     | EconomySenseBankItem
     | SystemMgmtBankItem
-    | WenyanShiciBankItem,
+    | WenyanShiciBankItem
+    | WenyanXuciBankItem
+    | WenyanJushiBankItem,
 ): FactDeepenBankItem {
   return {
     kind,
@@ -241,7 +269,11 @@ function poolFor(kind: FactDeepenKind, difficulty: FactDeepenDifficulty): FactDe
           ? ECONOMY_SENSE_BANK
           : kind === 'system-mgmt'
             ? SYSTEM_MGMT_BANK
-            : WENYAN_SHICI_BANK
+            : kind === 'wenyan-shici'
+              ? WENYAN_SHICI_BANK
+              : kind === 'wenyan-xuci'
+                ? WENYAN_XUCI_BANK
+                : WENYAN_JUSHI_BANK
   const seen = new Set<string>()
   const out: FactDeepenBankItem[] = []
   for (const item of bank) {
@@ -274,6 +306,9 @@ export function factDeepenKindLabel(kind: FactDeepenKind): string {
   if (kind === 'what-is-this') return '这是什么'
   if (kind === 'economy-sense') return '经济学常识'
   if (kind === 'system-mgmt') return '体制管理'
+  if (kind === 'wenyan-shici') return '文言实词'
+  if (kind === 'wenyan-xuci') return '文言虚词'
+  if (kind === 'wenyan-jushi') return '文言句式'
   return '文言实词'
 }
 
@@ -380,12 +415,13 @@ function buildQuizFromCard(
   }
 }
 
-/** 测验选项重洗；题序保持本组目录顺序，便于对照溯源 */
+/** 测验选项重洗；题序乱序，避免按目录顺序背答案 */
 export function buildFactDeepenQuiz(
   cards: FactDeepenStudyCard[],
   optionCount: number,
 ): FactDeepenQuizQuestion[] {
-  return cards.map((card, i) => buildQuizFromCard(i + 1, card, optionCount))
+  const shuffled = shuffle([...cards])
+  return shuffled.map((card, i) => buildQuizFromCard(i + 1, card, optionCount))
 }
 
 function groupStatKey(modeId: FactDeepenModeId, groupIndex: number): string {

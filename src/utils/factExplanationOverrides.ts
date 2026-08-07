@@ -9,6 +9,8 @@ export type FactBankKind =
   | 'economy-sense'
   | 'system-mgmt'
   | 'wenyan-shici'
+  | 'wenyan-xuci'
+  | 'wenyan-jushi'
 
 const STORAGE_KEY = 'fact-explanation-overrides-v1'
 const MAX_ENTRIES = 800

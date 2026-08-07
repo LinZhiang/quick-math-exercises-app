@@ -795,6 +795,96 @@ export const MENTAL_MATH_GUIDE_GROUPS: MentalMathGuideGroup[] = [
     ],
   },
   {
+    id: 'hanzi-pattern',
+    title: '汉字规律',
+    articles: [
+      {
+        id: 'hanzi-pattern-overview',
+        title: '怎么练汉字规律',
+        category: 'hanzi-pattern',
+        practiceModeId: 'hanzi-pattern-normal',
+        blocks: [
+          {
+            type: 'p',
+            text: '快判本地题：给出四个汉字，选出共同规律。覆盖笔画数、笔画交叉数、部件包含、封闭区域个数、文字结构、对称、连通块、封闭/开放等常见考法。仅普通题，无加深识记。',
+          },
+          {
+            type: 'h3',
+            text: '怎么练',
+          },
+          {
+            type: 'ul',
+            items: [
+              '「普通题」：52 秒四选一，对 +8 / 错 -15；优先未做过知识点。',
+              '先看四字整体，再比对选项标签（如「笔画数累加1」「都包含「日」」「左右结构」）。',
+              '迷惑规律勿硬套：以四字真正共享的属性为准。',
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'wenyan-xuci',
+    title: '文言虚词',
+    articles: [
+      {
+        id: 'wenyan-xuci-overview',
+        title: '怎么练文言虚词',
+        category: 'wenyan-xuci',
+        practiceModeId: 'wenyan-xuci-normal',
+        blocks: [
+          {
+            type: 'p',
+            text: '快判本地题：严格按课本「常考文言虚词」18 个——而、何、乎、乃、其、且、若、所、为、焉、也、以、因、于、与、则、者、之。每词 10 题，义项与例句紧扣书表；解析含译文。',
+          },
+          {
+            type: 'h3',
+            text: '怎么练',
+          },
+          {
+            type: 'ul',
+            items: [
+              '「普通题」：67 秒四选一，对 +8 / 错 -15；优先未做过知识点。',
+              '「加深识记」：固定分组先看例句/用法/译文，再限时测同组（满组 92 秒；题序乱序）。',
+              '做题要点：同一虚词多义项，务必结合整句；注意「以为」「所以」「为……所」等固定结构。',
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'wenyan-jushi',
+    title: '文言句式',
+    articles: [
+      {
+        id: 'wenyan-jushi-overview',
+        title: '怎么练文言句式',
+        category: 'wenyan-jushi',
+        practiceModeId: 'wenyan-jushi-normal',
+        blocks: [
+          {
+            type: 'p',
+            text: '快判本地题：严格按课本句式分类表——判断句（者……也 / 乃即则皆是诚为 / 非）、被动句（见·见……于·于 / 为·为……所）、倒装（宾前四类、定后之/者、状后、主谓倒装）、省略（主语/谓语/宾语/介词宾语/介词「于」）。每细类 4 题；解析含译文。',
+          },
+          {
+            type: 'h3',
+            text: '怎么练',
+          },
+          {
+            type: 'ul',
+            items: [
+              '「普通题」：67 秒四选一，对 +8 / 错 -15；优先未做过知识点。',
+              '「加深识记」：固定分组先识记再限时测（满组 92 秒；题序乱序）。',
+              '做题步骤：先译大白话 → 对照现代语序找颠倒 → 抓标志词（于、何、之、是、为等）锁定类型。',
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
     id: 'grammar-judgment',
     title: '语法判断',
     articles: [

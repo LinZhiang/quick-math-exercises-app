@@ -108,6 +108,9 @@ import {
   MENTAL_MATH_ECONOMY_SENSE_MODES,
   MENTAL_MATH_SYSTEM_MGMT_MODES,
   MENTAL_MATH_WENYAN_SHICI_MODES,
+  MENTAL_MATH_HANZI_PATTERN_MODES,
+  MENTAL_MATH_WENYAN_XUCI_MODES,
+  MENTAL_MATH_WENYAN_JUSHI_MODES,
   MENTAL_MATH_GRAMMAR_JUDGMENT_MODES,
   MENTAL_MATH_POWER_MODES,
   MENTAL_MATH_SQUARE_CUBE_MODES,
@@ -117,6 +120,9 @@ import {
   isEconomySensePracticeMode,
   isSystemMgmtPracticeMode,
   isWenyanShiciPracticeMode,
+  isHanziPatternPracticeMode,
+  isWenyanXuciPracticeMode,
+  isWenyanJushiPracticeMode,
   isGrammarJudgmentPracticeMode,
   type MentalMathAnswerRecord,
   type MentalMathMode,
@@ -493,6 +499,36 @@ const isWenyanShiciSession = computed(
     !isShortenSentenceMode(activeMode.value) &&
     isWenyanShiciPracticeMode(activeMode.value as MentalMathMode),
 )
+const isHanziPatternSession = computed(
+  () =>
+    activeMode.value != null &&
+    !isGraphicMode(activeMode.value) &&
+    !isTwentyFourPointMode(activeMode.value) &&
+    !isSudokuMode(activeMode.value) &&
+    !isCircleGrammarMode(activeMode.value) &&
+    !isShortenSentenceMode(activeMode.value) &&
+    isHanziPatternPracticeMode(activeMode.value as MentalMathMode),
+)
+const isWenyanXuciSession = computed(
+  () =>
+    activeMode.value != null &&
+    !isGraphicMode(activeMode.value) &&
+    !isTwentyFourPointMode(activeMode.value) &&
+    !isSudokuMode(activeMode.value) &&
+    !isCircleGrammarMode(activeMode.value) &&
+    !isShortenSentenceMode(activeMode.value) &&
+    isWenyanXuciPracticeMode(activeMode.value as MentalMathMode),
+)
+const isWenyanJushiSession = computed(
+  () =>
+    activeMode.value != null &&
+    !isGraphicMode(activeMode.value) &&
+    !isTwentyFourPointMode(activeMode.value) &&
+    !isSudokuMode(activeMode.value) &&
+    !isCircleGrammarMode(activeMode.value) &&
+    !isShortenSentenceMode(activeMode.value) &&
+    isWenyanJushiPracticeMode(activeMode.value as MentalMathMode),
+)
 const isGrammarJudgmentSession = computed(
   () =>
     activeMode.value != null &&
@@ -613,6 +649,9 @@ const showWhatIsThisSection = computed(() => activeOutlineSection.value === 'wha
 const showEconomySenseSection = computed(() => activeOutlineSection.value === 'economy-sense')
 const showSystemMgmtSection = computed(() => activeOutlineSection.value === 'system-mgmt')
 const showWenyanShiciSection = computed(() => activeOutlineSection.value === 'wenyan-shici')
+const showHanziPatternSection = computed(() => activeOutlineSection.value === 'hanzi-pattern')
+const showWenyanXuciSection = computed(() => activeOutlineSection.value === 'wenyan-xuci')
+const showWenyanJushiSection = computed(() => activeOutlineSection.value === 'wenyan-jushi')
 const showGrammarJudgmentSection = computed(
   () => activeOutlineSection.value === 'grammar-judgment',
 )
@@ -1571,6 +1610,12 @@ onMounted(() => {
     activeOutlineSection.value = 'system-mgmt'
   } else if (hash === 'wenyan-shici' || route.query.section === 'wenyan-shici') {
     activeOutlineSection.value = 'wenyan-shici'
+  } else if (hash === 'hanzi-pattern' || route.query.section === 'hanzi-pattern') {
+    activeOutlineSection.value = 'hanzi-pattern'
+  } else if (hash === 'wenyan-xuci' || route.query.section === 'wenyan-xuci') {
+    activeOutlineSection.value = 'wenyan-xuci'
+  } else if (hash === 'wenyan-jushi' || route.query.section === 'wenyan-jushi') {
+    activeOutlineSection.value = 'wenyan-jushi'
   } else if (hash === 'grammar-judgment' || route.query.section === 'grammar-judgment') {
     activeOutlineSection.value = 'grammar-judgment'
   }
@@ -1989,6 +2034,105 @@ onBeforeUnmount(() => {
             @active="factDeepenActive = $event"
           />
           <MentalMathWrongBookPanel v-show="!factDeepenActive" section="wenyan-shici" />
+        </section>
+
+        <section v-if="showHanziPatternSection" class="mode-section" id="practice-hanzi-pattern">
+          <h3 class="mode-section__title">汉字规律</h3>
+          <p class="mode-section__hint">
+            四字汉字规律快判：笔画数、交叉数、部件包含、封闭区域、结构与对称、连通块等。题干给出四个汉字，选出共同规律。答错记入下方错题集。
+          </p>
+          <div class="mode-grid">
+            <button
+              v-for="m in MENTAL_MATH_HANZI_PATTERN_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--hanzi-pattern"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">
+                {{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" />
+              </h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+          </div>
+          <MentalMathWrongBookPanel section="hanzi-pattern" />
+        </section>
+
+        <section v-if="showWenyanXuciSection" class="mode-section" id="practice-wenyan-xuci">
+          <h3 class="mode-section__title">文言虚词</h3>
+          <p class="mode-section__hint">
+            文言虚词用法快判：严格按课本 18 虚词（而何乎乃其且若所为焉也以因于与则者之）。题干给例句，问该虚词在此句中的用法；解析含译文。答错记入下方错题集；也可「加深识记」先看后测。
+          </p>
+          <div v-show="!factDeepenActive" class="mode-grid">
+            <button
+              v-for="m in MENTAL_MATH_WENYAN_XUCI_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--wenyan-xuci"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">
+                {{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" />
+              </h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+            <button
+              type="button"
+              class="mode-card mode-card--wenyan-xuci mode-card--deepen"
+              @click="openFactDeepen('wenyan-xuci')"
+            >
+              <h3 class="mode-card__title">加深识记</h3>
+              <p class="mode-card__desc">
+                普通难度 · 固定 20 题一组目录可溯源 · 先识记（例句/用法/译文）→ 限时测（满组 92 秒）
+              </p>
+              <span class="mode-card__cta">进入</span>
+            </button>
+          </div>
+          <FactDeepenMemorizationPanel
+            ref="factDeepenRef"
+            @active="factDeepenActive = $event"
+          />
+          <MentalMathWrongBookPanel v-show="!factDeepenActive" section="wenyan-xuci" />
+        </section>
+
+        <section v-if="showWenyanJushiSection" class="mode-section" id="practice-wenyan-jushi">
+          <h3 class="mode-section__title">文言句式</h3>
+          <p class="mode-section__hint">
+            文言特殊句式快判：按课本分类（判断 / 被动 / 倒装四类 / 省略五类）。题干给例句，问句式类型或省略了什么；解析含译文。答错记入下方错题集；也可「加深识记」先看后测。
+          </p>
+          <div v-show="!factDeepenActive" class="mode-grid">
+            <button
+              v-for="m in MENTAL_MATH_WENYAN_JUSHI_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--wenyan-jushi"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">
+                {{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" />
+              </h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+            <button
+              type="button"
+              class="mode-card mode-card--wenyan-jushi mode-card--deepen"
+              @click="openFactDeepen('wenyan-jushi')"
+            >
+              <h3 class="mode-card__title">加深识记</h3>
+              <p class="mode-card__desc">
+                普通难度 · 固定 20 题一组目录可溯源 · 先识记（句式/例句/译文）→ 限时测（满组 92 秒）
+              </p>
+              <span class="mode-card__cta">进入</span>
+            </button>
+          </div>
+          <FactDeepenMemorizationPanel
+            ref="factDeepenRef"
+            @active="factDeepenActive = $event"
+          />
+          <MentalMathWrongBookPanel v-show="!factDeepenActive" section="wenyan-jushi" />
         </section>
 
         <section
@@ -3775,7 +3919,11 @@ onBeforeUnmount(() => {
                   isEconomySenseSession ||
                   isSystemMgmtSession ||
                   isWenyanShiciSession ||
+                  isHanziPatternSession ||
+                  isWenyanXuciSession ||
+                  isWenyanJushiSession ||
                   isGrammarJudgmentSession,
+              'question-expression--hanzi-pattern': isHanziPatternSession,
               'question-expression--ok': feedback === 'correct',
               'question-expression--bad': feedback === 'wrong',
             }"
@@ -4109,6 +4257,33 @@ onBeforeUnmount(() => {
 .mode-card--wenyan-shici:hover {
   border-color: color-mix(in srgb, #b45309 50%, var(--app-border-soft));
   box-shadow: 0 4px 16px rgba(180, 83, 9, 0.12);
+}
+
+.mode-card--hanzi-pattern {
+  border-color: color-mix(in srgb, #0f766e 28%, var(--app-border-soft));
+}
+
+.mode-card--hanzi-pattern:hover {
+  border-color: color-mix(in srgb, #0f766e 50%, var(--app-border-soft));
+  box-shadow: 0 4px 16px rgba(15, 118, 110, 0.12);
+}
+
+.mode-card--wenyan-xuci {
+  border-color: color-mix(in srgb, #c2410c 28%, var(--app-border-soft));
+}
+
+.mode-card--wenyan-xuci:hover {
+  border-color: color-mix(in srgb, #c2410c 50%, var(--app-border-soft));
+  box-shadow: 0 4px 16px rgba(194, 65, 12, 0.12);
+}
+
+.mode-card--wenyan-jushi {
+  border-color: color-mix(in srgb, #a16207 28%, var(--app-border-soft));
+}
+
+.mode-card--wenyan-jushi:hover {
+  border-color: color-mix(in srgb, #a16207 50%, var(--app-border-soft));
+  box-shadow: 0 4px 16px rgba(161, 98, 7, 0.12);
 }
 
 .mode-card--grammar-judgment {
@@ -4519,6 +4694,15 @@ onBeforeUnmount(() => {
   max-width: 36em;
   margin-left: auto;
   margin-right: auto;
+}
+
+.question-expression--hanzi-pattern {
+  font-size: clamp(1.55rem, 4.2vw, 2.1rem);
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  line-height: 1.65;
+  text-align: center;
+  white-space: pre-line;
 }
 
 .question-expression--sequence {
