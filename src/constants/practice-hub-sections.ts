@@ -12,6 +12,9 @@ export type PracticeHubSectionId =
   | 'economy-sense'
   | 'system-mgmt'
   | 'wenyan-shici'
+  | 'hanzi-pattern'
+  | 'wenyan-xuci'
+  | 'wenyan-jushi'
   | 'grammar-judgment'
   | 'twentyfour'
   | 'sudoku'
@@ -44,6 +47,9 @@ export const PRACTICE_HUB_SECTIONS: PracticeHubSection[] = [
   { id: 'economy-sense', title: '经济学常识' },
   { id: 'system-mgmt', title: '体制管理' },
   { id: 'wenyan-shici', title: '文言实词' },
+  { id: 'hanzi-pattern', title: '汉字规律' },
+  { id: 'wenyan-xuci', title: '文言虚词' },
+  { id: 'wenyan-jushi', title: '文言句式' },
   { id: 'grammar-judgment', title: '语法判断' },
   { id: 'twentyfour', title: '二十四点' },
   { id: 'sudoku', title: '数独' },
@@ -83,6 +89,9 @@ export const PRACTICE_HUB_GROUPS: PracticeHubGroup[] = [
       'economy-sense',
       'system-mgmt',
       'wenyan-shici',
+      'hanzi-pattern',
+      'wenyan-xuci',
+      'wenyan-jushi',
       'grammar-judgment',
     ],
   },

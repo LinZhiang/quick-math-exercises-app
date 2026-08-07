@@ -38,6 +38,7 @@ const {
   backToCatalog,
   backToPick,
   beginStudyGroup,
+  beginQuizGroup,
   saveCurrentExplanation,
   resetExplanationToBase,
   nextStudy,
@@ -119,41 +120,30 @@ function optKey(i: number) {
 
     <template v-else-if="phase === 'catalog'">
       <p class="fd-hint">
-        以下分组按题库固定切分，组号不变，方便反复回看同一组。点开任一组开始识记。
+        以下分组按题库固定切分，组号不变。可点「识记」先看解析，或点「直接测验」跳过识记（测验题序乱序）。
       </p>
       <ol class="fd-toc">
-        <li v-for="g in catalogRows" :key="g.groupIndex">
-          <button type="button" class="fd-toc__btn" @click="beginStudyGroup(g.groupIndex)">
+        <li v-for="g in catalogRows" :key="g.groupIndex" class="fd-toc__row">
+          <div class="fd-toc__main">
             <span class="fd-toc__title">{{ g.title }}</span>
             <span class="fd-toc__preview">{{ g.previewStem }}</span>
             <span v-if="g.stat" class="fd-toc__stat">
               上次 {{ g.stat.correct }}/{{ g.stat.total }}
             </span>
             <span v-else class="fd-toc__stat fd-toc__stat--muted">未测</span>
-          </button>
+          </div>
+          <div class="fd-toc__actions">
+            <el-button size="small" plain @click="beginStudyGroup(g.groupIndex)">识记</el-button>
+            <el-button size="small" type="primary" @click="beginQuizGroup(g.groupIndex)">
+              直接测验
+            </el-button>
+          </div>
         </li>
       </ol>
     </template>
 
     <template v-else-if="phase === 'study' && currentCard">
-      <div class="fd-card">
-        <p class="fd-stem">{{ currentCard.stem }}</p>
-        <p class="fd-answer"><strong>答案：</strong>{{ currentCard.correct }}</p>
-        <label class="fd-expl-label" for="fd-expl">解析（可编辑）</label>
-        <el-input
-          id="fd-expl"
-          v-model="draftExplanation"
-          type="textarea"
-          :autosize="{ minRows: 3, maxRows: 8 }"
-          placeholder="写下便于记忆的解析…"
-          @blur="saveCurrentExplanation"
-        />
-        <div class="fd-expl-actions">
-          <el-button size="small" plain @click="saveCurrentExplanation">保存解析</el-button>
-          <el-button size="small" text @click="resetExplanationToBase">恢复题库原文</el-button>
-        </div>
-      </div>
-      <div class="fd-actions">
+      <div class="fd-actions fd-actions--top">
         <el-button plain :disabled="studyIndex <= 0" @click="prevStudy">上一题</el-button>
         <el-button v-if="cardsRemain" type="primary" @click="nextStudy">下一题</el-button>
         <el-button
@@ -172,6 +162,23 @@ function optKey(i: number) {
         >
           已看完，直接测验
         </el-button>
+      </div>
+      <div class="fd-card">
+        <p class="fd-stem">{{ currentCard.stem }}</p>
+        <p class="fd-answer"><strong>答案：</strong>{{ currentCard.correct }}</p>
+        <label class="fd-expl-label" for="fd-expl">解析（可编辑）</label>
+        <el-input
+          id="fd-expl"
+          v-model="draftExplanation"
+          type="textarea"
+          :autosize="{ minRows: 3, maxRows: 8 }"
+          placeholder="写下便于记忆的解析…"
+          @blur="saveCurrentExplanation"
+        />
+        <div class="fd-expl-actions">
+          <el-button size="small" plain @click="saveCurrentExplanation">保存解析</el-button>
+          <el-button size="small" text @click="resetExplanationToBase">恢复题库原文</el-button>
+        </div>
       </div>
     </template>
 
@@ -347,23 +354,31 @@ function optKey(i: number) {
   overflow: auto;
 }
 
-.fd-toc__btn {
-  width: 100%;
-  text-align: left;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto;
-  gap: 2px 12px;
+.fd-toc__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid var(--app-border-soft, #e4e4e8);
   background: var(--app-surface-alt, #f7f7f8);
-  cursor: pointer;
 }
 
-.fd-toc__btn:hover {
-  border-color: var(--el-color-primary-light-5, #a0cfff);
-  background: color-mix(in srgb, var(--el-color-primary) 6%, transparent);
+.fd-toc__main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 2px 12px;
+}
+
+.fd-toc__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
 }
 
 .fd-toc__title {
@@ -433,6 +448,11 @@ function optKey(i: number) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.fd-actions--top {
+  margin-top: 0;
+  margin-bottom: 12px;
 }
 
 .fd-countdown {

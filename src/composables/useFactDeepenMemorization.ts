@@ -222,6 +222,37 @@ export function useFactDeepenMemorization() {
     }
   }
 
+  /** 目录点组：跳过识记，直接进入限时测验（题序乱序） */
+  function beginQuizGroup(groupIndex: number) {
+    const cfg = modeConfig.value
+    if (!cfg) return
+    try {
+      const meta = catalog.value.find((g) => g.groupIndex === groupIndex)
+      if (!meta) {
+        ElMessage.error('该组不存在')
+        return
+      }
+      const batch = loadFactDeepenGroup(cfg.modeId, groupIndex)
+      activeGroup.value = meta
+      cards.value = batch
+      studyVisited.value = new Set(batch.map((_, i) => i))
+      quiz.value = buildFactDeepenQuiz(
+        batch.map((c) => refreshFactDeepenStudyCard(c)),
+        cfg.optionCount,
+      )
+      quizDurationSec.value = factDeepenQuizDurationSec(cfg, quiz.value.length)
+      quizIndex.value = 0
+      selectedOption.value = null
+      quizLocked.value = false
+      records.value = []
+      feedback.value = null
+      sessionStartedAt.value = Date.now()
+      runCountdown()
+    } catch (e) {
+      ElMessage.error(e instanceof Error ? e.message : '加载失败')
+    }
+  }
+
   function loadDraftFromCard(card: FactDeepenStudyCard) {
     draftExplanation.value = card.explanation
   }
@@ -482,6 +513,7 @@ export function useFactDeepenMemorization() {
     backToCatalog,
     backToPick,
     beginStudyGroup,
+    beginQuizGroup,
     saveCurrentExplanation,
     resetExplanationToBase,
     nextStudy,

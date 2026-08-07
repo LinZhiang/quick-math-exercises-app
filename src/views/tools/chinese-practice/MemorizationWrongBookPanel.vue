@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import {
   buildMemorizationWrongQuizItems,
@@ -30,6 +30,9 @@ import {
   type WrongBookReviewScope,
 } from '@/utils/wrongBookReviewStats'
 import WrongBookReviewStat from '@/views/tools/mental-math/components/WrongBookReviewStat.vue'
+import WrongBookImmersivePreview, {
+  type WrongBookPreviewItem,
+} from '@/views/tools/mental-math/components/WrongBookImmersivePreview.vue'
 import SentenceOrderBoard from '@/views/tools/chinese-practice/SentenceOrderBoard.vue'
 import {
   enterWrongBookWorkspace,
@@ -45,6 +48,10 @@ const props = defineProps<{
 }>()
 
 const workspaceOpen = ref(false)
+const detailVisible = ref(false)
+const detail = ref<MemorizationWrongRecord | null>(null)
+const previewOpen = ref(false)
+const previewIndex = ref(0)
 const filterWrongCount = ref<number | undefined>()
 const filterDate = ref<string | undefined>()
 const selected = ref<Set<string>>(new Set())
@@ -137,6 +144,53 @@ const moduleTitle = computed(() =>
   props.module === 'poet-drill' ? '诗词识记' : '时政识记',
 )
 
+function rowCorrectLabel(row: MemorizationWrongRecord): string {
+  const orderOrOpt = String(row.options[row.correctIndex] ?? '').trim()
+  if (row.questionType === 'sentence-order' && row.segments?.length === 5) {
+    const text = orderSegmentsToReadingText(row.segments, orderOrOpt)
+    return text ? `${orderOrOpt}\n${text}` : orderOrOpt || '—'
+  }
+  return orderOrOpt || '—'
+}
+
+function rowExpression(row: MemorizationWrongRecord): string {
+  const parts: string[] = []
+  if (row.sourceTitle) parts.push(`出处：${row.sourceTitle}`)
+  if (row.term) parts.push(`考点：${row.term}`)
+  parts.push(row.stem)
+  if (row.questionType === 'sentence-order' && row.segments?.length) {
+    parts.push(row.segments.map((s, i) => `${i + 1}. ${s}`).join('\n'))
+  }
+  return parts.join('\n\n')
+}
+
+const previewItems = computed((): WrongBookPreviewItem[] => {
+  void memorizationWrongBookTick.value
+  return filteredRows.value.map((row) => {
+    const correct = String(row.options[row.correctIndex] ?? '')
+    const chosen = String(row.chosenAnswer ?? '')
+    return {
+      key: row.fingerprint,
+      expression: rowExpression(row),
+      correctAnswer: rowCorrectLabel(row),
+      chosenAnswer: chosen || undefined,
+      explanation: row.explanation,
+      prose: true,
+      options:
+        row.questionType === 'sentence-order'
+          ? undefined
+          : row.options.map((opt) => {
+              const text = String(opt)
+              return {
+                text,
+                isCorrect: text === correct,
+                isChosen: Boolean(chosen) && text === chosen,
+              }
+            }),
+    }
+  })
+})
+
 watch(workspaceOpen, (v) => {
   if (v) {
     enterWrongBookWorkspace()
@@ -144,6 +198,9 @@ watch(workspaceOpen, (v) => {
   } else {
     leaveWrongBookWorkspace()
     releaseWrongBookOverlayLock()
+    detailVisible.value = false
+    detail.value = null
+    previewOpen.value = false
     exitQuiz()
   }
 })
@@ -160,6 +217,8 @@ function openWorkspace() {
   filterWrongCount.value = undefined
   filterDate.value = undefined
   selected.value = new Set()
+  detailVisible.value = false
+  previewOpen.value = false
   resetQuiz()
   workspaceOpen.value = true
 }
@@ -203,13 +262,58 @@ function showTerm(q: MemorizationWrongQuizItem, revealed: boolean) {
   } as PoetDrillQuestion)
 }
 
-function removeRow(fp: string) {
+function openDetail(row: MemorizationWrongRecord) {
+  detail.value = row
+  detailVisible.value = true
+}
+
+function onDetailClosed() {
+  detail.value = null
+}
+
+function openPreview(startFp?: string) {
+  const list = filteredRows.value
+  if (!list.length) {
+    ElMessage.info('当前筛选下暂无可预览题目')
+    return
+  }
+  const idx = startFp ? list.findIndex((r) => r.fingerprint === startFp) : 0
+  previewIndex.value = idx >= 0 ? idx : 0
+  detailVisible.value = false
+  previewOpen.value = true
+}
+
+async function removeRow(fp: string) {
+  try {
+    await ElMessageBox.confirm('确定从错题本中删除这道题？', '删除错题', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  const wasPreview = previewOpen.value
+  const list = filteredRows.value
+  const idx = list.findIndex((r) => r.fingerprint === fp)
   removeMemorizationWrong(fp)
   const next = new Set(selected.value)
   next.delete(fp)
   selected.value = next
+  if (detail.value?.fingerprint === fp) {
+    detailVisible.value = false
+    detail.value = null
+  }
+  if (wasPreview) {
+    if (!filteredRows.value.length) {
+      previewOpen.value = false
+    } else if (idx >= 0) {
+      previewIndex.value = Math.min(idx, filteredRows.value.length - 1)
+    }
+  }
   ElMessage.success('已移出错题本')
   if (!listMemorizationWrongRecords(props.module).length) {
+    previewOpen.value = false
     closeWorkspace()
   }
 }
@@ -348,9 +452,18 @@ function exitQuiz() {
         >
           进入
         </el-button>
+        <el-button
+          size="small"
+          plain
+          type="primary"
+          :disabled="!wrongCount"
+          @click="openPreview()"
+        >
+          预览
+        </el-button>
       </div>
     </div>
-    <p class="mem-wrong__hint">复测用原题，不出 AI 变式 · 点进入打开错题本页面</p>
+    <p class="mem-wrong__hint">复测用原题，不出 AI 变式 · 点进入打开错题本；可预览题目详情</p>
 
     <Teleport to="body">
       <div
@@ -370,6 +483,16 @@ function exitQuiz() {
                 </span>
               </div>
               <div class="session-actions session-actions--inline">
+                <el-button
+                  v-if="quizPhase === 'idle'"
+                  size="small"
+                  plain
+                  type="primary"
+                  :disabled="!filteredRows.length"
+                  @click="openPreview()"
+                >
+                  预览
+                </el-button>
                 <el-button size="small" @click="closeWorkspace">退出</el-button>
               </div>
             </div>
@@ -541,11 +664,12 @@ function exitQuiz() {
                       @change="toggleSelect(row.fingerprint)"
                     />
                   </label>
-                  <div class="mem-wrong__main">
+                  <button type="button" class="mem-wrong__main" @click="openDetail(row)">
                     <p class="mem-wrong__meta">
                       <span>{{ typeLabel(row) }}</span>
                       <span>· {{ row.scopeLabel }}</span>
                       <span>· 错 {{ row.wrongCount }} 次</span>
+                      <span>· 点看详情</span>
                     </p>
                     <p v-if="row.sourceTitle" class="mem-wrong__src">
                       出处：{{ row.sourceTitle }}
@@ -554,7 +678,7 @@ function exitQuiz() {
                     <p class="mem-wrong__ans">
                       正确：{{ row.options[row.correctIndex] }}
                     </p>
-                  </div>
+                  </button>
                   <el-button
                     size="small"
                     text
@@ -573,6 +697,107 @@ function exitQuiz() {
         </div>
       </div>
     </Teleport>
+
+    <el-dialog
+      v-model="detailVisible"
+      :title="`${moduleTitle} · 错题详情`"
+      width="560px"
+      align-center
+      destroy-on-close
+      append-to-body
+      :z-index="workspaceOpen ? 4300 : 2100"
+      @closed="onDetailClosed"
+    >
+      <div v-if="detail" class="mem-wrong-detail">
+        <section>
+          <h4>题型 / 范围</h4>
+          <p>{{ typeLabel(detail) }} · {{ detail.scopeLabel }} · 错 {{ detail.wrongCount }} 次</p>
+        </section>
+        <section v-if="detail.sourceTitle">
+          <h4>出处</h4>
+          <p>{{ detail.sourceTitle }}</p>
+        </section>
+        <section v-if="detail.term">
+          <h4>考点</h4>
+          <p>{{ detail.term }}</p>
+        </section>
+        <section>
+          <h4>题目</h4>
+          <p class="mem-wrong-detail__stem">{{ detail.stem }}</p>
+        </section>
+        <section
+          v-if="detail.questionType === 'sentence-order' && detail.segments?.length"
+        >
+          <h4>待排序片段</h4>
+          <ol class="mem-wrong-detail__segs">
+            <li v-for="(seg, idx) in detail.segments" :key="idx">{{ seg }}</li>
+          </ol>
+          <p class="mem-wrong-detail__ok">
+            正确序号：{{ detail.options[detail.correctIndex] }}
+          </p>
+          <p class="mem-wrong-detail__ok">
+            正确原文：{{
+              orderSegmentsToReadingText(
+                detail.segments,
+                detail.options[detail.correctIndex] || '',
+              )
+            }}
+          </p>
+        </section>
+        <section v-else-if="detail.options?.length">
+          <h4>选项</h4>
+          <ul class="mem-wrong-detail__opts">
+            <li
+              v-for="(opt, idx) in detail.options"
+              :key="idx"
+              :class="{ 'is-correct': Number(idx) === detail.correctIndex }"
+            >
+              {{ Number(idx) + 1 }}. {{ opt }}
+            </li>
+          </ul>
+        </section>
+        <section v-if="detail.chosenAnswer">
+          <h4>你的答案</h4>
+          <p class="mem-wrong-detail__bad">{{ detail.chosenAnswer }}</p>
+        </section>
+        <section v-if="detail.questionType !== 'sentence-order'">
+          <h4>正确答案</h4>
+          <p class="mem-wrong-detail__ok">{{ detail.options[detail.correctIndex] }}</p>
+        </section>
+        <section v-if="detail.explanation">
+          <h4>解析</h4>
+          <p class="mem-wrong-detail__exp">{{ detail.explanation }}</p>
+        </section>
+      </div>
+      <template #footer>
+        <el-button
+          v-if="detail"
+          type="primary"
+          plain
+          @click="detail && openPreview(detail.fingerprint)"
+        >
+          预览
+        </el-button>
+        <el-button
+          v-if="detail"
+          type="danger"
+          plain
+          @click="detail && removeRow(detail.fingerprint)"
+        >
+          删除本题
+        </el-button>
+        <el-button @click="detailVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <WrongBookImmersivePreview
+      v-model:open="previewOpen"
+      v-model:index="previewIndex"
+      :title="moduleTitle"
+      :items="previewItems"
+      :enable-note="false"
+      @delete="removeRow"
+    />
   </div>
 </template>
 
@@ -653,6 +878,15 @@ function exitQuiz() {
 .mem-wrong__main {
   flex: 1;
   min-width: 0;
+  appearance: none;
+  border: none;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
 }
 
 .mem-wrong__meta {
@@ -677,6 +911,58 @@ function exitQuiz() {
 .mem-wrong__ans {
   color: var(--el-color-success);
   font-size: 12px;
+}
+
+.mem-wrong-detail {
+  display: grid;
+  gap: 14px;
+}
+
+.mem-wrong-detail h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--app-text-muted, #64748b);
+}
+
+.mem-wrong-detail p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.mem-wrong-detail__stem {
+  font-weight: 650;
+}
+
+.mem-wrong-detail__opts,
+.mem-wrong-detail__segs {
+  margin: 0;
+  padding-left: 1.2em;
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.mem-wrong-detail__opts .is-correct {
+  color: var(--el-color-success);
+  font-weight: 700;
+}
+
+.mem-wrong-detail__ok {
+  color: var(--el-color-success);
+  font-weight: 650;
+}
+
+.mem-wrong-detail__bad {
+  color: var(--el-color-danger);
+}
+
+.mem-wrong-detail__exp {
+  color: var(--app-text-muted, #64748b);
 }
 
 .mem-wrong-quiz__top {

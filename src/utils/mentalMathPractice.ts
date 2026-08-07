@@ -39,6 +39,21 @@ import {
   type WenyanShiciMode,
 } from '@/utils/wenyanShiciPractice'
 import {
+  HANZI_PATTERN_MODES,
+  generateHanziPatternQuestion,
+  type HanziPatternMode,
+} from '@/utils/hanziPatternPractice'
+import {
+  WENYAN_XUCI_MODES,
+  generateWenyanXuciQuestion,
+  type WenyanXuciMode,
+} from '@/utils/wenyanXuciPractice'
+import {
+  WENYAN_JUSHI_MODES,
+  generateWenyanJushiQuestion,
+  type WenyanJushiMode,
+} from '@/utils/wenyanJushiPractice'
+import {
   GRAMMAR_JUDGMENT_MODES,
   generateGrammarJudgmentQuestion,
   type GrammarJudgmentMode,
@@ -77,6 +92,9 @@ export type MentalMathMode =
   | EconomySenseMode
   | SystemMgmtMode
   | WenyanShiciMode
+  | HanziPatternMode
+  | WenyanXuciMode
+  | WenyanJushiMode
   | GrammarJudgmentMode
 
 export type MentalMathModeCategory =
@@ -91,6 +109,9 @@ export type MentalMathModeCategory =
   | 'economy-sense'
   | 'system-mgmt'
   | 'wenyan-shici'
+  | 'hanzi-pattern'
+  | 'wenyan-xuci'
+  | 'wenyan-jushi'
   | 'grammar-judgment'
 
 export type MentalMathAnswerValue = number | string
@@ -366,6 +387,23 @@ export const MENTAL_MATH_WENYAN_SHICI_MODES: MentalMathModeConfig[] = WENYAN_SHI
   category: 'wenyan-shici' as const,
 }))
 
+export const MENTAL_MATH_HANZI_PATTERN_MODES: MentalMathModeConfig[] = HANZI_PATTERN_MODES.map(
+  (m) => ({
+    ...m,
+    category: 'hanzi-pattern' as const,
+  }),
+)
+
+export const MENTAL_MATH_WENYAN_XUCI_MODES: MentalMathModeConfig[] = WENYAN_XUCI_MODES.map((m) => ({
+  ...m,
+  category: 'wenyan-xuci' as const,
+}))
+
+export const MENTAL_MATH_WENYAN_JUSHI_MODES: MentalMathModeConfig[] = WENYAN_JUSHI_MODES.map((m) => ({
+  ...m,
+  category: 'wenyan-jushi' as const,
+}))
+
 export const MENTAL_MATH_GRAMMAR_JUDGMENT_MODES: MentalMathModeConfig[] = GRAMMAR_JUDGMENT_MODES.map(
   (m) => ({
     ...m,
@@ -410,6 +448,9 @@ export const MENTAL_MATH_MODES: MentalMathModeConfig[] = [
   ...MENTAL_MATH_ECONOMY_SENSE_MODES,
   ...MENTAL_MATH_SYSTEM_MGMT_MODES,
   ...MENTAL_MATH_WENYAN_SHICI_MODES,
+  ...MENTAL_MATH_HANZI_PATTERN_MODES,
+  ...MENTAL_MATH_WENYAN_XUCI_MODES,
+  ...MENTAL_MATH_WENYAN_JUSHI_MODES,
   ...MENTAL_MATH_GRAMMAR_JUDGMENT_MODES,
 ]
 
@@ -474,6 +515,18 @@ export function isSystemMgmtPracticeMode(mode: MentalMathMode): mode is SystemMg
 
 export function isWenyanShiciPracticeMode(mode: MentalMathMode): mode is WenyanShiciMode {
   return mode === 'wenyan-shici-normal'
+}
+
+export function isHanziPatternPracticeMode(mode: MentalMathMode): mode is HanziPatternMode {
+  return mode === 'hanzi-pattern-normal'
+}
+
+export function isWenyanXuciPracticeMode(mode: MentalMathMode): mode is WenyanXuciMode {
+  return mode === 'wenyan-xuci-normal'
+}
+
+export function isWenyanJushiPracticeMode(mode: MentalMathMode): mode is WenyanJushiMode {
+  return mode === 'wenyan-jushi-normal'
 }
 
 export function isGrammarJudgmentPracticeMode(mode: MentalMathMode): mode is GrammarJudgmentMode {
@@ -2053,6 +2106,15 @@ function buildMentalMathQuestionOnce(
 
   if (isWenyanShiciPracticeMode(mode)) {
     return generateWenyanShiciQuestion(mode, id, optionCount, avoidFingerprints)
+  }
+  if (isHanziPatternPracticeMode(mode)) {
+    return generateHanziPatternQuestion(mode, id, optionCount, avoidFingerprints)
+  }
+  if (isWenyanXuciPracticeMode(mode)) {
+    return generateWenyanXuciQuestion(mode, id, optionCount, avoidFingerprints)
+  }
+  if (isWenyanJushiPracticeMode(mode)) {
+    return generateWenyanJushiQuestion(mode, id, optionCount, avoidFingerprints)
   }
 
   if (isGrammarJudgmentPracticeMode(mode)) {

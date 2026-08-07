@@ -564,7 +564,7 @@ watch(
     border-bottom: 1px solid var(--app-border-soft);
     max-height: none;
     overflow: visible;
-    padding: 10px 12px;
+    padding: 8px 10px;
   }
 
   .mm-guide-nav__desktop {
@@ -575,25 +575,28 @@ watch(
     display: flex;
     flex-direction: column;
     gap: 0;
-    margin: -10px -12px;
+    margin: -8px -10px;
   }
 
   .mm-guide-nav__mobile-l1,
   .mm-guide-nav__mobile-l2 {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: nowrap;
     gap: 6px;
-    overflow: visible;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
   }
 
   .mm-guide-nav__mobile-l1 {
-    padding: 8px 12px;
+    padding: 8px 10px;
     background: color-mix(in srgb, var(--app-border-soft) 35%, var(--app-surface-alt));
     border-bottom: 1px solid var(--app-border);
   }
 
   .mm-guide-nav__mobile-l2 {
-    padding: 8px 12px 10px;
+    padding: 8px 10px 10px;
     background: var(--app-surface);
   }
 
@@ -601,21 +604,25 @@ watch(
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
+    flex: 0 0 auto;
+    width: auto;
     min-width: 0;
+    max-width: 7.5em;
     box-sizing: border-box;
-    padding: 8px 4px;
+    padding: 6px 10px;
     border: 1px solid transparent;
-    border-radius: 10px;
+    border-radius: 999px;
     background: transparent;
     font: inherit;
     font-size: 12px;
     font-weight: 700;
-    line-height: 1.25;
+    line-height: 1.2;
     color: var(--app-text-muted);
     text-align: center;
-    white-space: normal;
-    word-break: break-all;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: normal;
     cursor: pointer;
   }
 
@@ -632,17 +639,21 @@ watch(
   }
 
   .mm-guide-nav__item--chip {
-    width: 100%;
+    flex: 0 0 auto;
+    width: auto;
+    max-width: 11em;
     min-width: 0;
     box-sizing: border-box;
-    white-space: normal;
-    word-break: break-all;
-    padding: 7px 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: normal;
+    padding: 6px 10px;
     border-radius: 999px;
     border: 1px solid var(--app-border-soft);
     background: var(--app-surface-alt);
     font-size: 12px;
-    line-height: 1.25;
+    line-height: 1.2;
     text-align: center;
   }
 
