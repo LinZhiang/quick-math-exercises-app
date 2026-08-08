@@ -238,11 +238,11 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
   },
   {
     difficulty: 'normal',
-    stem: `「乎」在「呜呼！熟知赋敛之毒有甚是蛇者乎」中的用法是？`,
+    stem: `「乎」在「呜呼！孰知赋敛之毒有甚是蛇者乎」中的用法是？`,
     correct: "助词，表感叹",
     distractors: ["助词，表反问或疑问","助词，形容词词尾","介词，相当于“于”","助词，时间副词词尾","助词，……的样子"],
     explanation: `虚词：乎
-例句：呜呼！熟知赋敛之毒有甚是蛇者乎
+例句：呜呼！孰知赋敛之毒有甚是蛇者乎
 译文：唉！谁知道赋税搜刮的毒害有比这毒蛇更厉害的呢
 用法：助词，表感叹`,
     key: "wenyan-xuci:乎-02",
@@ -657,12 +657,12 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
   {
     difficulty: 'normal',
     stem: `「且」在「且欲与常马等不可得」中的用法是？`,
-    correct: "连词，况且/而且",
-    distractors: ["连词，并且","连词，尚且","副词，将要/暂且/姑且","连词，表承接","连词，表并列"],
+    correct: "连词，尚且",
+    distractors: ["连词，况且/而且","连词，并且","副词，将要/暂且/姑且","连词，表承接","连词，表并列"],
     explanation: `虚词：且
 例句：且欲与常马等不可得
-译文：况且想要和普通的马同等对待都得不到
-用法：连词，况且/而且`,
+译文：想要和普通的马同等对待尚且得不到
+用法：连词，尚且`,
     key: "wenyan-xuci:且-10",
   },
   {
@@ -1086,12 +1086,12 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
   {
     difficulty: 'normal',
     stem: `「焉」在「三人行，必有我师焉」中的用法是？`,
-    correct: "代词，之",
-    distractors: ["语气助词，呢/也","疑问代词，怎么/哪里","兼词，于之/于此","连词，乃/则/就","代词，通“尔”，你的"],
+    correct: "兼词，于之/于此",
+    distractors: ["语气助词，呢/也","疑问代词，怎么/哪里","代词，之","连词，乃/则/就","连词，表承接"],
     explanation: `虚词：焉
 例句：三人行，必有我师焉
 译文：几个人一起走路，其中一定有可以做我老师的
-用法：代词，之`,
+用法：兼词，于之/于此`,
     key: "wenyan-xuci:焉-09",
   },
   {
@@ -1855,12 +1855,12 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
   },
   {
     difficulty: 'normal',
-    stem: `「者」在「北山愚公者，年且九十」中的用法是？`,
+    stem: `「者」在「亚父者，范增也」中的用法是？`,
     correct: "语气助词，判断句主语后",
     distractors: ["代词，……的人/……的事情","助词，定语后置标志","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹"],
     explanation: `虚词：者
-例句：北山愚公者，年且九十
-译文：北山愚公，年纪将近九十岁
+例句：亚父者，范增也
+译文：亚父就是范增
 用法：语气助词，判断句主语后`,
     key: "wenyan-xuci:者-09",
   },
@@ -1879,7 +1879,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「项伯乃夜驰之沛公军」中的用法是？`,
     correct: "动词，到……去",
-    distractors: ["代词，他/这","结构助词，的","助词，补语间/主谓间取消独立性/定语后置标志","动词，如同/比得上","动词，做/成为/是/担任/当作"],
+    distractors: ["代词，他/这","结构助词，的","助词，补语间/主谓间取消独立性/定语后置标志","助词，宾语前置标志","动词，如同/比得上"],
     explanation: `虚词：之
 例句：项伯乃夜驰之沛公军
 译文：项伯于是连夜赶到沛公军中
@@ -1890,7 +1890,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「孰若卖之」中的用法是？`,
     correct: "代词，他/这",
-    distractors: ["动词，到……去","结构助词，的","助词，补语间/主谓间取消独立性/定语后置标志","代词，通“尔”，你的","疑问代词，为什么"],
+    distractors: ["动词，到……去","结构助词，的","助词，补语间/主谓间取消独立性/定语后置标志","助词，宾语前置标志","代词，通“尔”，你的"],
     explanation: `虚词：之
 例句：孰若卖之
 译文：哪里比得上卖掉它
@@ -1901,7 +1901,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「余之力尚足以入」中的用法是？`,
     correct: "结构助词，的",
-    distractors: ["动词，到……去","代词，他/这","助词，补语间/主谓间取消独立性/定语后置标志","助词，时间副词词尾","助词，表反问或疑问"],
+    distractors: ["动词，到……去","代词，他/这","助词，补语间/主谓间取消独立性/定语后置标志","助词，宾语前置标志","助词，时间副词词尾"],
     explanation: `虚词：之
 例句：余之力尚足以入
 译文：我的力气还足够进入
@@ -1912,7 +1912,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「求思之深」中的用法是？`,
     correct: "助词，补语间/主谓间取消独立性/定语后置标志",
-    distractors: ["动词，到……去","代词，他/这","结构助词，的","助词，时间副词词尾","助词，表反问或疑问"],
+    distractors: ["动词，到……去","代词，他/这","结构助词，的","助词，宾语前置标志","助词，时间副词词尾"],
     explanation: `虚词：之
 例句：求思之深
 译文：探求思考得深入
@@ -1923,7 +1923,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「爪牙之利」中的用法是？`,
     correct: "助词，补语间/主谓间取消独立性/定语后置标志",
-    distractors: ["动词，到……去","代词，他/这","结构助词，的","助词，时间副词词尾","助词，表反问或疑问"],
+    distractors: ["动词，到……去","代词，他/这","结构助词，的","助词，宾语前置标志","助词，时间副词词尾"],
     explanation: `虚词：之
 例句：爪牙之利
 译文：锋利的爪牙（定语后置）
@@ -1934,7 +1934,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「辍耕之垄上」中的用法是？`,
     correct: "动词，到……去",
-    distractors: ["代词，他/这","结构助词，的","助词，补语间/主谓间取消独立性/定语后置标志","动词，如同/比得上","动词，做/成为/是/担任/当作"],
+    distractors: ["代词，他/这","结构助词，的","助词，补语间/主谓间取消独立性/定语后置标志","助词，宾语前置标志","动词，如同/比得上"],
     explanation: `虚词：之
 例句：辍耕之垄上
 译文：停止耕作走到田埂上
@@ -1945,7 +1945,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「肉食者谋之」中的用法是？`,
     correct: "代词，他/这",
-    distractors: ["动词，到……去","结构助词，的","助词，补语间/主谓间取消独立性/定语后置标志","代词，通“尔”，你的","疑问代词，为什么"],
+    distractors: ["动词，到……去","结构助词，的","助词，补语间/主谓间取消独立性/定语后置标志","助词，宾语前置标志","代词，通“尔”，你的"],
     explanation: `虚词：之
 例句：肉食者谋之
 译文：吃肉的官员谋划这件事
@@ -1956,7 +1956,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「郯子之徒」中的用法是？`,
     correct: "结构助词，的",
-    distractors: ["动词，到……去","代词，他/这","助词，补语间/主谓间取消独立性/定语后置标志","助词，时间副词词尾","助词，表反问或疑问"],
+    distractors: ["动词，到……去","代词，他/这","助词，补语间/主谓间取消独立性/定语后置标志","助词，宾语前置标志","助词，时间副词词尾"],
     explanation: `虚词：之
 例句：郯子之徒
 译文：郯子这一类人
@@ -1967,7 +1967,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「悍吏之来吾乡」中的用法是？`,
     correct: "助词，补语间/主谓间取消独立性/定语后置标志",
-    distractors: ["动词，到……去","代词，他/这","结构助词，的","助词，时间副词词尾","助词，表反问或疑问"],
+    distractors: ["动词，到……去","代词，他/这","结构助词，的","助词，宾语前置标志","助词，时间副词词尾"],
     explanation: `虚词：之
 例句：悍吏之来吾乡
 译文：凶暴的官吏来到我们乡里（取消独立性）
@@ -1977,12 +1977,12 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
   {
     difficulty: 'normal',
     stem: `「之」在「句读之不知，惑之不解」中的用法是？`,
-    correct: "助词，补语间/主谓间取消独立性/定语后置标志",
-    distractors: ["动词，到……去","代词，他/这","结构助词，的","助词，时间副词词尾","助词，表反问或疑问"],
+    correct: "助词，宾语前置标志",
+    distractors: ["动词，到……去","代词，他/这","结构助词，的","助词，补语间/主谓间取消独立性/定语后置标志","助词，时间副词词尾"],
     explanation: `虚词：之
 例句：句读之不知，惑之不解
-译文：不懂得句读，不能解除疑惑（提宾标志）
-用法：助词，补语间/主谓间取消独立性/定语后置标志`,
+译文：不懂得句读，不能解除疑惑（「之」提宾）
+用法：助词，宾语前置标志`,
     key: "wenyan-xuci:之-10",
   },
 ]

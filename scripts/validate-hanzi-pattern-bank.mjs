@@ -13,6 +13,7 @@ import {
   STRUCT,
   SYM_LR,
   SYM_UD,
+  SYM_UD_ONLY,
   CONTAIN,
   FW,
   validateSeed,
@@ -116,7 +117,9 @@ for (const it of items) {
   } else if (lab === '上下对称') {
     tableChecked++
     if (!c.every((ch) => SYM_UD.includes(ch))) errors.push(`SYM_UD ${it.key}`)
-    else tableOk++
+    else if (!c.some((ch) => SYM_UD_ONLY.includes(ch))) {
+      errors.push(`SYM_UD_ONLY missing ${it.key} ${c.join('')}`)
+    } else tableOk++
   } else if (lab === '都有封闭区域') {
     tableChecked++
     if (!allDefined(ENCLOSE, c) || !c.every((ch) => ENCLOSE[ch] > 0)) errors.push(`closed ${it.key}`)
@@ -144,8 +147,10 @@ const spots = [
   ['三五四伍', '笔画数累加1'],
   ['二十屯连', '笔画交叉数累加1'],
   ['檀香复早', '都包含「日」'],
-  ['无五把吧', '封闭区域个数累加1'],
+  ['木日昌晶', '封闭区域个数累加1'],
   ['开勺小心', '笔画不相连部分个数累加1'],
+  ['古山大非', '左右对称'],
+  ['巨目中臣', '上下对称'],
 ]
 for (const [chars, correct] of spots) {
   const hit = items.find((it) => it.chars.join('') === chars)

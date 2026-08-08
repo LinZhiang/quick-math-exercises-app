@@ -11,6 +11,7 @@ export type FactBankKind =
   | 'wenyan-shici'
   | 'wenyan-xuci'
   | 'wenyan-jushi'
+  | 'rhetoric-device'
 
 const STORAGE_KEY = 'fact-explanation-overrides-v1'
 const MAX_ENTRIES = 800

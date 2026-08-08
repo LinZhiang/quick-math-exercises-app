@@ -112,6 +112,7 @@ import {
   MENTAL_MATH_WENYAN_XUCI_MODES,
   MENTAL_MATH_WENYAN_JUSHI_MODES,
   MENTAL_MATH_GRAMMAR_JUDGMENT_MODES,
+  MENTAL_MATH_RHETORIC_DEVICE_MODES,
   MENTAL_MATH_POWER_MODES,
   MENTAL_MATH_SQUARE_CUBE_MODES,
   isNumberSequencePracticeMode,
@@ -124,6 +125,7 @@ import {
   isWenyanXuciPracticeMode,
   isWenyanJushiPracticeMode,
   isGrammarJudgmentPracticeMode,
+  isRhetoricDevicePracticeMode,
   type MentalMathAnswerRecord,
   type MentalMathMode,
   type MentalMathQuestion,
@@ -539,6 +541,16 @@ const isGrammarJudgmentSession = computed(
     !isShortenSentenceMode(activeMode.value) &&
     isGrammarJudgmentPracticeMode(activeMode.value as MentalMathMode),
 )
+const isRhetoricDeviceSession = computed(
+  () =>
+    activeMode.value != null &&
+    !isGraphicMode(activeMode.value) &&
+    !isTwentyFourPointMode(activeMode.value) &&
+    !isSudokuMode(activeMode.value) &&
+    !isCircleGrammarMode(activeMode.value) &&
+    !isShortenSentenceMode(activeMode.value) &&
+    isRhetoricDevicePracticeMode(activeMode.value as MentalMathMode),
+)
 const isNumberSequenceSession = computed(
   () =>
     activeMode.value != null &&
@@ -655,6 +667,7 @@ const showWenyanJushiSection = computed(() => activeOutlineSection.value === 'we
 const showGrammarJudgmentSection = computed(
   () => activeOutlineSection.value === 'grammar-judgment',
 )
+const showRhetoricDeviceSection = computed(() => activeOutlineSection.value === 'rhetoric-device')
 const showTwentyFourSection = computed(() => activeOutlineSection.value === 'twentyfour')
 const showSudokuSection = computed(() => activeOutlineSection.value === 'sudoku')
 const showGraphicSection = computed(() => activeOutlineSection.value === 'graphic')
@@ -1618,6 +1631,8 @@ onMounted(() => {
     activeOutlineSection.value = 'wenyan-jushi'
   } else if (hash === 'grammar-judgment' || route.query.section === 'grammar-judgment') {
     activeOutlineSection.value = 'grammar-judgment'
+  } else if (hash === 'rhetoric-device' || route.query.section === 'rhetoric-device') {
+    activeOutlineSection.value = 'rhetoric-device'
   }
 })
 
@@ -2193,6 +2208,44 @@ onBeforeUnmount(() => {
             </button>
           </div>
           <MentalMathWrongBookPanel section="grammar-judgment" />
+        </section>
+
+        <section v-if="showRhetoricDeviceSection" class="mode-section" id="practice-rhetoric-device">
+          <h3 class="mode-section__title">修辞手法</h3>
+          <p class="mode-section__hint">
+            给出古诗词名句或政论风格句子，选出主要修辞；只考对比、衬托、比喻、借代、通感、比拟、排比、设问、反问、夸张十种（各约 30 题）。答错记入下方错题集。也可用「加深识记」先看要点与例句，再限时测同组。
+          </p>
+          <div v-show="!factDeepenActive" class="mode-grid">
+            <button
+              v-for="m in MENTAL_MATH_RHETORIC_DEVICE_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--rhetoric-device"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">
+                {{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" />
+              </h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+            <button
+              type="button"
+              class="mode-card mode-card--rhetoric-device mode-card--deepen"
+              @click="openFactDeepen('rhetoric-device')"
+            >
+              <h3 class="mode-card__title">加深识记</h3>
+              <p class="mode-card__desc">
+                普通难度 · 固定 20 题一组目录可溯源 · 先识记（含例句与要点，解析可编辑）→ 限时测（满组 77 秒）
+              </p>
+              <span class="mode-card__cta">进入</span>
+            </button>
+          </div>
+          <FactDeepenMemorizationPanel
+            ref="factDeepenRef"
+            @active="factDeepenActive = $event"
+          />
+          <MentalMathWrongBookPanel v-show="!factDeepenActive" section="rhetoric-device" />
         </section>
 
         <section v-if="showTwentyFourSection" class="mode-section" id="practice-twentyfour">
@@ -3922,7 +3975,8 @@ onBeforeUnmount(() => {
                   isHanziPatternSession ||
                   isWenyanXuciSession ||
                   isWenyanJushiSession ||
-                  isGrammarJudgmentSession,
+                  isGrammarJudgmentSession ||
+                  isRhetoricDeviceSession,
               'question-expression--hanzi-pattern': isHanziPatternSession,
               'question-expression--ok': feedback === 'correct',
               'question-expression--bad': feedback === 'wrong',
@@ -4293,6 +4347,15 @@ onBeforeUnmount(() => {
 .mode-card--grammar-judgment:hover {
   border-color: color-mix(in srgb, #7c5cbf 50%, var(--app-border-soft));
   box-shadow: 0 4px 16px rgba(124, 92, 191, 0.12);
+}
+
+.mode-card--rhetoric-device {
+  border-color: color-mix(in srgb, #be185d 28%, var(--app-border-soft));
+}
+
+.mode-card--rhetoric-device:hover {
+  border-color: color-mix(in srgb, #be185d 50%, var(--app-border-soft));
+  box-shadow: 0 4px 16px rgba(190, 24, 93, 0.12);
 }
 
 .mode-section__subtitle {

@@ -16,6 +16,7 @@ export type PracticeHubSectionId =
   | 'wenyan-xuci'
   | 'wenyan-jushi'
   | 'grammar-judgment'
+  | 'rhetoric-device'
   | 'twentyfour'
   | 'sudoku'
   | 'graphic'
@@ -51,6 +52,7 @@ export const PRACTICE_HUB_SECTIONS: PracticeHubSection[] = [
   { id: 'wenyan-xuci', title: '文言虚词' },
   { id: 'wenyan-jushi', title: '文言句式' },
   { id: 'grammar-judgment', title: '语法判断' },
+  { id: 'rhetoric-device', title: '修辞手法' },
   { id: 'twentyfour', title: '二十四点' },
   { id: 'sudoku', title: '数独' },
   { id: 'graphic', title: '图形推理' },
@@ -93,6 +95,7 @@ export const PRACTICE_HUB_GROUPS: PracticeHubGroup[] = [
       'wenyan-xuci',
       'wenyan-jushi',
       'grammar-judgment',
+      'rhetoric-device',
     ],
   },
   {

@@ -41,14 +41,14 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
   },
   {
     difficulty: 'normal',
-    stem: `无　五　把　吧`,
+    stem: `木　日　昌　晶`,
     correct: "封闭区域个数累加1",
     distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
-    explanation: `汉字：无、五、把、吧
+    explanation: `汉字：木、日、昌、晶
 规律：封闭区域个数累加1
-核对：封闭区域 0→1→2→3（经典例）`,
+核对：封闭区域 0→1→2→3（木/日/昌/晶）`,
     key: "hanzi-pattern:004",
-    chars: ["无","五","把","吧"],
+    chars: ["木","日","昌","晶"],
   },
   {
     difficulty: 'normal',
@@ -85,36 +85,47 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
   },
   {
     difficulty: 'normal',
-    stem: `林　羽　朋　双`,
+    stem: `古　山　大　非`,
     correct: "左右对称",
     distractors: ["上下对称","独体结构","笔画不相连部分个数累减1","笔画数相等","都是开放区域"],
-    explanation: `汉字：林、羽、朋、双
+    explanation: `汉字：古、山、大、非
 规律：左右对称
-核对：林/羽/朋/双均为左右对称`,
+核对：古/山/大/非均为左右对称（竖轴对折；非上下对称）`,
     key: "hanzi-pattern:008",
-    chars: ["林","羽","朋","双"],
+    chars: ["古","山","大","非"],
   },
   {
     difficulty: 'normal',
-    stem: `贵　林　朋　双`,
+    stem: `木　开　丰　夹`,
     correct: "左右对称",
     distractors: ["上下对称","独体结构","笔画不相连部分个数累减1","笔画数相等","都是开放区域"],
-    explanation: `汉字：贵、林、朋、双
+    explanation: `汉字：木、开、丰、夹
 规律：左右对称
-核对：贵按教学约定左右对称；贵/林/朋/双`,
+核对：木/开/丰/夹均为左右对称`,
     key: "hanzi-pattern:009",
-    chars: ["贵","林","朋","双"],
+    chars: ["木","开","丰","夹"],
   },
   {
     difficulty: 'normal',
-    stem: `巨　吕　圭　炎`,
+    stem: `巨　目　中　臣`,
     correct: "上下对称",
     distractors: ["左右对称","都包含「石」","笔画不相连部分个数相等","左右结构","都包含「艹」"],
-    explanation: `汉字：巨、吕、圭、炎
+    explanation: `汉字：巨、目、中、臣
 规律：上下对称
-核对：巨/吕/圭/炎均为上下对称（巨=上下对称）`,
+核对：巨/目/中/臣均为上下对称（横轴对折；巨/臣非左右对称）`,
     key: "hanzi-pattern:010",
-    chars: ["巨","吕","圭","炎"],
+    chars: ["巨","目","中","臣"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `巨　目　中　叵`,
+    correct: "上下对称",
+    distractors: ["左右对称","都包含「石」","笔画不相连部分个数相等","左右结构","都包含「艹」"],
+    explanation: `汉字：巨、目、中、叵
+规律：上下对称
+核对：巨/目/中/叵均为上下对称（横轴对折；巨/叵非左右对称）`,
+    key: "hanzi-pattern:011",
+    chars: ["巨","目","中","叵"],
   },
   {
     difficulty: 'normal',
@@ -124,7 +135,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：卧、林、河、明
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:011",
+    key: "hanzi-pattern:012",
     chars: ["卧","林","河","明"],
   },
   {
@@ -135,7 +146,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：床、问、这、区
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:012",
+    key: "hanzi-pattern:013",
     chars: ["床","问","这","区"],
   },
   {
@@ -146,7 +157,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：人、木、火、水
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:013",
+    key: "hanzi-pattern:014",
     chars: ["人","木","火","水"],
   },
   {
@@ -157,7 +168,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：圭、炎、吕、昌
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:014",
+    key: "hanzi-pattern:015",
     chars: ["圭","炎","吕","昌"],
   },
   {
@@ -168,7 +179,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：二、十、丁、七
 规律：笔画数相等
 核对：笔画数均为 2`,
-    key: "hanzi-pattern:015",
+    key: "hanzi-pattern:016",
     chars: ["二","十","丁","七"],
   },
   {
@@ -179,7 +190,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：十、丁、七、八
 规律：笔画数相等
 核对：笔画数均为 2`,
-    key: "hanzi-pattern:016",
+    key: "hanzi-pattern:017",
     chars: ["十","丁","七","八"],
   },
   {
@@ -190,7 +201,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：丁、七、八、人
 规律：笔画数相等
 核对：笔画数均为 2`,
-    key: "hanzi-pattern:017",
+    key: "hanzi-pattern:018",
     chars: ["丁","七","八","人"],
   },
   {
@@ -201,7 +212,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：七、八、人、入
 规律：笔画数相等
 核对：笔画数均为 2`,
-    key: "hanzi-pattern:018",
+    key: "hanzi-pattern:019",
     chars: ["七","八","人","入"],
   },
   {
@@ -212,7 +223,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：八、人、入、儿
 规律：笔画数相等
 核对：笔画数均为 2`,
-    key: "hanzi-pattern:019",
+    key: "hanzi-pattern:020",
     chars: ["八","人","入","儿"],
   },
   {
@@ -223,7 +234,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：人、入、儿、九
 规律：笔画数相等
 核对：笔画数均为 2`,
-    key: "hanzi-pattern:020",
+    key: "hanzi-pattern:021",
     chars: ["人","入","儿","九"],
   },
   {
@@ -234,7 +245,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：三、干、于、下
 规律：笔画数相等
 核对：笔画数均为 3`,
-    key: "hanzi-pattern:021",
+    key: "hanzi-pattern:022",
     chars: ["三","干","于","下"],
   },
   {
@@ -245,7 +256,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：干、于、下、土
 规律：笔画数相等
 核对：笔画数均为 3`,
-    key: "hanzi-pattern:022",
+    key: "hanzi-pattern:023",
     chars: ["干","于","下","土"],
   },
   {
@@ -256,7 +267,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：于、下、土、士
 规律：笔画数相等
 核对：笔画数均为 3`,
-    key: "hanzi-pattern:023",
+    key: "hanzi-pattern:024",
     chars: ["于","下","土","士"],
   },
   {
@@ -267,7 +278,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：下、土、士、工
 规律：笔画数相等
 核对：笔画数均为 3`,
-    key: "hanzi-pattern:024",
+    key: "hanzi-pattern:025",
     chars: ["下","土","士","工"],
   },
   {
@@ -278,7 +289,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：土、士、工、才
 规律：笔画数相等
 核对：笔画数均为 3`,
-    key: "hanzi-pattern:025",
+    key: "hanzi-pattern:026",
     chars: ["土","士","工","才"],
   },
   {
@@ -289,7 +300,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：士、工、才、寸
 规律：笔画数相等
 核对：笔画数均为 3`,
-    key: "hanzi-pattern:026",
+    key: "hanzi-pattern:027",
     chars: ["士","工","才","寸"],
   },
   {
@@ -300,7 +311,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：王、天、夫、井
 规律：笔画数相等
 核对：笔画数均为 4`,
-    key: "hanzi-pattern:027",
+    key: "hanzi-pattern:028",
     chars: ["王","天","夫","井"],
   },
   {
@@ -311,7 +322,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：天、夫、井、开
 规律：笔画数相等
 核对：笔画数均为 4`,
-    key: "hanzi-pattern:028",
+    key: "hanzi-pattern:029",
     chars: ["天","夫","井","开"],
   },
   {
@@ -322,7 +333,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：夫、井、开、木
 规律：笔画数相等
 核对：笔画数均为 4`,
-    key: "hanzi-pattern:029",
+    key: "hanzi-pattern:030",
     chars: ["夫","井","开","木"],
   },
   {
@@ -333,7 +344,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：井、开、木、不
 规律：笔画数相等
 核对：笔画数均为 4`,
-    key: "hanzi-pattern:030",
+    key: "hanzi-pattern:031",
     chars: ["井","开","木","不"],
   },
   {
@@ -344,7 +355,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：开、木、不、太
 规律：笔画数相等
 核对：笔画数均为 4`,
-    key: "hanzi-pattern:031",
+    key: "hanzi-pattern:032",
     chars: ["开","木","不","太"],
   },
   {
@@ -355,7 +366,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：木、不、太、犬
 规律：笔画数相等
 核对：笔画数均为 4`,
-    key: "hanzi-pattern:032",
+    key: "hanzi-pattern:033",
     chars: ["木","不","太","犬"],
   },
   {
@@ -366,7 +377,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：正、甘、生、用
 规律：笔画数相等
 核对：笔画数均为 5`,
-    key: "hanzi-pattern:033",
+    key: "hanzi-pattern:034",
     chars: ["正","甘","生","用"],
   },
   {
@@ -377,7 +388,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：甘、生、用、古
 规律：笔画数相等
 核对：笔画数均为 5`,
-    key: "hanzi-pattern:034",
+    key: "hanzi-pattern:035",
     chars: ["甘","生","用","古"],
   },
   {
@@ -388,7 +399,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：生、用、古、可
 规律：笔画数相等
 核对：笔画数均为 5`,
-    key: "hanzi-pattern:035",
+    key: "hanzi-pattern:036",
     chars: ["生","用","古","可"],
   },
   {
@@ -399,7 +410,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：用、古、可、右
 规律：笔画数相等
 核对：笔画数均为 5`,
-    key: "hanzi-pattern:036",
+    key: "hanzi-pattern:037",
     chars: ["用","古","可","右"],
   },
   {
@@ -410,7 +421,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：古、可、右、石
 规律：笔画数相等
 核对：笔画数均为 5`,
-    key: "hanzi-pattern:037",
+    key: "hanzi-pattern:038",
     chars: ["古","可","右","石"],
   },
   {
@@ -421,7 +432,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：可、右、石、本
 规律：笔画数相等
 核对：笔画数均为 5`,
-    key: "hanzi-pattern:038",
+    key: "hanzi-pattern:039",
     chars: ["可","右","石","本"],
   },
   {
@@ -432,7 +443,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：合、同、名、各
 规律：笔画数相等
 核对：笔画数均为 6`,
-    key: "hanzi-pattern:039",
+    key: "hanzi-pattern:040",
     chars: ["合","同","名","各"],
   },
   {
@@ -443,7 +454,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：同、名、各、安
 规律：笔画数相等
 核对：笔画数均为 6`,
-    key: "hanzi-pattern:040",
+    key: "hanzi-pattern:041",
     chars: ["同","名","各","安"],
   },
   {
@@ -454,7 +465,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：名、各、安、字
 规律：笔画数相等
 核对：笔画数均为 6`,
-    key: "hanzi-pattern:041",
+    key: "hanzi-pattern:042",
     chars: ["名","各","安","字"],
   },
   {
@@ -465,7 +476,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：各、安、字、守
 规律：笔画数相等
 核对：笔画数均为 6`,
-    key: "hanzi-pattern:042",
+    key: "hanzi-pattern:043",
     chars: ["各","安","字","守"],
   },
   {
@@ -476,7 +487,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：安、字、守、宅
 规律：笔画数相等
 核对：笔画数均为 6`,
-    key: "hanzi-pattern:043",
+    key: "hanzi-pattern:044",
     chars: ["安","字","守","宅"],
   },
   {
@@ -487,7 +498,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：字、守、宅、红
 规律：笔画数相等
 核对：笔画数均为 6`,
-    key: "hanzi-pattern:044",
+    key: "hanzi-pattern:045",
     chars: ["字","守","宅","红"],
   },
   {
@@ -498,7 +509,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：我、找、身、走
 规律：笔画数相等
 核对：笔画数均为 7`,
-    key: "hanzi-pattern:045",
+    key: "hanzi-pattern:046",
     chars: ["我","找","身","走"],
   },
   {
@@ -509,7 +520,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：找、身、走、来
 规律：笔画数相等
 核对：笔画数均为 7`,
-    key: "hanzi-pattern:046",
+    key: "hanzi-pattern:047",
     chars: ["找","身","走","来"],
   },
   {
@@ -520,7 +531,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：身、走、来、求
 规律：笔画数相等
 核对：笔画数均为 7`,
-    key: "hanzi-pattern:047",
+    key: "hanzi-pattern:048",
     chars: ["身","走","来","求"],
   },
   {
@@ -531,7 +542,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：走、来、求、更
 规律：笔画数相等
 核对：笔画数均为 7`,
-    key: "hanzi-pattern:048",
+    key: "hanzi-pattern:049",
     chars: ["走","来","求","更"],
   },
   {
@@ -542,7 +553,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：来、求、更、束
 规律：笔画数相等
 核对：笔画数均为 7`,
-    key: "hanzi-pattern:049",
+    key: "hanzi-pattern:050",
     chars: ["来","求","更","束"],
   },
   {
@@ -553,8 +564,19 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：求、更、束、里
 规律：笔画数相等
 核对：笔画数均为 7`,
-    key: "hanzi-pattern:050",
+    key: "hanzi-pattern:051",
     chars: ["求","更","束","里"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `码　矿　国　固`,
+    correct: "笔画数相等",
+    distractors: ["笔画数累加1","笔画数累减1","都包含「口」","上下对称","上下结构"],
+    explanation: `汉字：码、矿、国、固
+规律：笔画数相等
+核对：笔画数均为 8`,
+    key: "hanzi-pattern:052",
+    chars: ["码","矿","国","固"],
   },
   {
     difficulty: 'normal',
@@ -564,7 +586,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：矿、国、固、图
 规律：笔画数相等
 核对：笔画数均为 8`,
-    key: "hanzi-pattern:051",
+    key: "hanzi-pattern:053",
     chars: ["矿","国","固","图"],
   },
   {
@@ -575,7 +597,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：国、固、图、周
 规律：笔画数相等
 核对：笔画数均为 8`,
-    key: "hanzi-pattern:052",
+    key: "hanzi-pattern:054",
     chars: ["国","固","图","周"],
   },
   {
@@ -586,7 +608,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：固、图、周、金
 规律：笔画数相等
 核对：笔画数均为 8`,
-    key: "hanzi-pattern:053",
+    key: "hanzi-pattern:055",
     chars: ["固","图","周","金"],
   },
   {
@@ -597,7 +619,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：图、周、金、命
 规律：笔画数相等
 核对：笔画数均为 8`,
-    key: "hanzi-pattern:054",
+    key: "hanzi-pattern:056",
     chars: ["图","周","金","命"],
   },
   {
@@ -608,19 +630,8 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：周、金、命、念
 规律：笔画数相等
 核对：笔画数均为 8`,
-    key: "hanzi-pattern:055",
+    key: "hanzi-pattern:057",
     chars: ["周","金","命","念"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `金　命　念　贪`,
-    correct: "笔画数相等",
-    distractors: ["笔画数累加1","笔画数累减1","都包含「口」","上下对称","上下结构"],
-    explanation: `汉字：金、命、念、贪
-规律：笔画数相等
-核对：笔画数均为 8`,
-    key: "hanzi-pattern:056",
-    chars: ["金","命","念","贪"],
   },
   {
     difficulty: 'normal',
@@ -630,7 +641,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：钢、钟、律、春
 规律：笔画数相等
 核对：笔画数均为 9`,
-    key: "hanzi-pattern:057",
+    key: "hanzi-pattern:058",
     chars: ["钢","钟","律","春"],
   },
   {
@@ -641,7 +652,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：钟、律、春、是
 规律：笔画数相等
 核对：笔画数均为 9`,
-    key: "hanzi-pattern:058",
+    key: "hanzi-pattern:059",
     chars: ["钟","律","春","是"],
   },
   {
@@ -652,7 +663,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：律、春、是、看
 规律：笔画数相等
 核对：笔画数均为 9`,
-    key: "hanzi-pattern:059",
+    key: "hanzi-pattern:060",
     chars: ["律","春","是","看"],
   },
   {
@@ -663,7 +674,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、三、王
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:060",
+    key: "hanzi-pattern:061",
     chars: ["一","二","三","王"],
   },
   {
@@ -674,7 +685,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、三、天
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:061",
+    key: "hanzi-pattern:062",
     chars: ["一","二","三","天"],
   },
   {
@@ -685,7 +696,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、三、夫
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:062",
+    key: "hanzi-pattern:063",
     chars: ["一","二","三","夫"],
   },
   {
@@ -696,7 +707,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、干、王
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:063",
+    key: "hanzi-pattern:064",
     chars: ["一","二","干","王"],
   },
   {
@@ -707,7 +718,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、干、天
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:064",
+    key: "hanzi-pattern:065",
     chars: ["一","二","干","天"],
   },
   {
@@ -718,7 +729,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、干、夫
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:065",
+    key: "hanzi-pattern:066",
     chars: ["一","二","干","夫"],
   },
   {
@@ -729,7 +740,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、于、王
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:066",
+    key: "hanzi-pattern:067",
     chars: ["一","二","于","王"],
   },
   {
@@ -740,7 +751,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、于、天
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:067",
+    key: "hanzi-pattern:068",
     chars: ["一","二","于","天"],
   },
   {
@@ -751,7 +762,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、于、夫
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:068",
+    key: "hanzi-pattern:069",
     chars: ["一","二","于","夫"],
   },
   {
@@ -762,7 +773,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、下、王
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:069",
+    key: "hanzi-pattern:070",
     chars: ["一","二","下","王"],
   },
   {
@@ -773,7 +784,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、下、天
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:070",
+    key: "hanzi-pattern:071",
     chars: ["一","二","下","天"],
   },
   {
@@ -784,7 +795,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、下、夫
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:071",
+    key: "hanzi-pattern:072",
     chars: ["一","二","下","夫"],
   },
   {
@@ -795,7 +806,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、土、王
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:072",
+    key: "hanzi-pattern:073",
     chars: ["一","二","土","王"],
   },
   {
@@ -806,7 +817,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、土、天
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:073",
+    key: "hanzi-pattern:074",
     chars: ["一","二","土","天"],
   },
   {
@@ -817,7 +828,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、土、夫
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:074",
+    key: "hanzi-pattern:075",
     chars: ["一","二","土","夫"],
   },
   {
@@ -828,7 +839,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、士、王
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:075",
+    key: "hanzi-pattern:076",
     chars: ["一","二","士","王"],
   },
   {
@@ -839,7 +850,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、士、天
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:076",
+    key: "hanzi-pattern:077",
     chars: ["一","二","士","天"],
   },
   {
@@ -850,7 +861,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、士、夫
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:077",
+    key: "hanzi-pattern:078",
     chars: ["一","二","士","夫"],
   },
   {
@@ -861,7 +872,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、工、王
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:078",
+    key: "hanzi-pattern:079",
     chars: ["一","二","工","王"],
   },
   {
@@ -872,7 +883,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、工、天
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:079",
+    key: "hanzi-pattern:080",
     chars: ["一","二","工","天"],
   },
   {
@@ -883,7 +894,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、工、夫
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:080",
+    key: "hanzi-pattern:081",
     chars: ["一","二","工","夫"],
   },
   {
@@ -894,7 +905,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、才、王
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:081",
+    key: "hanzi-pattern:082",
     chars: ["一","二","才","王"],
   },
   {
@@ -905,7 +916,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、才、天
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:082",
+    key: "hanzi-pattern:083",
     chars: ["一","二","才","天"],
   },
   {
@@ -916,7 +927,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、才、夫
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:083",
+    key: "hanzi-pattern:084",
     chars: ["一","二","才","夫"],
   },
   {
@@ -927,7 +938,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、寸、王
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:084",
+    key: "hanzi-pattern:085",
     chars: ["一","二","寸","王"],
   },
   {
@@ -938,7 +949,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、寸、天
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:085",
+    key: "hanzi-pattern:086",
     chars: ["一","二","寸","天"],
   },
   {
@@ -949,7 +960,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、寸、夫
 规律：笔画数累加1
 核对：笔画数 1→2→3→4`,
-    key: "hanzi-pattern:086",
+    key: "hanzi-pattern:087",
     chars: ["一","二","寸","夫"],
   },
   {
@@ -960,7 +971,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：王、三、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:087",
+    key: "hanzi-pattern:088",
     chars: ["王","三","二","一"],
   },
   {
@@ -971,7 +982,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：天、三、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:088",
+    key: "hanzi-pattern:089",
     chars: ["天","三","二","一"],
   },
   {
@@ -982,7 +993,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：夫、三、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:089",
+    key: "hanzi-pattern:090",
     chars: ["夫","三","二","一"],
   },
   {
@@ -993,7 +1004,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：王、干、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:090",
+    key: "hanzi-pattern:091",
     chars: ["王","干","二","一"],
   },
   {
@@ -1004,7 +1015,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：天、干、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:091",
+    key: "hanzi-pattern:092",
     chars: ["天","干","二","一"],
   },
   {
@@ -1015,7 +1026,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：夫、干、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:092",
+    key: "hanzi-pattern:093",
     chars: ["夫","干","二","一"],
   },
   {
@@ -1026,7 +1037,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：王、于、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:093",
+    key: "hanzi-pattern:094",
     chars: ["王","于","二","一"],
   },
   {
@@ -1037,7 +1048,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：天、于、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:094",
+    key: "hanzi-pattern:095",
     chars: ["天","于","二","一"],
   },
   {
@@ -1048,7 +1059,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：夫、于、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:095",
+    key: "hanzi-pattern:096",
     chars: ["夫","于","二","一"],
   },
   {
@@ -1059,7 +1070,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：王、下、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:096",
+    key: "hanzi-pattern:097",
     chars: ["王","下","二","一"],
   },
   {
@@ -1070,7 +1081,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：天、下、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:097",
+    key: "hanzi-pattern:098",
     chars: ["天","下","二","一"],
   },
   {
@@ -1081,7 +1092,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：夫、下、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:098",
+    key: "hanzi-pattern:099",
     chars: ["夫","下","二","一"],
   },
   {
@@ -1092,7 +1103,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：王、土、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:099",
+    key: "hanzi-pattern:100",
     chars: ["王","土","二","一"],
   },
   {
@@ -1103,7 +1114,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：天、土、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:100",
+    key: "hanzi-pattern:101",
     chars: ["天","土","二","一"],
   },
   {
@@ -1114,7 +1125,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：夫、土、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:101",
+    key: "hanzi-pattern:102",
     chars: ["夫","土","二","一"],
   },
   {
@@ -1125,7 +1136,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：王、士、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:102",
+    key: "hanzi-pattern:103",
     chars: ["王","士","二","一"],
   },
   {
@@ -1136,7 +1147,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：天、士、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:103",
+    key: "hanzi-pattern:104",
     chars: ["天","士","二","一"],
   },
   {
@@ -1147,7 +1158,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：夫、士、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:104",
+    key: "hanzi-pattern:105",
     chars: ["夫","士","二","一"],
   },
   {
@@ -1158,7 +1169,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：王、工、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:105",
+    key: "hanzi-pattern:106",
     chars: ["王","工","二","一"],
   },
   {
@@ -1169,7 +1180,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：天、工、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:106",
+    key: "hanzi-pattern:107",
     chars: ["天","工","二","一"],
   },
   {
@@ -1180,7 +1191,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：夫、工、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:107",
+    key: "hanzi-pattern:108",
     chars: ["夫","工","二","一"],
   },
   {
@@ -1191,7 +1202,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：王、才、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:108",
+    key: "hanzi-pattern:109",
     chars: ["王","才","二","一"],
   },
   {
@@ -1202,7 +1213,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：天、才、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:109",
+    key: "hanzi-pattern:110",
     chars: ["天","才","二","一"],
   },
   {
@@ -1213,7 +1224,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：夫、才、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:110",
+    key: "hanzi-pattern:111",
     chars: ["夫","才","二","一"],
   },
   {
@@ -1224,7 +1235,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：王、寸、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:111",
+    key: "hanzi-pattern:112",
     chars: ["王","寸","二","一"],
   },
   {
@@ -1235,7 +1246,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：天、寸、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:112",
+    key: "hanzi-pattern:113",
     chars: ["天","寸","二","一"],
   },
   {
@@ -1246,7 +1257,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：夫、寸、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:113",
+    key: "hanzi-pattern:114",
     chars: ["夫","寸","二","一"],
   },
   {
@@ -1257,7 +1268,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：王、大、二、一
 规律：笔画数累减1
 核对：笔画数 4→3→2→1`,
-    key: "hanzi-pattern:114",
+    key: "hanzi-pattern:115",
     chars: ["王","大","二","一"],
   },
   {
@@ -1268,7 +1279,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、二、三、川
 规律：笔画交叉数相等
 核对：笔画交叉数均为 0`,
-    key: "hanzi-pattern:115",
+    key: "hanzi-pattern:116",
     chars: ["一","二","三","川"],
   },
   {
@@ -1279,7 +1290,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：二、三、川、八
 规律：笔画交叉数相等
 核对：笔画交叉数均为 0`,
-    key: "hanzi-pattern:116",
+    key: "hanzi-pattern:117",
     chars: ["二","三","川","八"],
   },
   {
@@ -1290,7 +1301,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：三、川、八、小
 规律：笔画交叉数相等
 核对：笔画交叉数均为 0`,
-    key: "hanzi-pattern:117",
+    key: "hanzi-pattern:118",
     chars: ["三","川","八","小"],
   },
   {
@@ -1301,7 +1312,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：川、八、小、人
 规律：笔画交叉数相等
 核对：笔画交叉数均为 0`,
-    key: "hanzi-pattern:118",
+    key: "hanzi-pattern:119",
     chars: ["川","八","小","人"],
   },
   {
@@ -1312,7 +1323,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：八、小、人、入
 规律：笔画交叉数相等
 核对：笔画交叉数均为 0`,
-    key: "hanzi-pattern:119",
+    key: "hanzi-pattern:120",
     chars: ["八","小","人","入"],
   },
   {
@@ -1323,7 +1334,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：小、人、入、儿
 规律：笔画交叉数相等
 核对：笔画交叉数均为 0`,
-    key: "hanzi-pattern:120",
+    key: "hanzi-pattern:121",
     chars: ["小","人","入","儿"],
   },
   {
@@ -1334,7 +1345,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：人、入、儿、了
 规律：笔画交叉数相等
 核对：笔画交叉数均为 0`,
-    key: "hanzi-pattern:121",
+    key: "hanzi-pattern:122",
     chars: ["人","入","儿","了"],
   },
   {
@@ -1345,7 +1356,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：入、儿、了、丫
 规律：笔画交叉数相等
 核对：笔画交叉数均为 0`,
-    key: "hanzi-pattern:122",
+    key: "hanzi-pattern:123",
     chars: ["入","儿","了","丫"],
   },
   {
@@ -1356,7 +1367,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：十、七、九、力
 规律：笔画交叉数相等
 核对：笔画交叉数均为 1`,
-    key: "hanzi-pattern:123",
+    key: "hanzi-pattern:124",
     chars: ["十","七","九","力"],
   },
   {
@@ -1367,7 +1378,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：七、九、力、刀
 规律：笔画交叉数相等
 核对：笔画交叉数均为 1`,
-    key: "hanzi-pattern:124",
+    key: "hanzi-pattern:125",
     chars: ["七","九","力","刀"],
   },
   {
@@ -1378,7 +1389,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：九、力、刀、丈
 规律：笔画交叉数相等
 核对：笔画交叉数均为 1`,
-    key: "hanzi-pattern:125",
+    key: "hanzi-pattern:126",
     chars: ["九","力","刀","丈"],
   },
   {
@@ -1389,7 +1400,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：力、刀、丈、才
 规律：笔画交叉数相等
 核对：笔画交叉数均为 1`,
-    key: "hanzi-pattern:126",
+    key: "hanzi-pattern:127",
     chars: ["力","刀","丈","才"],
   },
   {
@@ -1400,7 +1411,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：刀、丈、才、干
 规律：笔画交叉数相等
 核对：笔画交叉数均为 1`,
-    key: "hanzi-pattern:127",
+    key: "hanzi-pattern:128",
     chars: ["刀","丈","才","干"],
   },
   {
@@ -1411,7 +1422,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：丈、才、干、于
 规律：笔画交叉数相等
 核对：笔画交叉数均为 1`,
-    key: "hanzi-pattern:128",
+    key: "hanzi-pattern:129",
     chars: ["丈","才","干","于"],
   },
   {
@@ -1422,7 +1433,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：才、干、于、午
 规律：笔画交叉数相等
 核对：笔画交叉数均为 1`,
-    key: "hanzi-pattern:129",
+    key: "hanzi-pattern:130",
     chars: ["才","干","于","午"],
   },
   {
@@ -1433,7 +1444,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：干、于、午、牛
 规律：笔画交叉数相等
 核对：笔画交叉数均为 1`,
-    key: "hanzi-pattern:130",
+    key: "hanzi-pattern:131",
     chars: ["干","于","午","牛"],
   },
   {
@@ -1444,7 +1455,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：井、开、丰、韦
 规律：笔画交叉数相等
 核对：笔画交叉数均为 2`,
-    key: "hanzi-pattern:131",
+    key: "hanzi-pattern:132",
     chars: ["井","开","丰","韦"],
   },
   {
@@ -1455,7 +1466,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：开、丰、韦、并
 规律：笔画交叉数相等
 核对：笔画交叉数均为 2`,
-    key: "hanzi-pattern:132",
+    key: "hanzi-pattern:133",
     chars: ["开","丰","韦","并"],
   },
   {
@@ -1466,7 +1477,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、十、井、未
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
-    key: "hanzi-pattern:133",
+    key: "hanzi-pattern:134",
     chars: ["一","十","井","未"],
   },
   {
@@ -1477,7 +1488,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、十、井、末
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
-    key: "hanzi-pattern:134",
+    key: "hanzi-pattern:135",
     chars: ["一","十","井","末"],
   },
   {
@@ -1488,7 +1499,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、十、井、朱
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
-    key: "hanzi-pattern:135",
+    key: "hanzi-pattern:136",
     chars: ["一","十","井","朱"],
   },
   {
@@ -1499,7 +1510,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、十、开、未
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
-    key: "hanzi-pattern:136",
+    key: "hanzi-pattern:137",
     chars: ["一","十","开","未"],
   },
   {
@@ -1510,7 +1521,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、十、开、末
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
-    key: "hanzi-pattern:137",
+    key: "hanzi-pattern:138",
     chars: ["一","十","开","末"],
   },
   {
@@ -1521,7 +1532,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、十、开、朱
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
-    key: "hanzi-pattern:138",
+    key: "hanzi-pattern:139",
     chars: ["一","十","开","朱"],
   },
   {
@@ -1532,7 +1543,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、十、丰、未
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
-    key: "hanzi-pattern:139",
+    key: "hanzi-pattern:140",
     chars: ["一","十","丰","未"],
   },
   {
@@ -1543,7 +1554,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、十、丰、末
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
-    key: "hanzi-pattern:140",
+    key: "hanzi-pattern:141",
     chars: ["一","十","丰","末"],
   },
   {
@@ -1554,7 +1565,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、十、丰、朱
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
-    key: "hanzi-pattern:141",
+    key: "hanzi-pattern:142",
     chars: ["一","十","丰","朱"],
   },
   {
@@ -1565,7 +1576,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、十、韦、未
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
-    key: "hanzi-pattern:142",
+    key: "hanzi-pattern:143",
     chars: ["一","十","韦","未"],
   },
   {
@@ -1576,7 +1587,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、十、韦、末
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
-    key: "hanzi-pattern:143",
+    key: "hanzi-pattern:144",
     chars: ["一","十","韦","末"],
   },
   {
@@ -1587,7 +1598,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、十、韦、朱
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
-    key: "hanzi-pattern:144",
+    key: "hanzi-pattern:145",
     chars: ["一","十","韦","朱"],
   },
   {
@@ -1598,7 +1609,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、十、并、未
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
-    key: "hanzi-pattern:145",
+    key: "hanzi-pattern:146",
     chars: ["一","十","并","未"],
   },
   {
@@ -1609,7 +1620,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、十、并、末
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
-    key: "hanzi-pattern:146",
+    key: "hanzi-pattern:147",
     chars: ["一","十","并","末"],
   },
   {
@@ -1620,7 +1631,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、十、并、朱
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
-    key: "hanzi-pattern:147",
+    key: "hanzi-pattern:148",
     chars: ["一","十","并","朱"],
   },
   {
@@ -1631,7 +1642,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：未、井、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
-    key: "hanzi-pattern:148",
+    key: "hanzi-pattern:149",
     chars: ["未","井","十","一"],
   },
   {
@@ -1642,7 +1653,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：末、井、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
-    key: "hanzi-pattern:149",
+    key: "hanzi-pattern:150",
     chars: ["末","井","十","一"],
   },
   {
@@ -1653,7 +1664,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：朱、井、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
-    key: "hanzi-pattern:150",
+    key: "hanzi-pattern:151",
     chars: ["朱","井","十","一"],
   },
   {
@@ -1664,7 +1675,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：未、开、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
-    key: "hanzi-pattern:151",
+    key: "hanzi-pattern:152",
     chars: ["未","开","十","一"],
   },
   {
@@ -1675,7 +1686,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：末、开、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
-    key: "hanzi-pattern:152",
+    key: "hanzi-pattern:153",
     chars: ["末","开","十","一"],
   },
   {
@@ -1686,7 +1697,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：朱、开、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
-    key: "hanzi-pattern:153",
+    key: "hanzi-pattern:154",
     chars: ["朱","开","十","一"],
   },
   {
@@ -1697,7 +1708,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：未、丰、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
-    key: "hanzi-pattern:154",
+    key: "hanzi-pattern:155",
     chars: ["未","丰","十","一"],
   },
   {
@@ -1708,7 +1719,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：末、丰、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
-    key: "hanzi-pattern:155",
+    key: "hanzi-pattern:156",
     chars: ["末","丰","十","一"],
   },
   {
@@ -1719,7 +1730,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：朱、丰、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
-    key: "hanzi-pattern:156",
+    key: "hanzi-pattern:157",
     chars: ["朱","丰","十","一"],
   },
   {
@@ -1730,7 +1741,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：未、韦、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
-    key: "hanzi-pattern:157",
+    key: "hanzi-pattern:158",
     chars: ["未","韦","十","一"],
   },
   {
@@ -1741,7 +1752,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：末、韦、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
-    key: "hanzi-pattern:158",
+    key: "hanzi-pattern:159",
     chars: ["末","韦","十","一"],
   },
   {
@@ -1752,7 +1763,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：朱、韦、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
-    key: "hanzi-pattern:159",
+    key: "hanzi-pattern:160",
     chars: ["朱","韦","十","一"],
   },
   {
@@ -1763,7 +1774,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：未、并、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
-    key: "hanzi-pattern:160",
+    key: "hanzi-pattern:161",
     chars: ["未","并","十","一"],
   },
   {
@@ -1774,7 +1785,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：末、并、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
-    key: "hanzi-pattern:161",
+    key: "hanzi-pattern:162",
     chars: ["末","并","十","一"],
   },
   {
@@ -1785,7 +1796,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：朱、并、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
-    key: "hanzi-pattern:162",
+    key: "hanzi-pattern:163",
     chars: ["朱","并","十","一"],
   },
   {
@@ -1796,7 +1807,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：未、关、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
-    key: "hanzi-pattern:163",
+    key: "hanzi-pattern:164",
     chars: ["未","关","十","一"],
   },
   {
@@ -1807,7 +1818,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、乙、二、三
 规律：封闭区域个数相等
 核对：封闭区域个数均为 0`,
-    key: "hanzi-pattern:164",
+    key: "hanzi-pattern:165",
     chars: ["一","乙","二","三"],
   },
   {
@@ -1818,7 +1829,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：乙、二、三、十
 规律：封闭区域个数相等
 核对：封闭区域个数均为 0`,
-    key: "hanzi-pattern:165",
+    key: "hanzi-pattern:166",
     chars: ["乙","二","三","十"],
   },
   {
@@ -1829,7 +1840,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：二、三、十、八
 规律：封闭区域个数相等
 核对：封闭区域个数均为 0`,
-    key: "hanzi-pattern:166",
+    key: "hanzi-pattern:167",
     chars: ["二","三","十","八"],
   },
   {
@@ -1840,7 +1851,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：三、十、八、人
 规律：封闭区域个数相等
 核对：封闭区域个数均为 0`,
-    key: "hanzi-pattern:167",
+    key: "hanzi-pattern:168",
     chars: ["三","十","八","人"],
   },
   {
@@ -1851,7 +1862,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：十、八、人、大
 规律：封闭区域个数相等
 核对：封闭区域个数均为 0`,
-    key: "hanzi-pattern:168",
+    key: "hanzi-pattern:169",
     chars: ["十","八","人","大"],
   },
   {
@@ -1862,7 +1873,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：八、人、大、天
 规律：封闭区域个数相等
 核对：封闭区域个数均为 0`,
-    key: "hanzi-pattern:169",
+    key: "hanzi-pattern:170",
     chars: ["八","人","大","天"],
   },
   {
@@ -1873,7 +1884,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：人、大、天、木
 规律：封闭区域个数相等
 核对：封闭区域个数均为 0`,
-    key: "hanzi-pattern:170",
+    key: "hanzi-pattern:171",
     chars: ["人","大","天","木"],
   },
   {
@@ -1884,7 +1895,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：大、天、木、本
 规律：封闭区域个数相等
 核对：封闭区域个数均为 0`,
-    key: "hanzi-pattern:171",
+    key: "hanzi-pattern:172",
     chars: ["大","天","木","本"],
   },
   {
@@ -1895,7 +1906,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：口、中、古、右
 规律：封闭区域个数相等
 核对：封闭区域个数均为 1`,
-    key: "hanzi-pattern:172",
+    key: "hanzi-pattern:173",
     chars: ["口","中","古","右"],
   },
   {
@@ -1906,7 +1917,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：中、古、右、石
 规律：封闭区域个数相等
 核对：封闭区域个数均为 1`,
-    key: "hanzi-pattern:173",
+    key: "hanzi-pattern:174",
     chars: ["中","古","右","石"],
   },
   {
@@ -1917,7 +1928,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：古、右、石、可
 规律：封闭区域个数相等
 核对：封闭区域个数均为 1`,
-    key: "hanzi-pattern:174",
+    key: "hanzi-pattern:175",
     chars: ["古","右","石","可"],
   },
   {
@@ -1928,7 +1939,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：右、石、可、后
 规律：封闭区域个数相等
 核对：封闭区域个数均为 1`,
-    key: "hanzi-pattern:175",
+    key: "hanzi-pattern:176",
     chars: ["右","石","可","后"],
   },
   {
@@ -1939,7 +1950,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：石、可、后、甲
 规律：封闭区域个数相等
 核对：封闭区域个数均为 1`,
-    key: "hanzi-pattern:176",
+    key: "hanzi-pattern:177",
     chars: ["石","可","后","甲"],
   },
   {
@@ -1950,7 +1961,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：可、后、甲、申
 规律：封闭区域个数相等
 核对：封闭区域个数均为 1`,
-    key: "hanzi-pattern:177",
+    key: "hanzi-pattern:178",
     chars: ["可","后","甲","申"],
   },
   {
@@ -1961,7 +1972,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：后、甲、申、电
 规律：封闭区域个数相等
 核对：封闭区域个数均为 1`,
-    key: "hanzi-pattern:178",
+    key: "hanzi-pattern:179",
     chars: ["后","甲","申","电"],
   },
   {
@@ -1972,74 +1983,107 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：甲、申、电、由
 规律：封闭区域个数相等
 核对：封闭区域个数均为 1`,
-    key: "hanzi-pattern:179",
+    key: "hanzi-pattern:180",
     chars: ["甲","申","电","由"],
   },
   {
     difficulty: 'normal',
-    stem: `回　田　吕　把`,
+    stem: `吧　回　田　吕`,
     correct: "封闭区域个数相等",
     distractors: ["封闭区域个数累减1","封闭区域个数累加1","都是开放区域","都有封闭区域","笔画交叉数累减1"],
-    explanation: `汉字：回、田、吕、把
-规律：封闭区域个数相等
-核对：封闭区域个数均为 2`,
-    key: "hanzi-pattern:180",
-    chars: ["回","田","吕","把"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `吕　把　图　园`,
-    correct: "封闭区域个数相等",
-    distractors: ["封闭区域个数累减1","封闭区域个数累加1","都是开放区域","都有封闭区域","笔画交叉数累减1"],
-    explanation: `汉字：吕、把、图、园
+    explanation: `汉字：吧、回、田、吕
 规律：封闭区域个数相等
 核对：封闭区域个数均为 2`,
     key: "hanzi-pattern:181",
-    chars: ["吕","把","图","园"],
+    chars: ["吧","回","田","吕"],
   },
   {
     difficulty: 'normal',
-    stem: `把　图　园　困`,
+    stem: `回　田　吕　固`,
     correct: "封闭区域个数相等",
     distractors: ["封闭区域个数累减1","封闭区域个数累加1","都是开放区域","都有封闭区域","笔画交叉数累减1"],
-    explanation: `汉字：把、图、园、困
+    explanation: `汉字：回、田、吕、固
 规律：封闭区域个数相等
 核对：封闭区域个数均为 2`,
     key: "hanzi-pattern:182",
-    chars: ["把","图","园","困"],
+    chars: ["回","田","吕","固"],
   },
   {
     difficulty: 'normal',
-    stem: `图　园　困　固`,
+    stem: `田　吕　固　昌`,
     correct: "封闭区域个数相等",
     distractors: ["封闭区域个数累减1","封闭区域个数累加1","都是开放区域","都有封闭区域","笔画交叉数累减1"],
-    explanation: `汉字：图、园、困、固
+    explanation: `汉字：田、吕、固、昌
 规律：封闭区域个数相等
 核对：封闭区域个数均为 2`,
     key: "hanzi-pattern:183",
-    chars: ["图","园","困","固"],
+    chars: ["田","吕","固","昌"],
   },
   {
     difficulty: 'normal',
-    stem: `园　困　固　昌`,
+    stem: `吕　固　昌　串`,
     correct: "封闭区域个数相等",
     distractors: ["封闭区域个数累减1","封闭区域个数累加1","都是开放区域","都有封闭区域","笔画交叉数累减1"],
-    explanation: `汉字：园、困、固、昌
+    explanation: `汉字：吕、固、昌、串
 规律：封闭区域个数相等
 核对：封闭区域个数均为 2`,
     key: "hanzi-pattern:184",
-    chars: ["园","困","固","昌"],
+    chars: ["吕","固","昌","串"],
   },
   {
     difficulty: 'normal',
-    stem: `困　固　昌　串`,
+    stem: `回　串　吧　固`,
     correct: "封闭区域个数相等",
     distractors: ["封闭区域个数累减1","封闭区域个数累加1","都是开放区域","都有封闭区域","笔画交叉数累减1"],
-    explanation: `汉字：困、固、昌、串
+    explanation: `汉字：回、串、吧、固
 规律：封闭区域个数相等
 核对：封闭区域个数均为 2`,
     key: "hanzi-pattern:185",
-    chars: ["困","固","昌","串"],
+    chars: ["回","串","吧","固"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `田　吕　回　固`,
+    correct: "封闭区域个数相等",
+    distractors: ["封闭区域个数累减1","封闭区域个数累加1","都是开放区域","都有封闭区域","笔画交叉数累减1"],
+    explanation: `汉字：田、吕、回、固
+规律：封闭区域个数相等
+核对：封闭区域个数均为 2`,
+    key: "hanzi-pattern:186",
+    chars: ["田","吕","回","固"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `一　口　吧　目`,
+    correct: "封闭区域个数累加1",
+    distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
+    explanation: `汉字：一、口、吧、目
+规律：封闭区域个数累加1
+核对：封闭区域 0→1→2→3`,
+    key: "hanzi-pattern:187",
+    chars: ["一","口","吧","目"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `一　口　吧　品`,
+    correct: "封闭区域个数累加1",
+    distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
+    explanation: `汉字：一、口、吧、品
+规律：封闭区域个数累加1
+核对：封闭区域 0→1→2→3`,
+    key: "hanzi-pattern:188",
+    chars: ["一","口","吧","品"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `一　口　吧　晶`,
+    correct: "封闭区域个数累加1",
+    distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
+    explanation: `汉字：一、口、吧、晶
+规律：封闭区域个数累加1
+核对：封闭区域 0→1→2→3`,
+    key: "hanzi-pattern:189",
+    chars: ["一","口","吧","晶"],
   },
   {
     difficulty: 'normal',
@@ -2049,7 +2093,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、口、回、目
 规律：封闭区域个数累加1
 核对：封闭区域 0→1→2→3`,
-    key: "hanzi-pattern:186",
+    key: "hanzi-pattern:190",
     chars: ["一","口","回","目"],
   },
   {
@@ -2060,19 +2104,19 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、口、回、品
 规律：封闭区域个数累加1
 核对：封闭区域 0→1→2→3`,
-    key: "hanzi-pattern:187",
+    key: "hanzi-pattern:191",
     chars: ["一","口","回","品"],
   },
   {
     difficulty: 'normal',
-    stem: `一　口　回　吧`,
+    stem: `一　口　回　晶`,
     correct: "封闭区域个数累加1",
     distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
-    explanation: `汉字：一、口、回、吧
+    explanation: `汉字：一、口、回、晶
 规律：封闭区域个数累加1
 核对：封闭区域 0→1→2→3`,
-    key: "hanzi-pattern:188",
-    chars: ["一","口","回","吧"],
+    key: "hanzi-pattern:192",
+    chars: ["一","口","回","晶"],
   },
   {
     difficulty: 'normal',
@@ -2082,7 +2126,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、口、田、目
 规律：封闭区域个数累加1
 核对：封闭区域 0→1→2→3`,
-    key: "hanzi-pattern:189",
+    key: "hanzi-pattern:193",
     chars: ["一","口","田","目"],
   },
   {
@@ -2093,19 +2137,19 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、口、田、品
 规律：封闭区域个数累加1
 核对：封闭区域 0→1→2→3`,
-    key: "hanzi-pattern:190",
+    key: "hanzi-pattern:194",
     chars: ["一","口","田","品"],
   },
   {
     difficulty: 'normal',
-    stem: `一　口　田　吧`,
+    stem: `一　口　田　晶`,
     correct: "封闭区域个数累加1",
     distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
-    explanation: `汉字：一、口、田、吧
+    explanation: `汉字：一、口、田、晶
 规律：封闭区域个数累加1
 核对：封闭区域 0→1→2→3`,
-    key: "hanzi-pattern:191",
-    chars: ["一","口","田","吧"],
+    key: "hanzi-pattern:195",
+    chars: ["一","口","田","晶"],
   },
   {
     difficulty: 'normal',
@@ -2115,7 +2159,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、口、吕、目
 规律：封闭区域个数累加1
 核对：封闭区域 0→1→2→3`,
-    key: "hanzi-pattern:192",
+    key: "hanzi-pattern:196",
     chars: ["一","口","吕","目"],
   },
   {
@@ -2126,129 +2170,129 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、口、吕、品
 规律：封闭区域个数累加1
 核对：封闭区域 0→1→2→3`,
-    key: "hanzi-pattern:193",
+    key: "hanzi-pattern:197",
     chars: ["一","口","吕","品"],
   },
   {
     difficulty: 'normal',
-    stem: `一　口　吕　吧`,
+    stem: `一　口　吕　晶`,
     correct: "封闭区域个数累加1",
     distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
-    explanation: `汉字：一、口、吕、吧
-规律：封闭区域个数累加1
-核对：封闭区域 0→1→2→3`,
-    key: "hanzi-pattern:194",
-    chars: ["一","口","吕","吧"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `一　口　把　目`,
-    correct: "封闭区域个数累加1",
-    distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
-    explanation: `汉字：一、口、把、目
-规律：封闭区域个数累加1
-核对：封闭区域 0→1→2→3`,
-    key: "hanzi-pattern:195",
-    chars: ["一","口","把","目"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `一　口　把　品`,
-    correct: "封闭区域个数累加1",
-    distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
-    explanation: `汉字：一、口、把、品
-规律：封闭区域个数累加1
-核对：封闭区域 0→1→2→3`,
-    key: "hanzi-pattern:196",
-    chars: ["一","口","把","品"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `一　口　把　吧`,
-    correct: "封闭区域个数累加1",
-    distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
-    explanation: `汉字：一、口、把、吧
-规律：封闭区域个数累加1
-核对：封闭区域 0→1→2→3`,
-    key: "hanzi-pattern:197",
-    chars: ["一","口","把","吧"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `一　口　图　目`,
-    correct: "封闭区域个数累加1",
-    distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
-    explanation: `汉字：一、口、图、目
+    explanation: `汉字：一、口、吕、晶
 规律：封闭区域个数累加1
 核对：封闭区域 0→1→2→3`,
     key: "hanzi-pattern:198",
-    chars: ["一","口","图","目"],
+    chars: ["一","口","吕","晶"],
   },
   {
     difficulty: 'normal',
-    stem: `一　口　图　品`,
+    stem: `一　口　固　目`,
     correct: "封闭区域个数累加1",
     distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
-    explanation: `汉字：一、口、图、品
+    explanation: `汉字：一、口、固、目
 规律：封闭区域个数累加1
 核对：封闭区域 0→1→2→3`,
     key: "hanzi-pattern:199",
-    chars: ["一","口","图","品"],
+    chars: ["一","口","固","目"],
   },
   {
     difficulty: 'normal',
-    stem: `一　口　图　吧`,
+    stem: `一　口　固　品`,
     correct: "封闭区域个数累加1",
     distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
-    explanation: `汉字：一、口、图、吧
+    explanation: `汉字：一、口、固、品
 规律：封闭区域个数累加1
 核对：封闭区域 0→1→2→3`,
     key: "hanzi-pattern:200",
-    chars: ["一","口","图","吧"],
+    chars: ["一","口","固","品"],
   },
   {
     difficulty: 'normal',
-    stem: `一　口　园　目`,
+    stem: `一　口　固　晶`,
     correct: "封闭区域个数累加1",
     distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
-    explanation: `汉字：一、口、园、目
+    explanation: `汉字：一、口、固、晶
 规律：封闭区域个数累加1
 核对：封闭区域 0→1→2→3`,
     key: "hanzi-pattern:201",
-    chars: ["一","口","园","目"],
+    chars: ["一","口","固","晶"],
   },
   {
     difficulty: 'normal',
-    stem: `一　口　园　品`,
+    stem: `一　口　昌　目`,
     correct: "封闭区域个数累加1",
     distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
-    explanation: `汉字：一、口、园、品
+    explanation: `汉字：一、口、昌、目
 规律：封闭区域个数累加1
 核对：封闭区域 0→1→2→3`,
     key: "hanzi-pattern:202",
-    chars: ["一","口","园","品"],
+    chars: ["一","口","昌","目"],
   },
   {
     difficulty: 'normal',
-    stem: `一　口　园　吧`,
+    stem: `一　口　昌　品`,
     correct: "封闭区域个数累加1",
     distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
-    explanation: `汉字：一、口、园、吧
+    explanation: `汉字：一、口、昌、品
 规律：封闭区域个数累加1
 核对：封闭区域 0→1→2→3`,
     key: "hanzi-pattern:203",
-    chars: ["一","口","园","吧"],
+    chars: ["一","口","昌","品"],
   },
   {
     difficulty: 'normal',
-    stem: `一　口　困　目`,
+    stem: `一　口　昌　晶`,
     correct: "封闭区域个数累加1",
     distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
-    explanation: `汉字：一、口、困、目
+    explanation: `汉字：一、口、昌、晶
 规律：封闭区域个数累加1
 核对：封闭区域 0→1→2→3`,
     key: "hanzi-pattern:204",
-    chars: ["一","口","困","目"],
+    chars: ["一","口","昌","晶"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `一　口　串　目`,
+    correct: "封闭区域个数累加1",
+    distractors: ["都有封闭区域","都是开放区域","封闭区域个数相等","封闭区域个数累减1","都包含「土」"],
+    explanation: `汉字：一、口、串、目
+规律：封闭区域个数累加1
+核对：封闭区域 0→1→2→3`,
+    key: "hanzi-pattern:205",
+    chars: ["一","口","串","目"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `目　吧　口　一`,
+    correct: "封闭区域个数累减1",
+    distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
+    explanation: `汉字：目、吧、口、一
+规律：封闭区域个数累减1
+核对：封闭区域 3→2→1→0`,
+    key: "hanzi-pattern:206",
+    chars: ["目","吧","口","一"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `品　吧　口　一`,
+    correct: "封闭区域个数累减1",
+    distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
+    explanation: `汉字：品、吧、口、一
+规律：封闭区域个数累减1
+核对：封闭区域 3→2→1→0`,
+    key: "hanzi-pattern:207",
+    chars: ["品","吧","口","一"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `晶　吧　口　一`,
+    correct: "封闭区域个数累减1",
+    distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
+    explanation: `汉字：晶、吧、口、一
+规律：封闭区域个数累减1
+核对：封闭区域 3→2→1→0`,
+    key: "hanzi-pattern:208",
+    chars: ["晶","吧","口","一"],
   },
   {
     difficulty: 'normal',
@@ -2258,7 +2302,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：目、回、口、一
 规律：封闭区域个数累减1
 核对：封闭区域 3→2→1→0`,
-    key: "hanzi-pattern:205",
+    key: "hanzi-pattern:209",
     chars: ["目","回","口","一"],
   },
   {
@@ -2269,19 +2313,19 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：品、回、口、一
 规律：封闭区域个数累减1
 核对：封闭区域 3→2→1→0`,
-    key: "hanzi-pattern:206",
+    key: "hanzi-pattern:210",
     chars: ["品","回","口","一"],
   },
   {
     difficulty: 'normal',
-    stem: `吧　回　口　一`,
+    stem: `晶　回　口　一`,
     correct: "封闭区域个数累减1",
     distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
-    explanation: `汉字：吧、回、口、一
+    explanation: `汉字：晶、回、口、一
 规律：封闭区域个数累减1
 核对：封闭区域 3→2→1→0`,
-    key: "hanzi-pattern:207",
-    chars: ["吧","回","口","一"],
+    key: "hanzi-pattern:211",
+    chars: ["晶","回","口","一"],
   },
   {
     difficulty: 'normal',
@@ -2291,7 +2335,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：目、田、口、一
 规律：封闭区域个数累减1
 核对：封闭区域 3→2→1→0`,
-    key: "hanzi-pattern:208",
+    key: "hanzi-pattern:212",
     chars: ["目","田","口","一"],
   },
   {
@@ -2302,19 +2346,19 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：品、田、口、一
 规律：封闭区域个数累减1
 核对：封闭区域 3→2→1→0`,
-    key: "hanzi-pattern:209",
+    key: "hanzi-pattern:213",
     chars: ["品","田","口","一"],
   },
   {
     difficulty: 'normal',
-    stem: `吧　田　口　一`,
+    stem: `晶　田　口　一`,
     correct: "封闭区域个数累减1",
     distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
-    explanation: `汉字：吧、田、口、一
+    explanation: `汉字：晶、田、口、一
 规律：封闭区域个数累减1
 核对：封闭区域 3→2→1→0`,
-    key: "hanzi-pattern:210",
-    chars: ["吧","田","口","一"],
+    key: "hanzi-pattern:214",
+    chars: ["晶","田","口","一"],
   },
   {
     difficulty: 'normal',
@@ -2324,7 +2368,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：目、吕、口、一
 规律：封闭区域个数累减1
 核对：封闭区域 3→2→1→0`,
-    key: "hanzi-pattern:211",
+    key: "hanzi-pattern:215",
     chars: ["目","吕","口","一"],
   },
   {
@@ -2335,140 +2379,107 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：品、吕、口、一
 规律：封闭区域个数累减1
 核对：封闭区域 3→2→1→0`,
-    key: "hanzi-pattern:212",
+    key: "hanzi-pattern:216",
     chars: ["品","吕","口","一"],
   },
   {
     difficulty: 'normal',
-    stem: `吧　吕　口　一`,
+    stem: `晶　吕　口　一`,
     correct: "封闭区域个数累减1",
     distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
-    explanation: `汉字：吧、吕、口、一
-规律：封闭区域个数累减1
-核对：封闭区域 3→2→1→0`,
-    key: "hanzi-pattern:213",
-    chars: ["吧","吕","口","一"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `目　把　口　一`,
-    correct: "封闭区域个数累减1",
-    distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
-    explanation: `汉字：目、把、口、一
-规律：封闭区域个数累减1
-核对：封闭区域 3→2→1→0`,
-    key: "hanzi-pattern:214",
-    chars: ["目","把","口","一"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `品　把　口　一`,
-    correct: "封闭区域个数累减1",
-    distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
-    explanation: `汉字：品、把、口、一
-规律：封闭区域个数累减1
-核对：封闭区域 3→2→1→0`,
-    key: "hanzi-pattern:215",
-    chars: ["品","把","口","一"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `吧　把　口　一`,
-    correct: "封闭区域个数累减1",
-    distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
-    explanation: `汉字：吧、把、口、一
-规律：封闭区域个数累减1
-核对：封闭区域 3→2→1→0`,
-    key: "hanzi-pattern:216",
-    chars: ["吧","把","口","一"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `目　图　口　一`,
-    correct: "封闭区域个数累减1",
-    distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
-    explanation: `汉字：目、图、口、一
+    explanation: `汉字：晶、吕、口、一
 规律：封闭区域个数累减1
 核对：封闭区域 3→2→1→0`,
     key: "hanzi-pattern:217",
-    chars: ["目","图","口","一"],
+    chars: ["晶","吕","口","一"],
   },
   {
     difficulty: 'normal',
-    stem: `品　图　口　一`,
+    stem: `目　固　口　一`,
     correct: "封闭区域个数累减1",
     distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
-    explanation: `汉字：品、图、口、一
+    explanation: `汉字：目、固、口、一
 规律：封闭区域个数累减1
 核对：封闭区域 3→2→1→0`,
     key: "hanzi-pattern:218",
-    chars: ["品","图","口","一"],
+    chars: ["目","固","口","一"],
   },
   {
     difficulty: 'normal',
-    stem: `吧　图　口　一`,
+    stem: `品　固　口　一`,
     correct: "封闭区域个数累减1",
     distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
-    explanation: `汉字：吧、图、口、一
+    explanation: `汉字：品、固、口、一
 规律：封闭区域个数累减1
 核对：封闭区域 3→2→1→0`,
     key: "hanzi-pattern:219",
-    chars: ["吧","图","口","一"],
+    chars: ["品","固","口","一"],
   },
   {
     difficulty: 'normal',
-    stem: `目　园　口　一`,
+    stem: `晶　固　口　一`,
     correct: "封闭区域个数累减1",
     distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
-    explanation: `汉字：目、园、口、一
+    explanation: `汉字：晶、固、口、一
 规律：封闭区域个数累减1
 核对：封闭区域 3→2→1→0`,
     key: "hanzi-pattern:220",
-    chars: ["目","园","口","一"],
+    chars: ["晶","固","口","一"],
   },
   {
     difficulty: 'normal',
-    stem: `品　园　口　一`,
+    stem: `目　昌　口　一`,
     correct: "封闭区域个数累减1",
     distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
-    explanation: `汉字：品、园、口、一
+    explanation: `汉字：目、昌、口、一
 规律：封闭区域个数累减1
 核对：封闭区域 3→2→1→0`,
     key: "hanzi-pattern:221",
-    chars: ["品","园","口","一"],
+    chars: ["目","昌","口","一"],
   },
   {
     difficulty: 'normal',
-    stem: `吧　园　口　一`,
+    stem: `品　昌　口　一`,
     correct: "封闭区域个数累减1",
     distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
-    explanation: `汉字：吧、园、口、一
+    explanation: `汉字：品、昌、口、一
 规律：封闭区域个数累减1
 核对：封闭区域 3→2→1→0`,
     key: "hanzi-pattern:222",
-    chars: ["吧","园","口","一"],
+    chars: ["品","昌","口","一"],
   },
   {
     difficulty: 'normal',
-    stem: `目　困　口　一`,
+    stem: `晶　昌　口　一`,
     correct: "封闭区域个数累减1",
     distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
-    explanation: `汉字：目、困、口、一
+    explanation: `汉字：晶、昌、口、一
 规律：封闭区域个数累减1
 核对：封闭区域 3→2→1→0`,
     key: "hanzi-pattern:223",
-    chars: ["目","困","口","一"],
+    chars: ["晶","昌","口","一"],
   },
   {
     difficulty: 'normal',
-    stem: `品　困　口　一`,
+    stem: `目　串　口　一`,
     correct: "封闭区域个数累减1",
     distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
-    explanation: `汉字：品、困、口、一
+    explanation: `汉字：目、串、口、一
 规律：封闭区域个数累减1
 核对：封闭区域 3→2→1→0`,
     key: "hanzi-pattern:224",
-    chars: ["品","困","口","一"],
+    chars: ["目","串","口","一"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `品　串　口　一`,
+    correct: "封闭区域个数累减1",
+    distractors: ["封闭区域个数累加1","都是开放区域","都有封闭区域","封闭区域个数相等","上下结构"],
+    explanation: `汉字：品、串、口、一
+规律：封闭区域个数累减1
+核对：封闭区域 3→2→1→0`,
+    key: "hanzi-pattern:225",
+    chars: ["品","串","口","一"],
   },
   {
     difficulty: 'normal',
@@ -2478,7 +2489,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、乙、丁、七
 规律：笔画不相连部分个数相等
 核对：不相连部分个数均为 1`,
-    key: "hanzi-pattern:225",
+    key: "hanzi-pattern:226",
     chars: ["一","乙","丁","七"],
   },
   {
@@ -2489,7 +2500,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：乙、丁、七、十
 规律：笔画不相连部分个数相等
 核对：不相连部分个数均为 1`,
-    key: "hanzi-pattern:226",
+    key: "hanzi-pattern:227",
     chars: ["乙","丁","七","十"],
   },
   {
@@ -2500,7 +2511,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：丁、七、十、干
 规律：笔画不相连部分个数相等
 核对：不相连部分个数均为 1`,
-    key: "hanzi-pattern:227",
+    key: "hanzi-pattern:228",
     chars: ["丁","七","十","干"],
   },
   {
@@ -2511,7 +2522,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：七、十、干、土
 规律：笔画不相连部分个数相等
 核对：不相连部分个数均为 1`,
-    key: "hanzi-pattern:228",
+    key: "hanzi-pattern:229",
     chars: ["七","十","干","土"],
   },
   {
@@ -2522,7 +2533,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：十、干、土、王
 规律：笔画不相连部分个数相等
 核对：不相连部分个数均为 1`,
-    key: "hanzi-pattern:229",
+    key: "hanzi-pattern:230",
     chars: ["十","干","土","王"],
   },
   {
@@ -2533,7 +2544,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：干、土、王、开
 规律：笔画不相连部分个数相等
 核对：不相连部分个数均为 1`,
-    key: "hanzi-pattern:230",
+    key: "hanzi-pattern:231",
     chars: ["干","土","王","开"],
   },
   {
@@ -2544,7 +2555,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：土、王、开、井
 规律：笔画不相连部分个数相等
 核对：不相连部分个数均为 1`,
-    key: "hanzi-pattern:231",
+    key: "hanzi-pattern:232",
     chars: ["土","王","开","井"],
   },
   {
@@ -2555,96 +2566,96 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：王、开、井、天
 规律：笔画不相连部分个数相等
 核对：不相连部分个数均为 1`,
-    key: "hanzi-pattern:232",
+    key: "hanzi-pattern:233",
     chars: ["王","开","井","天"],
   },
   {
     difficulty: 'normal',
-    stem: `勺　八　儿　丫`,
+    stem: `勺　八　儿　匀`,
     correct: "笔画不相连部分个数相等",
     distractors: ["笔画不相连部分个数累减1","笔画不相连部分个数累加1","左右对称","笔画交叉数累减1","都包含「亻」"],
-    explanation: `汉字：勺、八、儿、丫
-规律：笔画不相连部分个数相等
-核对：不相连部分个数均为 2`,
-    key: "hanzi-pattern:233",
-    chars: ["勺","八","儿","丫"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `八　儿　丫　万`,
-    correct: "笔画不相连部分个数相等",
-    distractors: ["笔画不相连部分个数累减1","笔画不相连部分个数累加1","左右对称","笔画交叉数累减1","都包含「亻」"],
-    explanation: `汉字：八、儿、丫、万
+    explanation: `汉字：勺、八、儿、匀
 规律：笔画不相连部分个数相等
 核对：不相连部分个数均为 2`,
     key: "hanzi-pattern:234",
-    chars: ["八","儿","丫","万"],
+    chars: ["勺","八","儿","匀"],
   },
   {
     difficulty: 'normal',
-    stem: `儿　丫　万　方`,
+    stem: `八　儿　匀　勾`,
     correct: "笔画不相连部分个数相等",
     distractors: ["笔画不相连部分个数累减1","笔画不相连部分个数累加1","左右对称","笔画交叉数累减1","都包含「亻」"],
-    explanation: `汉字：儿、丫、万、方
+    explanation: `汉字：八、儿、匀、勾
 规律：笔画不相连部分个数相等
 核对：不相连部分个数均为 2`,
     key: "hanzi-pattern:235",
-    chars: ["儿","丫","万","方"],
+    chars: ["八","儿","匀","勾"],
   },
   {
     difficulty: 'normal',
-    stem: `丫　万　方　为`,
+    stem: `儿　八　匀　勾`,
     correct: "笔画不相连部分个数相等",
     distractors: ["笔画不相连部分个数累减1","笔画不相连部分个数累加1","左右对称","笔画交叉数累减1","都包含「亻」"],
-    explanation: `汉字：丫、万、方、为
+    explanation: `汉字：儿、八、匀、勾
 规律：笔画不相连部分个数相等
 核对：不相连部分个数均为 2`,
     key: "hanzi-pattern:236",
-    chars: ["丫","万","方","为"],
+    chars: ["儿","八","匀","勾"],
   },
   {
     difficulty: 'normal',
-    stem: `万　方　为　匀`,
+    stem: `勾　匀　八　勺`,
     correct: "笔画不相连部分个数相等",
     distractors: ["笔画不相连部分个数累减1","笔画不相连部分个数累加1","左右对称","笔画交叉数累减1","都包含「亻」"],
-    explanation: `汉字：万、方、为、匀
+    explanation: `汉字：勾、匀、八、勺
 规律：笔画不相连部分个数相等
 核对：不相连部分个数均为 2`,
     key: "hanzi-pattern:237",
-    chars: ["万","方","为","匀"],
+    chars: ["勾","匀","八","勺"],
   },
   {
     difficulty: 'normal',
-    stem: `方　为　匀　勾`,
+    stem: `八　匀　儿　勾`,
     correct: "笔画不相连部分个数相等",
     distractors: ["笔画不相连部分个数累减1","笔画不相连部分个数累加1","左右对称","笔画交叉数累减1","都包含「亻」"],
-    explanation: `汉字：方、为、匀、勾
+    explanation: `汉字：八、匀、儿、勾
 规律：笔画不相连部分个数相等
 核对：不相连部分个数均为 2`,
     key: "hanzi-pattern:238",
-    chars: ["方","为","匀","勾"],
+    chars: ["八","匀","儿","勾"],
   },
   {
     difficulty: 'normal',
-    stem: `为　匀　勾　勿`,
+    stem: `勾　儿　勺　八`,
     correct: "笔画不相连部分个数相等",
     distractors: ["笔画不相连部分个数累减1","笔画不相连部分个数累加1","左右对称","笔画交叉数累减1","都包含「亻」"],
-    explanation: `汉字：为、匀、勾、勿
+    explanation: `汉字：勾、儿、勺、八
 规律：笔画不相连部分个数相等
 核对：不相连部分个数均为 2`,
     key: "hanzi-pattern:239",
-    chars: ["为","匀","勾","勿"],
+    chars: ["勾","儿","勺","八"],
   },
   {
     difficulty: 'normal',
-    stem: `匀　勾　勿　匕`,
+    stem: `八　匀　儿　勺`,
     correct: "笔画不相连部分个数相等",
     distractors: ["笔画不相连部分个数累减1","笔画不相连部分个数累加1","左右对称","笔画交叉数累减1","都包含「亻」"],
-    explanation: `汉字：匀、勾、勿、匕
+    explanation: `汉字：八、匀、儿、勺
 规律：笔画不相连部分个数相等
 核对：不相连部分个数均为 2`,
     key: "hanzi-pattern:240",
-    chars: ["匀","勾","勿","匕"],
+    chars: ["八","匀","儿","勺"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `勺　匀　八　勾`,
+    correct: "笔画不相连部分个数相等",
+    distractors: ["笔画不相连部分个数累减1","笔画不相连部分个数累加1","左右对称","笔画交叉数累减1","都包含「亻」"],
+    explanation: `汉字：勺、匀、八、勾
+规律：笔画不相连部分个数相等
+核对：不相连部分个数均为 2`,
+    key: "hanzi-pattern:241",
+    chars: ["勺","匀","八","勾"],
   },
   {
     difficulty: 'normal',
@@ -2654,7 +2665,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、勺、小、心
 规律：笔画不相连部分个数累加1
 核对：不相连部分 1→2→3→4（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:241",
+    key: "hanzi-pattern:242",
     chars: ["一","勺","小","心"],
   },
   {
@@ -2665,7 +2676,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、勺、小、必
 规律：笔画不相连部分个数累加1
 核对：不相连部分 1→2→3→4（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:242",
+    key: "hanzi-pattern:243",
     chars: ["一","勺","小","必"],
   },
   {
@@ -2676,7 +2687,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、勺、川、心
 规律：笔画不相连部分个数累加1
 核对：不相连部分 1→2→3→4（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:243",
+    key: "hanzi-pattern:244",
     chars: ["一","勺","川","心"],
   },
   {
@@ -2687,7 +2698,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、勺、川、必
 规律：笔画不相连部分个数累加1
 核对：不相连部分 1→2→3→4（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:244",
+    key: "hanzi-pattern:245",
     chars: ["一","勺","川","必"],
   },
   {
@@ -2698,7 +2709,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、勺、彡、心
 规律：笔画不相连部分个数累加1
 核对：不相连部分 1→2→3→4（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:245",
+    key: "hanzi-pattern:246",
     chars: ["一","勺","彡","心"],
   },
   {
@@ -2709,7 +2720,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、勺、彡、必
 规律：笔画不相连部分个数累加1
 核对：不相连部分 1→2→3→4（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:246",
+    key: "hanzi-pattern:247",
     chars: ["一","勺","彡","必"],
   },
   {
@@ -2720,7 +2731,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、八、小、心
 规律：笔画不相连部分个数累加1
 核对：不相连部分 1→2→3→4（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:247",
+    key: "hanzi-pattern:248",
     chars: ["一","八","小","心"],
   },
   {
@@ -2731,7 +2742,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、八、小、必
 规律：笔画不相连部分个数累加1
 核对：不相连部分 1→2→3→4（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:248",
+    key: "hanzi-pattern:249",
     chars: ["一","八","小","必"],
   },
   {
@@ -2742,7 +2753,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、八、川、心
 规律：笔画不相连部分个数累加1
 核对：不相连部分 1→2→3→4（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:249",
+    key: "hanzi-pattern:250",
     chars: ["一","八","川","心"],
   },
   {
@@ -2753,7 +2764,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、八、川、必
 规律：笔画不相连部分个数累加1
 核对：不相连部分 1→2→3→4（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:250",
+    key: "hanzi-pattern:251",
     chars: ["一","八","川","必"],
   },
   {
@@ -2764,7 +2775,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、八、彡、心
 规律：笔画不相连部分个数累加1
 核对：不相连部分 1→2→3→4（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:251",
+    key: "hanzi-pattern:252",
     chars: ["一","八","彡","心"],
   },
   {
@@ -2775,7 +2786,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、八、彡、必
 规律：笔画不相连部分个数累加1
 核对：不相连部分 1→2→3→4（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:252",
+    key: "hanzi-pattern:253",
     chars: ["一","八","彡","必"],
   },
   {
@@ -2786,7 +2797,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、儿、小、心
 规律：笔画不相连部分个数累加1
 核对：不相连部分 1→2→3→4（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:253",
+    key: "hanzi-pattern:254",
     chars: ["一","儿","小","心"],
   },
   {
@@ -2797,7 +2808,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、儿、小、必
 规律：笔画不相连部分个数累加1
 核对：不相连部分 1→2→3→4（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:254",
+    key: "hanzi-pattern:255",
     chars: ["一","儿","小","必"],
   },
   {
@@ -2808,7 +2819,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：一、儿、川、心
 规律：笔画不相连部分个数累加1
 核对：不相连部分 1→2→3→4（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:255",
+    key: "hanzi-pattern:256",
     chars: ["一","儿","川","心"],
   },
   {
@@ -2819,7 +2830,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：心、小、勺、一
 规律：笔画不相连部分个数累减1
 核对：不相连部分 4→3→2→1（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:256",
+    key: "hanzi-pattern:257",
     chars: ["心","小","勺","一"],
   },
   {
@@ -2830,7 +2841,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：必、小、勺、一
 规律：笔画不相连部分个数累减1
 核对：不相连部分 4→3→2→1（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:257",
+    key: "hanzi-pattern:258",
     chars: ["必","小","勺","一"],
   },
   {
@@ -2841,7 +2852,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：心、川、勺、一
 规律：笔画不相连部分个数累减1
 核对：不相连部分 4→3→2→1（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:258",
+    key: "hanzi-pattern:259",
     chars: ["心","川","勺","一"],
   },
   {
@@ -2852,7 +2863,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：必、川、勺、一
 规律：笔画不相连部分个数累减1
 核对：不相连部分 4→3→2→1（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:259",
+    key: "hanzi-pattern:260",
     chars: ["必","川","勺","一"],
   },
   {
@@ -2863,7 +2874,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：心、彡、勺、一
 规律：笔画不相连部分个数累减1
 核对：不相连部分 4→3→2→1（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:260",
+    key: "hanzi-pattern:261",
     chars: ["心","彡","勺","一"],
   },
   {
@@ -2874,7 +2885,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：必、彡、勺、一
 规律：笔画不相连部分个数累减1
 核对：不相连部分 4→3→2→1（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:261",
+    key: "hanzi-pattern:262",
     chars: ["必","彡","勺","一"],
   },
   {
@@ -2885,7 +2896,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：心、小、八、一
 规律：笔画不相连部分个数累减1
 核对：不相连部分 4→3→2→1（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:262",
+    key: "hanzi-pattern:263",
     chars: ["心","小","八","一"],
   },
   {
@@ -2896,7 +2907,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：必、小、八、一
 规律：笔画不相连部分个数累减1
 核对：不相连部分 4→3→2→1（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:263",
+    key: "hanzi-pattern:264",
     chars: ["必","小","八","一"],
   },
   {
@@ -2907,7 +2918,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：心、川、八、一
 规律：笔画不相连部分个数累减1
 核对：不相连部分 4→3→2→1（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:264",
+    key: "hanzi-pattern:265",
     chars: ["心","川","八","一"],
   },
   {
@@ -2918,7 +2929,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：必、川、八、一
 规律：笔画不相连部分个数累减1
 核对：不相连部分 4→3→2→1（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:265",
+    key: "hanzi-pattern:266",
     chars: ["必","川","八","一"],
   },
   {
@@ -2929,7 +2940,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：心、彡、八、一
 规律：笔画不相连部分个数累减1
 核对：不相连部分 4→3→2→1（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:266",
+    key: "hanzi-pattern:267",
     chars: ["心","彡","八","一"],
   },
   {
@@ -2940,7 +2951,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：必、彡、八、一
 规律：笔画不相连部分个数累减1
 核对：不相连部分 4→3→2→1（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:267",
+    key: "hanzi-pattern:268",
     chars: ["必","彡","八","一"],
   },
   {
@@ -2951,7 +2962,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：心、小、儿、一
 规律：笔画不相连部分个数累减1
 核对：不相连部分 4→3→2→1（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:268",
+    key: "hanzi-pattern:269",
     chars: ["心","小","儿","一"],
   },
   {
@@ -2962,7 +2973,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：必、小、儿、一
 规律：笔画不相连部分个数累减1
 核对：不相连部分 4→3→2→1（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:269",
+    key: "hanzi-pattern:270",
     chars: ["必","小","儿","一"],
   },
   {
@@ -2973,7 +2984,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：心、川、儿、一
 规律：笔画不相连部分个数累减1
 核对：不相连部分 4→3→2→1（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:270",
+    key: "hanzi-pattern:271",
     chars: ["心","川","儿","一"],
   },
   {
@@ -2984,7 +2995,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：必、川、儿、一
 规律：笔画不相连部分个数累减1
 核对：不相连部分 4→3→2→1（开=1/勺=2/小=3）`,
-    key: "hanzi-pattern:271",
+    key: "hanzi-pattern:272",
     chars: ["必","川","儿","一"],
   },
   {
@@ -2995,7 +3006,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：明、休、村、河
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:272",
+    key: "hanzi-pattern:273",
     chars: ["明","休","村","河"],
   },
   {
@@ -3006,7 +3017,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：休、村、河、林
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:273",
+    key: "hanzi-pattern:274",
     chars: ["休","村","河","林"],
   },
   {
@@ -3017,7 +3028,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：村、河、林、秋
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:274",
+    key: "hanzi-pattern:275",
     chars: ["村","河","林","秋"],
   },
   {
@@ -3028,7 +3039,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：河、林、秋、灯
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:275",
+    key: "hanzi-pattern:276",
     chars: ["河","林","秋","灯"],
   },
   {
@@ -3039,7 +3050,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：林、秋、灯、伟
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:276",
+    key: "hanzi-pattern:277",
     chars: ["林","秋","灯","伟"],
   },
   {
@@ -3050,7 +3061,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：秋、灯、伟、打
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:277",
+    key: "hanzi-pattern:278",
     chars: ["秋","灯","伟","打"],
   },
   {
@@ -3061,7 +3072,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：灯、伟、打、江
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:278",
+    key: "hanzi-pattern:279",
     chars: ["灯","伟","打","江"],
   },
   {
@@ -3072,7 +3083,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：伟、打、江、说
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:279",
+    key: "hanzi-pattern:280",
     chars: ["伟","打","江","说"],
   },
   {
@@ -3083,7 +3094,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：打、江、说、银
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:280",
+    key: "hanzi-pattern:281",
     chars: ["打","江","说","银"],
   },
   {
@@ -3094,7 +3105,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：江、说、银、她
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:281",
+    key: "hanzi-pattern:282",
     chars: ["江","说","银","她"],
   },
   {
@@ -3105,7 +3116,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：说、银、她、朋
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:282",
+    key: "hanzi-pattern:283",
     chars: ["说","银","她","朋"],
   },
   {
@@ -3116,7 +3127,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：银、她、朋、羽
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:283",
+    key: "hanzi-pattern:284",
     chars: ["银","她","朋","羽"],
   },
   {
@@ -3127,7 +3138,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：她、朋、羽、双
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:284",
+    key: "hanzi-pattern:285",
     chars: ["她","朋","羽","双"],
   },
   {
@@ -3138,7 +3149,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：朋、羽、双、卧
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:285",
+    key: "hanzi-pattern:286",
     chars: ["朋","羽","双","卧"],
   },
   {
@@ -3149,7 +3160,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：羽、双、卧、低
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:286",
+    key: "hanzi-pattern:287",
     chars: ["羽","双","卧","低"],
   },
   {
@@ -3160,7 +3171,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：双、卧、低、住
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:287",
+    key: "hanzi-pattern:288",
     chars: ["双","卧","低","住"],
   },
   {
@@ -3171,7 +3182,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：卧、低、住、依
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:288",
+    key: "hanzi-pattern:289",
     chars: ["卧","低","住","依"],
   },
   {
@@ -3182,7 +3193,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：低、住、依、估
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:289",
+    key: "hanzi-pattern:290",
     chars: ["低","住","依","估"],
   },
   {
@@ -3193,7 +3204,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：住、依、估、推
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:290",
+    key: "hanzi-pattern:291",
     chars: ["住","依","估","推"],
   },
   {
@@ -3204,7 +3215,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：依、估、推、提
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:291",
+    key: "hanzi-pattern:292",
     chars: ["依","估","推","提"],
   },
   {
@@ -3215,7 +3226,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：估、推、提、扫
 规律：左右结构
 核对：四字均为左右结构`,
-    key: "hanzi-pattern:292",
+    key: "hanzi-pattern:293",
     chars: ["估","推","提","扫"],
   },
   {
@@ -3226,7 +3237,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：思、想、念、忘
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:293",
+    key: "hanzi-pattern:294",
     chars: ["思","想","念","忘"],
   },
   {
@@ -3237,7 +3248,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：想、念、忘、花
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:294",
+    key: "hanzi-pattern:295",
     chars: ["想","念","忘","花"],
   },
   {
@@ -3248,7 +3259,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：念、忘、花、草
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:295",
+    key: "hanzi-pattern:296",
     chars: ["念","忘","花","草"],
   },
   {
@@ -3259,7 +3270,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：忘、花、草、英
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:296",
+    key: "hanzi-pattern:297",
     chars: ["忘","花","草","英"],
   },
   {
@@ -3270,7 +3281,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：花、草、英、茶
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:297",
+    key: "hanzi-pattern:298",
     chars: ["花","草","英","茶"],
   },
   {
@@ -3281,7 +3292,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：草、英、茶、字
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:298",
+    key: "hanzi-pattern:299",
     chars: ["草","英","茶","字"],
   },
   {
@@ -3292,7 +3303,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：英、茶、字、安
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:299",
+    key: "hanzi-pattern:300",
     chars: ["英","茶","字","安"],
   },
   {
@@ -3303,7 +3314,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：茶、字、安、守
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:300",
+    key: "hanzi-pattern:301",
     chars: ["茶","字","安","守"],
   },
   {
@@ -3314,7 +3325,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：字、安、守、宅
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:301",
+    key: "hanzi-pattern:302",
     chars: ["字","安","守","宅"],
   },
   {
@@ -3325,7 +3336,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：安、守、宅、音
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:302",
+    key: "hanzi-pattern:303",
     chars: ["安","守","宅","音"],
   },
   {
@@ -3336,7 +3347,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：守、宅、音、意
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:303",
+    key: "hanzi-pattern:304",
     chars: ["守","宅","音","意"],
   },
   {
@@ -3347,7 +3358,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：宅、音、意、竟
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:304",
+    key: "hanzi-pattern:305",
     chars: ["宅","音","意","竟"],
   },
   {
@@ -3358,7 +3369,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：音、意、竟、章
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:305",
+    key: "hanzi-pattern:306",
     chars: ["音","意","竟","章"],
   },
   {
@@ -3369,7 +3380,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：意、竟、章、尖
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:306",
+    key: "hanzi-pattern:307",
     chars: ["意","竟","章","尖"],
   },
   {
@@ -3380,7 +3391,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：竟、章、尖、尘
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:307",
+    key: "hanzi-pattern:308",
     chars: ["竟","章","尖","尘"],
   },
   {
@@ -3391,7 +3402,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：章、尖、尘、肖
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:308",
+    key: "hanzi-pattern:309",
     chars: ["章","尖","尘","肖"],
   },
   {
@@ -3402,7 +3413,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：尖、尘、肖、省
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:309",
+    key: "hanzi-pattern:310",
     chars: ["尖","尘","肖","省"],
   },
   {
@@ -3413,7 +3424,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：尘、肖、省、冒
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:310",
+    key: "hanzi-pattern:311",
     chars: ["尘","肖","省","冒"],
   },
   {
@@ -3424,7 +3435,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：肖、省、冒、昌
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:311",
+    key: "hanzi-pattern:312",
     chars: ["肖","省","冒","昌"],
   },
   {
@@ -3435,7 +3446,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：省、冒、昌、星
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:312",
+    key: "hanzi-pattern:313",
     chars: ["省","冒","昌","星"],
   },
   {
@@ -3446,7 +3457,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：冒、昌、星、晨
 规律：上下结构
 核对：四字均为上下结构`,
-    key: "hanzi-pattern:313",
+    key: "hanzi-pattern:314",
     chars: ["冒","昌","星","晨"],
   },
   {
@@ -3457,7 +3468,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：同、周、风、问
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:314",
+    key: "hanzi-pattern:315",
     chars: ["同","周","风","问"],
   },
   {
@@ -3468,7 +3479,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：周、风、问、闲
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:315",
+    key: "hanzi-pattern:316",
     chars: ["周","风","问","闲"],
   },
   {
@@ -3479,7 +3490,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：风、问、闲、间
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:316",
+    key: "hanzi-pattern:317",
     chars: ["风","问","闲","间"],
   },
   {
@@ -3490,7 +3501,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：问、闲、间、闭
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:317",
+    key: "hanzi-pattern:318",
     chars: ["问","闲","间","闭"],
   },
   {
@@ -3501,7 +3512,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：闲、间、闭、闯
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:318",
+    key: "hanzi-pattern:319",
     chars: ["闲","间","闭","闯"],
   },
   {
@@ -3512,7 +3523,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：间、闭、闯、压
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:319",
+    key: "hanzi-pattern:320",
     chars: ["间","闭","闯","压"],
   },
   {
@@ -3523,7 +3534,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：闭、闯、压、厅
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:320",
+    key: "hanzi-pattern:321",
     chars: ["闭","闯","压","厅"],
   },
   {
@@ -3534,7 +3545,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：闯、压、厅、历
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:321",
+    key: "hanzi-pattern:322",
     chars: ["闯","压","厅","历"],
   },
   {
@@ -3545,7 +3556,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：压、厅、历、厚
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:322",
+    key: "hanzi-pattern:323",
     chars: ["压","厅","历","厚"],
   },
   {
@@ -3556,7 +3567,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：厅、历、厚、床
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:323",
+    key: "hanzi-pattern:324",
     chars: ["厅","历","厚","床"],
   },
   {
@@ -3567,7 +3578,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：历、厚、床、序
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:324",
+    key: "hanzi-pattern:325",
     chars: ["历","厚","床","序"],
   },
   {
@@ -3578,7 +3589,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：厚、床、序、库
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:325",
+    key: "hanzi-pattern:326",
     chars: ["厚","床","序","库"],
   },
   {
@@ -3589,7 +3600,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：床、序、库、应
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:326",
+    key: "hanzi-pattern:327",
     chars: ["床","序","库","应"],
   },
   {
@@ -3600,7 +3611,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：序、库、应、这
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:327",
+    key: "hanzi-pattern:328",
     chars: ["序","库","应","这"],
   },
   {
@@ -3611,7 +3622,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：库、应、这、还
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:328",
+    key: "hanzi-pattern:329",
     chars: ["库","应","这","还"],
   },
   {
@@ -3622,7 +3633,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：应、这、还、过
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:329",
+    key: "hanzi-pattern:330",
     chars: ["应","这","还","过"],
   },
   {
@@ -3633,7 +3644,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：这、还、过、进
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:330",
+    key: "hanzi-pattern:331",
     chars: ["这","还","过","进"],
   },
   {
@@ -3644,7 +3655,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：还、过、进、道
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:331",
+    key: "hanzi-pattern:332",
     chars: ["还","过","进","道"],
   },
   {
@@ -3655,7 +3666,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：过、进、道、远
 规律：半包围结构
 核对：四字均为半包围结构`,
-    key: "hanzi-pattern:332",
+    key: "hanzi-pattern:333",
     chars: ["过","进","道","远"],
   },
   {
@@ -3666,7 +3677,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：木、火、水、日
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:333",
+    key: "hanzi-pattern:334",
     chars: ["木","火","水","日"],
   },
   {
@@ -3677,7 +3688,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：火、水、日、月
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:334",
+    key: "hanzi-pattern:335",
     chars: ["火","水","日","月"],
   },
   {
@@ -3688,7 +3699,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：水、日、月、山
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:335",
+    key: "hanzi-pattern:336",
     chars: ["水","日","月","山"],
   },
   {
@@ -3699,7 +3710,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：日、月、山、石
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:336",
+    key: "hanzi-pattern:337",
     chars: ["日","月","山","石"],
   },
   {
@@ -3710,7 +3721,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：月、山、石、大
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:337",
+    key: "hanzi-pattern:338",
     chars: ["月","山","石","大"],
   },
   {
@@ -3721,7 +3732,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：山、石、大、小
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:338",
+    key: "hanzi-pattern:339",
     chars: ["山","石","大","小"],
   },
   {
@@ -3732,7 +3743,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：石、大、小、上
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:339",
+    key: "hanzi-pattern:340",
     chars: ["石","大","小","上"],
   },
   {
@@ -3743,7 +3754,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：大、小、上、下
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:340",
+    key: "hanzi-pattern:341",
     chars: ["大","小","上","下"],
   },
   {
@@ -3754,7 +3765,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：小、上、下、天
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:341",
+    key: "hanzi-pattern:342",
     chars: ["小","上","下","天"],
   },
   {
@@ -3765,7 +3776,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：上、下、天、王
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:342",
+    key: "hanzi-pattern:343",
     chars: ["上","下","天","王"],
   },
   {
@@ -3776,7 +3787,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：下、天、王、主
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:343",
+    key: "hanzi-pattern:344",
     chars: ["下","天","王","主"],
   },
   {
@@ -3787,7 +3798,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：天、王、主、玉
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:344",
+    key: "hanzi-pattern:345",
     chars: ["天","王","主","玉"],
   },
   {
@@ -3798,7 +3809,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：王、主、玉、牛
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:345",
+    key: "hanzi-pattern:346",
     chars: ["王","主","玉","牛"],
   },
   {
@@ -3809,7 +3820,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：主、玉、牛、羊
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:346",
+    key: "hanzi-pattern:347",
     chars: ["主","玉","牛","羊"],
   },
   {
@@ -3820,7 +3831,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：玉、牛、羊、马
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:347",
+    key: "hanzi-pattern:348",
     chars: ["玉","牛","羊","马"],
   },
   {
@@ -3831,7 +3842,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：牛、羊、马、鸟
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:348",
+    key: "hanzi-pattern:349",
     chars: ["牛","羊","马","鸟"],
   },
   {
@@ -3842,7 +3853,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：羊、马、鸟、手
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:349",
+    key: "hanzi-pattern:350",
     chars: ["羊","马","鸟","手"],
   },
   {
@@ -3853,7 +3864,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：马、鸟、手、毛
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:350",
+    key: "hanzi-pattern:351",
     chars: ["马","鸟","手","毛"],
   },
   {
@@ -3864,7 +3875,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：鸟、手、毛、爪
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:351",
+    key: "hanzi-pattern:352",
     chars: ["鸟","手","毛","爪"],
   },
   {
@@ -3875,7 +3886,7 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：手、毛、爪、牙
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:352",
+    key: "hanzi-pattern:353",
     chars: ["手","毛","爪","牙"],
   },
   {
@@ -3886,437 +3897,415 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：毛、爪、牙、心
 规律：独体结构
 核对：四字均为独体结构`,
-    key: "hanzi-pattern:353",
+    key: "hanzi-pattern:354",
     chars: ["毛","爪","牙","心"],
   },
   {
     difficulty: 'normal',
-    stem: `羽　朋　双　非`,
+    stem: `古　山　大　木`,
     correct: "左右对称",
     distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：羽、朋、双、非
+    explanation: `汉字：古、山、大、木
 规律：左右对称
-核对：四字均为左右轴对称`,
-    key: "hanzi-pattern:354",
-    chars: ["羽","朋","双","非"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `朋　双　非　木`,
-    correct: "左右对称",
-    distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：朋、双、非、木
-规律：左右对称
-核对：四字均为左右轴对称`,
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:355",
-    chars: ["朋","双","非","木"],
+    chars: ["古","山","大","木"],
   },
   {
     difficulty: 'normal',
-    stem: `双　非　木　米`,
+    stem: `山　大　木　非`,
     correct: "左右对称",
     distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：双、非、木、米
+    explanation: `汉字：山、大、木、非
 规律：左右对称
-核对：四字均为左右轴对称`,
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:356",
-    chars: ["双","非","木","米"],
+    chars: ["山","大","木","非"],
   },
   {
     difficulty: 'normal',
-    stem: `非　木　米　十`,
+    stem: `大　木　非　米`,
     correct: "左右对称",
     distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：非、木、米、十
+    explanation: `汉字：大、木、非、米
 规律：左右对称
-核对：四字均为左右轴对称`,
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:357",
-    chars: ["非","木","米","十"],
+    chars: ["大","木","非","米"],
   },
   {
     difficulty: 'normal',
-    stem: `木　米　十　口`,
+    stem: `木　非　米　小`,
     correct: "左右对称",
     distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：木、米、十、口
+    explanation: `汉字：木、非、米、小
 规律：左右对称
-核对：四字均为左右轴对称`,
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:358",
-    chars: ["木","米","十","口"],
+    chars: ["木","非","米","小"],
   },
   {
     difficulty: 'normal',
-    stem: `米　十　口　回`,
+    stem: `非　米　小　八`,
     correct: "左右对称",
     distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：米、十、口、回
+    explanation: `汉字：非、米、小、八
 规律：左右对称
-核对：四字均为左右轴对称`,
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:359",
-    chars: ["米","十","口","回"],
+    chars: ["非","米","小","八"],
   },
   {
     difficulty: 'normal',
-    stem: `十　口　回　田`,
+    stem: `米　小　八　天`,
     correct: "左右对称",
     distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：十、口、回、田
+    explanation: `汉字：米、小、八、天
 规律：左右对称
-核对：四字均为左右轴对称`,
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:360",
-    chars: ["十","口","回","田"],
+    chars: ["米","小","八","天"],
   },
   {
     difficulty: 'normal',
-    stem: `口　回　田　中`,
+    stem: `小　八　天　夫`,
     correct: "左右对称",
     distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：口、回、田、中
+    explanation: `汉字：小、八、天、夫
 规律：左右对称
-核对：四字均为左右轴对称`,
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:361",
-    chars: ["口","回","田","中"],
+    chars: ["小","八","天","夫"],
   },
   {
     difficulty: 'normal',
-    stem: `回　田　中　一`,
+    stem: `八　天　夫　火`,
     correct: "左右对称",
     distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：回、田、中、一
+    explanation: `汉字：八、天、夫、火
 规律：左右对称
-核对：四字均为左右轴对称`,
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:362",
-    chars: ["回","田","中","一"],
+    chars: ["八","天","夫","火"],
   },
   {
     difficulty: 'normal',
-    stem: `田　中　一　二`,
+    stem: `天　夫　火　开`,
     correct: "左右对称",
     distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：田、中、一、二
+    explanation: `汉字：天、夫、火、开
 规律：左右对称
-核对：四字均为左右轴对称`,
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:363",
-    chars: ["田","中","一","二"],
+    chars: ["天","夫","火","开"],
   },
   {
     difficulty: 'normal',
-    stem: `中　一　二　三`,
+    stem: `夫　火　开　丰`,
     correct: "左右对称",
     distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：中、一、二、三
+    explanation: `汉字：夫、火、开、丰
 规律：左右对称
-核对：四字均为左右轴对称`,
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:364",
-    chars: ["中","一","二","三"],
+    chars: ["夫","火","开","丰"],
   },
   {
     difficulty: 'normal',
-    stem: `一　二　三　八`,
+    stem: `火　开　丰　井`,
     correct: "左右对称",
     distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：一、二、三、八
+    explanation: `汉字：火、开、丰、井
 规律：左右对称
-核对：四字均为左右轴对称`,
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:365",
-    chars: ["一","二","三","八"],
+    chars: ["火","开","丰","井"],
   },
   {
     difficulty: 'normal',
-    stem: `二　三　八　小`,
+    stem: `开　丰　井　未`,
     correct: "左右对称",
     distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：二、三、八、小
+    explanation: `汉字：开、丰、井、未
 规律：左右对称
-核对：四字均为左右轴对称`,
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:366",
-    chars: ["二","三","八","小"],
+    chars: ["开","丰","井","未"],
   },
   {
     difficulty: 'normal',
-    stem: `三　八　小　山`,
+    stem: `丰　井　未　末`,
     correct: "左右对称",
     distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：三、八、小、山
+    explanation: `汉字：丰、井、未、末
 规律：左右对称
-核对：四字均为左右轴对称`,
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:367",
-    chars: ["三","八","小","山"],
+    chars: ["丰","井","未","末"],
   },
   {
     difficulty: 'normal',
-    stem: `八　小　山　井`,
+    stem: `井　未　末　来`,
     correct: "左右对称",
     distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：八、小、山、井
+    explanation: `汉字：井、未、末、来
 规律：左右对称
-核对：四字均为左右轴对称`,
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:368",
-    chars: ["八","小","山","井"],
+    chars: ["井","未","末","来"],
   },
   {
     difficulty: 'normal',
-    stem: `小　山　井　开`,
+    stem: `未　末　来　本`,
     correct: "左右对称",
     distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：小、山、井、开
+    explanation: `汉字：未、末、来、本
 规律：左右对称
-核对：四字均为左右轴对称`,
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:369",
-    chars: ["小","山","井","开"],
+    chars: ["未","末","来","本"],
   },
   {
     difficulty: 'normal',
-    stem: `山　井　开　丰`,
+    stem: `末　来　本　夹`,
     correct: "左右对称",
     distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：山、井、开、丰
+    explanation: `汉字：末、来、本、夹
 规律：左右对称
-核对：四字均为左右轴对称`,
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:370",
-    chars: ["山","井","开","丰"],
+    chars: ["末","来","本","夹"],
   },
   {
     difficulty: 'normal',
-    stem: `井　开　丰　王`,
+    stem: `来　本　夹　羊`,
     correct: "左右对称",
     distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
-    explanation: `汉字：井、开、丰、王
+    explanation: `汉字：来、本、夹、羊
 规律：左右对称
-核对：四字均为左右轴对称`,
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:371",
-    chars: ["井","开","丰","王"],
+    chars: ["来","本","夹","羊"],
   },
   {
     difficulty: 'normal',
-    stem: `巨　二　三　吕`,
-    correct: "上下对称",
-    distractors: ["左右对称","都包含「木」","都包含「石」","左右结构","都包含「氵」"],
-    explanation: `汉字：巨、二、三、吕
-规律：上下对称
-核对：四字均为上下轴对称`,
+    stem: `本　夹　羊　半`,
+    correct: "左右对称",
+    distractors: ["上下对称","笔画不相连部分个数累减1","半包围结构","笔画不相连部分个数累加1","笔画交叉数累减1"],
+    explanation: `汉字：本、夹、羊、半
+规律：左右对称
+核对：四字均为左右对称（沿竖轴对折重合，如古/山/大）`,
     key: "hanzi-pattern:372",
-    chars: ["巨","二","三","吕"],
+    chars: ["本","夹","羊","半"],
   },
   {
     difficulty: 'normal',
-    stem: `二　三　吕　昌`,
+    stem: `巨　臣　叵　目`,
     correct: "上下对称",
     distractors: ["左右对称","都包含「木」","都包含「石」","左右结构","都包含「氵」"],
-    explanation: `汉字：二、三、吕、昌
+    explanation: `汉字：巨、臣、叵、目
 规律：上下对称
-核对：四字均为上下轴对称`,
+核对：四字均为上下对称（沿横轴对折重合，如巨/目/中）`,
     key: "hanzi-pattern:373",
-    chars: ["二","三","吕","昌"],
+    chars: ["巨","臣","叵","目"],
   },
   {
     difficulty: 'normal',
-    stem: `三　吕　昌　圭`,
+    stem: `臣　叵　目　中`,
     correct: "上下对称",
     distractors: ["左右对称","都包含「木」","都包含「石」","左右结构","都包含「氵」"],
-    explanation: `汉字：三、吕、昌、圭
+    explanation: `汉字：臣、叵、目、中
 规律：上下对称
-核对：四字均为上下轴对称`,
+核对：四字均为上下对称（沿横轴对折重合，如巨/目/中）`,
     key: "hanzi-pattern:374",
-    chars: ["三","吕","昌","圭"],
+    chars: ["臣","叵","目","中"],
   },
   {
     difficulty: 'normal',
-    stem: `吕　昌　圭　炎`,
+    stem: `叵　目　中　日`,
     correct: "上下对称",
     distractors: ["左右对称","都包含「木」","都包含「石」","左右结构","都包含「氵」"],
-    explanation: `汉字：吕、昌、圭、炎
+    explanation: `汉字：叵、目、中、日
 规律：上下对称
-核对：四字均为上下轴对称`,
+核对：四字均为上下对称（沿横轴对折重合，如巨/目/中）`,
     key: "hanzi-pattern:375",
-    chars: ["吕","昌","圭","炎"],
+    chars: ["叵","目","中","日"],
   },
   {
     difficulty: 'normal',
-    stem: `昌　圭　炎　目`,
+    stem: `叵　臣　目　回`,
     correct: "上下对称",
     distractors: ["左右对称","都包含「木」","都包含「石」","左右结构","都包含「氵」"],
-    explanation: `汉字：昌、圭、炎、目
+    explanation: `汉字：叵、臣、目、回
 规律：上下对称
-核对：四字均为上下轴对称`,
+核对：四字均为上下对称（沿横轴对折重合，如巨/目/中）`,
     key: "hanzi-pattern:376",
-    chars: ["昌","圭","炎","目"],
+    chars: ["叵","臣","目","回"],
   },
   {
     difficulty: 'normal',
-    stem: `圭　炎　目　一`,
+    stem: `中　回　二　巨`,
     correct: "上下对称",
     distractors: ["左右对称","都包含「木」","都包含「石」","左右结构","都包含「氵」"],
-    explanation: `汉字：圭、炎、目、一
+    explanation: `汉字：中、回、二、巨
 规律：上下对称
-核对：四字均为上下轴对称`,
+核对：四字均为上下对称（沿横轴对折重合，如巨/目/中）`,
     key: "hanzi-pattern:377",
-    chars: ["圭","炎","目","一"],
+    chars: ["中","回","二","巨"],
   },
   {
     difficulty: 'normal',
-    stem: `炎　目　一　亘`,
+    stem: `目　臣　叵　申`,
     correct: "上下对称",
     distractors: ["左右对称","都包含「木」","都包含「石」","左右结构","都包含「氵」"],
-    explanation: `汉字：炎、目、一、亘
+    explanation: `汉字：目、臣、叵、申
 规律：上下对称
-核对：四字均为上下轴对称`,
+核对：四字均为上下对称（沿横轴对折重合，如巨/目/中）`,
     key: "hanzi-pattern:378",
-    chars: ["炎","目","一","亘"],
+    chars: ["目","臣","叵","申"],
   },
   {
     difficulty: 'normal',
-    stem: `目　一　亘　亚`,
+    stem: `亚　回　日　巨`,
     correct: "上下对称",
     distractors: ["左右对称","都包含「木」","都包含「石」","左右结构","都包含「氵」"],
-    explanation: `汉字：目、一、亘、亚
+    explanation: `汉字：亚、回、日、巨
 规律：上下对称
-核对：四字均为上下轴对称`,
+核对：四字均为上下对称（沿横轴对折重合，如巨/目/中）`,
     key: "hanzi-pattern:379",
-    chars: ["目","一","亘","亚"],
+    chars: ["亚","回","日","巨"],
   },
   {
     difficulty: 'normal',
-    stem: `一　亘　亚　出`,
+    stem: `亚　中　臣　田`,
     correct: "上下对称",
     distractors: ["左右对称","都包含「木」","都包含「石」","左右结构","都包含「氵」"],
-    explanation: `汉字：一、亘、亚、出
+    explanation: `汉字：亚、中、臣、田
 规律：上下对称
-核对：四字均为上下轴对称`,
+核对：四字均为上下对称（沿横轴对折重合，如巨/目/中）`,
     key: "hanzi-pattern:380",
-    chars: ["一","亘","亚","出"],
+    chars: ["亚","中","臣","田"],
   },
   {
     difficulty: 'normal',
-    stem: `亘　亚　出　兆`,
+    stem: `目　臣　二　三`,
     correct: "上下对称",
     distractors: ["左右对称","都包含「木」","都包含「石」","左右结构","都包含「氵」"],
-    explanation: `汉字：亘、亚、出、兆
+    explanation: `汉字：目、臣、二、三
 规律：上下对称
-核对：四字均为上下轴对称`,
+核对：四字均为上下对称（沿横轴对折重合，如巨/目/中）`,
     key: "hanzi-pattern:381",
-    chars: ["亘","亚","出","兆"],
+    chars: ["目","臣","二","三"],
   },
   {
     difficulty: 'normal',
-    stem: `亚　出　兆　芈`,
+    stem: `目　田　回　叵`,
     correct: "上下对称",
     distractors: ["左右对称","都包含「木」","都包含「石」","左右结构","都包含「氵」"],
-    explanation: `汉字：亚、出、兆、芈
+    explanation: `汉字：目、田、回、叵
 规律：上下对称
-核对：四字均为上下轴对称`,
+核对：四字均为上下对称（沿横轴对折重合，如巨/目/中）`,
     key: "hanzi-pattern:382",
-    chars: ["亚","出","兆","芈"],
+    chars: ["目","田","回","叵"],
   },
   {
     difficulty: 'normal',
-    stem: `炎　出　巨　二`,
+    stem: `目　田　日　叵`,
     correct: "上下对称",
     distractors: ["左右对称","都包含「木」","都包含「石」","左右结构","都包含「氵」"],
-    explanation: `汉字：炎、出、巨、二
+    explanation: `汉字：目、田、日、叵
 规律：上下对称
-核对：四字均为上下轴对称`,
+核对：四字均为上下对称（沿横轴对折重合，如巨/目/中）`,
     key: "hanzi-pattern:383",
-    chars: ["炎","出","巨","二"],
+    chars: ["目","田","日","叵"],
   },
   {
     difficulty: 'normal',
-    stem: `兆　圭　三　二`,
+    stem: `三　田　叵　日`,
     correct: "上下对称",
     distractors: ["左右对称","都包含「木」","都包含「石」","左右结构","都包含「氵」"],
-    explanation: `汉字：兆、圭、三、二
+    explanation: `汉字：三、田、叵、日
 规律：上下对称
-核对：四字均为上下轴对称`,
+核对：四字均为上下对称（沿横轴对折重合，如巨/目/中）`,
     key: "hanzi-pattern:384",
-    chars: ["兆","圭","三","二"],
+    chars: ["三","田","叵","日"],
   },
   {
     difficulty: 'normal',
-    stem: `兆　圭　一　目`,
+    stem: `回　田　申　巨`,
     correct: "上下对称",
     distractors: ["左右对称","都包含「木」","都包含「石」","左右结构","都包含「氵」"],
-    explanation: `汉字：兆、圭、一、目
+    explanation: `汉字：回、田、申、巨
 规律：上下对称
-核对：四字均为上下轴对称`,
+核对：四字均为上下对称（沿横轴对折重合，如巨/目/中）`,
     key: "hanzi-pattern:385",
-    chars: ["兆","圭","一","目"],
+    chars: ["回","田","申","巨"],
   },
   {
     difficulty: 'normal',
-    stem: `炎　出　亚　芈`,
+    stem: `叵　目　口　田`,
     correct: "上下对称",
     distractors: ["左右对称","都包含「木」","都包含「石」","左右结构","都包含「氵」"],
-    explanation: `汉字：炎、出、亚、芈
+    explanation: `汉字：叵、目、口、田
 规律：上下对称
-核对：四字均为上下轴对称`,
+核对：四字均为上下对称（沿横轴对折重合，如巨/目/中）`,
     key: "hanzi-pattern:386",
-    chars: ["炎","出","亚","芈"],
+    chars: ["叵","目","口","田"],
   },
   {
     difficulty: 'normal',
-    stem: `白　自　且　回`,
+    stem: `园　困　国　吧`,
     correct: "都有封闭区域",
     distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：白、自、且、回
+    explanation: `汉字：园、困、国、吧
 规律：都有封闭区域
 核对：均有封闭区域（1、1、1、2）`,
     key: "hanzi-pattern:387",
-    chars: ["白","自","且","回"],
+    chars: ["园","困","国","吧"],
   },
   {
     difficulty: 'normal',
-    stem: `自　且　回　田`,
+    stem: `困　国　吧　回`,
     correct: "都有封闭区域",
     distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：自、且、回、田
+    explanation: `汉字：困、国、吧、回
 规律：都有封闭区域
 核对：均有封闭区域（1、1、2、2）`,
     key: "hanzi-pattern:388",
-    chars: ["自","且","回","田"],
+    chars: ["困","国","吧","回"],
   },
   {
     difficulty: 'normal',
-    stem: `且　回　田　吕`,
+    stem: `固　昌　串　目`,
     correct: "都有封闭区域",
     distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：且、回、田、吕
-规律：都有封闭区域
-核对：均有封闭区域（1、2、2、2）`,
-    key: "hanzi-pattern:389",
-    chars: ["且","回","田","吕"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `昌　串　国　目`,
-    correct: "都有封闭区域",
-    distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：昌、串、国、目
+    explanation: `汉字：固、昌、串、目
 规律：都有封闭区域
 核对：均有封闭区域（2、2、2、3）`,
-    key: "hanzi-pattern:390",
-    chars: ["昌","串","国","目"],
+    key: "hanzi-pattern:389",
+    chars: ["固","昌","串","目"],
   },
   {
     difficulty: 'normal',
-    stem: `串　国　目　品`,
+    stem: `昌　串　目　品`,
     correct: "都有封闭区域",
     distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：串、国、目、品
+    explanation: `汉字：昌、串、目、品
 规律：都有封闭区域
 核对：均有封闭区域（2、2、3、3）`,
-    key: "hanzi-pattern:391",
-    chars: ["串","国","目","品"],
+    key: "hanzi-pattern:390",
+    chars: ["昌","串","目","品"],
   },
   {
     difficulty: 'normal',
-    stem: `国　目　品　吧`,
+    stem: `串　目　品　晶`,
     correct: "都有封闭区域",
     distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：国、目、品、吧
+    explanation: `汉字：串、目、品、晶
 规律：都有封闭区域
 核对：均有封闭区域（2、3、3、3）`,
-    key: "hanzi-pattern:392",
-    chars: ["国","目","品","吧"],
+    key: "hanzi-pattern:391",
+    chars: ["串","目","品","晶"],
   },
   {
     difficulty: 'normal',
@@ -4326,140 +4315,151 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
     explanation: `汉字：晶、磊、鑫、器
 规律：都有封闭区域
 核对：均有封闭区域（3、3、3、4）`,
-    key: "hanzi-pattern:393",
+    key: "hanzi-pattern:392",
     chars: ["晶","磊","鑫","器"],
   },
   {
     difficulty: 'normal',
-    stem: `日　五　晶　合`,
+    stem: `右　困　由　鑫`,
     correct: "都有封闭区域",
     distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：日、五、晶、合
+    explanation: `汉字：右、困、由、鑫
+规律：都有封闭区域
+核对：均有封闭区域（1、1、1、3）`,
+    key: "hanzi-pattern:393",
+    chars: ["右","困","由","鑫"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `回　白　困　且`,
+    correct: "都有封闭区域",
+    distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
+    explanation: `汉字：回、白、困、且
+规律：都有封闭区域
+核对：均有封闭区域（2、1、1、1）`,
+    key: "hanzi-pattern:394",
+    chars: ["回","白","困","且"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `固　昌　同　可`,
+    correct: "都有封闭区域",
+    distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
+    explanation: `汉字：固、昌、同、可
+规律：都有封闭区域
+核对：均有封闭区域（2、2、1、1）`,
+    key: "hanzi-pattern:395",
+    chars: ["固","昌","同","可"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `申　品　磊　昌`,
+    correct: "都有封闭区域",
+    distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
+    explanation: `汉字：申、品、磊、昌
+规律：都有封闭区域
+核对：均有封闭区域（1、3、3、2）`,
+    key: "hanzi-pattern:396",
+    chars: ["申","品","磊","昌"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `昌　石　磊　园`,
+    correct: "都有封闭区域",
+    distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
+    explanation: `汉字：昌、石、磊、园
+规律：都有封闭区域
+核对：均有封闭区域（2、1、3、1）`,
+    key: "hanzi-pattern:397",
+    chars: ["昌","石","磊","园"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `国　晶　电　白`,
+    correct: "都有封闭区域",
+    distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
+    explanation: `汉字：国、晶、电、白
+规律：都有封闭区域
+核对：均有封闭区域（1、3、1、1）`,
+    key: "hanzi-pattern:398",
+    chars: ["国","晶","电","白"],
+  },
+  {
+    difficulty: 'normal',
+    stem: `口　国　晶　右`,
+    correct: "都有封闭区域",
+    distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
+    explanation: `汉字：口、国、晶、右
 规律：都有封闭区域
 核对：均有封闭区域（1、1、3、1）`,
-    key: "hanzi-pattern:394",
-    chars: ["日","五","晶","合"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `各　固　口　器`,
-    correct: "都有封闭区域",
-    distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：各、固、口、器
-规律：都有封闭区域
-核对：均有封闭区域（1、2、1、4）`,
-    key: "hanzi-pattern:395",
-    chars: ["各","固","口","器"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `图　中　晶　吧`,
-    correct: "都有封闭区域",
-    distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：图、中、晶、吧
-规律：都有封闭区域
-核对：均有封闭区域（2、1、3、3）`,
-    key: "hanzi-pattern:396",
-    chars: ["图","中","晶","吧"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `鑫　可　西　串`,
-    correct: "都有封闭区域",
-    distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：鑫、可、西、串
-规律：都有封闭区域
-核对：均有封闭区域（3、1、1、2）`,
-    key: "hanzi-pattern:397",
-    chars: ["鑫","可","西","串"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `日　中　困　白`,
-    correct: "都有封闭区域",
-    distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：日、中、困、白
-规律：都有封闭区域
-核对：均有封闭区域（1、1、2、1）`,
-    key: "hanzi-pattern:398",
-    chars: ["日","中","困","白"],
-  },
-  {
-    difficulty: 'normal',
-    stem: `各　名　国　四`,
-    correct: "都有封闭区域",
-    distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：各、名、国、四
-规律：都有封闭区域
-核对：均有封闭区域（1、1、2、1）`,
     key: "hanzi-pattern:399",
-    chars: ["各","名","国","四"],
+    chars: ["口","国","晶","右"],
   },
   {
     difficulty: 'normal',
-    stem: `图　电　自　吧`,
+    stem: `自　鑫　串　右`,
     correct: "都有封闭区域",
     distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：图、电、自、吧
+    explanation: `汉字：自、鑫、串、右
 规律：都有封闭区域
-核对：均有封闭区域（2、1、1、3）`,
+核对：均有封闭区域（1、3、2、1）`,
     key: "hanzi-pattern:400",
-    chars: ["图","电","自","吧"],
+    chars: ["自","鑫","串","右"],
   },
   {
     difficulty: 'normal',
-    stem: `鑫　且　吕　串`,
+    stem: `吕　园　名　后`,
     correct: "都有封闭区域",
     distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：鑫、且、吕、串
+    explanation: `汉字：吕、园、名、后
 规律：都有封闭区域
-核对：均有封闭区域（3、1、2、2）`,
+核对：均有封闭区域（2、1、1、1）`,
     key: "hanzi-pattern:401",
-    chars: ["鑫","且","吕","串"],
+    chars: ["吕","园","名","后"],
   },
   {
     difficulty: 'normal',
-    stem: `图　把　晶　吧`,
+    stem: `国　电　田　可`,
     correct: "都有封闭区域",
     distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：图、把、晶、吧
+    explanation: `汉字：国、电、田、可
 规律：都有封闭区域
-核对：均有封闭区域（2、2、3、3）`,
+核对：均有封闭区域（1、1、2、1）`,
     key: "hanzi-pattern:402",
-    chars: ["图","把","晶","吧"],
+    chars: ["国","电","田","可"],
   },
   {
     difficulty: 'normal',
-    stem: `回　磊　吕　田`,
+    stem: `后　图　园　品`,
     correct: "都有封闭区域",
     distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：回、磊、吕、田
+    explanation: `汉字：后、图、园、品
 规律：都有封闭区域
-核对：均有封闭区域（2、3、2、2）`,
+核对：均有封闭区域（1、1、1、3）`,
     key: "hanzi-pattern:403",
-    chars: ["回","磊","吕","田"],
+    chars: ["后","图","园","品"],
   },
   {
     difficulty: 'normal',
-    stem: `图　中　困　园`,
+    stem: `名　田　串　四`,
     correct: "都有封闭区域",
     distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：图、中、困、园
+    explanation: `汉字：名、田、串、四
 规律：都有封闭区域
-核对：均有封闭区域（2、1、2、2）`,
+核对：均有封闭区域（1、2、2、1）`,
     key: "hanzi-pattern:404",
-    chars: ["图","中","困","园"],
+    chars: ["名","田","串","四"],
   },
   {
     difficulty: 'normal',
-    stem: `后　可　西　串`,
+    stem: `口　电　吕　且`,
     correct: "都有封闭区域",
     distractors: ["都是开放区域","封闭区域个数累加1","封闭区域个数累减1","封闭区域个数相等","都包含「扌」"],
-    explanation: `汉字：后、可、西、串
+    explanation: `汉字：口、电、吕、且
 规律：都有封闭区域
-核对：均有封闭区域（1、1、1、2）`,
+核对：均有封闭区域（1、1、2、1）`,
     key: "hanzi-pattern:405",
-    chars: ["后","可","西","串"],
+    chars: ["口","电","吕","且"],
   },
   {
     difficulty: 'normal',

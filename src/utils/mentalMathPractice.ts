@@ -59,6 +59,11 @@ import {
   type GrammarJudgmentMode,
 } from '@/utils/grammarJudgmentPractice'
 import {
+  RHETORIC_DEVICE_MODES,
+  generateRhetoricDeviceQuestion,
+  type RhetoricDeviceMode,
+} from '@/utils/rhetoricDevicePractice'
+import {
   assertNonTrivialPair,
   buildExamStyleNumberWrongs,
   tryBuildHardCompositeQuestion,
@@ -96,6 +101,7 @@ export type MentalMathMode =
   | WenyanXuciMode
   | WenyanJushiMode
   | GrammarJudgmentMode
+  | RhetoricDeviceMode
 
 export type MentalMathModeCategory =
   | 'arithmetic'
@@ -113,6 +119,7 @@ export type MentalMathModeCategory =
   | 'wenyan-xuci'
   | 'wenyan-jushi'
   | 'grammar-judgment'
+  | 'rhetoric-device'
 
 export type MentalMathAnswerValue = number | string
 
@@ -411,6 +418,13 @@ export const MENTAL_MATH_GRAMMAR_JUDGMENT_MODES: MentalMathModeConfig[] = GRAMMA
   }),
 )
 
+export const MENTAL_MATH_RHETORIC_DEVICE_MODES: MentalMathModeConfig[] = RHETORIC_DEVICE_MODES.map(
+  (m) => ({
+    ...m,
+    category: 'rhetoric-device' as const,
+  }),
+)
+
 /** 复杂题次幂：仅考察 2⁻²～2⁻⁶ 与 2¹⁰～2²⁴ */
 const POWER_HARD_EXPONENTS: number[] = [
   -6,
@@ -452,6 +466,7 @@ export const MENTAL_MATH_MODES: MentalMathModeConfig[] = [
   ...MENTAL_MATH_WENYAN_XUCI_MODES,
   ...MENTAL_MATH_WENYAN_JUSHI_MODES,
   ...MENTAL_MATH_GRAMMAR_JUDGMENT_MODES,
+  ...MENTAL_MATH_RHETORIC_DEVICE_MODES,
 ]
 
 export type MentalMathQuestion = {
@@ -535,6 +550,10 @@ export function isGrammarJudgmentPracticeMode(mode: MentalMathMode): mode is Gra
     mode === 'grammar-judgment-normal' ||
     mode === 'grammar-judgment-hard'
   )
+}
+
+export function isRhetoricDevicePracticeMode(mode: MentalMathMode): mode is RhetoricDeviceMode {
+  return mode === 'rhetoric-device-normal'
 }
 
 function randInt(min: number, max: number): number {
@@ -2119,6 +2138,10 @@ function buildMentalMathQuestionOnce(
 
   if (isGrammarJudgmentPracticeMode(mode)) {
     return generateGrammarJudgmentQuestion(mode, id, optionCount, avoidFingerprints)
+  }
+
+  if (isRhetoricDevicePracticeMode(mode)) {
+    return generateRhetoricDeviceQuestion(mode, id, optionCount, avoidFingerprints)
   }
 
   if (mode === 'power-easy' || mode === 'power-hard') {
