@@ -1405,47 +1405,47 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
   },
   {
     difficulty: 'normal',
-    stem: `刀　丈　才　支`,
+    stem: `刀　丈　才　大`,
     correct: "笔画交叉数相等",
     distractors: ["笔画交叉数累减1","笔画交叉数累加1","都包含「讠」","都包含「口」","上下对称"],
-    explanation: `汉字：刀、丈、才、支
+    explanation: `汉字：刀、丈、才、大
 规律：笔画交叉数相等
 核对：笔画交叉数均为 1`,
     key: "hanzi-pattern:128",
-    chars: ["刀","丈","才","支"],
+    chars: ["刀","丈","才","大"],
   },
   {
     difficulty: 'normal',
-    stem: `丈　才　支　友`,
+    stem: `丈　才　大　又`,
     correct: "笔画交叉数相等",
     distractors: ["笔画交叉数累减1","笔画交叉数累加1","都包含「讠」","都包含「口」","上下对称"],
-    explanation: `汉字：丈、才、支、友
+    explanation: `汉字：丈、才、大、又
 规律：笔画交叉数相等
 核对：笔画交叉数均为 1`,
     key: "hanzi-pattern:129",
-    chars: ["丈","才","支","友"],
+    chars: ["丈","才","大","又"],
   },
   {
     difficulty: 'normal',
-    stem: `才　支　友　大`,
+    stem: `才　大　又　木`,
     correct: "笔画交叉数相等",
     distractors: ["笔画交叉数累减1","笔画交叉数累加1","都包含「讠」","都包含「口」","上下对称"],
-    explanation: `汉字：才、支、友、大
+    explanation: `汉字：才、大、又、木
 规律：笔画交叉数相等
 核对：笔画交叉数均为 1`,
     key: "hanzi-pattern:130",
-    chars: ["才","支","友","大"],
+    chars: ["才","大","又","木"],
   },
   {
     difficulty: 'normal',
-    stem: `支　友　大　又`,
+    stem: `大　又　木　术`,
     correct: "笔画交叉数相等",
     distractors: ["笔画交叉数累减1","笔画交叉数累加1","都包含「讠」","都包含「口」","上下对称"],
-    explanation: `汉字：支、友、大、又
+    explanation: `汉字：大、又、木、术
 规律：笔画交叉数相等
 核对：笔画交叉数均为 1`,
     key: "hanzi-pattern:131",
-    chars: ["支","友","大","又"],
+    chars: ["大","又","木","术"],
   },
   {
     difficulty: 'normal',
@@ -1493,14 +1493,14 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
   },
   {
     difficulty: 'normal',
-    stem: `一　十　干　未`,
+    stem: `一　十　干　束`,
     correct: "笔画交叉数累加1",
     distractors: ["笔画交叉数相等","笔画交叉数累减1","左右对称","都包含「日」","笔画不相连部分个数相等"],
-    explanation: `汉字：一、十、干、未
+    explanation: `汉字：一、十、干、束
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
     key: "hanzi-pattern:136",
-    chars: ["一","十","干","未"],
+    chars: ["一","十","干","束"],
   },
   {
     difficulty: 'normal',
@@ -1526,14 +1526,14 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
   },
   {
     difficulty: 'normal',
-    stem: `一　十　于　未`,
+    stem: `一　十　于　束`,
     correct: "笔画交叉数累加1",
     distractors: ["笔画交叉数相等","笔画交叉数累减1","左右对称","都包含「日」","笔画不相连部分个数相等"],
-    explanation: `汉字：一、十、于、未
+    explanation: `汉字：一、十、于、束
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
     key: "hanzi-pattern:139",
-    chars: ["一","十","于","未"],
+    chars: ["一","十","于","束"],
   },
   {
     difficulty: 'normal',
@@ -1559,14 +1559,14 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
   },
   {
     difficulty: 'normal',
-    stem: `一　十　午　未`,
+    stem: `一　十　午　束`,
     correct: "笔画交叉数累加1",
     distractors: ["笔画交叉数相等","笔画交叉数累减1","左右对称","都包含「日」","笔画不相连部分个数相等"],
-    explanation: `汉字：一、十、午、未
+    explanation: `汉字：一、十、午、束
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
     key: "hanzi-pattern:142",
-    chars: ["一","十","午","未"],
+    chars: ["一","十","午","束"],
   },
   {
     difficulty: 'normal',
@@ -1592,14 +1592,14 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
   },
   {
     difficulty: 'normal',
-    stem: `一　十　牛　未`,
+    stem: `一　十　牛　束`,
     correct: "笔画交叉数累加1",
     distractors: ["笔画交叉数相等","笔画交叉数累减1","左右对称","都包含「日」","笔画不相连部分个数相等"],
-    explanation: `汉字：一、十、牛、未
+    explanation: `汉字：一、十、牛、束
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
     key: "hanzi-pattern:145",
-    chars: ["一","十","牛","未"],
+    chars: ["一","十","牛","束"],
   },
   {
     difficulty: 'normal',
@@ -1625,14 +1625,14 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
   },
   {
     difficulty: 'normal',
-    stem: `一　十　开　未`,
+    stem: `一　十　开　束`,
     correct: "笔画交叉数累加1",
     distractors: ["笔画交叉数相等","笔画交叉数累减1","左右对称","都包含「日」","笔画不相连部分个数相等"],
-    explanation: `汉字：一、十、开、未
+    explanation: `汉字：一、十、开、束
 规律：笔画交叉数累加1
 核对：交叉数 0→1→2→3`,
     key: "hanzi-pattern:148",
-    chars: ["一","十","开","未"],
+    chars: ["一","十","开","束"],
   },
   {
     difficulty: 'normal',
@@ -1658,14 +1658,14 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
   },
   {
     difficulty: 'normal',
-    stem: `未　干　十　一`,
+    stem: `束　干　十　一`,
     correct: "笔画交叉数累减1",
     distractors: ["笔画交叉数累加1","笔画交叉数相等","都包含「月」","独体结构","封闭区域个数累加1"],
-    explanation: `汉字：未、干、十、一
+    explanation: `汉字：束、干、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
     key: "hanzi-pattern:151",
-    chars: ["未","干","十","一"],
+    chars: ["束","干","十","一"],
   },
   {
     difficulty: 'normal',
@@ -1691,14 +1691,14 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
   },
   {
     difficulty: 'normal',
-    stem: `未　于　十　一`,
+    stem: `束　于　十　一`,
     correct: "笔画交叉数累减1",
     distractors: ["笔画交叉数累加1","笔画交叉数相等","都包含「月」","独体结构","封闭区域个数累加1"],
-    explanation: `汉字：未、于、十、一
+    explanation: `汉字：束、于、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
     key: "hanzi-pattern:154",
-    chars: ["未","于","十","一"],
+    chars: ["束","于","十","一"],
   },
   {
     difficulty: 'normal',
@@ -1724,14 +1724,14 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
   },
   {
     difficulty: 'normal',
-    stem: `未　午　十　一`,
+    stem: `束　午　十　一`,
     correct: "笔画交叉数累减1",
     distractors: ["笔画交叉数累加1","笔画交叉数相等","都包含「月」","独体结构","封闭区域个数累加1"],
-    explanation: `汉字：未、午、十、一
+    explanation: `汉字：束、午、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
     key: "hanzi-pattern:157",
-    chars: ["未","午","十","一"],
+    chars: ["束","午","十","一"],
   },
   {
     difficulty: 'normal',
@@ -1757,14 +1757,14 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
   },
   {
     difficulty: 'normal',
-    stem: `未　牛　十　一`,
+    stem: `束　牛　十　一`,
     correct: "笔画交叉数累减1",
     distractors: ["笔画交叉数累加1","笔画交叉数相等","都包含「月」","独体结构","封闭区域个数累加1"],
-    explanation: `汉字：未、牛、十、一
+    explanation: `汉字：束、牛、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
     key: "hanzi-pattern:160",
-    chars: ["未","牛","十","一"],
+    chars: ["束","牛","十","一"],
   },
   {
     difficulty: 'normal',
@@ -1790,14 +1790,14 @@ export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
   },
   {
     difficulty: 'normal',
-    stem: `未　开　十　一`,
+    stem: `束　开　十　一`,
     correct: "笔画交叉数累减1",
     distractors: ["笔画交叉数累加1","笔画交叉数相等","都包含「月」","独体结构","封闭区域个数累加1"],
-    explanation: `汉字：未、开、十、一
+    explanation: `汉字：束、开、十、一
 规律：笔画交叉数累减1
 核对：交叉数 3→2→1→0`,
     key: "hanzi-pattern:163",
-    chars: ["未","开","十","一"],
+    chars: ["束","开","十","一"],
   },
   {
     difficulty: 'normal',
