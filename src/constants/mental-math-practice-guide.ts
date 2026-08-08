@@ -386,10 +386,10 @@ export const MENTAL_MATH_GUIDE_GROUPS: MentalMathGuideGroup[] = [
             text: '答错会进本菜单「错题集」。把反复错的次幂抄一张小表，练几天就牢了。',
           },
         ],
+          },
+        ],
       },
-    ],
-  },
-  {
+      {
     id: 'square-cube',
     title: '平方与立方',
     articles: [
@@ -551,9 +551,9 @@ export const MENTAL_MATH_GUIDE_GROUPS: MentalMathGuideGroup[] = [
               '简单题：只出 ≥10%（1/2～1/10）。',
               '高难题：出到 ≥5.3%（1/2～1/19）。',
               '双向都练：如 1/2 → 50%，50% → 1/2。',
-            ],
-          },
-          {
+    ],
+  },
+  {
             type: 'h3',
             text: '对照表（须记牢）',
           },
@@ -633,10 +633,10 @@ export const MENTAL_MATH_GUIDE_GROUPS: MentalMathGuideGroup[] = [
             text: '答错会进错题集。同一条规则（如「判 9」）连续错，就专门盯着练几局。',
           },
         ],
+          },
+        ],
       },
-    ],
-  },
-  {
+      {
     id: 'number-sequence',
     title: '数列',
     articles: [
@@ -857,6 +857,22 @@ export const MENTAL_MATH_GUIDE_GROUPS: MentalMathGuideGroup[] = [
               '「普通题」：77 秒四选一，对 +8 / 错 -15；优先未做过知识点。题干仅四字，选规律。',
               '先看四字整体，再比对选项标签（如「笔画数累加1」「都包含「日」」「左右结构」）。',
               '迷惑规律勿硬套：以四字真正共享的属性为准。',
+            ],
+          },
+          {
+            type: 'h3',
+            text: '笔画交叉数怎么数',
+          },
+          {
+            type: 'p',
+            text: '数的是字形上客观的「交叉点」：有一个点交叉了就算一次；多笔交在同一个点仍只算一次，不要按「穿过几次」重复加。相接、T 接、分开的笔画都不算交叉。',
+          },
+          {
+            type: 'ul',
+            items: [
+              '十=1，米=1（横竖撇捺共心，仍是 1 个点）',
+              '来=2，未=2，朱=2',
+              '干=2，丰=3，井=4；经典累加：二→十→屯→连 = 0→1→2→3',
             ],
           },
         ],
