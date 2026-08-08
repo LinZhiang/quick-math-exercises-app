@@ -103,6 +103,7 @@ import {
   MENTAL_MATH_DIVISIBILITY_MODES,
   MENTAL_MATH_NUMBER_SEQUENCE_MODES,
   MENTAL_MATH_FRACTION_MODES,
+  MENTAL_MATH_SPECIAL_FRACTION_MODES,
   MENTAL_MATH_LIFE_SENSE_MODES,
   MENTAL_MATH_WHAT_IS_THIS_MODES,
   MENTAL_MATH_ECONOMY_SENSE_MODES,
@@ -116,6 +117,7 @@ import {
   MENTAL_MATH_POWER_MODES,
   MENTAL_MATH_SQUARE_CUBE_MODES,
   isNumberSequencePracticeMode,
+  isSpecialFractionPracticeMode,
   isLifeSensePracticeMode,
   isWhatIsThisPracticeMode,
   isEconomySensePracticeMode,
@@ -560,6 +562,16 @@ const isNumberSequenceSession = computed(
     !isCircleGrammarMode(activeMode.value) &&
     !isShortenSentenceMode(activeMode.value) &&
     isNumberSequencePracticeMode(activeMode.value as MentalMathMode),
+)
+const isSpecialFractionSession = computed(
+  () =>
+    activeMode.value != null &&
+    !isGraphicMode(activeMode.value) &&
+    !isTwentyFourPointMode(activeMode.value) &&
+    !isSudokuMode(activeMode.value) &&
+    !isCircleGrammarMode(activeMode.value) &&
+    !isShortenSentenceMode(activeMode.value) &&
+    isSpecialFractionPracticeMode(activeMode.value as MentalMathMode),
 )
 
 function formatSequenceMath(text: string | number): string {
@@ -1817,6 +1829,26 @@ onBeforeUnmount(() => {
               @click="startMode(m.id)"
             >
               <h3 class="mode-card__title">{{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" /></h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+          </div>
+
+          <h4 class="mode-section__subtitle">特殊分数值</h4>
+          <p class="mode-section__hint">
+            只练对照表内单位分数与百分数互化（如 1/2↔50%、1/19↔5.3%）。简单题 ≥10%（1/2～1/10），高难题 ≥5.3%（1/2～1/19）；不考表外数字。
+          </p>
+          <div class="mode-grid">
+            <button
+              v-for="m in MENTAL_MATH_SPECIAL_FRACTION_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--fraction mode-card--special-fraction"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">
+                {{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" />
+              </h3>
               <p class="mode-card__desc">{{ m.desc }}</p>
               <span class="mode-card__cta">开始练习</span>
             </button>
@@ -3954,9 +3986,11 @@ onBeforeUnmount(() => {
       <template v-else-if="question">
         <div class="question-block">
           <p
-            v-if="isNumberSequenceSession"
-            class="question-expression question-expression--sequence"
+            v-if="isNumberSequenceSession || isSpecialFractionSession"
+            class="question-expression"
             :class="{
+              'question-expression--sequence': isNumberSequenceSession,
+              'question-expression--special-fraction': isSpecialFractionSession,
               'question-expression--ok': feedback === 'correct',
               'question-expression--bad': feedback === 'wrong',
             }"
@@ -3988,7 +4022,13 @@ onBeforeUnmount(() => {
           <p v-else-if="feedback === 'wrong'" class="feedback feedback--bad">答错了</p>
         </div>
 
-        <ul class="option-list" :class="{ 'option-list--sequence': isNumberSequenceSession }">
+        <ul
+          class="option-list"
+          :class="{
+            'option-list--sequence': isNumberSequenceSession,
+            'option-list--special-fraction': isSpecialFractionSession,
+          }"
+        >
           <li v-for="(opt, idx) in question.options" :key="idx">
             <button
               type="button"
@@ -3998,7 +4038,7 @@ onBeforeUnmount(() => {
             >
               <span class="option-btn__key">{{ idx + 1 }}</span>
               <span
-                v-if="isNumberSequenceSession"
+                v-if="isNumberSequenceSession || isSpecialFractionSession"
                 class="option-btn__val"
                 v-html="formatSequenceMath(opt)"
               />
@@ -4781,7 +4821,9 @@ onBeforeUnmount(() => {
 }
 
 .question-expression--sequence :deep(.da-math-frac),
-.option-list--sequence :deep(.da-math-frac) {
+.option-list--sequence :deep(.da-math-frac),
+.question-expression--special-fraction :deep(.da-math-frac),
+.option-list--special-fraction :deep(.da-math-frac) {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
@@ -4800,12 +4842,43 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
+.question-expression--special-fraction {
+  font-size: clamp(1.75rem, 4.8vw, 2.35rem);
+  font-weight: 750;
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+}
+
+.option-list--special-fraction .option-btn__val {
+  font-size: 1.4em;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.question-expression--special-fraction :deep(.da-math-frac__num),
+.question-expression--special-fraction :deep(.da-math-frac__den),
+.option-list--special-fraction :deep(.da-math-frac__num),
+.option-list--special-fraction :deep(.da-math-frac__den) {
+  font-size: 1.12em;
+  padding: 0 0.34em;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .question-expression--sequence :deep(.da-math-frac__rule),
-.option-list--sequence :deep(.da-math-frac__rule) {
+.option-list--sequence :deep(.da-math-frac__rule),
+.question-expression--special-fraction :deep(.da-math-frac__rule),
+.option-list--special-fraction :deep(.da-math-frac__rule) {
   display: block;
   align-self: stretch;
   border-top: 2px solid currentColor;
   margin: 0.05em 0;
+}
+
+.question-expression--special-fraction :deep(.da-math-frac__rule),
+.option-list--special-fraction :deep(.da-math-frac__rule) {
+  border-top-width: 2.5px;
+  margin: 0.08em 0;
 }
 
 .question-expression--ok {
