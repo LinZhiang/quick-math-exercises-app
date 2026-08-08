@@ -50,13 +50,12 @@ const activeGuideGroup = computed(
 
 const showGuideLevel2 = computed(() => (activeGuideGroup.value?.articles.length ?? 0) > 1)
 
+/** 手机端一级目录：一律用短分类名（如「修辞手法」），避免「怎么练××」被截断成乱码感 */
 const guideNavItems = computed(() =>
-  MENTAL_MATH_GUIDE_GROUPS.map((group) => {
-    if (group.articles.length === 1) {
-      return { kind: 'article' as const, article: group.articles[0]!, groupId: group.id }
-    }
-    return { kind: 'group' as const, group }
-  }),
+  MENTAL_MATH_GUIDE_GROUPS.map((group) => ({
+    group,
+    leafArticle: group.articles.length === 1 ? group.articles[0]! : null,
+  })),
 )
 
 const breadcrumb = computed(() => {
@@ -106,10 +105,16 @@ function selectGuideGroup(groupId: PracticeHubSectionId) {
 }
 
 function isGuideLevel1Active(item: (typeof guideNavItems.value)[number]): boolean {
-  if (item.kind === 'group') {
-    return activeGuideGroupId.value === item.group.id && showGuideLevel2.value
+  return activeGuideGroupId.value === item.group.id
+}
+
+function selectGuideLevel1(item: (typeof guideNavItems.value)[number]) {
+  if (props.disabled) return
+  if (item.leafArticle) {
+    selectArticle(item.leafArticle)
+    return
   }
-  return activeArticleId.value === item.article.id
+  selectGuideGroup(item.group.id)
 }
 
 function selectArticle(article: MentalMathGuideArticle) {
@@ -179,31 +184,17 @@ watch(
     <nav class="mm-guide-nav" aria-label="攻略目录">
       <div class="mm-guide-nav__mobile">
         <div class="mm-guide-nav__mobile-l1" aria-label="一级分类">
-          <template
+          <button
             v-for="item in guideNavItems"
-            :key="item.kind === 'group' ? item.group.id : item.article.id"
+            :key="item.group.id"
+            type="button"
+            class="mm-guide-nav__group-chip"
+            :class="{ 'is-active': isGuideLevel1Active(item) }"
+            :disabled="disabled"
+            @click="selectGuideLevel1(item)"
           >
-            <button
-              v-if="item.kind === 'group'"
-              type="button"
-              class="mm-guide-nav__group-chip"
-              :class="{ 'is-active': isGuideLevel1Active(item) }"
-              :disabled="disabled"
-              @click="selectGuideGroup(item.group.id)"
-            >
-              {{ item.group.title }}
-            </button>
-            <button
-              v-else
-              type="button"
-              class="mm-guide-nav__group-chip mm-guide-nav__group-chip--leaf"
-              :class="{ 'is-active': isGuideLevel1Active(item) }"
-              :disabled="disabled"
-              @click="selectArticle(item.article)"
-            >
-              {{ item.article.title }}
-            </button>
-          </template>
+            {{ item.group.title }}
+          </button>
         </div>
         <div
           v-show="showGuideLevel2"
@@ -453,6 +444,8 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .mm-block--p {
@@ -607,7 +600,6 @@ watch(
     flex: 0 0 auto;
     width: auto;
     min-width: 0;
-    max-width: 7.5em;
     box-sizing: border-box;
     padding: 6px 10px;
     border: 1px solid transparent;
@@ -620,9 +612,6 @@ watch(
     color: var(--app-text-muted);
     text-align: center;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: normal;
     cursor: pointer;
   }
 
@@ -641,13 +630,9 @@ watch(
   .mm-guide-nav__item--chip {
     flex: 0 0 auto;
     width: auto;
-    max-width: 11em;
     min-width: 0;
     box-sizing: border-box;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: normal;
     padding: 6px 10px;
     border-radius: 999px;
     border: 1px solid var(--app-border-soft);

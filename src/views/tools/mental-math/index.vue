@@ -4072,7 +4072,7 @@ onBeforeUnmount(() => {
               选 {{ r.chosenAnswer }}（正确 {{ r.correctAnswer }}）· {{ r.correct ? '对' : '错' }}
             </span>
             <p v-if="!r.correct && r.explanation" class="log-explain">
-              错因：{{ r.explanation }}
+              {{ r.explanation }}
             </p>
           </li>
         </ul>
@@ -4995,9 +4995,12 @@ onBeforeUnmount(() => {
 .log-explain {
   margin: 6px 0 0;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--app-text-muted);
   font-weight: 400;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .result-actions {
