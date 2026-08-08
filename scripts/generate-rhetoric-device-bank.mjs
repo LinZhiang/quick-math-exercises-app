@@ -5,23 +5,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { DEVICES, SENTENCES } from './rhetoric-device-data.mjs'
+import { DEVICES, ENTRIES } from './rhetoric-device-data.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const OUT = path.join(__dirname, '../src/utils/rhetoricDeviceBank.ts')
-
-const TIPS = {
-  对比: '把两种相反或相对的事物放在一起对照，突出差异。',
-  衬托: '用相近或相反的事物作陪衬，突出主要对象（主次分明）。',
-  比喻: '用相似事物打比方，常见「像、似、如同、是」等，或暗喻。',
-  借代: '不直接说本名，而用相关特征/部分/材料等指代。',
-  通感: '打通不同感官，以声写色、以香写声等。',
-  比拟: '把物当人写（拟人）或把人当物写（拟物）。',
-  排比: '三个或以上结构相似、语气一致的短语或句子并列。',
-  设问: '自问自答，或明知故问后随即作答，以提领下文。',
-  反问: '用疑问形式表示确定意思，答案寓于问中，不必另答。',
-  夸张: '故意夸大或缩小事物特征，以突出印象。',
-}
 
 function hash(s) {
   let h = 2166136261
@@ -42,25 +29,46 @@ function esc(s) {
   return s.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$')
 }
 
+/** 对标豆包：修辞 + 出处 + 解析 +（可选）补充 */
+function buildExplanation(device, entry) {
+  const lines = [
+    `修辞：${entry.label || device}`,
+    `出处：${entry.source}`,
+    `解析：${entry.analysis}`,
+  ]
+  if (entry.note && String(entry.note).trim()) {
+    lines.push(`补充：${String(entry.note).trim()}`)
+  }
+  return lines.join('\n')
+}
+
 const stems = new Set()
 const items = []
 
 for (const device of DEVICES) {
-  const list = SENTENCES[device]
-  list.forEach((sentence, i) => {
+  const list = ENTRIES[device]
+  if (!list) throw new Error(`missing ENTRIES.${device}`)
+  list.forEach((entry, i) => {
+    const sentence = entry.text
+    if (!sentence || !entry.source || !entry.analysis) {
+      throw new Error(`${device}#${i + 1} missing text/source/analysis`)
+    }
+    if (/教学用例|来源取向/.test(`${entry.source}\n${entry.analysis}\n${entry.note || ''}`)) {
+      throw new Error(`${device}#${i + 1} contains internal meta wording`)
+    }
     const stem = `下列句子主要运用的修辞手法是？\n${sentence}`
     const norm = stem.replace(/\s+/g, '')
     if (stems.has(norm)) throw new Error(`duplicate stem: ${device}#${i + 1} ${sentence}`)
     stems.add(norm)
     const key = `rhetoric-device:${device}-${String(i + 1).padStart(2, '0')}`
     const distractors = pickDistractors(device, key)
-    const explanation = [
-      `修辞：${device}`,
-      `例句：${sentence}`,
-      `要点：${TIPS[device]}`,
-      '来源取向：古诗词名句或政论/求是网风格表述（教学用例）。',
-    ].join('\n')
-    items.push({ stem, correct: device, distractors, explanation, key })
+    items.push({
+      stem,
+      correct: device,
+      distractors,
+      explanation: buildExplanation(device, entry),
+      key,
+    })
   })
 }
 

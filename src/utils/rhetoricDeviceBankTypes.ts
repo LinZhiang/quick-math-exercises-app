@@ -4,7 +4,7 @@ export type RhetoricDeviceBankItem = {
   stem: string
   correct: string
   distractors: string[]
-  /** 含修辞要点 + 例句（加深识记展示） */
+  /** 修辞 + 出处 + 解析 +（可选）补充；加深识记/错题展示 */
   explanation: string
   key: string
 }

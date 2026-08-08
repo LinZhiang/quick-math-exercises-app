@@ -621,6 +621,9 @@ function optKey(i: number) {
 .fd-wrong-expl {
   margin: 6px 0 0;
   font-size: 13px;
-  line-height: 1.45;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 </style>

@@ -12,6 +12,7 @@ import {
   PARTS,
   STRUCT,
   SYM_LR,
+  SYM_LR_FORBIDDEN,
   SYM_UD,
   SYM_UD_ONLY,
   CONTAIN,
@@ -113,7 +114,9 @@ for (const it of items) {
   } else if (lab === '左右对称') {
     tableChecked++
     if (!c.every((ch) => SYM_LR.includes(ch))) errors.push(`SYM_LR ${it.key}`)
-    else tableOk++
+    else if (c.some((ch) => SYM_LR_FORBIDDEN.includes(ch))) {
+      errors.push(`SYM_LR forbidden char ${it.key} ${c.join('')}`)
+    } else tableOk++
   } else if (lab === '上下对称') {
     tableChecked++
     if (!c.every((ch) => SYM_UD.includes(ch))) errors.push(`SYM_UD ${it.key}`)
@@ -161,6 +164,14 @@ for (const [chars, correct] of spots) {
 console.log('stem format OK:', stemOk, '/', items.length)
 console.log('table re-verify OK:', tableOk, '/', tableChecked)
 console.log('吸 strokes (expect 6):', STROKE['吸'])
+console.log('CROSS anchors 才/干/丰/井:', CROSS['才'], CROSS['干'], CROSS['丰'], CROSS['井'])
+console.log('ENCLOSE anchors 日/且/四/目:', ENCLOSE['日'], ENCLOSE['且'], ENCLOSE['四'], ENCLOSE['目'])
+console.log('SYM_LR has 小/八?', SYM_LR.includes('小'), SYM_LR.includes('八'))
+if (CROSS['才'] !== 1 || CROSS['干'] !== 2) errors.push('CROSS anchor 才/干 failed')
+if (SYM_LR.includes('小') || SYM_LR.includes('八')) errors.push('SYM_LR still contains 小/八')
+if (items.some((it) => it.correct === '左右对称' && it.chars.some((ch) => ch === '小' || ch === '八'))) {
+  errors.push('bank 左右对称仍含小/八')
+}
 
 // xuci / jushi quick counts
 function countExport(file, name) {

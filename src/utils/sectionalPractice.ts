@@ -274,7 +274,7 @@ function genEasyElecCost(seq: number): SectionalQuestion | null {
     ]),
     method:
       usage <= bound
-        ? [`未超界限：费用 = ${usage}×${p1} = ${ans}。`]
+        ? `未超界限：费用 = ${usage}×${p1} = ${ans}。`
         : [
             `标准界限 ${bound} 度。`,
             `费用 = ${bound}×${p1} + (${usage}−${bound})×${p2} = ${ans}。`,
