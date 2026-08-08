@@ -23,12 +23,12 @@ export const WENYAN_XUCI_MODES: WenyanXuciModeConfig[] = [
   {
     id: 'wenyan-xuci-normal',
     label: '普通题',
-    durationSec: 67,
+    durationSec: 117,
     optionCount: 4,
     correctDelta: 8,
     wrongDelta: -15,
     maxScore: 100,
-    desc: '67 秒 · 文言虚词用法 · 按知识点未出优先 · 对 +8 / 错 -15',
+    desc: '117 秒 · 文言虚词用法 · 按知识点未出优先 · 对 +8 / 错 -15',
   },
 ]
 

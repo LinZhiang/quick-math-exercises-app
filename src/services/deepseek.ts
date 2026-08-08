@@ -8357,21 +8357,33 @@ const LOGIC_REASON_COMMON_RULES = [
   '只输出合法 JSON，不要 markdown 代码围栏，不要其它说明文字。',
   [
     '【答案唯一·硬性·出题前自检】必须按此顺序：①写材料与设问；②不看选项先独立推导唯一结论；③再写 correct；④写三个明确错误的干扰项。',
-    '四个选项中只能有一个满足题干要求；禁止两选项都说得通、半对半错、或「选哪个都行」。',
-    'correct 必须与 passage+stem 严丝合缝：问「推出」则正确项须必然推出；问「加强/前提」不得给削弱；问「削弱」不得给加强；问「解释」须真正化解矛盾/反常。',
-    '干扰项须有明确错因（充分必要颠倒、肯前否后、过度推断、另有他因、无关、答非所问等），禁止「也勉强对」。',
+    '四个选项中只能有一个满足题干要求；禁止两选项都说得通、半对半错、力度可比、或「选哪个都行」。',
+    'correct 必须与 passage+stem 严丝合缝：问「推出」则正确项须必然推出（禁止或然/常识补强）；问「加强/前提」正确项必须支持且三项干扰均不得支持；问「削弱」正确项必须削弱且三项干扰均不得削弱；问「解释」须真正化解矛盾/反常且干扰项无法解释。',
+    '加强/削弱/评价/解释类：禁止「相对最优」凑题——干扰项只要也有同类作用（哪怕更弱）整题作废；必须改成一强三废（三废为零加强/零削弱/零解释或答非所问）。',
+    '真假/组合排列：材料约束必须自洽；交卷前须穷举/逐步排除验证「恰有一种赋值使约束全满足且指向唯一 correct」；禁止真假数量与陈述互相矛盾、无解或多解。',
+    '干扰项须有明确错因（充分必要颠倒、肯前否后、过度推断、另有他因、无关、答非所问、真假矛盾赋值等），禁止「也勉强对」「亦可讨论」。',
+    '解析与选项设计中禁止出现「也可加强」「A/C/D 虽可挑剔但非最核心」「亦可讨论另一项」等承认双正确的表述。',
     '若无法保证唯一正确解，宁可换材料重出，禁止勉强拼题。',
   ].join(''),
   [
     '【explanation】写 3～5 句中文（约 80～160 字）：①概括逻辑/论证结构；②正确项为何唯一成立；',
-    '③点破两个主要干扰项错因；④末句点明考点名。禁止只写「选某项」。method 写短考点名（约 8～20 字）。',
+    '③点破两个主要干扰项错因（须说明其为何完全不成立，而非「力度较弱」）；④末句点明考点名。禁止只写「选某项」。method 写短考点名（约 8～20 字）。',
   ].join(''),
 ].join('\n')
 
 const LOGIC_REASON_PROOFREAD_SYSTEM = [
   '你是公务员/事业编「判断推理·逻辑判断」严格审题官，只做校对，不出新题。',
   '任务：判断「标为正确的选项」是否与材料+设问严丝合缝，且四个选项中是否仅此一项成立。',
-  '宁可判不合格，也不放过：题干与答案对不上、多解、正确项其实推不出、干扰项其实也对、问法与答案类型错位（如问削弱却给加强）。',
+  '宁可判不合格，也不放过：题干与答案对不上、多解、正确项其实推不出、干扰项其实也对、问法与答案类型错位（如问削弱却给加强）、真假约束自相矛盾、加强/削弱干扰项其实也有同类作用。',
+  '加强/削弱/评价/解释：若存在另一选项也能加强/削弱/解释/评价成立（哪怕力度更弱），一律 uniqueAnswer=false。',
+  '只输出合法 JSON 对象，不要 markdown，不要其它文字。',
+].join('\n')
+
+const LOGIC_REASON_BLIND_SOLVE_SYSTEM = [
+  '你是公务员/事业编「判断推理·逻辑判断」解题员，独立作答，不参考任何标注答案。',
+  '通读材料与设问后，判断 A/B/C/D 中哪些选项能够成立（满足设问要求）。',
+  '只有严格成立的才列入；力度较弱但仍同类成立的也必须列入（用于检出双正确）。',
+  '若材料自相矛盾、无解或多解，acceptableLetters 填所有说得通的项，或填 [] 并在 note 说明。',
   '只输出合法 JSON 对象，不要 markdown，不要其它文字。',
 ].join('\n')
 
@@ -8386,7 +8398,67 @@ type LogicReasonVerifiable = {
   method?: string
 }
 
-/** AI 校对：题答对齐 + 唯一正确解；不过关则丢弃 */
+function parseLogicReasonLetterList(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((x) => String(x ?? '').trim().toUpperCase())
+    .map((x) => {
+      const m = x.match(/^[A-D]/)
+      return m ? m[0]! : ''
+    })
+    .filter((x): x is 'A' | 'B' | 'C' | 'D' => x === 'A' || x === 'B' || x === 'C' || x === 'D')
+}
+
+/** 盲测：不告知标注答案，要求列出所有可接受项；必须恰为标注项 */
+async function blindSolveLogicReasonMcq(
+  q: LogicReasonVerifiable,
+  examTypeHint: string,
+): Promise<boolean> {
+  const letters = ['A', 'B', 'C', 'D'] as const
+  const optionLines = q.options
+    .map((opt, i) => `${letters[i]}. ${String(opt ?? '').trim()}`)
+    .join('\n')
+  const marked = letters[q.correctIndex]!
+  const user = [
+    `题型：${examTypeHint}`,
+    `材料：\n${(q.passage || '（无独立材料，见设问）').trim()}`,
+    `设问：\n${q.stem.trim()}`,
+    `选项：\n${optionLines}`,
+    [
+      '请独立判断后只返回 JSON：',
+      '{',
+      '  "acceptableLetters": ["A"],  // 所有能满足设问的选项字母；可多项；无解填 []',
+      '  "bestLetter": "A",           // 若只能选一个，你的唯一选择；无解填 ""',
+      '  "selfConsistent": true/false, // 材料约束是否自洽（真假数量/条件是否无矛盾）',
+      '  "note": "一句话"',
+      '}',
+      '规则：加强/削弱/解释/评价时，凡有同类作用的选项都要进 acceptableLetters，不要只留「最强」一项。',
+      '日常结论/翻译/真假：只有必然成立的才进表；或然、过度推断不得列入。',
+    ].join('\n'),
+  ].join('\n\n')
+
+  const raw = await deepseekChatRaw(user, {
+    system: LOGIC_REASON_BLIND_SOLVE_SYSTEM,
+    temperature: 0.05,
+    maxTokens: 400,
+  })
+  const obj = parseAiJsonObjectLenient(raw) as Record<string, unknown> | null
+  if (!obj || typeof obj !== 'object') return false
+
+  if (obj.selfConsistent === false || obj.selfConsistent === 'false') return false
+
+  const acceptable = [...new Set(parseLogicReasonLetterList(obj.acceptableLetters))]
+  if (acceptable.length !== 1 || acceptable[0] !== marked) return false
+
+  const bestRaw = String(obj.bestLetter ?? '')
+    .trim()
+    .toUpperCase()
+  const best = bestRaw.match(/^[A-D]/)?.[0] ?? ''
+  if (best && best !== marked) return false
+  return true
+}
+
+/** AI 校对：标注复核 + 盲测唯一解；不过关则丢弃 */
 async function verifyLogicReasonMcqWithAi(
   q: LogicReasonVerifiable,
   examTypeHint: string,
@@ -8413,10 +8485,12 @@ async function verifyLogicReasonMcqWithAi(
       '  "uniqueAnswer": true/false,          // 是否仅有一个选项能成立',
       '  "alsoAcceptable": ["B"],             // 除标注项外仍可成立的选项字母；无可填 []',
       '  "stemAnswerMatch": true/false,       // 设问类型与答案类型是否对齐',
-      '  "ok": true/false,                    // 仅当前三项都通过时为 true',
+      '  "selfConsistent": true/false,        // 材料/真假约束是否自洽',
+      '  "ok": true/false,                    // 仅当下列全部通过时为 true',
       '  "reason": "一句话中文理由"',
       '}',
-      '判定标准：ok 为 true 当且仅当 markedCorrectIsRight、uniqueAnswer、stemAnswerMatch 均为 true，且 alsoAcceptable 为空。',
+      '判定标准：ok 为 true 当且仅当 markedCorrectIsRight、uniqueAnswer、stemAnswerMatch、selfConsistent 均为 true，且 alsoAcceptable 为空。',
+      '干扰项若也能加强/削弱/解释（哪怕更弱），uniqueAnswer=false 且写入 alsoAcceptable。',
       '有疑点一律 ok=false。',
     ].join('\n'),
   ]
@@ -8436,14 +8510,15 @@ async function verifyLogicReasonMcqWithAi(
     const markedOk = truthy(obj.markedCorrectIsRight)
     const unique = truthy(obj.uniqueAnswer)
     const match = truthy(obj.stemAnswerMatch)
+    const consistent = obj.selfConsistent === undefined ? true : truthy(obj.selfConsistent)
     const ok = truthy(obj.ok)
-    const also = Array.isArray(obj.alsoAcceptable)
-      ? obj.alsoAcceptable.map((x) => String(x).trim().toUpperCase()).filter(Boolean)
-      : []
-    // 排除误把标注项自己写进 alsoAcceptable
-    const alsoOthers = also.filter((x) => x !== marked)
+    const alsoOthers = parseLogicReasonLetterList(obj.alsoAcceptable).filter((x) => x !== marked)
 
-    return ok && markedOk && unique && match && alsoOthers.length === 0
+    if (!(ok && markedOk && unique && match && consistent && alsoOthers.length === 0)) {
+      return false
+    }
+    // 二次盲测：不喂标注答案，防止校对被解析话术带偏
+    return await blindSolveLogicReasonMcq(q, examTypeHint)
   } catch {
     return false
   }
@@ -8488,8 +8563,10 @@ async function requestOneLogicReasonMcqObject(input: {
     [
       '【交卷前自检·必须】',
       '1）遮住选项，仅凭材料+设问能否唯一推出你写的 correct？不能则重写。',
-      '2）逐个检查三个 distractors：是否有任何一个其实也成立？有则改掉。',
+      '2）逐个检查三个 distractors：是否有任何一个其实也成立/也能加强/也能削弱/也能解释？有则必须改成明确错误项。',
       '3）设问类型与 correct 类型是否对齐（推出/加强/削弱/解释/评价）？不对齐则重写。',
+      '4）真假/组合：穷举验证约束自洽且仅一种赋值；若出现 0 真/多真与「仅一真」矛盾，整题作废重出。',
+      '5）explanation 不得写「也可」「相对更」「非最核心但仍成立」等承认双解的话。',
       '仅返回一个 JSON 对象（不要数组）。',
     ].join('\n'),
   ]
@@ -8525,7 +8602,7 @@ async function requestLogicReasonMcqBatch<T extends LogicReasonVerifiable>(input
   const deduped: T[] = []
   const usedTerms = new Set<string>(historyBlocked)
   // 略降温度，优先唯一解与题答对齐
-  const baseTemp = input.temperature ?? 0.58
+  const baseTemp = input.temperature ?? 0.48
 
   const pushIfNew = (q: T | null) => {
     if (!q) return false
@@ -8552,7 +8629,7 @@ async function requestLogicReasonMcqBatch<T extends LogicReasonVerifiable>(input
         avoidTerms: avoid,
         topicLabel: input.topicLabel,
         topicHint: topicFor(seq, wave),
-        temperature: Math.min(0.78, baseTemp + wave * 0.04),
+        temperature: Math.min(0.68, baseTemp + wave * 0.03),
         extraHints: input.extraHints,
       })
       const q = input.tryBuild(raw, seq)
@@ -8690,7 +8767,7 @@ export async function requestTranslationReasonMcqs(input: {
     format: translationReasonFormat(difficulty),
     topicLabel: '翻译推理主题',
     examTypeHint: '判断推理·翻译推理',
-    temperature: 0.52,
+    temperature: 0.45,
     tryBuild: (raw, seq) => {
       const fields = parseTranslationReasonMcqAiObject(raw)
       if (!fields) return null
@@ -8703,7 +8780,8 @@ export async function requestTranslationReasonMcqs(input: {
 const COMBO_ARRANGE_SYSTEM = [
   '你是公务员/事业编考试「判断推理·逻辑判断·组合排列」命题专家，专精排序、匹配、半真半假与条件分配。',
   LOGIC_REASON_COMMON_RULES,
-  '元素个数、条件条数、题型（纯排序/一对一匹配/半真半假）可灵活；correct 在材料下须唯一可确定。',
+  '元素个数、条件条数、题型（纯排序/一对一匹配/半真半假）可灵活。',
+  'correct 在全部条件下须唯一可确定；交卷前须验证：不存在第二种完整方案同时满足全部条件；「各对一半」类题须逐人核对对错条数恰好符合题干。',
 ].join('\n')
 
 function comboArrangeDiffLabel(d: ComboArrangeDifficulty): string {
@@ -8784,7 +8862,7 @@ export async function requestComboArrangeMcqs(input: {
     format: comboArrangeFormat(difficulty),
     topicLabel: '组合排列主题',
     examTypeHint: '判断推理·组合排列',
-    temperature: 0.52,
+    temperature: 0.45,
     tryBuild: (raw, seq) => {
       const fields = parseComboArrangeMcqAiObject(raw)
       if (!fields) return null
@@ -8797,7 +8875,9 @@ export async function requestComboArrangeMcqs(input: {
 const TRUTH_FALSE_SYSTEM = [
   '你是公务员/事业编考试「判断推理·逻辑判断·真假推理」命题专家，专精真话假话、矛盾对当、假设排除。',
   LOGIC_REASON_COMMON_RULES,
-  '人数、陈述句数、真假数量均可灵活（仅一真/仅一假/恰两真/恰两假/一半真一半假等），但材料必须写清真假约束；在该约束下 correct 唯一；解析须标明谁真谁假及逐步排除。',
+  '人数、陈述句数、真假数量均可灵活（仅一真/仅一假/恰两真/恰两假/一半真一半假等），但材料必须写清真假约束。',
+  '交卷前必须对每种可能世界穷举：满足「真假数量+背景事实」的赋值有且仅有一种，且该赋值唯一指向 correct；禁止无解、双解、真假个数对不上。',
+  '解析须标明谁真谁假及逐步排除；干扰项须对应错误赋值（如把真话者认错）。',
 ].join('\n')
 
 function truthFalseDiffLabel(d: TruthFalseDifficulty): string {
@@ -8819,11 +8899,12 @@ JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation
   if (difficulty === 'easy') {
     return `
 【难度·简单】一两轮假设即可；陈述多为直言，一般不含全称特称对当与假言连锁。
-【例题参考·难度手感】
-passage：小查、小白、小铭三人中只有一人会泰语。小查：「我不会泰语。」小铭：「小查不会泰语。」小白：「我会泰语。」三句话只有一句为真。
-stem：那么会泰语的是（ ）
-选项：小查 / 小白 / 小铭 / 无法判断（结构参考；你出题时须自洽唯一）。
-同类亦可：两人三句、四人仅一假、三人恰两真等，整体仍偏易。
+【例题参考·已自洽·须仿此严谨度，禁止照抄人名】
+passage：甲、乙、丙三人参加比赛，冠军恰为其中一人。甲说：「我是冠军。」乙说：「甲不是冠军。」丙说：「我不是冠军。」已知三人中只有一人说真话。
+stem：由此可以推出冠军是（ ）
+选项：甲 / 乙 / 丙 / 无法确定
+正确思路（出题须同样可穷举）：若甲冠军→甲真且丙真（两真，矛盾）；若乙冠军→乙真且丙真（两真，矛盾）；若丙冠军→仅乙真（甲假、丙假），恰一真。故唯一 correct＝丙。
+严禁写出「仅一真」却穷举后 0 真/2 真/3 真的题；同类可换场景，但必须先穷举自洽再定选项。
 ${flexibleCommon}
 `.trim()
   }
@@ -8886,8 +8967,11 @@ export async function requestTruthFalseMcqs(input: {
     format: truthFalseFormat(difficulty),
     topicLabel: '真假推理主题',
     examTypeHint: '判断推理·真假推理',
-    temperature: 0.5,
-    extraHints: ['真假约束类型尽量多样（勿总是「仅一真」）；人数也可变化。'],
+    temperature: 0.4,
+    extraHints: [
+      '真假约束类型尽量多样（勿总是「仅一真」）；人数也可变化。',
+      '必须先穷举验证材料自洽且唯一解，再写选项；禁止无解/双解/真假个数矛盾。',
+    ],
     tryBuild: (raw, seq) => {
       const fields = parseTruthFalseMcqAiObject(raw)
       if (!fields) return null
@@ -8900,7 +8984,8 @@ export async function requestTruthFalseMcqs(input: {
 const EVAL_REASON_SYSTEM = [
   '你是公务员/事业编考试「判断推理·逻辑判断·评价推理」命题专家，专精论证评价、谬误识别与观点评析。',
   LOGIC_REASON_COMMON_RULES,
-  '题干问法可灵活（易受批评的原因 / 主要漏洞 / 评价正确的是）；谬误类型宜多样；correct 为最恰当评价。',
+  '题干问法可灵活（易受批评的原因 / 主要漏洞 / 评价正确的是）；谬误类型宜多样。',
+  'correct 必须是材料中真实存在且可唯一认定的漏洞/评价；三个干扰项须为「材料未犯」的谬误或错误评价，禁止「次核心但也可批评」凑项。',
 ].join('\n')
 
 function evalReasonDiffLabel(d: EvalReasonDifficulty): string {
@@ -8925,23 +9010,23 @@ ${flex}
   if (difficulty === 'medium') {
     return `
 【难度·普通】一段论证，问「很容易受到批评，因为…」；正确项抓最核心漏洞，干扰项为次要或似是而非批评。
-【例题参考·难度手感】
-passage：刘奶奶称「全年物价涨幅低于5%」的官员明显错，因缺乏生活经验、没自己买过东西；并举早点涨10%、布鞋12%、高铁15%、汽油20%。
-stem：刘奶奶的上述论证很容易受到批评，因为（ ）
-选项参考：A 指责官员缺乏经验而非针对论证｜B 用不具代表性的小样本作证据｜C 诉诸感情｜D 「没买过东西」说法太绝对
-正确思路：个别品类涨价不能代表全年总物价指数 → 批评「小样本/以偏概全」最切中（B）；A/C/D 虽可挑剔但非最核心。
+【例题参考·唯一解写法】
+passage：某评论称：官方公布「全年居民消费价格涨幅低于5%」一定错了，因为本社区早点涨了10%、布鞋涨了12%。
+stem：上述论证最主要的逻辑问题是（ ）
+选项参考：A 把个别商品价格变动等同于居民消费价格总指数｜B 未说明早点与布鞋是否本地生产｜C 未比较邻市涨幅｜D 未讨论居民收入是否同步增长
+正确思路：论证用少数品类涨价否定总指数 → 仅 A 击中推理结构；B/C/D 与「总指数是否被个别品类证伪」无关，不能评价错。出题时干扰项须同样「无关/未犯」，禁止「也算批评」。
 同类可换统计、调查、个案推全体等题材。
 ${flex}
 `.trim()
   }
   return `
 【难度·困难】双方讨论 +「对甲/乙观点评价正确的是」+ ①②③④ 要点组合选肢。
-【例题参考·难度手感】
-passage：「斜杠青年」定义后，甲：不可取，「术业有专攻」，专一才能成功。乙：认同，年轻人应多尝试才知适合什么。
-stem：对于甲的观点，评价正确的是（ ）
-要点参考：①带偏见名言支撑｜②结论过于绝对｜③有主观偏见｜④把普通情况代入特殊情形
-选项参考：A①② B②③ C③④ D①④
-正确思路：甲把专一说成成功必要条件，结论绝对且带主观排斥「斜杠」→ ②③ 一类组合更贴切。
+【例题参考·唯一解写法】
+passage：甲认为「斜杠青年」不可取，因为「术业有专攻」，一个人只有专一才能成功。
+stem：对甲观点评价正确的是（ ）
+要点：①结论把「专一」当成成功的必要条件，过于绝对｜②引用名言本身不能代替论证｜③未讨论乙是否赞同｜④批评了斜杠青年的着装
+选项：A①② B①③ C②④ D③④
+正确思路：甲把「专一」抬成成功必要条件（绝对化），且以名言代替论证 → 仅①②成立；③④材料未涉及，故唯一组合 A。组合题每个要点须可验真假，禁止「差不多都沾边」。
 可换职场/教育/消费等辩论题材；要点集合与组合方式自拟。
 ${flex}
 `.trim()
@@ -8983,7 +9068,7 @@ export async function requestEvalReasonMcqs(input: {
     format: evalReasonFormat(difficulty),
     topicLabel: '评价推理主题',
     examTypeHint: '判断推理·评价推理',
-    temperature: 0.52,
+    temperature: 0.45,
     tryBuild: (raw, seq) => {
       const fields = parseEvalReasonMcqAiObject(raw)
       if (!fields) return null
@@ -8996,7 +9081,7 @@ export async function requestEvalReasonMcqs(input: {
 const STRENGTHEN_REASON_SYSTEM = [
   '你是公务员/事业编考试「判断推理·逻辑判断·加强型/前提型」命题专家，专精补强结论、排除他因、例证支持与隐含前提。',
   LOGIC_REASON_COMMON_RULES,
-  'correct 须最能支持/使结论成立；勿出削弱项当正确项。',
+  'correct 须能使结论成立或明显支持结论；三个 distractors 必须是无关、削弱或答非所问，禁止出现「也能加强但较弱」的次优项。',
 ].join('\n')
 
 function strengthenReasonDiffLabel(d: StrengthenReasonDifficulty): string {
@@ -9036,12 +9121,12 @@ ${flex}
 `.trim()
   }
   return `
-【难度·困难】材料给较新做法/现象并下积极结论，选项多为事实陈述；正确项用具体例证或关键机制明显加强，干扰项为无关培训、比赛或弱相关。
-【例题参考·难度手感】
-passage：无人机应用变广；检察机关借无人机参与公益诉讼，专项监督以来航拍勘验取证，为办案提质增效提供支撑。
-stem：最能加强上述论证的是（ ）（选项结构参考）
-选项参考：A 某院航拍西瓜种植区采集农膜图片作公益诉讼证据｜B 无人机高机动宽视野等优势可打破地形限制勘查｜C 组织飞行勘查培训多次｜D 举办无人机取证比赛
-正确思路：A 类「办案实绩例证」最直接支持「提质增效」；B 也可加强但偏能力说明；C/D 偏组织活动，加强力弱。出题时须保证正确项唯一最强。
+【难度·困难】材料给较新做法/现象并下积极结论，选项多为事实陈述；正确项用具体例证或关键机制明显加强；干扰项须为零加强（无关/不能对接结论）。
+【例题参考·唯一解写法】
+passage：某市检察机关开展无人机公益诉讼专项，称航拍勘验「明显提升了办案质效」。
+stem：以下哪项如果为真，最能支持上述结论？（ ）
+选项参考：A 专项开展后，该市公益诉讼案件平均取证周期比开展前缩短约四成｜B 该市无人机爱好者协会会员人数近年增长｜C 邻近未开展专项的城市也购入了同款无人机｜D 媒体报道过一次航拍风景宣传片
+正确思路：仅 A 用前后对比直接支持「质效提升」；B/C/D 与办案质效无逻辑关联（零加强）。禁止再出「能力说明/培训/比赛」这类也能沾边加强的次优项。
 ${flex}
 `.trim()
 }
@@ -9082,7 +9167,7 @@ export async function requestStrengthenReasonMcqs(input: {
     format: strengthenReasonFormat(difficulty),
     topicLabel: '加强论证主题',
     examTypeHint: '判断推理·加强论证（含前提型）',
-    temperature: 0.52,
+    temperature: 0.45,
     tryBuild: (raw, seq) => {
       const fields = parseStrengthenReasonMcqAiObject(raw)
       if (!fields) return null
@@ -9095,7 +9180,7 @@ export async function requestStrengthenReasonMcqs(input: {
 const WEAKEN_REASON_SYSTEM = [
   '你是公务员/事业编考试「判断推理·逻辑判断·削弱型」命题专家，专精另有他因、切断外推、质疑样本与统计陷阱。',
   LOGIC_REASON_COMMON_RULES,
-  'correct 须最能削弱结论；勿把加强项或无关项标为正确。',
+  'correct 须能明显削弱结论；三个 distractors 必须是无关、加强或答非所问，禁止出现「也能削弱但较弱」的次优项。',
 ].join('\n')
 
 function weakenReasonDiffLabel(d: WeakenReasonDifficulty): string {
@@ -9133,12 +9218,12 @@ ${flex}
 `.trim()
   }
   return `
-【难度·困难】用办卡数/人次增长证明举措有效；正确削弱常指出「重复办卡」「基数变化」等使「人数增加两倍」不可比或虚高，干扰项为成本、未锻炼等次要问题。
-【例题参考·难度手感】
-passage：建馆办免费健身卡，2015办3万、2018办7万、2020办11万；市政府认为举措有效，因5年间办卡学生增加两倍多。
-stem：最能削弱上述结论的是（ ）
-选项参考：A 中小学生总人数从20万增到30万｜B 维护成本高难平衡财政｜C 办第一馆卡的学生又办另外两馆卡｜D 部分办卡后从未去运动
-正确思路：C 说明办卡张数≠办卡学生人数，增长可能被重复办卡放大（亦可讨论 A 的人均比例，但题眼常落在重复统计）。出题时保证正确项唯一最强。
+【难度·困难】用办卡数/人次增长证明举措有效；正确削弱须直接击穿「张数/人次＝受益人数」或因果；干扰项须为零削弱。
+【例题参考·唯一解写法】
+passage：市政府称免费健身卡举措有效，依据是办卡张数从2015年3万增至2020年11万，「办卡学生增加两倍多」。
+stem：以下哪项如果为真，最能削弱上述结论？（ ）
+选项参考：A 不少学生在三家场馆重复办卡，同一人被计入多张｜B 场馆维护开支高于预期｜C 部分办卡学生很少去锻炼｜D 邻市同期也推广了类似健身卡
+正确思路：结论把「张数增长」当成「学生人数增长」；仅 A 直接证明统计口径虚高，削弱「人数增加→举措有效」。B 谈成本、C 谈使用率、D 谈邻市，均不否定「人数是否真增加」，定为零削弱干扰。禁止再放「总人数上升」这类也能削弱可比性的次优项。
 ${flex}
 `.trim()
 }
@@ -9179,7 +9264,7 @@ export async function requestWeakenReasonMcqs(input: {
     format: weakenReasonFormat(difficulty),
     topicLabel: '削弱论证主题',
     examTypeHint: '判断推理·削弱论证',
-    temperature: 0.52,
+    temperature: 0.45,
     tryBuild: (raw, seq) => {
       const fields = parseWeakenReasonMcqAiObject(raw)
       if (!fields) return null
@@ -9192,7 +9277,8 @@ export async function requestWeakenReasonMcqs(input: {
 const DAILY_CONCLUSION_SYSTEM = [
   '你是公务员/事业编考试「判断推理·逻辑判断·日常结论」命题专家，专精从日常/科普陈述中做必然推出，避免过度推断。',
   LOGIC_REASON_COMMON_RULES,
-  'correct 必须是材料可必然推出的结论；干扰项含夸大因果、绝对化、材料未提及信息等。',
+  'correct 必须是材料字面可必然推出的结论（换说法亦可，但不得补常识）；干扰项含夸大因果、绝对化、材料未提及、或然推断等。',
+  '禁止把「相关/伴随」写成必然因果（如材料只写压力增加且更关注健康，不得推「压力一定影响健康」）。',
 ].join('\n')
 
 function dailyConclusionDiffLabel(d: DailyConclusionDifficulty): string {
@@ -9207,12 +9293,12 @@ JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation
 
   if (difficulty === 'easy') {
     return `
-【难度·简单】短日常材料，1～2 步即可推出；正确项紧扣材料已说内容，干扰项为目的臆测、比例臆测、材料未提细节。
-【例题参考·难度手感】
-passage：生活节奏加快、压力增加，更多人关注健康并以运动改善，跑步受青睐；除户外跑步外，很多人也会选择室内跑步机。
+【难度·简单】短日常材料，1～2 步即可推出；正确项须材料已说或等价改写，干扰项为目的臆测、比例臆测、因果妄断、材料未提细节。
+【例题参考·必然推出写法】
+passage：近三年本市新建公园数量翻了一番；同期，周末到公园休闲的市民人次明显增加。不少市民除了去公园，也会选择室内健身房锻炼。
 stem：由此可以推出（ ）
-选项参考：A 锻炼目的是缓解压力｜B 压力会影响人的健康｜C 不健康的人占多数｜D 没有放在室外的跑步机
-正确思路：材料把压力增加与关注健康/运动改善健康相连 → B 可推；A 把目的说死、C 比例、D 与「室内跑步机」无关且妄断。
+选项参考：A 近三年本市新建公园数量有所增加｜B 市民去公园就是为了缓解工作压力｜C 不锻炼的市民已占少数｜D 室内健身房都建在公园旁边
+正确思路：仅 A 由「翻了一番」必然推出；B 目的臆测、C 比例未给、D 材料未提。禁止再用「压力→一定影响健康」这类需补常识的软结论当 correct。
 ${flex}
 `.trim()
   }
@@ -9263,7 +9349,7 @@ export async function requestDailyConclusionMcqs(input: {
     format: dailyConclusionFormat(difficulty),
     topicLabel: '日常结论主题',
     examTypeHint: '判断推理·日常结论',
-    temperature: 0.52,
+    temperature: 0.45,
     tryBuild: (raw, seq) => {
       const fields = parseDailyConclusionMcqAiObject(raw)
       if (!fields) return null
@@ -9276,7 +9362,7 @@ export async function requestDailyConclusionMcqs(input: {
 const EXPLAIN_PHENOM_SYSTEM = [
   '你是公务员/事业编考试「判断推理·逻辑判断·解释型」命题专家，专精解释反常现象与化解矛盾。',
   LOGIC_REASON_COMMON_RULES,
-  'correct 须最能解释材料中的现象或矛盾；干扰项为无关、事后发生或无法对接矛盾双方的选项。',
+  'correct 须能同时对接矛盾/反常的双方；三个 distractors 须无法解释（无关、时间错位、只解释一侧、与材料冲突），禁止「也能解释但较弱」。',
 ].join('\n')
 
 function explainPhenomDiffLabel(d: ExplainPhenomDifficulty): string {
@@ -9296,21 +9382,21 @@ JSON：term,passage,stem,correct,distractors[3],method,explanation；explanation
 passage：咖啡店按往年在冷门时段半价促销，但一段时间后整体销量较往年同期明显减少。
 stem：下列哪项如果为真，最能解释上述现象？（ ）
 选项参考：A 促销期订单大导致服务下降｜B 周围新开多家其他品牌咖啡店｜C 品牌知名度不够缺固定客群｜D 促销结束后回调了价格
-正确思路：B 引入竞争分流，解释「促销仍整体减少」；D 若发生在促销结束后未必解释促销期间的减少；C 往年同样存在则难解释「较往年减少」。
+正确思路：B 引入新竞争，能解释「促销仍比往年少」；A 未说明会压过促销效果；C 往年若同样知名度不足则解释不了「较往年减少」；D 若发生在促销结束后，解释不了促销期内的减少。出题时保证仅一项能对接反常。
 ${flex}
 `.trim()
   }
   return `
 【难度·困难】解释「矛盾双方同时成立」：如负面曝光但支持率上升，或主流理论与新结论冲突。可选：①②③④组合选肢，或科学史情境找「缺失机制」。
-【例题参考1·矛盾组合】
-passage：候选人被揭篡改简历致部分选民怀疑诚信，但民意支持率仍节节上升并远超他人。
-要点：①执行力博得支持｜②多数候选人也美化简历｜③以往错误不代表今后表现｜④以往支持率一向很高
-stem：有助于解释这种矛盾现象的是（ ）选项为 ①④ / ②④ / ①② / ③④ 等组合。
-正确思路：需同时解释「为何仍上升」与不必然被诚信质疑打垮；常见有效组合如①②（能力吸票+简历美化普遍）等——出题时自洽唯一即可。
+【例题参考1·矛盾组合·唯一解】
+passage：候选人被揭篡改简历，部分选民怀疑其诚信，但其民意支持率仍持续上升并大幅领先。
+要点：①其施政承诺与执行力持续吸引大量选民｜②多数选民认为「简历美化」在候选人中很常见，不足以单独否定其人｜③该候选人以往支持率本来就很高｜④电视台减少了对其负面新闻的播出时长
+stem：有助于解释上述矛盾的是（ ）选项：A①② B①③ C②④ D③④
+正确思路：要同时解释「诚信受疑仍上升」：①提供上升动力，②削弱负面杀伤；③只说明基数高解释不了「仍上升」；④材料未给。故唯一 A。组合题须保证其它组合无法完整解释矛盾。
 【例题参考2·科学矛盾】
 passage：沟渠似河水冲凿，普遍认为冰川融化逐渐形成；地理学家认为短时大洪水冲凿；迅速形成有地形依据，但洪水论曾被排斥因「没有那么多冰忽然融化」。
 stem：最有助于解释上述矛盾的是（ ）
-选项参考含：冰川拦水成湖后溃决 → 可短时释放巨量洪水而无须「忽然融化那么多冰」。
+正确项须给出「无须忽然融化那么多冰也能短时形成巨量洪水」的机制（如冰川拦湖溃决）；干扰项不得同样能化解该质疑。
 两类困难题本批宜混出，勿整批同构。
 ${flex}
 `.trim()
@@ -9352,7 +9438,7 @@ export async function requestExplainPhenomMcqs(input: {
     format: explainPhenomFormat(difficulty),
     topicLabel: '解释现象主题',
     examTypeHint: '判断推理·解释现象',
-    temperature: 0.52,
+    temperature: 0.45,
     tryBuild: (raw, seq) => {
       const fields = parseExplainPhenomMcqAiObject(raw)
       if (!fields) return null
