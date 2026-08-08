@@ -1068,6 +1068,36 @@ export const MENTAL_MATH_GUIDE_GROUPS: MentalMathGuideGroup[] = [
     ],
   },
   {
+    id: 'rhetoric-device',
+    title: '修辞手法',
+    articles: [
+      {
+        id: 'rhetoric-device-overview',
+        title: '怎么练修辞手法',
+        category: 'rhetoric-device',
+        practiceModeId: 'rhetoric-device-normal',
+        blocks: [
+          {
+            type: 'p',
+            text: '快判本地题：给出古诗词名句或政论/求是网风格句子，选出主要修辞。只考对比、衬托、比喻、借代、通感、比拟、排比、设问、反问、夸张十种；与语文 AI「修辞运用」不是同一套。',
+          },
+          {
+            type: 'h3',
+            text: '怎么练',
+          },
+          {
+            type: 'ul',
+            items: [
+              '仅「普通题」：52 秒限时，四选一，对 +8 / 错 -15；优先出未做过的句子，出完重置再循环。',
+              '「加深识记」：按固定分组（每组最多 20 题）先看修辞要点与例句，再限时测同组（满组 77 秒）；解析可编辑覆盖。',
+              '每种修辞各约 30 题，共 300 题；先抓标志（如「吗/呢」看设问反问、「像/是」看比喻、物当人看比拟）。',
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
     id: 'twentyfour',
     title: '二十四点',
     articles: [

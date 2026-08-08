@@ -71,8 +71,8 @@ export const HARD: HardSentence[] = [
     { text: '听完后', role: 'adverbial' },
     { text: '都', role: 'adverbial' },
     { text: '恍然大悟地', role: 'adverbial' },
-    { text: '点', role: 'predicate' },
-    { text: '了点头', role: 'complement' },
+    { text: '点了点', role: 'predicate' },
+    { text: '头', role: 'object' },
   ]),
   S('h03', '经过反复练习，他终于把这首难唱的歌唱得非常动听，台下顿时响起了经久不息的掌声。', [
     { text: '经过反复练习', role: 'adverbial' },
@@ -339,7 +339,8 @@ export const HARD: HardSentence[] = [
     { text: '讲', role: 'predicate' },
     { text: '一遍', role: 'complement' },
     { text: '务必', role: 'adverbial' },
-    { text: '讲得人人都能听懂', role: 'predicate' },
+    { text: '讲', role: 'predicate' },
+    { text: '得人人都能听懂', role: 'complement' },
   ]),
   S('h23', '被月光镀成银色的湖面把岸边的柳树映得影影绰绰，晚风一吹，倒影便碎成了千万片银鳞。', [
     { text: '被月光镀成银色的', role: 'attributive' },
@@ -605,7 +606,7 @@ export const HARD: HardSentence[] = [
     { text: '笑', role: 'predicate' },
     { text: '得比谁都灿烂', role: 'complement' },
   ]),
-  S('h44', '父亲叫儿子把后院那棵快枯死的桃树再救一救，儿子便整天围着它松土、浇水、治虫。', [
+  S('h44', '父亲叫儿子把后院那棵快枯死的桃树再救一救，他便整天围着它松土、浇水、治虫。', [
     { text: '父亲', role: 'subject' },
     { text: '叫', role: 'predicate' },
     { text: '儿子', role: 'object' },
@@ -613,7 +614,7 @@ export const HARD: HardSentence[] = [
     { text: '再', role: 'adverbial' },
     { text: '救', role: 'predicate' },
     { text: '一救', role: 'complement' },
-    { text: '儿子', role: 'subject' },
+    { text: '他', role: 'subject' },
     { text: '便', role: 'adverbial' },
     { text: '整天', role: 'adverbial' },
     { text: '围着它', role: 'adverbial' },

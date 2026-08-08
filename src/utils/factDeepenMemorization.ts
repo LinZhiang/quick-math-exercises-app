@@ -1,5 +1,5 @@
 /**
- * 生活常识 / 这是什么 / 经济学常识 / 体制管理 / 文言实词 / 文言虚词 / 文言句式 · 加深识记：按难度固定切成 20 题一组目录，可溯源。
+ * 生活常识 / 这是什么 / 经济学常识 / 体制管理 / 文言实词 / 文言虚词 / 文言句式 / 修辞手法 · 加深识记：按难度固定切成 20 题一组目录，可溯源。
  */
 import { ECONOMY_SENSE_BANK } from '@/utils/economySenseBank'
 import type { EconomySenseBankItem } from '@/utils/economySenseBankTypes'
@@ -9,6 +9,8 @@ import {
   resolveFactExplanation,
   type FactBankKind,
 } from '@/utils/factExplanationOverrides'
+import { RHETORIC_DEVICE_BANK } from '@/utils/rhetoricDeviceBank'
+import type { RhetoricDeviceBankItem } from '@/utils/rhetoricDeviceBankTypes'
 import { SYSTEM_MGMT_BANK } from '@/utils/systemMgmtBank'
 import type { SystemMgmtBankItem } from '@/utils/systemMgmtBankTypes'
 import { WENYAN_SHICI_BANK } from '@/utils/wenyanShiciBank'
@@ -36,6 +38,7 @@ export type FactDeepenModeId =
   | 'wenyan-shici-deepen-normal'
   | 'wenyan-xuci-deepen-normal'
   | 'wenyan-jushi-deepen-normal'
+  | 'rhetoric-device-deepen-normal'
 
 export type FactDeepenBankItem = {
   kind: FactDeepenKind
@@ -213,6 +216,16 @@ export const FACT_DEEPEN_MODES: FactDeepenModeConfig[] = [
     batchSize: FACT_DEEPEN_BATCH_SIZE,
     desc: '固定分组目录 · 先识记再限时测 · 满组 142 秒',
   },
+  {
+    modeId: 'rhetoric-device-deepen-normal',
+    kind: 'rhetoric-device',
+    difficulty: 'normal',
+    label: '普通题',
+    durationSec: 77,
+    optionCount: 4,
+    batchSize: FACT_DEEPEN_BATCH_SIZE,
+    desc: '固定分组目录 · 先识记再限时测 · 满组 77 秒',
+  },
 ]
 
 const GROUP_STATS_KEY = 'fact-deepen-group-stats-v1'
@@ -243,7 +256,8 @@ function toDeepenItem(
     | SystemMgmtBankItem
     | WenyanShiciBankItem
     | WenyanXuciBankItem
-    | WenyanJushiBankItem,
+    | WenyanJushiBankItem
+    | RhetoricDeviceBankItem,
 ): FactDeepenBankItem {
   return {
     kind,
@@ -273,7 +287,9 @@ function poolFor(kind: FactDeepenKind, difficulty: FactDeepenDifficulty): FactDe
               ? WENYAN_SHICI_BANK
               : kind === 'wenyan-xuci'
                 ? WENYAN_XUCI_BANK
-                : WENYAN_JUSHI_BANK
+                : kind === 'wenyan-jushi'
+                  ? WENYAN_JUSHI_BANK
+                  : RHETORIC_DEVICE_BANK
   const seen = new Set<string>()
   const out: FactDeepenBankItem[] = []
   for (const item of bank) {
@@ -309,6 +325,7 @@ export function factDeepenKindLabel(kind: FactDeepenKind): string {
   if (kind === 'wenyan-shici') return '文言实词'
   if (kind === 'wenyan-xuci') return '文言虚词'
   if (kind === 'wenyan-jushi') return '文言句式'
+  if (kind === 'rhetoric-device') return '修辞手法'
   return '文言实词'
 }
 

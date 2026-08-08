@@ -256,6 +256,16 @@ const KNOWN_ITEM_LABELS: Record<string, { categoryId: string; categoryLabel: str
       categoryLabel: '经济学常识',
       itemLabel: '经济学常识 · 加深识记 · 普通题',
     },
+    'rhetoric-device-normal': {
+      categoryId: 'rhetoric-device',
+      categoryLabel: '修辞手法',
+      itemLabel: '修辞手法 · 普通题',
+    },
+    'rhetoric-device-deepen-normal': {
+      categoryId: 'rhetoric-device',
+      categoryLabel: '修辞手法',
+      itemLabel: '修辞手法 · 加深识记 · 普通题',
+    },
     'system-mgmt-normal': {
       categoryId: 'system-mgmt',
       categoryLabel: '体制管理',
@@ -559,6 +569,18 @@ const PREFIX_RULES: PrefixRule[] = [
     },
   },
   {
+    prefix: 'rhetoric-device-',
+    categoryId: 'rhetoric-device',
+    categoryLabel: '修辞手法',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      if (String(mid).includes('deepen')) {
+        return `修辞手法 · 加深识记 · ${difficultyLabel(d) || d}题`
+      }
+      return `修辞手法 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
     prefix: 'system-mgmt-',
     categoryId: 'system-mgmt',
     categoryLabel: '体制管理',
@@ -792,6 +814,7 @@ export const PRACTICE_LOG_CATEGORIES: { id: string; label: string }[] = [
   { id: 'wenyan-xuci', label: '文言虚词' },
   { id: 'wenyan-jushi', label: '文言句式' },
   { id: 'grammar-judgment', label: '语法判断' },
+  { id: 'rhetoric-device', label: '修辞手法' },
   { id: 'circle-grammar', label: '圈出所有语法' },
   { id: 'shorten-sentence', label: '缩句练习' },
   { id: 'twentyfour', label: '二十四点' },
