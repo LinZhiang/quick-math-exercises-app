@@ -670,7 +670,10 @@ const PREFIX_RULES: PrefixRule[] = [
     categoryLabel: '估算分数',
     labelFor: (mid, difficulty) => {
       const d = difficulty || mid
-      return `估算分数 · ${difficultyLabel(d) || d}`
+      if (mid === 'special' || String(mid).startsWith('special')) {
+        return `估算分数 · 特殊分数值 · ${difficultyTopicLabel(d) || d}`
+      }
+      return `估算分数 · ${difficultyLabel(d) || d}题`
     },
   },
   {

@@ -4,6 +4,11 @@ import {
   type FractionEstimateMode,
 } from '@/utils/fractionEstimatePractice'
 import {
+  SPECIAL_FRACTION_MODES,
+  generateSpecialFractionQuestion,
+  type SpecialFractionMode,
+} from '@/utils/specialFractionPractice'
+import {
   DIVISIBILITY_MODES,
   generateDivisibilityQuestion,
   type DivisibilityMode,
@@ -90,6 +95,7 @@ export type MentalMathMode =
   | 'square-cube-easy'
   | 'square-cube-hard'
   | FractionEstimateMode
+  | SpecialFractionMode
   | DivisibilityMode
   | NumberSequenceMode
   | LifeSenseMode
@@ -353,6 +359,13 @@ export const MENTAL_MATH_FRACTION_MODES: MentalMathModeConfig[] = FRACTION_ESTIM
   }),
 )
 
+export const MENTAL_MATH_SPECIAL_FRACTION_MODES: MentalMathModeConfig[] = SPECIAL_FRACTION_MODES.map(
+  (m) => ({
+    ...m,
+    category: 'fraction' as const,
+  }),
+)
+
 export const MENTAL_MATH_DIVISIBILITY_MODES: MentalMathModeConfig[] = DIVISIBILITY_MODES.map(
   (m) => ({
     ...m,
@@ -455,6 +468,7 @@ export const MENTAL_MATH_MODES: MentalMathModeConfig[] = [
   ...MENTAL_MATH_POWER_MODES,
   ...MENTAL_MATH_SQUARE_CUBE_MODES,
   ...MENTAL_MATH_FRACTION_MODES,
+  ...MENTAL_MATH_SPECIAL_FRACTION_MODES,
   ...MENTAL_MATH_DIVISIBILITY_MODES,
   ...MENTAL_MATH_NUMBER_SEQUENCE_MODES,
   ...MENTAL_MATH_LIFE_SENSE_MODES,
@@ -493,6 +507,10 @@ export type MentalMathAnswerRecord = {
 
 export function isFractionEstimateMode(mode: MentalMathMode): mode is FractionEstimateMode {
   return mode === 'fraction-easy' || mode === 'fraction-hard'
+}
+
+export function isSpecialFractionPracticeMode(mode: MentalMathMode): mode is SpecialFractionMode {
+  return mode === 'fraction-special-easy' || mode === 'fraction-special-hard'
 }
 
 export function isDivisibilityPracticeMode(mode: MentalMathMode): mode is DivisibilityMode {
@@ -2097,6 +2115,10 @@ function buildMentalMathQuestionOnce(
 ): MentalMathQuestion {
   if (isFractionEstimateMode(mode)) {
     return generateFractionEstimateQuestion(mode, id, optionCount)
+  }
+
+  if (isSpecialFractionPracticeMode(mode)) {
+    return generateSpecialFractionQuestion(mode, id, optionCount)
   }
 
   if (isDivisibilityPracticeMode(mode)) {

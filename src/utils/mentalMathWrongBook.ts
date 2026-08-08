@@ -210,7 +210,14 @@ export const MENTAL_MATH_WRONG_SECTION_LABELS: Record<MentalMathWrongSection, st
 export function mentalMathModeToWrongSection(modeId: string): MentalMathWrongSection | null {
   if (modeId === 'power-easy' || modeId === 'power-hard') return 'power'
   if (modeId === 'square-cube-easy' || modeId === 'square-cube-hard') return 'square-cube'
-  if (modeId === 'fraction-easy' || modeId === 'fraction-hard') return 'fraction'
+  if (
+    modeId === 'fraction-easy' ||
+    modeId === 'fraction-hard' ||
+    modeId === 'fraction-special-easy' ||
+    modeId === 'fraction-special-hard'
+  ) {
+    return 'fraction'
+  }
   if (
     modeId === 'divisibility-easy' ||
     modeId === 'divisibility-distractor' ||
