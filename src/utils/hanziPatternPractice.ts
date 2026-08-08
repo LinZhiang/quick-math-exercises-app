@@ -22,12 +22,12 @@ export const HANZI_PATTERN_MODES: HanziPatternModeConfig[] = [
   {
     id: 'hanzi-pattern-normal',
     label: '普通题',
-    durationSec: 52,
+    durationSec: 77,
     optionCount: 4,
     correctDelta: 8,
     wrongDelta: -15,
     maxScore: 100,
-    desc: '52 秒 · 汉字规律快判 · 按知识点未出优先 · 对 +8 / 错 -15',
+    desc: '77 秒 · 题干仅四字选规律 · 按知识点未出优先 · 对 +8 / 错 -15',
   },
 ]
 

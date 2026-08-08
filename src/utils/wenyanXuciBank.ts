@@ -119,7 +119,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「何」在「何者？严大国之威以修敬也」中的用法是？`,
     correct: "疑问代词，为什么",
-    distractors: ["疑问代词，什么","疑问代词，哪里","疑问代词，怎么（反问）","连词，表承接","连词，表并列"],
+    distractors: ["疑问代词，什么","疑问代词，哪里","疑问代词，怎么（反问）","代词，通“尔”，你的","代词，你（的）"],
     explanation: `虚词：何
 例句：何者？严大国之威以修敬也
 译文：为什么呢？是为了尊重大国的威严而整饰礼仪啊
@@ -130,7 +130,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「何」在「大王来何操」中的用法是？`,
     correct: "疑问代词，什么",
-    distractors: ["疑问代词，为什么","疑问代词，哪里","疑问代词，怎么（反问）","连词，表承接","连词，表并列"],
+    distractors: ["疑问代词，为什么","疑问代词，哪里","疑问代词，怎么（反问）","代词，通“尔”，你的","代词，你（的）"],
     explanation: `虚词：何
 例句：大王来何操
 译文：大王来时带了什么
@@ -141,7 +141,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「何」在「豫州今欲何至」中的用法是？`,
     correct: "疑问代词，哪里",
-    distractors: ["疑问代词，为什么","疑问代词，什么","疑问代词，怎么（反问）","连词，表承接","连词，表并列"],
+    distractors: ["疑问代词，为什么","疑问代词，什么","疑问代词，怎么（反问）","代词，通“尔”，你的","代词，你（的）"],
     explanation: `虚词：何
 例句：豫州今欲何至
 译文：豫州现在打算到哪里去
@@ -152,7 +152,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「何」在「徐公何能及君也」中的用法是？`,
     correct: "疑问代词，怎么（反问）",
-    distractors: ["疑问代词，为什么","疑问代词，什么","疑问代词，哪里","连词，表承接","连词，表并列"],
+    distractors: ["疑问代词，为什么","疑问代词，什么","疑问代词，哪里","代词，通“尔”，你的","代词，你（的）"],
     explanation: `虚词：何
 例句：徐公何能及君也
 译文：徐公怎么能比得上您呢
@@ -163,7 +163,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「何」在「何不按兵束甲」中的用法是？`,
     correct: "疑问代词，为什么",
-    distractors: ["疑问代词，什么","疑问代词，哪里","疑问代词，怎么（反问）","连词，表承接","连词，表并列"],
+    distractors: ["疑问代词，什么","疑问代词，哪里","疑问代词，怎么（反问）","代词，通“尔”，你的","代词，你（的）"],
     explanation: `虚词：何
 例句：何不按兵束甲
 译文：为什么不放下兵器收起铠甲
@@ -174,7 +174,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「何」在「何苦而不平」中的用法是？`,
     correct: "疑问代词，什么",
-    distractors: ["疑问代词，为什么","疑问代词，哪里","疑问代词，怎么（反问）","连词，表承接","连词，表并列"],
+    distractors: ["疑问代词，为什么","疑问代词，哪里","疑问代词，怎么（反问）","代词，通“尔”，你的","代词，你（的）"],
     explanation: `虚词：何
 例句：何苦而不平
 译文：愁什么挖不平呢
@@ -185,7 +185,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「何」在「君欲何往」中的用法是？`,
     correct: "疑问代词，哪里",
-    distractors: ["疑问代词，为什么","疑问代词，什么","疑问代词，怎么（反问）","连词，表承接","连词，表并列"],
+    distractors: ["疑问代词，为什么","疑问代词，什么","疑问代词，怎么（反问）","代词，通“尔”，你的","代词，你（的）"],
     explanation: `虚词：何
 例句：君欲何往
 译文：您打算到哪里去
@@ -196,7 +196,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「何」在「何足以知其真伪」中的用法是？`,
     correct: "疑问代词，怎么（反问）",
-    distractors: ["疑问代词，为什么","疑问代词，什么","疑问代词，哪里","连词，表承接","连词，表并列"],
+    distractors: ["疑问代词，为什么","疑问代词，什么","疑问代词，哪里","代词，通“尔”，你的","代词，你（的）"],
     explanation: `虚词：何
 例句：何足以知其真伪
 译文：怎么足以知道它的真假
@@ -207,7 +207,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「何」在「肉食者谋之，又何间焉」中的用法是？`,
     correct: "疑问代词，为什么",
-    distractors: ["疑问代词，什么","疑问代词，哪里","疑问代词，怎么（反问）","连词，表承接","连词，表并列"],
+    distractors: ["疑问代词，什么","疑问代词，哪里","疑问代词，怎么（反问）","代词，通“尔”，你的","代词，你（的）"],
     explanation: `虚词：何
 例句：肉食者谋之，又何间焉
 译文：吃肉的官员谋划这件事，又为什么参与呢
@@ -218,7 +218,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「何」在「何陋之有」中的用法是？`,
     correct: "疑问代词，什么",
-    distractors: ["疑问代词，为什么","疑问代词，哪里","疑问代词，怎么（反问）","连词，表承接","连词，表并列"],
+    distractors: ["疑问代词，为什么","疑问代词，哪里","疑问代词，怎么（反问）","代词，通“尔”，你的","代词，你（的）"],
     explanation: `虚词：何
 例句：何陋之有
 译文：有什么简陋的呢
@@ -229,7 +229,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乎」在「王侯将相宁有种乎」中的用法是？`,
     correct: "助词，表反问或疑问",
-    distractors: ["助词，表感叹","助词，形容词词尾","介词，相当于“于”","连词，表承接","连词，表并列"],
+    distractors: ["助词，表感叹","助词，形容词词尾","介词，相当于“于”","助词，时间副词词尾","助词，……的样子"],
     explanation: `虚词：乎
 例句：王侯将相宁有种乎
 译文：王侯将相难道有天生的种吗
@@ -240,7 +240,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乎」在「呜呼！熟知赋敛之毒有甚是蛇者乎」中的用法是？`,
     correct: "助词，表感叹",
-    distractors: ["助词，表反问或疑问","助词，形容词词尾","介词，相当于“于”","连词，表承接","连词，表并列"],
+    distractors: ["助词，表反问或疑问","助词，形容词词尾","介词，相当于“于”","助词，时间副词词尾","助词，……的样子"],
     explanation: `虚词：乎
 例句：呜呼！熟知赋敛之毒有甚是蛇者乎
 译文：唉！谁知道赋税搜刮的毒害有比这毒蛇更厉害的呢
@@ -251,7 +251,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乎」在「恢恢乎，其于游刃有余地矣」中的用法是？`,
     correct: "助词，形容词词尾",
-    distractors: ["助词，表反问或疑问","助词，表感叹","介词，相当于“于”","连词，表承接","连词，表并列"],
+    distractors: ["助词，表反问或疑问","助词，表感叹","介词，相当于“于”","助词，时间副词词尾","助词，……的样子"],
     explanation: `虚词：乎
 例句：恢恢乎，其于游刃有余地矣
 译文：宽宽绰绰地，对于运刀就游刃有余了
@@ -262,7 +262,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乎」在「生乎吾前，其闻道也固先乎吾」中的用法是？`,
     correct: "介词，相当于“于”",
-    distractors: ["助词，表反问或疑问","助词，表感叹","助词，形容词词尾","连词，表承接","连词，表并列"],
+    distractors: ["助词，表反问或疑问","助词，表感叹","助词，形容词词尾","介词，被/替给/为了/对向","介词，因为/在/用/按照"],
     explanation: `虚词：乎
 例句：生乎吾前，其闻道也固先乎吾
 译文：生在我前面的人，他懂得道理本来就比我早
@@ -273,7 +273,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乎」在「学而时习之，不亦说乎」中的用法是？`,
     correct: "助词，表反问或疑问",
-    distractors: ["助词，表感叹","助词，形容词词尾","介词，相当于“于”","连词，表承接","连词，表并列"],
+    distractors: ["助词，表感叹","助词，形容词词尾","介词，相当于“于”","助词，时间副词词尾","助词，……的样子"],
     explanation: `虚词：乎
 例句：学而时习之，不亦说乎
 译文：学习并且按时温习，不也很愉快吗
@@ -284,7 +284,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乎」在「嗟乎！师道之不传也久矣」中的用法是？`,
     correct: "助词，表感叹",
-    distractors: ["助词，表反问或疑问","助词，形容词词尾","介词，相当于“于”","连词，表承接","连词，表并列"],
+    distractors: ["助词，表反问或疑问","助词，形容词词尾","介词，相当于“于”","助词，时间副词词尾","助词，……的样子"],
     explanation: `虚词：乎
 例句：嗟乎！师道之不传也久矣
 译文：唉！从师学习的风尚失传很久了
@@ -295,7 +295,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乎」在「郁郁乎文哉」中的用法是？`,
     correct: "助词，形容词词尾",
-    distractors: ["助词，表反问或疑问","助词，表感叹","介词，相当于“于”","连词，表承接","连词，表并列"],
+    distractors: ["助词，表反问或疑问","助词，表感叹","介词，相当于“于”","助词，时间副词词尾","助词，……的样子"],
     explanation: `虚词：乎
 例句：郁郁乎文哉
 译文：多么丰富多彩啊
@@ -306,7 +306,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乎」在「君子博学而日参省乎己」中的用法是？`,
     correct: "介词，相当于“于”",
-    distractors: ["助词，表反问或疑问","助词，表感叹","助词，形容词词尾","连词，表承接","连词，表并列"],
+    distractors: ["助词，表反问或疑问","助词，表感叹","助词，形容词词尾","介词，被/替给/为了/对向","介词，因为/在/用/按照"],
     explanation: `虚词：乎
 例句：君子博学而日参省乎己
 译文：君子广泛学习并且每天对自己检验省察
@@ -317,7 +317,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乎」在「可迎之乎」中的用法是？`,
     correct: "助词，表反问或疑问",
-    distractors: ["助词，表感叹","助词，形容词词尾","介词，相当于“于”","连词，表承接","连词，表并列"],
+    distractors: ["助词，表感叹","助词，形容词词尾","介词，相当于“于”","助词，时间副词词尾","助词，……的样子"],
     explanation: `虚词：乎
 例句：可迎之乎
 译文：难道可以去迎接他吗
@@ -328,7 +328,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乎」在「巍巍乎其有成功也」中的用法是？`,
     correct: "助词，形容词词尾",
-    distractors: ["助词，表反问或疑问","助词，表感叹","介词，相当于“于”","连词，表承接","连词，表并列"],
+    distractors: ["助词，表反问或疑问","助词，表感叹","介词，相当于“于”","助词，时间副词词尾","助词，……的样子"],
     explanation: `虚词：乎
 例句：巍巍乎其有成功也
 译文：多么高大啊他的功业
@@ -339,7 +339,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乃」在「乃入见」中的用法是？`,
     correct: "副词，就（承接）",
-    distractors: ["副词，却/竟然","副词，才","副词，是/就是（判断）","代词，你（的）","连词，表承接"],
+    distractors: ["副词，却/竟然","副词，才","副词，是/就是（判断）","代词，你（的）","副词，恐怕大概/一定应当/难道"],
     explanation: `虚词：乃
 例句：乃入见
 译文：于是就进去拜见
@@ -350,7 +350,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乃」在「乃不知有汉」中的用法是？`,
     correct: "副词，却/竟然",
-    distractors: ["副词，就（承接）","副词，才","副词，是/就是（判断）","代词，你（的）","连词，表承接"],
+    distractors: ["副词，就（承接）","副词，才","副词，是/就是（判断）","代词，你（的）","副词，恐怕大概/一定应当/难道"],
     explanation: `虚词：乃
 例句：乃不知有汉
 译文：竟然不知道有汉朝
@@ -361,7 +361,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乃」在「臣乃敢上璧」中的用法是？`,
     correct: "副词，才",
-    distractors: ["副词，就（承接）","副词，却/竟然","副词，是/就是（判断）","代词，你（的）","连词，表承接"],
+    distractors: ["副词，就（承接）","副词，却/竟然","副词，是/就是（判断）","代词，你（的）","副词，恐怕大概/一定应当/难道"],
     explanation: `虚词：乃
 例句：臣乃敢上璧
 译文：我才敢献上和氏璧
@@ -372,7 +372,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乃」在「此乃天也」中的用法是？`,
     correct: "副词，是/就是（判断）",
-    distractors: ["副词，就（承接）","副词，却/竟然","副词，才","代词，你（的）","连词，表承接"],
+    distractors: ["副词，就（承接）","副词，却/竟然","副词，才","代词，你（的）","副词，恐怕大概/一定应当/难道"],
     explanation: `虚词：乃
 例句：此乃天也
 译文：这就是天意啊
@@ -383,7 +383,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乃」在「尔其无忘乃父之志」中的用法是？`,
     correct: "代词，你（的）",
-    distractors: ["副词，就（承接）","副词，却/竟然","副词，才","副词，是/就是（判断）","连词，表承接"],
+    distractors: ["副词，就（承接）","副词，却/竟然","副词，才","副词，是/就是（判断）","代词，通“尔”，你的"],
     explanation: `虚词：乃
 例句：尔其无忘乃父之志
 译文：你可不要忘记你父亲的志向
@@ -394,7 +394,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乃」在「乃重修岳阳楼」中的用法是？`,
     correct: "副词，就（承接）",
-    distractors: ["副词，却/竟然","副词，才","副词，是/就是（判断）","代词，你（的）","连词，表承接"],
+    distractors: ["副词，却/竟然","副词，才","副词，是/就是（判断）","代词，你（的）","副词，恐怕大概/一定应当/难道"],
     explanation: `虚词：乃
 例句：乃重修岳阳楼
 译文：于是就重新修建岳阳楼
@@ -405,7 +405,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乃」在「问今是何世，乃不知有汉」中的用法是？`,
     correct: "副词，却/竟然",
-    distractors: ["副词，就（承接）","副词，才","副词，是/就是（判断）","代词，你（的）","连词，表承接"],
+    distractors: ["副词，就（承接）","副词，才","副词，是/就是（判断）","代词，你（的）","副词，恐怕大概/一定应当/难道"],
     explanation: `虚词：乃
 例句：问今是何世，乃不知有汉
 译文：竟然不知道有汉朝
@@ -416,7 +416,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乃」在「精思傅会，十年乃成」中的用法是？`,
     correct: "副词，才",
-    distractors: ["副词，就（承接）","副词，却/竟然","副词，是/就是（判断）","代词，你（的）","连词，表承接"],
+    distractors: ["副词，就（承接）","副词，却/竟然","副词，是/就是（判断）","代词，你（的）","副词，恐怕大概/一定应当/难道"],
     explanation: `虚词：乃
 例句：精思傅会，十年乃成
 译文：精心构思组织，十年才写成
@@ -427,7 +427,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乃」在「当立者乃公子扶苏」中的用法是？`,
     correct: "副词，是/就是（判断）",
-    distractors: ["副词，就（承接）","副词，却/竟然","副词，才","代词，你（的）","连词，表承接"],
+    distractors: ["副词，就（承接）","副词，却/竟然","副词，才","代词，你（的）","副词，恐怕大概/一定应当/难道"],
     explanation: `虚词：乃
 例句：当立者乃公子扶苏
 译文：应当立为君的是公子扶苏
@@ -438,7 +438,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「乃」在「家祭无忘告乃翁」中的用法是？`,
     correct: "代词，你（的）",
-    distractors: ["副词，就（承接）","副词，却/竟然","副词，才","副词，是/就是（判断）","连词，表承接"],
+    distractors: ["副词，就（承接）","副词，却/竟然","副词，才","副词，是/就是（判断）","代词，通“尔”，你的"],
     explanation: `虚词：乃
 例句：家祭无忘告乃翁
 译文：家祭时不要忘了告诉你的父亲
@@ -449,7 +449,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「其」在「各爱其地」中的用法是？`,
     correct: "代词，他们的/我/那/其中的",
-    distractors: ["副词，恐怕大概/一定应当/难道","连词，如果/或者还是","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["副词，恐怕大概/一定应当/难道","连词，如果/或者还是","代词，通“尔”，你的","疑问代词，为什么","疑问代词，什么"],
     explanation: `虚词：其
 例句：各爱其地
 译文：各自爱护他们的土地
@@ -460,7 +460,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「其」在「余亦悔其随之而不得极夫游之乐也」中的用法是？`,
     correct: "代词，他们的/我/那/其中的",
-    distractors: ["副词，恐怕大概/一定应当/难道","连词，如果/或者还是","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["副词，恐怕大概/一定应当/难道","连词，如果/或者还是","代词，通“尔”，你的","疑问代词，为什么","疑问代词，什么"],
     explanation: `虚词：其
 例句：余亦悔其随之而不得极夫游之乐也
 译文：我也后悔自己跟着他而没能尽享游览的乐趣
@@ -471,7 +471,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「其」在「其一犬坐于前」中的用法是？`,
     correct: "代词，他们的/我/那/其中的",
-    distractors: ["副词，恐怕大概/一定应当/难道","连词，如果/或者还是","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["副词，恐怕大概/一定应当/难道","连词，如果/或者还是","代词，通“尔”，你的","疑问代词，为什么","疑问代词，什么"],
     explanation: `虚词：其
 例句：其一犬坐于前
 译文：其中一只像狗一样坐在前面
@@ -482,7 +482,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「其」在「尔其无忘乃父之志」中的用法是？`,
     correct: "副词，恐怕大概/一定应当/难道",
-    distractors: ["代词，他们的/我/那/其中的","连词，如果/或者还是","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["代词，他们的/我/那/其中的","连词，如果/或者还是","副词，就（承接）","副词，却/竟然","副词，才"],
     explanation: `虚词：其
 例句：尔其无忘乃父之志
 译文：你一定不要忘记你父亲的志向
@@ -493,7 +493,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「其」在「国无主，其能久乎」中的用法是？`,
     correct: "副词，恐怕大概/一定应当/难道",
-    distractors: ["代词，他们的/我/那/其中的","连词，如果/或者还是","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["代词，他们的/我/那/其中的","连词，如果/或者还是","副词，就（承接）","副词，却/竟然","副词，才"],
     explanation: `虚词：其
 例句：国无主，其能久乎
 译文：国家没有君主，难道能长久吗
@@ -504,7 +504,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「其」在「其真无马邪」中的用法是？`,
     correct: "副词，恐怕大概/一定应当/难道",
-    distractors: ["代词，他们的/我/那/其中的","连词，如果/或者还是","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["代词，他们的/我/那/其中的","连词，如果/或者还是","副词，就（承接）","副词，却/竟然","副词，才"],
     explanation: `虚词：其
 例句：其真无马邪
 译文：难道真的没有千里马吗
@@ -526,7 +526,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「其」在「其孰能讥之乎」中的用法是？`,
     correct: "副词，恐怕大概/一定应当/难道",
-    distractors: ["代词，他们的/我/那/其中的","连词，如果/或者还是","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["代词，他们的/我/那/其中的","连词，如果/或者还是","副词，就（承接）","副词，却/竟然","副词，才"],
     explanation: `虚词：其
 例句：其孰能讥之乎
 译文：难道谁能讥笑他吗
@@ -537,7 +537,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「其」在「攻之不克，围之不继，吾其还也」中的用法是？`,
     correct: "副词，恐怕大概/一定应当/难道",
-    distractors: ["代词，他们的/我/那/其中的","连词，如果/或者还是","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["代词，他们的/我/那/其中的","连词，如果/或者还是","副词，就（承接）","副词，却/竟然","副词，才"],
     explanation: `虚词：其
 例句：攻之不克，围之不继，吾其还也
 译文：我们还是回去吧
@@ -548,7 +548,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「其」在「其业有不精，德有不成者」中的用法是？`,
     correct: "代词，他们的/我/那/其中的",
-    distractors: ["副词，恐怕大概/一定应当/难道","连词，如果/或者还是","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["副词，恐怕大概/一定应当/难道","连词，如果/或者还是","代词，通“尔”，你的","疑问代词，为什么","疑问代词，什么"],
     explanation: `虚词：其
 例句：其业有不精，德有不成者
 译文：那些学业不精、品德不成的人
@@ -592,7 +592,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「且」在「吾今且报府」中的用法是？`,
     correct: "副词，将要/暂且/姑且",
-    distractors: ["连词，况且/而且","连词，并且","连词，尚且","连词，表承接","连词，表并列"],
+    distractors: ["连词，况且/而且","连词，并且","连词，尚且","副词，就（承接）","副词，却/竟然"],
     explanation: `虚词：且
 例句：吾今且报府
 译文：我现在暂且要去官府报到
@@ -636,7 +636,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「且」在「且放白鹿青崖间」中的用法是？`,
     correct: "副词，将要/暂且/姑且",
-    distractors: ["连词，况且/而且","连词，并且","连词，尚且","连词，表承接","连词，表并列"],
+    distractors: ["连词，况且/而且","连词，并且","连词，尚且","副词，就（承接）","副词，却/竟然"],
     explanation: `虚词：且
 例句：且放白鹿青崖间
 译文：暂且把白鹿放养在青崖之间
@@ -669,7 +669,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「若」在「年相若也」中的用法是？`,
     correct: "动词，如同/比得上",
-    distractors: ["代词，你/你的/这样","连词，如果/与和","助词，……的样子","连词，表承接","连词，表并列"],
+    distractors: ["代词，你/你的/这样","连词，如果/与和","助词，……的样子","动词，做/成为/是/担任/当作","动词，以为/认为/做"],
     explanation: `虚词：若
 例句：年相若也
 译文：年纪差不多
@@ -680,7 +680,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「若」在「若属皆且为所虏」中的用法是？`,
     correct: "代词，你/你的/这样",
-    distractors: ["动词，如同/比得上","连词，如果/与和","助词，……的样子","连词，表承接","连词，表并列"],
+    distractors: ["动词，如同/比得上","连词，如果/与和","助词，……的样子","代词，通“尔”，你的","疑问代词，为什么"],
     explanation: `虚词：若
 例句：若属皆且为所虏
 译文：你们这些人都将被他俘虏
@@ -702,7 +702,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「若」在「其叶沃若」中的用法是？`,
     correct: "助词，……的样子",
-    distractors: ["动词，如同/比得上","代词，你/你的/这样","连词，如果/与和","连词，表承接","连词，表并列"],
+    distractors: ["动词，如同/比得上","代词，你/你的/这样","连词，如果/与和","助词，时间副词词尾","助词，表反问或疑问"],
     explanation: `虚词：若
 例句：其叶沃若
 译文：它的叶子润泽的样子
@@ -713,7 +713,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「若」在「海内存知己，天涯若比邻」中的用法是？`,
     correct: "动词，如同/比得上",
-    distractors: ["代词，你/你的/这样","连词，如果/与和","助词，……的样子","连词，表承接","连词，表并列"],
+    distractors: ["代词，你/你的/这样","连词，如果/与和","助词，……的样子","动词，做/成为/是/担任/当作","动词，以为/认为/做"],
     explanation: `虚词：若
 例句：海内存知己，天涯若比邻
 译文：四海之内有知己，即使远在天涯也如同近邻
@@ -724,7 +724,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「若」在「更若役，复若赋」中的用法是？`,
     correct: "代词，你/你的/这样",
-    distractors: ["动词，如同/比得上","连词，如果/与和","助词，……的样子","连词，表承接","连词，表并列"],
+    distractors: ["动词，如同/比得上","连词，如果/与和","助词，……的样子","代词，通“尔”，你的","疑问代词，为什么"],
     explanation: `虚词：若
 例句：更若役，复若赋
 译文：更换你的差役，恢复你的赋税
@@ -746,7 +746,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「若」在「桑之未落，其叶沃若」中的用法是？`,
     correct: "助词，……的样子",
-    distractors: ["动词，如同/比得上","代词，你/你的/这样","连词，如果/与和","连词，表承接","连词，表并列"],
+    distractors: ["动词，如同/比得上","代词，你/你的/这样","连词，如果/与和","助词，时间副词词尾","助词，表反问或疑问"],
     explanation: `虚词：若
 例句：桑之未落，其叶沃若
 译文：桑树还没落叶时，它的叶子润泽的样子
@@ -757,7 +757,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「若」在「若毒之乎」中的用法是？`,
     correct: "代词，你/你的/这样",
-    distractors: ["动词，如同/比得上","连词，如果/与和","助词，……的样子","连词，表承接","连词，表并列"],
+    distractors: ["动词，如同/比得上","连词，如果/与和","助词，……的样子","代词，通“尔”，你的","疑问代词，为什么"],
     explanation: `虚词：若
 例句：若毒之乎
 译文：你怨恨这差事吗
@@ -768,7 +768,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「若」在「貌若甚戚者」中的用法是？`,
     correct: "动词，如同/比得上",
-    distractors: ["代词，你/你的/这样","连词，如果/与和","助词，……的样子","连词，表承接","连词，表并列"],
+    distractors: ["代词，你/你的/这样","连词，如果/与和","助词，……的样子","动词，做/成为/是/担任/当作","动词，以为/认为/做"],
     explanation: `虚词：若
 例句：貌若甚戚者
 译文：脸色好像很悲伤的样子
@@ -779,7 +779,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「所」在「某所，而母立于兹」中的用法是？`,
     correct: "名词，场所/位置",
-    distractors: ["助词，所+动词；为……所（被动）","用来……的（方法/手段）","副词，左右","量词，座","连词，表承接"],
+    distractors: ["助词，所+动词；为……所（被动）","用来……的（方法/手段）","副词，左右","量词，座","名词，作为/政绩"],
     explanation: `虚词：所
 例句：某所，而母立于兹
 译文：某个地方，你的母亲曾站在这里
@@ -790,7 +790,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「所」在「记所遭」中的用法是？`,
     correct: "助词，所+动词；为……所（被动）",
-    distractors: ["名词，场所/位置","用来……的（方法/手段）","副词，左右","量词，座","连词，表承接"],
+    distractors: ["名词，场所/位置","用来……的（方法/手段）","副词，左右","量词，座","助词，时间副词词尾"],
     explanation: `虚词：所
 例句：记所遭
 译文：记下所遭遇的事情
@@ -801,7 +801,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「所」在「为人所杀」中的用法是？`,
     correct: "助词，所+动词；为……所（被动）",
-    distractors: ["名词，场所/位置","用来……的（方法/手段）","副词，左右","量词，座","连词，表承接"],
+    distractors: ["名词，场所/位置","用来……的（方法/手段）","副词，左右","量词，座","助词，时间副词词尾"],
     explanation: `虚词：所
 例句：为人所杀
 译文：被人杀害
@@ -812,7 +812,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「所」在「所以传道授业解惑也」中的用法是？`,
     correct: "用来……的（方法/手段）",
-    distractors: ["名词，场所/位置","助词，所+动词；为……所（被动）","副词，左右","量词，座","连词，表承接"],
+    distractors: ["名词，场所/位置","助词，所+动词；为……所（被动）","副词，左右","量词，座","助词，时间副词词尾"],
     explanation: `虚词：所
 例句：所以传道授业解惑也
 译文：用来传授道理、教授学业、解答疑难的
@@ -823,7 +823,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「所」在「父去里所」中的用法是？`,
     correct: "副词，左右",
-    distractors: ["名词，场所/位置","助词，所+动词；为……所（被动）","用来……的（方法/手段）","量词，座","连词，表承接"],
+    distractors: ["名词，场所/位置","助词，所+动词；为……所（被动）","用来……的（方法/手段）","量词，座","副词，就（承接）"],
     explanation: `虚词：所
 例句：父去里所
 译文：父亲走了大约一里左右
@@ -845,7 +845,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「所」在「师之所存」中的用法是？`,
     correct: "助词，所+动词；为……所（被动）",
-    distractors: ["名词，场所/位置","用来……的（方法/手段）","副词，左右","量词，座","连词，表承接"],
+    distractors: ["名词，场所/位置","用来……的（方法/手段）","副词，左右","量词，座","助词，时间副词词尾"],
     explanation: `虚词：所
 例句：师之所存
 译文：老师存在的地方
@@ -856,7 +856,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「所」在「此所以学者不可以不深思而慎取之也」中的用法是？`,
     correct: "用来……的（方法/手段）",
-    distractors: ["名词，场所/位置","助词，所+动词；为……所（被动）","副词，左右","量词，座","连词，表承接"],
+    distractors: ["名词，场所/位置","助词，所+动词；为……所（被动）","副词，左右","量词，座","助词，时间副词词尾"],
     explanation: `虚词：所
 例句：此所以学者不可以不深思而慎取之也
 译文：这就是求学的人不可以不深入思考而谨慎选取的缘故
@@ -867,7 +867,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「所」在「从弟子女十人所」中的用法是？`,
     correct: "副词，左右",
-    distractors: ["名词，场所/位置","助词，所+动词；为……所（被动）","用来……的（方法/手段）","量词，座","连词，表承接"],
+    distractors: ["名词，场所/位置","助词，所+动词；为……所（被动）","用来……的（方法/手段）","量词，座","副词，就（承接）"],
     explanation: `虚词：所
 例句：从弟子女十人所
 译文：跟随的女徒弟大约十人左右
@@ -889,7 +889,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「为」在「大有为」中的用法是？`,
     correct: "名词，作为/政绩",
-    distractors: ["动词，做/成为/是/担任/当作","介词，被/替给/为了/对向","语气助词，呢","连词，因为","连词，表承接"],
+    distractors: ["动词，做/成为/是/担任/当作","介词，被/替给/为了/对向","语气助词，呢","连词，因为","名词，场所/位置"],
     explanation: `虚词：为
 例句：大有为
 译文：大有作为
@@ -900,7 +900,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「为」在「以俭为美德」中的用法是？`,
     correct: "动词，做/成为/是/担任/当作",
-    distractors: ["名词，作为/政绩","介词，被/替给/为了/对向","语气助词，呢","连词，因为","连词，表承接"],
+    distractors: ["名词，作为/政绩","介词，被/替给/为了/对向","语气助词，呢","连词，因为","动词，如同/比得上"],
     explanation: `虚词：为
 例句：以俭为美德
 译文：把节俭当作美德
@@ -911,7 +911,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「为」在「为天下笑」中的用法是？`,
     correct: "介词，被/替给/为了/对向",
-    distractors: ["名词，作为/政绩","动词，做/成为/是/担任/当作","语气助词，呢","连词，因为","连词，表承接"],
+    distractors: ["名词，作为/政绩","动词，做/成为/是/担任/当作","语气助词，呢","连词，因为","介词，相当于“于”"],
     explanation: `虚词：为
 例句：为天下笑
 译文：被天下人耻笑
@@ -922,7 +922,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「为」在「自令见放为」中的用法是？`,
     correct: "语气助词，呢",
-    distractors: ["名词，作为/政绩","动词，做/成为/是/担任/当作","介词，被/替给/为了/对向","连词，因为","连词，表承接"],
+    distractors: ["名词，作为/政绩","动词，做/成为/是/担任/当作","介词，被/替给/为了/对向","连词，因为","助词，时间副词词尾"],
     explanation: `虚词：为
 例句：自令见放为
 译文：自己使自己被放逐呢
@@ -944,7 +944,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「为」在「冰，水为之，而寒于水」中的用法是？`,
     correct: "动词，做/成为/是/担任/当作",
-    distractors: ["名词，作为/政绩","介词，被/替给/为了/对向","语气助词，呢","连词，因为","连词，表承接"],
+    distractors: ["名词，作为/政绩","介词，被/替给/为了/对向","语气助词，呢","连词，因为","动词，如同/比得上"],
     explanation: `虚词：为
 例句：冰，水为之，而寒于水
 译文：冰是水凝结成的，却比水更冷
@@ -955,7 +955,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「为」在「公输盘为我为云梯」中的用法是？`,
     correct: "介词，被/替给/为了/对向",
-    distractors: ["名词，作为/政绩","动词，做/成为/是/担任/当作","语气助词，呢","连词，因为","连词，表承接"],
+    distractors: ["名词，作为/政绩","动词，做/成为/是/担任/当作","语气助词，呢","连词，因为","介词，相当于“于”"],
     explanation: `虚词：为
 例句：公输盘为我为云梯
 译文：公输盘替我制造云梯（前「为」）
@@ -966,7 +966,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「为」在「不足为外人道也」中的用法是？`,
     correct: "介词，被/替给/为了/对向",
-    distractors: ["名词，作为/政绩","动词，做/成为/是/担任/当作","语气助词，呢","连词，因为","连词，表承接"],
+    distractors: ["名词，作为/政绩","动词，做/成为/是/担任/当作","语气助词，呢","连词，因为","介词，相当于“于”"],
     explanation: `虚词：为
 例句：不足为外人道也
 译文：不值得向外人说
@@ -977,7 +977,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「为」在「如今人方为刀俎，我为鱼肉」中的用法是？`,
     correct: "动词，做/成为/是/担任/当作",
-    distractors: ["名词，作为/政绩","介词，被/替给/为了/对向","语气助词，呢","连词，因为","连词，表承接"],
+    distractors: ["名词，作为/政绩","介词，被/替给/为了/对向","语气助词，呢","连词，因为","动词，如同/比得上"],
     explanation: `虚词：为
 例句：如今人方为刀俎，我为鱼肉
 译文：现在人家正是刀和砧板，我们是鱼肉
@@ -988,7 +988,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「为」在「何故怀瑾握瑜，而自令见放为」中的用法是？`,
     correct: "语气助词，呢",
-    distractors: ["名词，作为/政绩","动词，做/成为/是/担任/当作","介词，被/替给/为了/对向","连词，因为","连词，表承接"],
+    distractors: ["名词，作为/政绩","动词，做/成为/是/担任/当作","介词，被/替给/为了/对向","连词，因为","助词，时间副词词尾"],
     explanation: `虚词：为
 例句：何故怀瑾握瑜，而自令见放为
 译文：为什么怀揣美玉却使自己被放逐呢
@@ -999,7 +999,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「焉」在「万钟于我何加焉」中的用法是？`,
     correct: "语气助词，呢/也",
-    distractors: ["疑问代词，怎么/哪里","兼词，于之/于此","代词，之","连词，乃/则/就","连词，表承接"],
+    distractors: ["疑问代词，怎么/哪里","兼词，于之/于此","代词，之","连词，乃/则/就","助词，时间副词词尾"],
     explanation: `虚词：焉
 例句：万钟于我何加焉
 译文：优厚的俸禄对我有什么益处呢
@@ -1010,7 +1010,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「焉」在「吴人焉敢攻吾邑」中的用法是？`,
     correct: "疑问代词，怎么/哪里",
-    distractors: ["语气助词，呢/也","兼词，于之/于此","代词，之","连词，乃/则/就","连词，表承接"],
+    distractors: ["语气助词，呢/也","兼词，于之/于此","代词，之","连词，乃/则/就","代词，通“尔”，你的"],
     explanation: `虚词：焉
 例句：吴人焉敢攻吾邑
 译文：吴国人怎么敢进攻我们的城邑
@@ -1032,7 +1032,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「焉」在「愿学焉」中的用法是？`,
     correct: "代词，之",
-    distractors: ["语气助词，呢/也","疑问代词，怎么/哪里","兼词，于之/于此","连词，乃/则/就","连词，表承接"],
+    distractors: ["语气助词，呢/也","疑问代词，怎么/哪里","兼词，于之/于此","连词，乃/则/就","代词，通“尔”，你的"],
     explanation: `虚词：焉
 例句：愿学焉
 译文：希望向他学习
@@ -1054,7 +1054,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「焉」在「寒暑易节，始一反焉」中的用法是？`,
     correct: "语气助词，呢/也",
-    distractors: ["疑问代词，怎么/哪里","兼词，于之/于此","代词，之","连词，乃/则/就","连词，表承接"],
+    distractors: ["疑问代词，怎么/哪里","兼词，于之/于此","代词，之","连词，乃/则/就","助词，时间副词词尾"],
     explanation: `虚词：焉
 例句：寒暑易节，始一反焉
 译文：冬夏换季，才往返一次呢
@@ -1065,7 +1065,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「焉」在「且焉置土石」中的用法是？`,
     correct: "疑问代词，怎么/哪里",
-    distractors: ["语气助词，呢/也","兼词，于之/于此","代词，之","连词，乃/则/就","连词，表承接"],
+    distractors: ["语气助词，呢/也","兼词，于之/于此","代词，之","连词，乃/则/就","代词，通“尔”，你的"],
     explanation: `虚词：焉
 例句：且焉置土石
 译文：况且把土石放到哪里去
@@ -1087,7 +1087,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「焉」在「三人行，必有我师焉」中的用法是？`,
     correct: "代词，之",
-    distractors: ["语气助词，呢/也","疑问代词，怎么/哪里","兼词，于之/于此","连词，乃/则/就","连词，表承接"],
+    distractors: ["语气助词，呢/也","疑问代词，怎么/哪里","兼词，于之/于此","连词，乃/则/就","代词，通“尔”，你的"],
     explanation: `虚词：焉
 例句：三人行，必有我师焉
 译文：几个人一起走路，其中一定有可以做我老师的
@@ -1098,7 +1098,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「焉」在「焉用亡郑以陪邻」中的用法是？`,
     correct: "疑问代词，怎么/哪里",
-    distractors: ["语气助词，呢/也","兼词，于之/于此","代词，之","连词，乃/则/就","连词，表承接"],
+    distractors: ["语气助词，呢/也","兼词，于之/于此","代词，之","连词，乃/则/就","代词，通“尔”，你的"],
     explanation: `虚词：焉
 例句：焉用亡郑以陪邻
 译文：哪里用得着灭亡郑国来增加邻国的土地
@@ -1109,7 +1109,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「也」在「死生，昼夜事也」中的用法是？`,
     correct: "句末语气，判断/解释陈述",
-    distractors: ["语气，肯定感叹/祈使/停顿","连词，表承接","连词，表并列","连词，表转折","连词，表递进"],
+    distractors: ["语气，肯定感叹/祈使/停顿","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹","助词，形容词词尾"],
     explanation: `虚词：也
 例句：死生，昼夜事也
 译文：死生是昼夜之间的事
@@ -1120,7 +1120,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「也」在「故以羊易之也」中的用法是？`,
     correct: "句末语气，判断/解释陈述",
-    distractors: ["语气，肯定感叹/祈使/停顿","连词，表承接","连词，表并列","连词，表转折","连词，表递进"],
+    distractors: ["语气，肯定感叹/祈使/停顿","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹","助词，形容词词尾"],
     explanation: `虚词：也
 例句：故以羊易之也
 译文：所以用羊替换它
@@ -1131,7 +1131,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「也」在「吾其还也」中的用法是？`,
     correct: "语气，肯定感叹/祈使/停顿",
-    distractors: ["句末语气，判断/解释陈述","连词，表承接","连词，表并列","连词，表转折","连词，表递进"],
+    distractors: ["句末语气，判断/解释陈述","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹","助词，形容词词尾"],
     explanation: `虚词：也
 例句：吾其还也
 译文：我们还是回去吧
@@ -1142,7 +1142,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「也」在「师道之不传也久矣」中的用法是？`,
     correct: "语气，肯定感叹/祈使/停顿",
-    distractors: ["句末语气，判断/解释陈述","连词，表承接","连词，表并列","连词，表转折","连词，表递进"],
+    distractors: ["句末语气，判断/解释陈述","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹","助词，形容词词尾"],
     explanation: `虚词：也
 例句：师道之不传也久矣
 译文：从师学习的风尚失传很久了
@@ -1153,7 +1153,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「也」在「陈胜者，阳城人也」中的用法是？`,
     correct: "句末语气，判断/解释陈述",
-    distractors: ["语气，肯定感叹/祈使/停顿","连词，表承接","连词，表并列","连词，表转折","连词，表递进"],
+    distractors: ["语气，肯定感叹/祈使/停顿","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹","助词，形容词词尾"],
     explanation: `虚词：也
 例句：陈胜者，阳城人也
 译文：陈胜是阳城人
@@ -1164,7 +1164,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「也」在「是故燕虽小国而后亡，斯用兵之效也」中的用法是？`,
     correct: "句末语气，判断/解释陈述",
-    distractors: ["语气，肯定感叹/祈使/停顿","连词，表承接","连词，表并列","连词，表转折","连词，表递进"],
+    distractors: ["语气，肯定感叹/祈使/停顿","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹","助词，形容词词尾"],
     explanation: `虚词：也
 例句：是故燕虽小国而后亡，斯用兵之效也
 译文：所以燕国虽小却后灭亡，这是用兵的功效
@@ -1175,7 +1175,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「也」在「欲人之无惑也难矣」中的用法是？`,
     correct: "语气，肯定感叹/祈使/停顿",
-    distractors: ["句末语气，判断/解释陈述","连词，表承接","连词，表并列","连词，表转折","连词，表递进"],
+    distractors: ["句末语气，判断/解释陈述","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹","助词，形容词词尾"],
     explanation: `虚词：也
 例句：欲人之无惑也难矣
 译文：想要人们没有疑惑可就难了
@@ -1186,7 +1186,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「也」在「其闻道也固先乎吾」中的用法是？`,
     correct: "语气，肯定感叹/祈使/停顿",
-    distractors: ["句末语气，判断/解释陈述","连词，表承接","连词，表并列","连词，表转折","连词，表递进"],
+    distractors: ["句末语气，判断/解释陈述","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹","助词，形容词词尾"],
     explanation: `虚词：也
 例句：其闻道也固先乎吾
 译文：他懂得道理本来就比我早（「也」表停顿）
@@ -1197,7 +1197,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「也」在「廉颇者，赵之良将也」中的用法是？`,
     correct: "句末语气，判断/解释陈述",
-    distractors: ["语气，肯定感叹/祈使/停顿","连词，表承接","连词，表并列","连词，表转折","连词，表递进"],
+    distractors: ["语气，肯定感叹/祈使/停顿","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹","助词，形容词词尾"],
     explanation: `虚词：也
 例句：廉颇者，赵之良将也
 译文：廉颇是赵国优秀的将领
@@ -1208,7 +1208,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「也」在「苛政猛于虎也」中的用法是？`,
     correct: "句末语气，判断/解释陈述",
-    distractors: ["语气，肯定感叹/祈使/停顿","连词，表承接","连词，表并列","连词，表转折","连词，表递进"],
+    distractors: ["语气，肯定感叹/祈使/停顿","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹","助词，形容词词尾"],
     explanation: `虚词：也
 例句：苛政猛于虎也
 译文：苛酷的政令比老虎还凶猛
@@ -1219,7 +1219,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「以」在「自以寿不得长」中的用法是？`,
     correct: "动词，以为/认为/做",
-    distractors: ["介词，因为/在/用/按照","连词，并列并且/修饰地着/目的来用来/承接而","副词，已经","连词，表承接","连词，表并列"],
+    distractors: ["介词，因为/在/用/按照","连词，并列并且/修饰地着/目的来用来/承接而","副词，已经","动词，如同/比得上","动词，做/成为/是/担任/当作"],
     explanation: `虚词：以
 例句：自以寿不得长
 译文：自己认为寿命不会长久
@@ -1230,7 +1230,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「以」在「不以物喜，不以己悲」中的用法是？`,
     correct: "介词，因为/在/用/按照",
-    distractors: ["动词，以为/认为/做","连词，并列并且/修饰地着/目的来用来/承接而","副词，已经","连词，表承接","连词，表并列"],
+    distractors: ["动词，以为/认为/做","连词，并列并且/修饰地着/目的来用来/承接而","副词，已经","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：以
 例句：不以物喜，不以己悲
 译文：不因为外物好坏和自己得失而高兴或悲伤
@@ -1252,7 +1252,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「以」在「固以怪之矣」中的用法是？`,
     correct: "副词，已经",
-    distractors: ["动词，以为/认为/做","介词，因为/在/用/按照","连词，并列并且/修饰地着/目的来用来/承接而","连词，表承接","连词，表并列"],
+    distractors: ["动词，以为/认为/做","介词，因为/在/用/按照","连词，并列并且/修饰地着/目的来用来/承接而","副词，就（承接）","副词，却/竟然"],
     explanation: `虚词：以
 例句：固以怪之矣
 译文：本来已经对这件事感到奇怪了
@@ -1263,7 +1263,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「以」在「我以日始出时去人近」中的用法是？`,
     correct: "动词，以为/认为/做",
-    distractors: ["介词，因为/在/用/按照","连词，并列并且/修饰地着/目的来用来/承接而","副词，已经","连词，表承接","连词，表并列"],
+    distractors: ["介词，因为/在/用/按照","连词，并列并且/修饰地着/目的来用来/承接而","副词，已经","动词，如同/比得上","动词，做/成为/是/担任/当作"],
     explanation: `虚词：以
 例句：我以日始出时去人近
 译文：我认为太阳刚出来时离人近
@@ -1274,7 +1274,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「以」在「以刀劈狼首」中的用法是？`,
     correct: "介词，因为/在/用/按照",
-    distractors: ["动词，以为/认为/做","连词，并列并且/修饰地着/目的来用来/承接而","副词，已经","连词，表承接","连词，表并列"],
+    distractors: ["动词，以为/认为/做","连词，并列并且/修饰地着/目的来用来/承接而","副词，已经","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：以
 例句：以刀劈狼首
 译文：用刀劈狼的头
@@ -1307,7 +1307,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「以」在「皆以美于徐公」中的用法是？`,
     correct: "动词，以为/认为/做",
-    distractors: ["介词，因为/在/用/按照","连词，并列并且/修饰地着/目的来用来/承接而","副词，已经","连词，表承接","连词，表并列"],
+    distractors: ["介词，因为/在/用/按照","连词，并列并且/修饰地着/目的来用来/承接而","副词，已经","动词，如同/比得上","动词，做/成为/是/担任/当作"],
     explanation: `虚词：以
 例句：皆以美于徐公
 译文：都认为（我）比徐公美
@@ -1318,7 +1318,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「以」在「以是人多以书假余」中的用法是？`,
     correct: "介词，因为/在/用/按照",
-    distractors: ["动词，以为/认为/做","连词，并列并且/修饰地着/目的来用来/承接而","副词，已经","连词，表承接","连词，表并列"],
+    distractors: ["动词，以为/认为/做","连词，并列并且/修饰地着/目的来用来/承接而","副词，已经","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：以
 例句：以是人多以书假余
 译文：因此人家大多把书借给我（前「以」）
@@ -1329,7 +1329,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「因」在「因利乘便」中的用法是？`,
     correct: "介词，根据按照/依靠凭借/通过经由/因为由于",
-    distractors: ["副词，于是就","名词，原因/缘由","动词，沿袭","连词，表承接","连词，表并列"],
+    distractors: ["副词，于是就","名词，原因/缘由","动词，沿袭","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：因
 例句：因利乘便
 译文：凭借有利的形势
@@ -1340,7 +1340,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「因」在「无因喜以谬赏」中的用法是？`,
     correct: "介词，根据按照/依靠凭借/通过经由/因为由于",
-    distractors: ["副词，于是就","名词，原因/缘由","动词，沿袭","连词，表承接","连词，表并列"],
+    distractors: ["副词，于是就","名词，原因/缘由","动词，沿袭","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：因
 例句：无因喜以谬赏
 译文：不要因为高兴就错误地奖赏
@@ -1351,7 +1351,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「因」在「相如因持璧却立」中的用法是？`,
     correct: "副词，于是就",
-    distractors: ["介词，根据按照/依靠凭借/通过经由/因为由于","名词，原因/缘由","动词，沿袭","连词，表承接","连词，表并列"],
+    distractors: ["介词，根据按照/依靠凭借/通过经由/因为由于","名词，原因/缘由","动词，沿袭","副词，就（承接）","副词，却/竟然"],
     explanation: `虚词：因
 例句：相如因持璧却立
 译文：相如于是就拿着璧后退站立
@@ -1362,7 +1362,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「因」在「于今无会因」中的用法是？`,
     correct: "名词，原因/缘由",
-    distractors: ["介词，根据按照/依靠凭借/通过经由/因为由于","副词，于是就","动词，沿袭","连词，表承接","连词，表并列"],
+    distractors: ["介词，根据按照/依靠凭借/通过经由/因为由于","副词，于是就","动词，沿袭","名词，场所/位置","名词，作为/政绩"],
     explanation: `虚词：因
 例句：于今无会因
 译文：到现在没有再见面的机会/缘由
@@ -1373,7 +1373,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「因」在「因遗策」中的用法是？`,
     correct: "动词，沿袭",
-    distractors: ["介词，根据按照/依靠凭借/通过经由/因为由于","副词，于是就","名词，原因/缘由","连词，表承接","连词，表并列"],
+    distractors: ["介词，根据按照/依靠凭借/通过经由/因为由于","副词，于是就","名词，原因/缘由","动词，如同/比得上","动词，做/成为/是/担任/当作"],
     explanation: `虚词：因
 例句：因遗策
 译文：沿袭前人的策略
@@ -1384,7 +1384,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「因」在「因河为池」中的用法是？`,
     correct: "介词，根据按照/依靠凭借/通过经由/因为由于",
-    distractors: ["副词，于是就","名词，原因/缘由","动词，沿袭","连词，表承接","连词，表并列"],
+    distractors: ["副词，于是就","名词，原因/缘由","动词，沿袭","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：因
 例句：因河为池
 译文：凭借黄河作为护城河
@@ -1395,7 +1395,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「因」在「因击沛公于坐」中的用法是？`,
     correct: "副词，于是就",
-    distractors: ["介词，根据按照/依靠凭借/通过经由/因为由于","名词，原因/缘由","动词，沿袭","连词，表承接","连词，表并列"],
+    distractors: ["介词，根据按照/依靠凭借/通过经由/因为由于","名词，原因/缘由","动词，沿袭","副词，就（承接）","副词，却/竟然"],
     explanation: `虚词：因
 例句：因击沛公于坐
 译文：于是就在座席上袭击沛公
@@ -1406,7 +1406,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「因」在「因宾客至蔺相如门谢罪」中的用法是？`,
     correct: "介词，根据按照/依靠凭借/通过经由/因为由于",
-    distractors: ["副词，于是就","名词，原因/缘由","动词，沿袭","连词，表承接","连词，表并列"],
+    distractors: ["副词，于是就","名词，原因/缘由","动词，沿袭","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：因
 例句：因宾客至蔺相如门谢罪
 译文：通过宾客到蔺相如门前谢罪
@@ -1417,7 +1417,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「因」在「蒙故业，因遗策」中的用法是？`,
     correct: "动词，沿袭",
-    distractors: ["介词，根据按照/依靠凭借/通过经由/因为由于","副词，于是就","名词，原因/缘由","连词，表承接","连词，表并列"],
+    distractors: ["介词，根据按照/依靠凭借/通过经由/因为由于","副词，于是就","名词，原因/缘由","动词，如同/比得上","动词，做/成为/是/担任/当作"],
     explanation: `虚词：因
 例句：蒙故业，因遗策
 译文：继承原有基业，沿袭前代策略
@@ -1428,7 +1428,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「因」在「因人之力而敝之，不仁」中的用法是？`,
     correct: "介词，根据按照/依靠凭借/通过经由/因为由于",
-    distractors: ["副词，于是就","名词，原因/缘由","动词，沿袭","连词，表承接","连词，表并列"],
+    distractors: ["副词，于是就","名词，原因/缘由","动词，沿袭","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：因
 例句：因人之力而敝之，不仁
 译文：依靠别人的力量却损害别人，不仁德
@@ -1439,7 +1439,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「于」在「设九宾礼于廷」中的用法是？`,
     correct: "介词，在/在……方面",
-    distractors: ["介词，从/由于","介词，对向/被","介词，和与/比","连词，表承接","连词，表并列"],
+    distractors: ["介词，从/由于","介词，对向/被","介词，和与/比","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：于
 例句：设九宾礼于廷
 译文：在朝廷上设置九宾的礼仪
@@ -1450,7 +1450,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「于」在「取之于蓝」中的用法是？`,
     correct: "介词，从/由于",
-    distractors: ["介词，在/在……方面","介词，对向/被","介词，和与/比","连词，表承接","连词，表并列"],
+    distractors: ["介词，在/在……方面","介词，对向/被","介词，和与/比","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：于
 例句：取之于蓝
 译文：从蓝草中提取
@@ -1461,7 +1461,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「于」在「幸于赵王」中的用法是？`,
     correct: "介词，对向/被",
-    distractors: ["介词，在/在……方面","介词，从/由于","介词，和与/比","连词，表承接","连词，表并列"],
+    distractors: ["介词，在/在……方面","介词，从/由于","介词，和与/比","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：于
 例句：幸于赵王
 译文：被赵王宠幸
@@ -1472,7 +1472,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「于」在「苛政猛于虎也」中的用法是？`,
     correct: "介词，和与/比",
-    distractors: ["介词，在/在……方面","介词，从/由于","介词，对向/被","连词，表承接","连词，表并列"],
+    distractors: ["介词，在/在……方面","介词，从/由于","介词，对向/被","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：于
 例句：苛政猛于虎也
 译文：苛酷的政令比老虎还凶猛
@@ -1483,7 +1483,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「于」在「青于蓝」中的用法是？`,
     correct: "介词，和与/比",
-    distractors: ["介词，在/在……方面","介词，从/由于","介词，对向/被","连词，表承接","连词，表并列"],
+    distractors: ["介词，在/在……方面","介词，从/由于","介词，对向/被","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：于
 例句：青于蓝
 译文：比蓝草颜色更深
@@ -1494,7 +1494,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「于」在「战于长勺」中的用法是？`,
     correct: "介词，在/在……方面",
-    distractors: ["介词，从/由于","介词，对向/被","介词，和与/比","连词，表承接","连词，表并列"],
+    distractors: ["介词，从/由于","介词，对向/被","介词，和与/比","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：于
 例句：战于长勺
 译文：在长勺作战
@@ -1505,7 +1505,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「于」在「舜发于畎亩之中」中的用法是？`,
     correct: "介词，从/由于",
-    distractors: ["介词，在/在……方面","介词，对向/被","介词，和与/比","连词，表承接","连词，表并列"],
+    distractors: ["介词，在/在……方面","介词，对向/被","介词，和与/比","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：于
 例句：舜发于畎亩之中
 译文：舜从田间劳作中兴起
@@ -1516,7 +1516,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「于」在「不拘于时」中的用法是？`,
     correct: "介词，对向/被",
-    distractors: ["介词，在/在……方面","介词，从/由于","介词，和与/比","连词，表承接","连词，表并列"],
+    distractors: ["介词，在/在……方面","介词，从/由于","介词，和与/比","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：于
 例句：不拘于时
 译文：不被时俗拘束
@@ -1527,7 +1527,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「于」在「告之于帝」中的用法是？`,
     correct: "介词，对向/被",
-    distractors: ["介词，在/在……方面","介词，从/由于","介词，和与/比","连词，表承接","连词，表并列"],
+    distractors: ["介词，在/在……方面","介词，从/由于","介词，和与/比","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：于
 例句：告之于帝
 译文：向天帝报告这件事
@@ -1538,7 +1538,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「于」在「于人为可讥，而在己为有悔」中的用法是？`,
     correct: "介词，在/在……方面",
-    distractors: ["介词，从/由于","介词，对向/被","介词，和与/比","连词，表承接","连词，表并列"],
+    distractors: ["介词，从/由于","介词，对向/被","介词，和与/比","介词，相当于“于”","介词，被/替给/为了/对向"],
     explanation: `虚词：于
 例句：于人为可讥，而在己为有悔
 译文：在别人看来是可以讥笑的，在自己看来是有悔恨的
@@ -1549,7 +1549,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「与」在「子非三闾大夫与」中的用法是？`,
     correct: "语气助词，表疑问",
-    distractors: ["动词，给/亲近/赞同/帮助/等待","介词，和/同/跟","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["动词，给/亲近/赞同/帮助/等待","介词，和/同/跟","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹"],
     explanation: `虚词：与
 例句：子非三闾大夫与
 译文：您不是三闾大夫吗
@@ -1560,7 +1560,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「与」在「与赢而不助五国也」中的用法是？`,
     correct: "动词，给/亲近/赞同/帮助/等待",
-    distractors: ["语气助词，表疑问","介词，和/同/跟","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["语气助词，表疑问","介词，和/同/跟","动词，如同/比得上","动词，做/成为/是/担任/当作","动词，以为/认为/做"],
     explanation: `虚词：与
 例句：与赢而不助五国也
 译文：亲附秦国却不帮助五国
@@ -1571,7 +1571,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「与」在「当与秦相较」中的用法是？`,
     correct: "介词，和/同/跟",
-    distractors: ["语气助词，表疑问","动词，给/亲近/赞同/帮助/等待","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["语气助词，表疑问","动词，给/亲近/赞同/帮助/等待","介词，相当于“于”","介词，被/替给/为了/对向","介词，因为/在/用/按照"],
     explanation: `虚词：与
 例句：当与秦相较
 译文：应当跟秦国较量
@@ -1582,7 +1582,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「与」在「是谁之过与」中的用法是？`,
     correct: "语气助词，表疑问",
-    distractors: ["动词，给/亲近/赞同/帮助/等待","介词，和/同/跟","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["动词，给/亲近/赞同/帮助/等待","介词，和/同/跟","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹"],
     explanation: `虚词：与
 例句：是谁之过与
 译文：这是谁的过错呢
@@ -1593,7 +1593,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「与」在「玉斗一双，欲与亚父」中的用法是？`,
     correct: "动词，给/亲近/赞同/帮助/等待",
-    distractors: ["语气助词，表疑问","介词，和/同/跟","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["语气助词，表疑问","介词，和/同/跟","动词，如同/比得上","动词，做/成为/是/担任/当作","动词，以为/认为/做"],
     explanation: `虚词：与
 例句：玉斗一双，欲与亚父
 译文：玉斗一双，想送给亚父
@@ -1604,7 +1604,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「与」在「赵王与之精兵十万」中的用法是？`,
     correct: "动词，给/亲近/赞同/帮助/等待",
-    distractors: ["语气助词，表疑问","介词，和/同/跟","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["语气助词，表疑问","介词，和/同/跟","动词，如同/比得上","动词，做/成为/是/担任/当作","动词，以为/认为/做"],
     explanation: `虚词：与
 例句：赵王与之精兵十万
 译文：赵王给他精兵十万
@@ -1615,7 +1615,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「与」在「吾与徐公孰美」中的用法是？`,
     correct: "介词，和/同/跟",
-    distractors: ["语气助词，表疑问","动词，给/亲近/赞同/帮助/等待","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["语气助词，表疑问","动词，给/亲近/赞同/帮助/等待","介词，相当于“于”","介词，被/替给/为了/对向","介词，因为/在/用/按照"],
     explanation: `虚词：与
 例句：吾与徐公孰美
 译文：我和徐公谁漂亮
@@ -1626,7 +1626,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「与」在「失其所与，不知」中的用法是？`,
     correct: "动词，给/亲近/赞同/帮助/等待",
-    distractors: ["语气助词，表疑问","介词，和/同/跟","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["语气助词，表疑问","介词，和/同/跟","动词，如同/比得上","动词，做/成为/是/担任/当作","动词，以为/认为/做"],
     explanation: `虚词：与
 例句：失其所与，不知
 译文：失掉自己的同盟者，不明智
@@ -1637,7 +1637,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「与」在「较秦之所得，与战胜而得者」中的用法是？`,
     correct: "介词，和/同/跟",
-    distractors: ["语气助词，表疑问","动词，给/亲近/赞同/帮助/等待","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["语气助词，表疑问","动词，给/亲近/赞同/帮助/等待","介词，相当于“于”","介词，被/替给/为了/对向","介词，因为/在/用/按照"],
     explanation: `虚词：与
 例句：较秦之所得，与战胜而得者
 译文：比较秦国得到的土地，和战胜而得到的
@@ -1648,7 +1648,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「与」在「吾与点也」中的用法是？`,
     correct: "动词，给/亲近/赞同/帮助/等待",
-    distractors: ["语气助词，表疑问","介词，和/同/跟","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["语气助词，表疑问","介词，和/同/跟","动词，如同/比得上","动词，做/成为/是/担任/当作","动词，以为/认为/做"],
     explanation: `虚词：与
 例句：吾与点也
 译文：我赞同曾点啊
@@ -1659,7 +1659,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「则」在「安有常则」中的用法是？`,
     correct: "名词，准则/法则",
-    distractors: ["连词，承接就/假设如果/转折可是","副词，加强判断，是/就是","助词，表疑问，呢","连词，表承接","连词，表并列"],
+    distractors: ["连词，承接就/假设如果/转折可是","副词，加强判断，是/就是","助词，表疑问，呢","名词，场所/位置","名词，作为/政绩"],
     explanation: `虚词：则
 例句：安有常则
 译文：哪里有固定不变的法则
@@ -1692,7 +1692,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「则」在「此则岳阳楼之大观也」中的用法是？`,
     correct: "副词，加强判断，是/就是",
-    distractors: ["名词，准则/法则","连词，承接就/假设如果/转折可是","助词，表疑问，呢","连词，表承接","连词，表并列"],
+    distractors: ["名词，准则/法则","连词，承接就/假设如果/转折可是","助词，表疑问，呢","副词，就（承接）","副词，却/竟然"],
     explanation: `虚词：则
 例句：此则岳阳楼之大观也
 译文：这就是岳阳楼的壮丽景象
@@ -1703,7 +1703,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「则」在「何则？陵迟故也」中的用法是？`,
     correct: "助词，表疑问，呢",
-    distractors: ["名词，准则/法则","连词，承接就/假设如果/转折可是","副词，加强判断，是/就是","连词，表承接","连词，表并列"],
+    distractors: ["名词，准则/法则","连词，承接就/假设如果/转折可是","副词，加强判断，是/就是","助词，时间副词词尾","助词，表反问或疑问"],
     explanation: `虚词：则
 例句：何则？陵迟故也
 译文：为什么呢？是逐渐衰颓的缘故
@@ -1747,7 +1747,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「则」在「此则寡人之罪也」中的用法是？`,
     correct: "副词，加强判断，是/就是",
-    distractors: ["名词，准则/法则","连词，承接就/假设如果/转折可是","助词，表疑问，呢","连词，表承接","连词，表并列"],
+    distractors: ["名词，准则/法则","连词，承接就/假设如果/转折可是","助词，表疑问，呢","副词，就（承接）","副词，却/竟然"],
     explanation: `虚词：则
 例句：此则寡人之罪也
 译文：这就是我的罪过
@@ -1758,7 +1758,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「则」在「何则？不信也」中的用法是？`,
     correct: "助词，表疑问，呢",
-    distractors: ["名词，准则/法则","连词，承接就/假设如果/转折可是","副词，加强判断，是/就是","连词，表承接","连词，表并列"],
+    distractors: ["名词，准则/法则","连词，承接就/假设如果/转折可是","副词，加强判断，是/就是","助词，时间副词词尾","助词，表反问或疑问"],
     explanation: `虚词：则
 例句：何则？不信也
 译文：为什么呢？是不信任啊
@@ -1769,7 +1769,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「者」在「记游者甚众」中的用法是？`,
     correct: "代词，……的人/……的事情",
-    distractors: ["语气助词，判断句主语后","助词，定语后置标志","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["语气助词，判断句主语后","助词，定语后置标志","代词，通“尔”，你的","疑问代词，为什么","疑问代词，什么"],
     explanation: `虚词：者
 例句：记游者甚众
 译文：记述游览的人很多
@@ -1780,7 +1780,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「者」在「战胜而得者」中的用法是？`,
     correct: "代词，……的人/……的事情",
-    distractors: ["语气助词，判断句主语后","助词，定语后置标志","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["语气助词，判断句主语后","助词，定语后置标志","代词，通“尔”，你的","疑问代词，为什么","疑问代词，什么"],
     explanation: `虚词：者
 例句：战胜而得者
 译文：战胜而得到的
@@ -1791,7 +1791,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「者」在「陈涉者，阳城人也」中的用法是？`,
     correct: "语气助词，判断句主语后",
-    distractors: ["代词，……的人/……的事情","助词，定语后置标志","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["代词，……的人/……的事情","助词，定语后置标志","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹"],
     explanation: `虚词：者
 例句：陈涉者，阳城人也
 译文：陈涉是阳城人
@@ -1802,7 +1802,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「者」在「石之铿然有声者」中的用法是？`,
     correct: "助词，定语后置标志",
-    distractors: ["代词，……的人/……的事情","语气助词，判断句主语后","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["代词，……的人/……的事情","语气助词，判断句主语后","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹"],
     explanation: `虚词：者
 例句：石之铿然有声者
 译文：铿然有声的石头
@@ -1813,7 +1813,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「者」在「有奇字素无备者」中的用法是？`,
     correct: "代词，……的人/……的事情",
-    distractors: ["语气助词，判断句主语后","助词，定语后置标志","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["语气助词，判断句主语后","助词，定语后置标志","代词，通“尔”，你的","疑问代词，为什么","疑问代词，什么"],
     explanation: `虚词：者
 例句：有奇字素无备者
 译文：有生僻字平时没有准备的
@@ -1824,7 +1824,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「者」在「廉颇者，赵之良将也」中的用法是？`,
     correct: "语气助词，判断句主语后",
-    distractors: ["代词，……的人/……的事情","助词，定语后置标志","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["代词，……的人/……的事情","助词，定语后置标志","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹"],
     explanation: `虚词：者
 例句：廉颇者，赵之良将也
 译文：廉颇是赵国优秀的将领
@@ -1835,7 +1835,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「者」在「马之千里者」中的用法是？`,
     correct: "助词，定语后置标志",
-    distractors: ["代词，……的人/……的事情","语气助词，判断句主语后","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["代词，……的人/……的事情","语气助词，判断句主语后","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹"],
     explanation: `虚词：者
 例句：马之千里者
 译文：日行千里的马
@@ -1846,7 +1846,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「者」在「予购三百盆，皆病者」中的用法是？`,
     correct: "代词，……的人/……的事情",
-    distractors: ["语气助词，判断句主语后","助词，定语后置标志","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["语气助词，判断句主语后","助词，定语后置标志","代词，通“尔”，你的","疑问代词，为什么","疑问代词，什么"],
     explanation: `虚词：者
 例句：予购三百盆，皆病者
 译文：我买了三百盆，都是病残的
@@ -1857,7 +1857,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「者」在「北山愚公者，年且九十」中的用法是？`,
     correct: "语气助词，判断句主语后",
-    distractors: ["代词，……的人/……的事情","助词，定语后置标志","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["代词，……的人/……的事情","助词，定语后置标志","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹"],
     explanation: `虚词：者
 例句：北山愚公者，年且九十
 译文：北山愚公，年纪将近九十岁
@@ -1868,7 +1868,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「者」在「僧之富者不能至」中的用法是？`,
     correct: "助词，定语后置标志",
-    distractors: ["代词，……的人/……的事情","语气助词，判断句主语后","连词，表承接","连词，表并列","连词，表转折"],
+    distractors: ["代词，……的人/……的事情","语气助词，判断句主语后","助词，时间副词词尾","助词，表反问或疑问","助词，表感叹"],
     explanation: `虚词：者
 例句：僧之富者不能至
 译文：富有的和尚不能到达
@@ -1879,7 +1879,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「项伯乃夜驰之沛公军」中的用法是？`,
     correct: "动词，到……去",
-    distractors: ["代词，他/这","结构助词，的","助词，补语间/主谓间取消独立性/定语后置标志","连词，表承接","连词，表并列"],
+    distractors: ["代词，他/这","结构助词，的","助词，补语间/主谓间取消独立性/定语后置标志","动词，如同/比得上","动词，做/成为/是/担任/当作"],
     explanation: `虚词：之
 例句：项伯乃夜驰之沛公军
 译文：项伯于是连夜赶到沛公军中
@@ -1890,7 +1890,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「孰若卖之」中的用法是？`,
     correct: "代词，他/这",
-    distractors: ["动词，到……去","结构助词，的","助词，补语间/主谓间取消独立性/定语后置标志","连词，表承接","连词，表并列"],
+    distractors: ["动词，到……去","结构助词，的","助词，补语间/主谓间取消独立性/定语后置标志","代词，通“尔”，你的","疑问代词，为什么"],
     explanation: `虚词：之
 例句：孰若卖之
 译文：哪里比得上卖掉它
@@ -1901,7 +1901,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「余之力尚足以入」中的用法是？`,
     correct: "结构助词，的",
-    distractors: ["动词，到……去","代词，他/这","助词，补语间/主谓间取消独立性/定语后置标志","连词，表承接","连词，表并列"],
+    distractors: ["动词，到……去","代词，他/这","助词，补语间/主谓间取消独立性/定语后置标志","助词，时间副词词尾","助词，表反问或疑问"],
     explanation: `虚词：之
 例句：余之力尚足以入
 译文：我的力气还足够进入
@@ -1912,7 +1912,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「求思之深」中的用法是？`,
     correct: "助词，补语间/主谓间取消独立性/定语后置标志",
-    distractors: ["动词，到……去","代词，他/这","结构助词，的","连词，表承接","连词，表并列"],
+    distractors: ["动词，到……去","代词，他/这","结构助词，的","助词，时间副词词尾","助词，表反问或疑问"],
     explanation: `虚词：之
 例句：求思之深
 译文：探求思考得深入
@@ -1923,7 +1923,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「爪牙之利」中的用法是？`,
     correct: "助词，补语间/主谓间取消独立性/定语后置标志",
-    distractors: ["动词，到……去","代词，他/这","结构助词，的","连词，表承接","连词，表并列"],
+    distractors: ["动词，到……去","代词，他/这","结构助词，的","助词，时间副词词尾","助词，表反问或疑问"],
     explanation: `虚词：之
 例句：爪牙之利
 译文：锋利的爪牙（定语后置）
@@ -1934,7 +1934,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「辍耕之垄上」中的用法是？`,
     correct: "动词，到……去",
-    distractors: ["代词，他/这","结构助词，的","助词，补语间/主谓间取消独立性/定语后置标志","连词，表承接","连词，表并列"],
+    distractors: ["代词，他/这","结构助词，的","助词，补语间/主谓间取消独立性/定语后置标志","动词，如同/比得上","动词，做/成为/是/担任/当作"],
     explanation: `虚词：之
 例句：辍耕之垄上
 译文：停止耕作走到田埂上
@@ -1945,7 +1945,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「肉食者谋之」中的用法是？`,
     correct: "代词，他/这",
-    distractors: ["动词，到……去","结构助词，的","助词，补语间/主谓间取消独立性/定语后置标志","连词，表承接","连词，表并列"],
+    distractors: ["动词，到……去","结构助词，的","助词，补语间/主谓间取消独立性/定语后置标志","代词，通“尔”，你的","疑问代词，为什么"],
     explanation: `虚词：之
 例句：肉食者谋之
 译文：吃肉的官员谋划这件事
@@ -1956,7 +1956,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「郯子之徒」中的用法是？`,
     correct: "结构助词，的",
-    distractors: ["动词，到……去","代词，他/这","助词，补语间/主谓间取消独立性/定语后置标志","连词，表承接","连词，表并列"],
+    distractors: ["动词，到……去","代词，他/这","助词，补语间/主谓间取消独立性/定语后置标志","助词，时间副词词尾","助词，表反问或疑问"],
     explanation: `虚词：之
 例句：郯子之徒
 译文：郯子这一类人
@@ -1967,7 +1967,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「悍吏之来吾乡」中的用法是？`,
     correct: "助词，补语间/主谓间取消独立性/定语后置标志",
-    distractors: ["动词，到……去","代词，他/这","结构助词，的","连词，表承接","连词，表并列"],
+    distractors: ["动词，到……去","代词，他/这","结构助词，的","助词，时间副词词尾","助词，表反问或疑问"],
     explanation: `虚词：之
 例句：悍吏之来吾乡
 译文：凶暴的官吏来到我们乡里（取消独立性）
@@ -1978,7 +1978,7 @@ export const WENYAN_XUCI_BANK: WenyanXuciBankItem[] = [
     difficulty: 'normal',
     stem: `「之」在「句读之不知，惑之不解」中的用法是？`,
     correct: "助词，补语间/主谓间取消独立性/定语后置标志",
-    distractors: ["动词，到……去","代词，他/这","结构助词，的","连词，表承接","连词，表并列"],
+    distractors: ["动词，到……去","代词，他/这","结构助词，的","助词，时间副词词尾","助词，表反问或疑问"],
     explanation: `虚词：之
 例句：句读之不知，惑之不解
 译文：不懂得句读，不能解除疑惑（提宾标志）

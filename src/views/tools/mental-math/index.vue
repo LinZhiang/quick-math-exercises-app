@@ -2039,7 +2039,7 @@ onBeforeUnmount(() => {
         <section v-if="showHanziPatternSection" class="mode-section" id="practice-hanzi-pattern">
           <h3 class="mode-section__title">汉字规律</h3>
           <p class="mode-section__hint">
-            四字汉字规律快判：笔画数、交叉数、部件包含、封闭区域、结构与对称、连通块等。题干给出四个汉字，选出共同规律。答错记入下方错题集。
+            四字汉字规律快判：笔画数、交叉数、部件包含、封闭区域、结构与对称、连通块等。题干仅四字，选规律。答错记入下方错题集。
           </p>
           <div class="mode-grid">
             <button
@@ -2085,7 +2085,7 @@ onBeforeUnmount(() => {
             >
               <h3 class="mode-card__title">加深识记</h3>
               <p class="mode-card__desc">
-                普通难度 · 固定 20 题一组目录可溯源 · 先识记（例句/用法/译文）→ 限时测（满组 92 秒）
+                普通难度 · 固定 20 题一组目录可溯源 · 先识记（例句/用法/译文）→ 限时测（满组 142 秒）
               </p>
               <span class="mode-card__cta">进入</span>
             </button>
@@ -2123,7 +2123,7 @@ onBeforeUnmount(() => {
             >
               <h3 class="mode-card__title">加深识记</h3>
               <p class="mode-card__desc">
-                普通难度 · 固定 20 题一组目录可溯源 · 先识记（句式/例句/译文）→ 限时测（满组 92 秒）
+                普通难度 · 固定 20 题一组目录可溯源 · 先识记（句式/例句/译文）→ 限时测（满组 142 秒）
               </p>
               <span class="mode-card__cta">进入</span>
             </button>

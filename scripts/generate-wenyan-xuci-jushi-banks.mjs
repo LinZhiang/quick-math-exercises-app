@@ -363,13 +363,51 @@ for (const [word, rows] of XUCI_DATA) {
   }
 }
 
+/** 词性大类：同词优先，再同词性前缀，再全书其他用法 */
+function posFamily(label) {
+  const order = [
+    '疑问代词',
+    '语气助词',
+    '结构助词',
+    '连词',
+    '介词',
+    '代词',
+    '副词',
+    '助词',
+    '动词',
+    '名词',
+    '兼词',
+    '量词',
+  ]
+  for (const p of order) {
+    if (label.startsWith(p)) {
+      if (p === '疑问代词') return '代词'
+      if (p === '语气助词' || p === '结构助词') return '助词'
+      return p
+    }
+  }
+  if (label.startsWith('句末语气') || label.startsWith('语气，')) return '助词'
+  if (label.startsWith('用来')) return '助词'
+  return ''
+}
+
+function dist(correct, sameWordUsages) {
+  const sameWord = sameWordUsages.filter((x) => x !== correct)
+  const fam = posFamily(correct)
+  const samePos = ALL_XUCI_LABELS.filter(
+    (x) => x !== correct && !sameWord.includes(x) && fam && posFamily(x) === fam,
+  )
+  const rest = ALL_XUCI_LABELS.filter(
+    (x) => x !== correct && !sameWord.includes(x) && !samePos.includes(x),
+  )
+  return [...sameWord, ...samePos, ...rest].slice(0, 5)
+}
+
 const xuciItems = []
 for (const [word, rows] of XUCI_DATA) {
   const sameLabels = labelByWord.get(word)
   rows.forEach(([sentence, correct, translation], i) => {
-    const sameWordOthers = sameLabels.filter((x) => x !== correct)
-    const otherWordLabels = ALL_XUCI_LABELS.filter((x) => x !== correct && !sameWordOthers.includes(x))
-    const distractors = [...sameWordOthers, ...otherWordLabels].slice(0, 5)
+    const distractors = dist(correct, sameLabels)
     xuciItems.push({
       difficulty: 'normal',
       stem: `「${word}」在「${sentence}」中的用法是？`,
@@ -415,14 +453,47 @@ const JUSHI_CATS = [
   '省略句（省略介词「于」）',
 ]
 
+/** 句式大族：同族优先 → 其他倒装 → 其余 */
+const JUSHI_FAMILIES = [
+  [
+    '判断句（……者……也 / ……也）',
+    '判断句（乃/即/则/皆/是/诚/为 表判断）',
+    '判断句（非 表否定判断）',
+  ],
+  ['被动句（见 / 见……于 / 于）', '被动句（为 / 为……所）'],
+  [
+    '倒装·宾语前置（疑问代词作宾语）',
+    '倒装·宾语前置（否定句代词作宾语）',
+    '倒装·宾语前置（用「之」「是」提宾）',
+    '倒装·宾语前置（介词宾语前置）',
+  ],
+  ['倒装·定语后置（「之」后置）', '倒装·定语后置（「者」后置）'],
+  [
+    '省略句（省略主语）',
+    '省略句（省略谓语）',
+    '省略句（省略宾语）',
+    '省略句（省略介词宾语）',
+    '省略句（省略介词「于」）',
+  ],
+]
+
 function jDist(correct) {
-  return JUSHI_CATS.filter((x) => x !== correct).slice(0, 5)
+  const family = JUSHI_FAMILIES.find((f) => f.includes(correct)) || []
+  const sameFamily = family.filter((x) => x !== correct)
+  const otherDaozhuang = JUSHI_CATS.filter(
+    (x) => x !== correct && x.startsWith('倒装') && !sameFamily.includes(x),
+  )
+  const rest = JUSHI_CATS.filter(
+    (x) => x !== correct && !sameFamily.includes(x) && !otherDaozhuang.includes(x),
+  )
+  return [...sameFamily, ...otherDaozhuang, ...rest].slice(0, 5)
 }
 
 /**
  * [catKey, correctLabel, askType, rows]
  * askType: '什么句式' | '何种倒装' | '省略了什么'
- * row: [sentence, translation, tip]
+ * row（非倒装）: [sentence, translation, tip]
+ * row（倒装）: [sentence, translation, tip, restore] — restore 为现代语序还原
  */
 const JUSHI_DATA = [
   [
@@ -485,10 +556,10 @@ const JUSHI_DATA = [
     '倒装·宾语前置（疑问代词作宾语）',
     '何种倒装',
     [
-      ['大王来何操', '大王来时带了什么', '疑问代词「何」作宾语前置'],
-      ['沛公安在', '沛公在哪里', '疑问代词「安」作宾语前置'],
-      ['吾谁与归', '我同谁一道呢', '疑问代词「谁」作宾语前置'],
-      ['何陋之有', '有什么简陋的呢', '疑问代词「何」作宾语前置'],
+      ['大王来何操', '大王来时带了什么', '疑问代词「何」作宾语前置', '大王来操何'],
+      ['沛公安在', '沛公在哪里', '疑问代词「安」作宾语前置', '沛公在安'],
+      ['吾谁与归', '我同谁一道呢', '疑问代词「谁」作宾语前置', '吾与谁归'],
+      ['何陋之有', '有什么简陋的呢', '疑问代词「何」作宾语前置', '有何陋'],
     ],
   ],
   [
@@ -496,10 +567,10 @@ const JUSHI_DATA = [
     '倒装·宾语前置（否定句代词作宾语）',
     '何种倒装',
     [
-      ['古之人不余欺也', '古代的人没有欺骗我', '否定句中代词「余」作宾语前置'],
-      ['忌不自信', '邹忌不相信自己', '否定句中代词「自」作宾语前置'],
-      ['莫我知也夫', '没有人了解我啊', '否定句中代词「我」作宾语前置'],
-      ['时人莫之许也', '当时的人不承认他', '否定句中代词「之」作宾语前置'],
+      ['古之人不余欺也', '古代的人没有欺骗我', '否定句中代词「余」作宾语前置', '古之人不欺余也'],
+      ['忌不自信', '邹忌不相信自己', '否定句中代词「自」作宾语前置', '忌不相信自己'],
+      ['莫我知也夫', '没有人了解我啊', '否定句中代词「我」作宾语前置', '莫知我也夫'],
+      ['时人莫之许也', '当时的人不承认他', '否定句中代词「之」作宾语前置', '时人莫许之也'],
     ],
   ],
   [
@@ -507,10 +578,10 @@ const JUSHI_DATA = [
     '倒装·宾语前置（用「之」「是」提宾）',
     '何种倒装',
     [
-      ['句读之不知，惑之不解', '不懂得句读，不能解除疑惑', '用「之」把宾语提前'],
-      ['宋何罪之有', '宋国有什么罪过呢', '用「之」提宾'],
-      ['唯利是图', '只贪图利益', '用「是」提宾'],
-      ['唯命是从', '只听从命令', '用「是」提宾'],
+      ['句读之不知，惑之不解', '不懂得句读，不能解除疑惑', '用「之」把宾语提前', '不知句读，不解惑'],
+      ['宋何罪之有', '宋国有什么罪过呢', '用「之」提宾', '宋有何罪'],
+      ['唯利是图', '只贪图利益', '用「是」提宾', '唯图利'],
+      ['唯命是从', '只听从命令', '用「是」提宾', '唯从命'],
     ],
   ],
   [
@@ -518,10 +589,10 @@ const JUSHI_DATA = [
     '倒装·宾语前置（介词宾语前置）',
     '何种倒装',
     [
-      ['不然，籍何以至此', '不是这样的话，我凭什么到这个地步', '介词「以」的宾语「何」前置'],
-      ['微斯人，吾谁与归', '没有这种人，我同谁一道呢', '介词「与」的宾语「谁」前置'],
-      ['何以为计', '用什么作为对策', '介词「以」的宾语「何」前置'],
-      ['国胡以相恤', '国家用什么来救济（百姓）', '介词「以」的宾语「胡」前置'],
+      ['不然，籍何以至此', '不是这样的话，我凭什么到这个地步', '介词「以」的宾语「何」前置', '籍以何至此'],
+      ['微斯人，吾谁与归', '没有这种人，我同谁一道呢', '介词「与」的宾语「谁」前置', '吾与谁归'],
+      ['何以为计', '用什么作为对策', '介词「以」的宾语「何」前置', '以何为计'],
+      ['国胡以相恤', '国家用什么来救济（百姓）', '介词「以」的宾语「胡」前置', '国以胡相恤'],
     ],
   ],
   [
@@ -529,10 +600,10 @@ const JUSHI_DATA = [
     '倒装·定语后置（「之」后置）',
     '何种倒装',
     [
-      ['四海之大，有几人欤', '四海之大，有几个人呢', '定语「大」借「之」后置'],
-      ['居庙堂之高则忧其民', '处在高高的朝堂上就为百姓担忧', '定语「高」借「之」后置'],
-      ['爪牙之利，筋骨之强', '锋利的爪牙，强健的筋骨', '定语借「之」后置'],
-      ['带长铗之陆离兮', '佩带着长长的陆离宝剑', '定语借「之」后置'],
+      ['四海之大，有几人欤', '四海之大，有几个人呢', '定语「大」借「之」后置', '广大的四海'],
+      ['居庙堂之高则忧其民', '处在高高的朝堂上就为百姓担忧', '定语「高」借「之」后置', '居高之庙堂则忧其民'],
+      ['爪牙之利，筋骨之强', '锋利的爪牙，强健的筋骨', '定语借「之」后置', '利之爪牙，强之筋骨'],
+      ['带长铗之陆离兮', '佩带着长长的陆离宝剑', '定语借「之」后置', '带陆离之长铗兮'],
     ],
   ],
   [
@@ -540,10 +611,10 @@ const JUSHI_DATA = [
     '倒装·定语后置（「者」后置）',
     '何种倒装',
     [
-      ['马之千里者，一食或尽粟一石', '日行千里的马，吃一顿有时要吃完一石粟', '定语借「者」后置'],
-      ['石之铿然有声者，所在皆是也', '铿然有声的石头，到处都是', '定语借「者」后置'],
-      ['僧之富者不能至', '富有的和尚不能到达', '定语借「者」后置'],
-      ['求人可使报秦者', '寻找可以出使答复秦国的人', '定语借「者」后置'],
+      ['马之千里者，一食或尽粟一石', '日行千里的马，吃一顿有时要吃完一石粟', '定语借「者」后置', '千里之马'],
+      ['石之铿然有声者，所在皆是也', '铿然有声的石头，到处都是', '定语借「者」后置', '铿然有声之石'],
+      ['僧之富者不能至', '富有的和尚不能到达', '定语借「者」后置', '富之僧不能至'],
+      ['求人可使报秦者', '寻找可以出使答复秦国的人', '定语借「者」后置', '求可使报秦之人'],
     ],
   ],
   [
@@ -551,10 +622,10 @@ const JUSHI_DATA = [
     '倒装·状语后置（介词结构作状语后置）',
     '何种倒装',
     [
-      ['贫者语于富者曰', '贫穷的人对有钱的人说', '介词结构「于富者」作状语后置'],
-      ['战于长勺', '在长勺作战', '介词结构「于长勺」后置'],
-      ['饰以篆文山龟鸟兽之形', '用篆文山龟鸟兽的形状装饰', '介词结构「以……」后置'],
-      ['迁客骚人，多会于此', '被贬的官吏和诗人大多在这里聚会', '介词结构「于此」后置'],
+      ['贫者语于富者曰', '贫穷的人对有钱的人说', '介词结构「于富者」作状语后置', '贫者于富者语曰'],
+      ['战于长勺', '在长勺作战', '介词结构「于长勺」后置', '于长勺战'],
+      ['饰以篆文山龟鸟兽之形', '用篆文山龟鸟兽的形状装饰', '介词结构「以……」后置', '以篆文山龟鸟兽之形饰'],
+      ['迁客骚人，多会于此', '被贬的官吏和诗人大多在这里聚会', '介词结构「于此」后置', '迁客骚人，多于此会'],
     ],
   ],
   [
@@ -562,10 +633,10 @@ const JUSHI_DATA = [
     '倒装·主谓倒装',
     '何种倒装',
     [
-      ['甚矣，汝之不惠', '你不聪明到了极点', '谓语「甚矣」前置，主谓倒装'],
-      ['美哉，我少年中国', '美好啊，我的少年中国', '谓语前置，主谓倒装'],
-      ['大哉，尧之为君', '伟大啊，尧这样的君主', '谓语前置，主谓倒装'],
-      ['贤哉，回也', '贤德啊，颜回', '谓语前置，主谓倒装'],
+      ['甚矣，汝之不惠', '你不聪明到了极点', '谓语「甚矣」前置，主谓倒装', '汝之不惠甚矣'],
+      ['美哉，我少年中国', '美好啊，我的少年中国', '谓语前置，主谓倒装', '我少年中国美哉'],
+      ['大哉，尧之为君', '伟大啊，尧这样的君主', '谓语前置，主谓倒装', '尧之为君大哉'],
+      ['贤哉，回也', '贤德啊，颜回', '谓语前置，主谓倒装', '回也贤哉'],
     ],
   ],
   [
@@ -661,19 +732,24 @@ const jushiItems = []
 for (const [catKey, correct, askType, rows] of JUSHI_DATA) {
   if (rows.length !== 4) throw new Error(`${catKey}: need 4, got ${rows.length}`)
   if (!JUSHI_CATS.includes(correct)) throw new Error(`unknown cat label: ${correct}`)
-  rows.forEach(([sentence, translation, tip], i) => {
+  const isDaozhuang = correct.startsWith('倒装')
+  rows.forEach((row, i) => {
+    const [sentence, translation, tip, restore] = row
+    if (isDaozhuang && !restore) throw new Error(`${catKey}#${i + 1}: 倒装须有 restore（语序还原）`)
     const stem =
       askType === '何种倒装'
         ? `「${sentence}」属于何种倒装？`
         : askType === '省略了什么'
           ? `「${sentence}」省略了什么？`
           : `「${sentence}」是什么句式？`
+    const expl = [`例句：${sentence}`, `译文：${translation}`, `句式：${correct}`, `说明：${tip}`]
+    if (isDaozhuang) expl.push(`语序还原：${restore}`)
     jushiItems.push({
       difficulty: 'normal',
       stem,
       correct,
       distractors: jDist(correct),
-      explanation: [`例句：${sentence}`, `译文：${translation}`, `句式：${correct}`, `说明：${tip}`].join('\n'),
+      explanation: expl.join('\n'),
       key: `wenyan-jushi:${catKey}-${String(i + 1).padStart(2, '0')}`,
     })
   })
