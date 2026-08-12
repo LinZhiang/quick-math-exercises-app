@@ -266,6 +266,16 @@ const KNOWN_ITEM_LABELS: Record<string, { categoryId: string; categoryLabel: str
       categoryLabel: '修辞手法',
       itemLabel: '修辞手法 · 加深识记 · 普通题',
     },
+    'schulte-easy': {
+      categoryId: 'schulte',
+      categoryLabel: '舒尔特',
+      itemLabel: '舒尔特 · 成语词语 · 简单题',
+    },
+    'schulte-hard': {
+      categoryId: 'schulte',
+      categoryLabel: '舒尔特',
+      itemLabel: '舒尔特 · 成语词语 · 复杂题',
+    },
     'system-mgmt-normal': {
       categoryId: 'system-mgmt',
       categoryLabel: '体制管理',
@@ -581,6 +591,16 @@ const PREFIX_RULES: PrefixRule[] = [
     },
   },
   {
+    prefix: 'schulte-',
+    categoryId: 'schulte',
+    categoryLabel: '舒尔特',
+    labelFor: (_mid, difficulty) => {
+      const d = difficulty || 'easy'
+      if (d === 'hard') return '舒尔特 · 成语词语 · 复杂题'
+      return '舒尔特 · 成语词语 · 简单题'
+    },
+  },
+  {
     prefix: 'system-mgmt-',
     categoryId: 'system-mgmt',
     categoryLabel: '体制管理',
@@ -818,6 +838,7 @@ export const PRACTICE_LOG_CATEGORIES: { id: string; label: string }[] = [
   { id: 'wenyan-jushi', label: '文言句式' },
   { id: 'grammar-judgment', label: '语法判断' },
   { id: 'rhetoric-device', label: '修辞手法' },
+  { id: 'schulte', label: '舒尔特' },
   { id: 'circle-grammar', label: '圈出所有语法' },
   { id: 'shorten-sentence', label: '缩句练习' },
   { id: 'twentyfour', label: '二十四点' },

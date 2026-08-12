@@ -11,6 +11,7 @@ export type MentalMathWrongSection =
   | 'what-is-this'
   | 'economy-sense'
   | 'rhetoric-device'
+  | 'schulte'
   | 'system-mgmt'
   | 'wenyan-shici'
   | 'hanzi-pattern'
@@ -136,6 +137,7 @@ export const MENTAL_MATH_WRONG_SECTION_LABELS: Record<MentalMathWrongSection, st
   'what-is-this': '这是什么',
   'economy-sense': '经济学常识',
   'rhetoric-device': '修辞手法',
+  schulte: '舒尔特',
   'system-mgmt': '体制管理',
   'wenyan-shici': '文言实词',
   'hanzi-pattern': '汉字规律',
@@ -254,6 +256,9 @@ export function mentalMathModeToWrongSection(modeId: string): MentalMathWrongSec
   }
   if (modeId === 'rhetoric-device-normal' || modeId === 'rhetoric-device-deepen-normal') {
     return 'rhetoric-device'
+  }
+  if (modeId === 'schulte-easy' || modeId === 'schulte-hard') {
+    return 'schulte'
   }
   if (modeId === 'system-mgmt-normal' || modeId === 'system-mgmt-deepen-normal') {
     return 'system-mgmt'
