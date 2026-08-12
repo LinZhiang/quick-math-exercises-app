@@ -2,6 +2,9 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { SchulteQuestion } from '@/utils/schultePractice'
 
+/** 词语出示后，格子渐显再开局的时长 */
+const GRID_REVEAL_MS = 720
+
 const props = defineProps<{
   question: SchulteQuestion
   feedback: 'correct' | 'wrong' | null
@@ -17,21 +20,22 @@ const emit = defineEmits<{
   (e: 'next'): void
 }>()
 
-const phase = ref<'preview' | 'play' | 'review'>('preview')
-/** 预览阶段已点亮到第几个目标字（1-based；0 表示尚未点亮） */
-const previewLit = ref(0)
+const phase = ref<'word' | 'reveal' | 'play' | 'review'>('word')
 const nextOrder = ref(0)
 const hitIds = ref<number[]>([])
 const wrongId = ref<number | null>(null)
 const previewTimer = ref<ReturnType<typeof setTimeout> | null>(null)
-const stepTimer = ref<ReturnType<typeof setInterval> | null>(null)
+const revealTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 
 const gridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${props.question.cols}, minmax(0, 1fr))`,
 }))
 
+const showGrid = computed(() => phase.value !== 'word')
+
 const progressText = computed(() => {
-  if (phase.value === 'preview') return '记住高亮顺序'
+  if (phase.value === 'word') return '记住这个词'
+  if (phase.value === 'reveal') return '格子出现中…'
   if (phase.value === 'review') return props.feedback === 'correct' ? '全部点对' : '点错了'
   return `进度 ${nextOrder.value}/${props.question.chars.length}`
 })
@@ -41,36 +45,27 @@ function clearPreviewTimers() {
     clearTimeout(previewTimer.value)
     previewTimer.value = null
   }
-  if (stepTimer.value) {
-    clearInterval(stepTimer.value)
-    stepTimer.value = null
+  if (revealTimer.value) {
+    clearTimeout(revealTimer.value)
+    revealTimer.value = null
   }
 }
 
 function startPreview() {
   clearPreviewTimers()
-  phase.value = 'preview'
-  previewLit.value = 0
+  phase.value = 'word'
   nextOrder.value = 0
   hitIds.value = []
   wrongId.value = null
 
-  const total = Math.max(1, props.question.chars.length)
-  const step = Math.max(80, Math.floor(props.previewMs / (total + 0.35)))
-
-  // 在格子上按序高亮目标字；到点后全部熄灭再开始作答
-  stepTimer.value = setInterval(() => {
-    if (previewLit.value < total) {
-      previewLit.value += 1
-    }
-  }, step)
-
+  // 先只显示词语，再渐显格子，最后开局计时
   previewTimer.value = setTimeout(() => {
-    clearPreviewTimers()
-    previewLit.value = 0
-    phase.value = 'play'
-    emit('preview-done')
-  }, props.previewMs)
+    phase.value = 'reveal'
+    revealTimer.value = setTimeout(() => {
+      phase.value = 'play'
+      emit('preview-done')
+    }, GRID_REVEAL_MS)
+  }, Math.max(800, props.previewMs))
 }
 
 function resetForQuestion() {
@@ -89,7 +84,6 @@ watch(
   (on) => {
     if (on) {
       phase.value = 'review'
-      previewLit.value = 0
       clearPreviewTimers()
     }
   },
@@ -130,26 +124,12 @@ function cellClass(cellId: number) {
   const isWrong = wrongId.value === cellId
   const revealTarget =
     props.reviewing && cell?.orderIndex != null && !hit && props.feedback === 'wrong'
-  const order = cell?.orderIndex
-  const isPreviewLit =
-    phase.value === 'preview' && order != null && order < previewLit.value
-  const isPreviewCurrent =
-    phase.value === 'preview' && order != null && order === previewLit.value - 1
   return {
     'schulte-cell--hit': hit,
     'schulte-cell--wrong': isWrong,
     'schulte-cell--reveal': revealTarget,
-    'schulte-cell--preview': isPreviewLit,
-    'schulte-cell--preview-current': isPreviewCurrent,
     'schulte-cell--disabled': phase.value !== 'play' || !props.acceptingInput,
   }
-}
-
-function previewOrderLabel(cellId: number): string {
-  if (phase.value !== 'preview') return ''
-  const cell = props.question.cells.find((c) => c.id === cellId)
-  if (cell?.orderIndex == null || cell.orderIndex >= previewLit.value) return ''
-  return String(cell.orderIndex + 1)
 }
 </script>
 
@@ -159,12 +139,18 @@ function previewOrderLabel(cellId: number): string {
       <p class="schulte-status__kind">
         {{ question.kind === 'idiom' ? '成语' : '词语' }} · {{ progressText }}
       </p>
-      <p v-if="phase === 'preview'" class="schulte-status__hint">格子上按序高亮，记住后再点选</p>
-      <p v-else-if="phase === 'play'" class="schulte-status__hint">按刚才高亮顺序点击</p>
-      <p v-else class="schulte-status__word">{{ question.word }}</p>
+      <p v-if="phase === 'reveal'" class="schulte-status__hint">按刚才的词序点选</p>
+      <p v-else-if="phase === 'play'" class="schulte-status__hint">按词语顺序点击格子</p>
+      <p v-else-if="phase === 'review'" class="schulte-status__word">{{ question.word }}</p>
     </div>
 
-    <div class="schulte-grid" :style="gridStyle" role="grid">
+    <div
+      v-show="showGrid"
+      class="schulte-grid"
+      :class="{ 'schulte-grid--entering': phase === 'reveal' }"
+      :style="gridStyle"
+      role="grid"
+    >
       <button
         v-for="cell in question.cells"
         :key="`${question.id}-${cell.id}`"
@@ -174,12 +160,14 @@ function previewOrderLabel(cellId: number): string {
         :disabled="phase !== 'play' || !acceptingInput || hitIds.includes(cell.id)"
         @click="onCellClick(cell.id)"
       >
-        <span
-          v-if="previewOrderLabel(cell.id)"
-          class="schulte-cell__ord"
-        >{{ previewOrderLabel(cell.id) }}</span>
         <span class="schulte-cell__ch">{{ cell.char }}</span>
       </button>
+    </div>
+
+    <div v-if="phase === 'word'" class="schulte-word-stage" aria-hidden="true">
+      <p class="schulte-word-stage__label">请记住</p>
+      <p class="schulte-word-stage__word">{{ question.word }}</p>
+      <p class="schulte-word-stage__hint">随后将出现舒尔特方格</p>
     </div>
 
     <div v-if="reviewing" class="schulte-review">
@@ -196,7 +184,7 @@ function previewOrderLabel(cellId: number): string {
 
 <style scoped>
 .schulte-panel {
-  width: min(100%, 520px);
+  width: min(100%, 420px);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -234,6 +222,44 @@ function previewOrderLabel(cellId: number): string {
   color: var(--el-color-primary);
 }
 
+.schulte-word-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 220px;
+  padding: 28px 16px;
+  border-radius: 22px;
+  background: linear-gradient(160deg, #f4f6f8 0%, #e8ecf1 55%, #dde3ea 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 10px 28px rgba(30, 40, 55, 0.12);
+  animation: schulte-word-in 0.35s ease-out;
+}
+
+.schulte-word-stage__label {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--el-text-color-secondary);
+  letter-spacing: 0.08em;
+}
+
+.schulte-word-stage__word {
+  margin: 0;
+  font-size: clamp(2rem, 8vw, 2.75rem);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: var(--el-color-primary);
+  line-height: 1.2;
+}
+
+.schulte-word-stage__hint {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--el-text-color-secondary);
+}
+
 .schulte-grid {
   display: grid;
   gap: 10px;
@@ -243,6 +269,12 @@ function previewOrderLabel(cellId: number): string {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.85),
     0 10px 28px rgba(30, 40, 55, 0.12);
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.schulte-grid--entering {
+  animation: schulte-grid-in 0.72s ease-out both;
 }
 
 .schulte-cell {
@@ -281,37 +313,6 @@ function previewOrderLabel(cellId: number): string {
   line-height: 1;
 }
 
-.schulte-cell__ord {
-  position: absolute;
-  top: 4px;
-  right: 6px;
-  min-width: 1.05em;
-  font-size: 0.72rem;
-  font-weight: 800;
-  line-height: 1.1;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-}
-
-.schulte-cell--preview {
-  background: radial-gradient(circle at 35% 30%, #dceeff 0%, #9ec5f5 72%);
-  color: #1d4ed8;
-  box-shadow:
-    0 1px 0 #7aa8e0,
-    inset 0 0 0 2px rgba(37, 99, 235, 0.45);
-}
-
-.schulte-cell--preview-current {
-  transform: scale(1.06);
-  background: radial-gradient(circle at 35% 30%, #bfdbfe 0%, #60a5fa 70%);
-  color: #1e3a8a;
-  box-shadow:
-    0 2px 0 #3b82f6,
-    0 0 0 3px rgba(59, 130, 246, 0.28),
-    inset 0 0 0 2px rgba(29, 78, 216, 0.35);
-  animation: schulte-pulse 0.28s ease-out;
-}
-
 .schulte-cell--hit {
   background: radial-gradient(circle at 35% 30%, #e8f8ef 0%, #cfeedd 70%);
   color: var(--el-color-success);
@@ -335,9 +336,7 @@ function previewOrderLabel(cellId: number): string {
   color: var(--el-color-primary);
 }
 
-.schulte-cell--disabled:not(.schulte-cell--hit):not(.schulte-cell--wrong):not(
-    .schulte-cell--preview
-  ) {
+.schulte-cell--disabled:not(.schulte-cell--hit):not(.schulte-cell--wrong) {
   cursor: default;
 }
 
@@ -388,16 +387,33 @@ function previewOrderLabel(cellId: number): string {
   transform: translateY(1px);
 }
 
-@keyframes schulte-pulse {
+@keyframes schulte-word-in {
   from {
-    transform: scale(0.92);
+    opacity: 0;
+    transform: scale(0.96);
   }
   to {
-    transform: scale(1.06);
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes schulte-grid-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
 @media (max-width: 520px) {
+  .schulte-panel {
+    width: min(100%, 360px);
+  }
+
   .schulte-grid {
     gap: 8px;
     padding: 10px;

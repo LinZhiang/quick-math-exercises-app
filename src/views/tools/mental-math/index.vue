@@ -2523,7 +2523,7 @@ onBeforeUnmount(() => {
         <section v-if="showSchulteSection" class="mode-section" id="practice-schulte">
           <h3 class="mode-section__title">舒尔特</h3>
           <p class="mode-section__hint">
-            成语/词语识记：先在方格上按序高亮目标字 2 秒（不计时），熄灭后再按同样顺序点选；其余键为形近干扰字。点完或点错即停表并公布释义。题库 200 条（成语与公考常用词语各半）。答错记入下方错题集。
+            成语/词语识记：开局先出示词语（不计时），再渐显舒尔特方格并按字序点选；其余键为形近干扰字。点完或点错即停表并公布释义。题库 500 条（成语与公考常用词语各半）。答错记入下方错题集。
           </p>
           <div class="mode-grid">
             <button
