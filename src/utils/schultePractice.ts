@@ -1,6 +1,6 @@
 /**
- * 快判·舒尔特：先在方格上按序高亮目标字，熄灭后再点选。
- * 简单 4×5 / 40 秒；复杂 5×7 / 80 秒。
+ * 快判·舒尔特：先出示成语/词语，再渐显方格后按序点选。
+ * 简单 5 行 × 4 列 / 40 秒；复杂 7 行 × 5 列 / 80 秒（纵多横少）。
  */
 
 import { SCHULTE_BANK } from '@/utils/schulteBank'
@@ -18,7 +18,7 @@ export type SchulteModeConfig = {
   wrongDelta: number
   maxScore: number
   desc: string
-  /** 预览总时长（毫秒），不计时 */
+  /** 出示词语时长（毫秒），不计时；随后再渐显格子 */
   previewMs: number
 }
 
@@ -27,25 +27,25 @@ export const SCHULTE_MODES: SchulteModeConfig[] = [
     id: 'schulte-easy',
     label: '简单题',
     durationSec: 40,
-    rows: 4,
-    cols: 5,
+    rows: 5,
+    cols: 4,
     correctDelta: 10,
     wrongDelta: -20,
     maxScore: 100,
-    previewMs: 2000,
-    desc: '40 秒 · 4×5 格 · 先在格上按序高亮 2 秒再点选 · 对 +10 / 错 -20 · 对 +1 秒 / 错 -1 秒',
+    previewMs: 2200,
+    desc: '40 秒 · 5行×4列 · 先记词语再渐显格子点选 · 对 +10 / 错 -20 · 对 +1 秒 / 错 -1 秒',
   },
   {
     id: 'schulte-hard',
     label: '复杂题',
     durationSec: 80,
-    rows: 5,
-    cols: 7,
+    rows: 7,
+    cols: 5,
     correctDelta: 15,
     wrongDelta: -30,
     maxScore: 100,
-    previewMs: 2000,
-    desc: '80 秒 · 5×7 格 · 先在格上按序高亮 2 秒再点选 · 对 +15 / 错 -30 · 对 +1 秒 / 错 -1 秒',
+    previewMs: 2200,
+    desc: '80 秒 · 7行×5列 · 先记词语再渐显格子点选 · 对 +15 / 错 -30 · 对 +1 秒 / 错 -1 秒',
   },
 ]
 
@@ -152,10 +152,10 @@ function pickOne<T>(arr: readonly T[]): T {
   return arr[randInt(0, arr.length - 1)]!
 }
 
-/** 形近 / 易混字组（公考识记向） */
+/** 形近 / 易混字组（公考识记向，去重合并） */
 const SIMILAR_GROUPS: string[] = [
   '己已巳',
-  '戊戌戍戎',
+  '戍戌戊戎',
   '未末本术',
   '日曰目且',
   '人入八',
@@ -164,10 +164,10 @@ const SIMILAR_GROUPS: string[] = [
   '清晴情请',
   '辨辩辫瓣',
   '像象橡',
-  '拆折析诉',
+  '拆折析',
   '刺剌辣赖',
   '茶荼',
-  '管菅',
+  '菅管',
   '粱梁',
   '盲肓',
   '徒徙',
@@ -175,36 +175,27 @@ const SIMILAR_GROUPS: string[] = [
   '欧殴',
   '竞竟',
   '侯候',
-  '厉历励',
+  '厉励历',
   '籍藉',
   '暑署',
-  '载裁栽戴',
+  '载裁栽戴带',
   '祟崇',
   '毫豪',
-  '壶壹',
   '蓝篮',
   '幕墓慕募',
   '宵霄',
-  '菅管',
-  '祟崇',
   '毋母每',
   '叨叼',
-  '灸炙',
-  '肆肄',
-  '赢嬴羸',
-  '壶壹',
-  '戍戌戊戎',
-  '茶荼',
-  '拆折析',
+  '炙灸',
+  '肄肆',
+  '羸嬴赢盈',
   '唯惟维',
   '即既',
   '度渡镀',
-  '带戴',
   '坐座',
   '做作',
   '再在',
   '的地得',
-  '象像',
   '需须',
   '反应映',
   '权利力',
@@ -217,93 +208,96 @@ const SIMILAR_GROUPS: string[] = [
   '纪记',
   '练炼',
   '查察',
-  '须需',
   '长常',
   '部布',
-  '辨辩',
   '绝决',
   '贡供',
-  '厉励',
   '佳嘉',
   '叠迭',
   '份分',
-  '幅付副',
-  '竟竞',
+  '幅副付',
   '燥躁澡藻',
-  '躁燥',
   '泄泻',
   '暄喧',
-  '暄暄',
   '诡鬼',
-  '诡鬼',
-  '戍戎',
-  '赢盈',
   '卑碑',
-  '讳违',
-  '讳纬',
-  '诣脂',
-  '诣指',
-  '赡瞻',
+  '讳违纬',
+  '诣指脂',
+  '瞻赡',
   '戮戳',
-  '戮戳',
-  '掣掣',
   '掣制',
-  '掣掣',
+  '采彩菜',
+  '密蜜秘',
 ]
 
+/** 偏旁相近 / 公考易错汉字兜底池（避免东南西北大小好坏等过简字） */
 const FALLBACK_POOL =
-  '东南西北中上下左右大小多少好坏真假新旧快慢高低远近' +
-  '天地人手足口耳目心木水火土金石风云雨雪春秋冬夏' +
-  '一二三四五六七八九十百千万亿甲乙丙丁戊己庚辛' +
-  '红黄蓝绿青白黑紫灰银铜铁钢铅锡锌铝' +
-  '想看听说读写走跑跳飞开关进出前后内外' +
-  '公检法司政军民学工农商学兵' +
-  '改革发展稳定安全创新协调绿色开放共享' +
-  '法治德治自治智治廉政勤政问责监督审计巡视'
+  '戌戍戊戎己巳已拆折析菅管茶荼羸嬴赢籍藉瞻赡炙灸肄肆崇祟侯候竞竟' +
+  '厉励历戴带坐座做作即既度渡须需绝决贡供佳嘉叠迭幅副燥躁暄喧诡鬼' +
+  '讳违诣指掣制查察合和纪记练炼防妨制定订截止至权利力反应映' +
+  '辨辩辫瓣梁粱盲肓徒徙暗黯唯惟维幕墓慕募宵霄暑署蓝篮毫豪' +
+  '刺剌辣赖欧殴叨叼毋母密蜜秘采彩菜泄泻卑碑赢盈凑奏坚艰长常部布' +
+  '法治德治廉政勤政问责监督审计巡视改革创新协调开放共享'
 
 function similarFor(ch: string, exclude: Set<string>): string[] {
   const out: string[] = []
+  const seen = new Set<string>()
   for (const g of SIMILAR_GROUPS) {
     if (!g.includes(ch)) continue
     for (const c of g) {
-      if (c === ch || exclude.has(c)) continue
+      if (c === ch || exclude.has(c) || seen.has(c)) continue
+      seen.add(c)
       out.push(c)
     }
   }
   return out
 }
 
+function inSameSimilarGroup(a: string, b: string): boolean {
+  if (a === b) return false
+  for (const g of SIMILAR_GROUPS) {
+    if (g.includes(a) && g.includes(b)) return true
+  }
+  return false
+}
+
 function pickDistractors(need: number, targetChars: string[]): string[] {
   const exclude = new Set(targetChars)
   const bag: string[] = []
+
+  const pushUnique = (c: string) => {
+    if (bag.length >= need) return false
+    if (exclude.has(c) || bag.includes(c)) return false
+    bag.push(c)
+    exclude.add(c)
+    return true
+  }
 
   // 1) 优先每个目标字的形近字
   for (const ch of targetChars) {
     for (const s of shuffle(similarFor(ch, exclude))) {
       if (bag.length >= need) break
-      if (exclude.has(s) || bag.includes(s)) continue
-      bag.push(s)
-      exclude.add(s)
+      pushUnique(s)
     }
   }
 
-  // 2) 题库其他字拆开补充（保持汉字语境）
-  const bankChars = shuffle(
-    SCHULTE_BANK.flatMap((it) => Array.from(it.word)).filter((c) => !exclude.has(c)),
+  // 2) 题库其它词：优先与目标字同组形近，再其它汉字
+  const bankUnique = [
+    ...new Set(SCHULTE_BANK.flatMap((it) => Array.from(it.word))),
+  ].filter((c) => !exclude.has(c))
+  const bankSimilar = shuffle(
+    bankUnique.filter((c) => targetChars.some((t) => inSameSimilarGroup(t, c))),
   )
-  for (const c of bankChars) {
+  const bankRest = shuffle(bankUnique.filter((c) => !bankSimilar.includes(c)))
+  for (const c of [...bankSimilar, ...bankRest]) {
     if (bag.length >= need) break
-    if (exclude.has(c) || bag.includes(c)) continue
-    bag.push(c)
-    exclude.add(c)
+    pushUnique(c)
   }
 
-  // 3) 兜底字库
+  // 3) 兜底易错汉字池
   for (const c of shuffle(Array.from(FALLBACK_POOL))) {
     if (bag.length >= need) break
-    if (exclude.has(c) || bag.includes(c)) continue
-    bag.push(c)
-    exclude.add(c)
+    pushUnique(c)
   }
 
   // 4) 仍不足则允许重复形近（极少发生）
