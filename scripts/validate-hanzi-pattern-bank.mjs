@@ -7,7 +7,6 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   STROKE,
-  CROSS,
   ENCLOSE,
   PARTS,
   STRUCT,
@@ -79,19 +78,12 @@ for (const it of items) {
   const lab = it.correct
 
   // 属性表 100% 复验（按标签族）
-  if (lab.includes('笔画数') && !lab.includes('交叉') && !lab.includes('不相连')) {
+  if (lab.includes('笔画数') && !lab.includes('不相连')) {
     tableChecked++
     if (!allDefined(STROKE, c)) errors.push(`STROKE missing ${it.key}`)
     else if (lab.includes('累加') && !isInc1(vals(STROKE, c))) errors.push(`STROKE add1 ${it.key} ${vals(STROKE, c)}`)
     else if (lab.includes('累减') && !isDec1(vals(STROKE, c))) errors.push(`STROKE sub1 ${it.key} ${vals(STROKE, c)}`)
     else if (!lab.includes('累') && !isEqual(vals(STROKE, c))) errors.push(`STROKE eq ${it.key} ${vals(STROKE, c)}`)
-    else tableOk++
-  } else if (lab.includes('交叉')) {
-    tableChecked++
-    if (!allDefined(CROSS, c)) errors.push(`CROSS missing ${it.key}`)
-    else if (lab.includes('累加') && !isInc1(vals(CROSS, c))) errors.push(`CROSS add1 ${it.key}`)
-    else if (lab.includes('累减') && !isDec1(vals(CROSS, c))) errors.push(`CROSS sub1 ${it.key}`)
-    else if (!lab.includes('累') && !isEqual(vals(CROSS, c))) errors.push(`CROSS eq ${it.key}`)
     else tableOk++
   } else if (lab.includes('封闭区域个数')) {
     tableChecked++
@@ -146,15 +138,14 @@ for (const it of items) {
   }
 }
 
-const spots = [
-  ['三五四伍', '笔画数累加1'],
-  ['二十屯连', '笔画交叉数累加1'],
-  ['檀香复早', '都包含「日」'],
-  ['木日昌晶', '封闭区域个数累加1'],
-  ['开勺小心', '笔画不相连部分个数累加1'],
-  ['古山大非', '左右对称'],
-  ['巨目中臣', '上下对称'],
-]
+  const spots = [
+    ['三五四伍', '笔画数累加1'],
+    ['檀香复早', '都包含「日」'],
+    ['木日昌晶', '封闭区域个数累加1'],
+    ['开勺小心', '笔画不相连部分个数累加1'],
+    ['古山大非', '左右对称'],
+    ['巨目中臣', '上下对称'],
+  ]
 for (const [chars, correct] of spots) {
   const hit = items.find((it) => it.chars.join('') === chars)
   if (!hit) errors.push(`missing spot ${chars}`)
@@ -164,27 +155,10 @@ for (const [chars, correct] of spots) {
 console.log('stem format OK:', stemOk, '/', items.length)
 console.log('table re-verify OK:', tableOk, '/', tableChecked)
 console.log('吸 strokes (expect 6):', STROKE['吸'])
-console.log(
-  'CROSS anchors 十/米/来/未/朱:',
-  CROSS['十'],
-  CROSS['米'],
-  CROSS['来'],
-  CROSS['未'],
-  CROSS['朱'],
-)
-console.log('CROSS anchors 才/干/丰/井:', CROSS['才'], CROSS['干'], CROSS['丰'], CROSS['井'])
 console.log('ENCLOSE anchors 日/且/四/目:', ENCLOSE['日'], ENCLOSE['且'], ENCLOSE['四'], ENCLOSE['目'])
 console.log('SYM_LR has 小/八?', SYM_LR.includes('小'), SYM_LR.includes('八'))
-if (
-  CROSS['十'] !== 1 ||
-  CROSS['米'] !== 1 ||
-  CROSS['来'] !== 2 ||
-  CROSS['未'] !== 2 ||
-  CROSS['朱'] !== 2 ||
-  CROSS['才'] !== 1 ||
-  CROSS['干'] !== 2
-) {
-  errors.push('CROSS point-count anchors failed')
+if (items.some((it) => /交叉/.test(it.correct))) {
+  errors.push('bank still contains 笔画交叉数 questions')
 }
 if (SYM_LR.includes('小') || SYM_LR.includes('八')) errors.push('SYM_LR still contains 小/八')
 if (items.some((it) => it.correct === '左右对称' && it.chars.some((ch) => ch === '小' || ch === '八'))) {

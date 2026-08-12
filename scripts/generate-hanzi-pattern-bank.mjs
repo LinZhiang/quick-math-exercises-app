@@ -66,45 +66,6 @@ const STROKE = {
 }
 
 /**
- * 笔画交叉数（仅收录已核验字）
- *
- * 计数规则（客观交叉点）：
- * - 两笔「穿过」形成一个交叉点 → 计 1；
- * - 多笔交于同一几何点仍只计 1（重复不算）；
- * - 相接、T 接、端点相碰、笔画分立 → 不计。
- *
- * 用户锚点：十=1，米=1（多笔共心仍 1），来=2，未=2，朱=2。
- * 结构锚点：才=1，干=2，丰=3，井=4；经典例 二→十→屯→连 = 0→1→2→3。
- */
-const CROSS = {
-  // 0：无交叉点
-  一: 0, 二: 0, 三: 0, 川: 0, 八: 0, 小: 0, 人: 0, 入: 0, 儿: 0, 了: 0, 丫: 0, 彡: 0, 乙: 0,
-  // 1：单交叉点（米：横竖撇捺共一点 → 1）
-  十: 1, 七: 1, 九: 1, 力: 1, 刀: 1, 丈: 1, 才: 1, 大: 1, 又: 1, 木: 1, 术: 1, 米: 1,
-  // 2：两处不同交叉点（未/末/朱/来：上下两横各穿竖；支/友：上下各一交叉点）
-  干: 2, 于: 2, 午: 2, 牛: 2, 开: 2, 屯: 2, 并: 2, 关: 2, 升: 2, 夫: 2,
-  未: 2, 末: 2, 朱: 2, 来: 2, 本: 2, 支: 2, 友: 2, 夹: 2,
-  // 3
-  丰: 3, 韦: 3, 束: 3, 连: 3,
-  // 4：井为两横×两竖共 4 个互异交叉点
-  井: 4,
-}
-{
-  if (CROSS['十'] !== 1) throw new Error('CROSS 十 必须为 1')
-  if (CROSS['米'] !== 1) throw new Error('CROSS 米 必须为 1（多笔共点只计 1）')
-  if (CROSS['来'] !== 2) throw new Error('CROSS 来 必须为 2')
-  if (CROSS['未'] !== 2) throw new Error('CROSS 未 必须为 2')
-  if (CROSS['朱'] !== 2) throw new Error('CROSS 朱 必须为 2')
-  if (CROSS['才'] !== 1) throw new Error('CROSS 才 必须为 1')
-  if (CROSS['干'] !== 2) throw new Error('CROSS 干 必须为 2')
-  if (CROSS['丰'] !== 3) throw new Error('CROSS 丰 必须为 3')
-  if (CROSS['井'] !== 4) throw new Error('CROSS 井 必须为 4')
-  if (CROSS['二'] !== 0 || CROSS['屯'] !== 2 || CROSS['连'] !== 3) {
-    throw new Error('CROSS 二/十/屯/连 经典累加锚点错误')
-  }
-}
-
-/**
  * 封闭区域（空洞个数）
  * 约定：日=1、昌=2、晶=3，以支撑经典累加 木→日→昌→晶（0→1→2→3）。
  * 口=1 中=1 回=2 田=2 目=3；且=2（两格）；四=2；王/五/干/才=0。
@@ -233,7 +194,6 @@ const CONTAIN = {
 
 const ALL_LABELS = [
   '笔画数相等', '笔画数累加1', '笔画数累减1',
-  '笔画交叉数相等', '笔画交叉数累加1', '笔画交叉数累减1',
   '封闭区域个数相等', '封闭区域个数累加1', '封闭区域个数累减1',
   '笔画不相连部分个数相等', '笔画不相连部分个数累加1', '笔画不相连部分个数累减1',
   '左右结构', '上下结构', '半包围结构', '独体结构',
@@ -261,26 +221,23 @@ for (const [comp, pool] of Object.entries(CONTAIN)) {
 
 /** 各标签目标配额（合计 ≥500，组装时截到 500） */
 const QUOTA = {
-  笔画数相等: 45,
-  笔画数累加1: 28,
-  笔画数累减1: 28,
-  笔画交叉数相等: 18,
-  笔画交叉数累加1: 16,
-  笔画交叉数累减1: 16,
-  封闭区域个数相等: 22,
-  封闭区域个数累加1: 20,
-  封闭区域个数累减1: 20,
-  笔画不相连部分个数相等: 16,
-  笔画不相连部分个数累加1: 16,
-  笔画不相连部分个数累减1: 16,
-  左右结构: 22,
-  上下结构: 22,
-  半包围结构: 20,
-  独体结构: 22,
-  左右对称: 20,
-  上下对称: 16,
-  都有封闭区域: 20,
-  都是开放区域: 20,
+  笔画数相等: 55,
+  笔画数累加1: 36,
+  笔画数累减1: 36,
+  封闭区域个数相等: 28,
+  封闭区域个数累加1: 26,
+  封闭区域个数累减1: 26,
+  笔画不相连部分个数相等: 22,
+  笔画不相连部分个数累加1: 22,
+  笔画不相连部分个数累减1: 22,
+  左右结构: 26,
+  上下结构: 26,
+  半包围结构: 24,
+  独体结构: 26,
+  左右对称: 24,
+  上下对称: 20,
+  都有封闭区域: 24,
+  都是开放区域: 24,
   // 都包含* 合计约 57
 }
 
@@ -295,7 +252,6 @@ function distractorsFor(correct, extra = [], salt = 0) {
   const pool = [...new Set([...extra, ...ALL_LABELS, ...CONTAIN_LABELS])].filter((x) => x !== correct)
   const family = pool.filter((x) => {
     if (correct.includes('笔画数') && x.includes('笔画数')) return true
-    if (correct.includes('交叉') && x.includes('交叉')) return true
     if (correct.includes('封闭区域个数') && x.includes('封闭区域个数')) return true
     if (correct.includes('不相连') && x.includes('不相连')) return true
     if (correct.includes('结构') && x.includes('结构')) return true
@@ -394,12 +350,6 @@ function validateSeed(chars, correct) {
     if (!allDefined(STROKE, c) || !isInc1(vals(STROKE, c))) return `非累加 ${vals(STROKE, c)}`
   } else if (correct === '笔画数累减1') {
     if (!allDefined(STROKE, c) || !isDec1(vals(STROKE, c))) return `非累减 ${vals(STROKE, c)}`
-  } else if (correct === '笔画交叉数相等') {
-    if (!allDefined(CROSS, c) || !isEqual(vals(CROSS, c))) return `交叉不等 ${vals(CROSS, c)}`
-  } else if (correct === '笔画交叉数累加1') {
-    if (!allDefined(CROSS, c) || !isInc1(vals(CROSS, c))) return `交叉非累加 ${vals(CROSS, c)}`
-  } else if (correct === '笔画交叉数累减1') {
-    if (!allDefined(CROSS, c) || !isDec1(vals(CROSS, c))) return `交叉非累减 ${vals(CROSS, c)}`
   } else if (correct === '封闭区域个数相等') {
     if (!allDefined(ENCLOSE, c) || !isEqual(vals(ENCLOSE, c))) return `封闭不等 ${vals(ENCLOSE, c)}`
   } else if (correct === '封闭区域个数累加1') {
@@ -466,8 +416,6 @@ function tipFor(chars, correct) {
   if (correct === '笔画数相等') return `笔画数均为 ${STROKE[chars[0]]}`
   if (correct === '笔画数累加1') return `笔画数 ${vals(STROKE, chars).join('→')}`
   if (correct === '笔画数累减1') return `笔画数 ${vals(STROKE, chars).join('→')}`
-  if (correct === '笔画交叉数相等') return `笔画交叉数均为 ${CROSS[chars[0]]}`
-  if (correct === '笔画交叉数累加1' || correct === '笔画交叉数累减1') return `交叉数 ${vals(CROSS, chars).join('→')}`
   if (correct === '封闭区域个数相等') return `封闭区域个数均为 ${ENCLOSE[chars[0]]}`
   if (correct.includes('封闭区域个数累')) return `封闭区域 ${vals(ENCLOSE, chars).join('→')}`
   if (correct === '笔画不相连部分个数相等') return `不相连部分个数均为 ${PARTS[chars[0]]}`
@@ -493,8 +441,6 @@ function add(chars, correct, tip, opts = {}) {
     const rivals = [
       '笔画数累加1',
       '笔画数累减1',
-      '笔画交叉数累加1',
-      '笔画交叉数累减1',
       '封闭区域个数累加1',
       '封闭区域个数累减1',
       '笔画不相连部分个数累加1',
@@ -559,7 +505,6 @@ function addMapPatterns(map, labelEq, labelInc, labelDec, eqMaxPerLevel, seqMax)
 
 // ── 用户经典例（优先）──
 add(['三', '五', '四', '伍'], '笔画数累加1', '笔画数 3→4→5→6（三/五/四/伍）', { priority: true })
-add(['二', '十', '屯', '连'], '笔画交叉数累加1', '交叉数 0→1→2→3（经典例）', { priority: true })
 add(['檀', '香', '复', '早'], '都包含「日」', '檀/香/复/早均含「日」', {
   priority: true,
   extraDist: CONTAIN_LABELS.filter((x) => x !== '都包含「日」'),
@@ -585,7 +530,6 @@ add(['圭', '炎', '吕', '昌'], '上下结构', '四字均为上下结构', { 
 
 // ── 系统生成 ──
 addMapPatterns(STROKE, '笔画数相等', '笔画数累加1', '笔画数累减1', 6, 40)
-addMapPatterns(CROSS, '笔画交叉数相等', '笔画交叉数累加1', '笔画交叉数累减1', 8, 30)
 addMapPatterns(ENCLOSE, '封闭区域个数相等', '封闭区域个数累加1', '封闭区域个数累减1', 8, 35)
 addMapPatterns(PARTS, '笔画不相连部分个数相等', '笔画不相连部分个数累加1', '笔画不相连部分个数累减1', 8, 30)
 
@@ -796,7 +740,6 @@ function validateAll(items) {
 
   const spots = [
     ['三五四伍', '笔画数累加1'],
-    ['二十屯连', '笔画交叉数累加1'],
     ['檀香复早', '都包含「日」'],
     ['木日昌晶', '封闭区域个数累加1'],
     ['开勺小心', '笔画不相连部分个数累加1'],
@@ -875,7 +818,6 @@ if (isMain) main()
 
 export {
   STROKE,
-  CROSS,
   ENCLOSE,
   PARTS,
   STRUCT,

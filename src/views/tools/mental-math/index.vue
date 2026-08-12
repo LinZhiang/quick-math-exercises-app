@@ -17,6 +17,7 @@ import TwentyFourPointPanel from '@/views/tools/mental-math/components/TwentyFou
 import SudokuPanel from '@/views/tools/mental-math/components/SudokuPanel.vue'
 import CircleGrammarPanel from '@/views/tools/mental-math/components/CircleGrammarPanel.vue'
 import ShortenSentencePanel from '@/views/tools/mental-math/components/ShortenSentencePanel.vue'
+import SchultePanel from '@/views/tools/mental-math/components/SchultePanel.vue'
 import DataAnalysisPanel from '@/views/tools/mental-math/components/DataAnalysisPanel.vue'
 import DataAnalysisGrowthPanel from '@/views/tools/mental-math/components/DataAnalysisGrowthPanel.vue'
 import DataAnalysisGrowthInterYearPanel from '@/views/tools/mental-math/components/DataAnalysisGrowthInterYearPanel.vue'
@@ -191,6 +192,16 @@ import {
   type ShortenSentenceMode,
   type ShortenSentenceQuestion,
 } from '@/utils/shortenSentencePractice'
+import {
+  SCHULTE_MODES,
+  clampSchulteScore,
+  generateSchulteQuestion,
+  getSchulteModeConfig,
+  getSchulteQuestionFingerprint,
+  isSchulteMode,
+  type SchulteMode,
+  type SchulteQuestion,
+} from '@/utils/schultePractice'
 import ChinesePracticeSection from '@/views/tools/chinese-practice/ChinesePracticeSection.vue'
 import PwaInstallPanel from '@/components/PwaInstallPanel.vue'
 import { clearWenguSessionOnAiLeave } from '@/utils/wenguAuthStore'
@@ -212,6 +223,7 @@ type PracticeMode =
   | SudokuMode
   | CircleGrammarMode
   | ShortenSentenceMode
+  | SchulteMode
 
 const COUNTDOWN_STEPS: CountdownStep[] = [3, 2, 1, 'GO']
 
@@ -230,6 +242,8 @@ const circleGrammarQuestion = ref<CircleGrammarQuestion | null>(null)
 const circleGrammarPanelRef = ref<InstanceType<typeof CircleGrammarPanel> | null>(null)
 const shortenSentenceQuestion = ref<ShortenSentenceQuestion | null>(null)
 const shortenSentencePanelRef = ref<InstanceType<typeof ShortenSentencePanel> | null>(null)
+const schulteQuestion = ref<SchulteQuestion | null>(null)
+const schultePanelRef = ref<InstanceType<typeof SchultePanel> | null>(null)
 const chinesePracticeRef = ref<InstanceType<typeof ChinesePracticeSection> | null>(null)
 const factDeepenRef = ref<InstanceType<typeof FactDeepenMemorizationPanel> | null>(null)
 const factDeepenActive = ref(false)
@@ -386,6 +400,11 @@ const circleGrammarFeedbackDetail = ref('')
 const shortenSentenceReviewing = ref(false)
 const shortenSentenceFeedbackDetail = ref('')
 const shortenSentenceLastAnswer = ref('')
+const schulteReviewing = ref(false)
+const schulteFeedbackDetail = ref('')
+/** 舒尔特：预览/看答案时暂停倒计时 */
+let schulteCountdownPaused = false
+let schultePauseStartedMs = 0
 const feedback = ref<'correct' | 'wrong' | null>(null)
 const acceptingInput = ref(true)
 const countdownValue = ref<CountdownStep | null>(null)
@@ -442,12 +461,14 @@ const isSudokuSession = computed(
   () => activeMode.value != null && isSudokuMode(activeMode.value),
 )
 
-const isCircleGrammarSession = computed(
-  () => activeMode.value != null && isCircleGrammarMode(activeMode.value),
-)
-
 const isShortenSentenceSession = computed(
   () => activeMode.value != null && isShortenSentenceMode(activeMode.value),
+)
+const isSchulteSession = computed(
+  () => activeMode.value != null && isSchulteMode(activeMode.value),
+)
+const isCircleGrammarSession = computed(
+  () => activeMode.value != null && isCircleGrammarMode(activeMode.value),
 )
 
 const isGraphicSession = computed(
@@ -595,6 +616,9 @@ const modeConfig = computed(() => {
   if (isShortenSentenceMode(activeMode.value)) {
     return getShortenSentenceModeConfig(activeMode.value)
   }
+  if (isSchulteMode(activeMode.value)) {
+    return getSchulteModeConfig(activeMode.value)
+  }
   return getMentalMathModeConfig(activeMode.value)
 })
 
@@ -680,6 +704,7 @@ const showGrammarJudgmentSection = computed(
   () => activeOutlineSection.value === 'grammar-judgment',
 )
 const showRhetoricDeviceSection = computed(() => activeOutlineSection.value === 'rhetoric-device')
+const showSchulteSection = computed(() => activeOutlineSection.value === 'schulte')
 const showTwentyFourSection = computed(() => activeOutlineSection.value === 'twentyfour')
 const showSudokuSection = computed(() => activeOutlineSection.value === 'sudoku')
 const showGraphicSection = computed(() => activeOutlineSection.value === 'graphic')
@@ -775,7 +800,8 @@ const mcqOptionCount = computed(() => {
     isTwentyFourPointMode(mode) ||
     isSudokuMode(mode) ||
     isCircleGrammarMode(mode) ||
-    isShortenSentenceMode(mode)
+    isShortenSentenceMode(mode) ||
+    isSchulteMode(mode)
   ) {
     return 0
   }
@@ -792,11 +818,61 @@ const activeHubGroupId = ref<PracticeHubGroupId>(
 const hubChildSections = computed(() => practiceHubSectionsInGroup(activeHubGroupId.value))
 const showHubLevel2 = computed(() => practiceHubGroupHasMultiple(activeHubGroupId.value))
 
+/** 手机端二级入口：一屏最多 4 个，左右翻页 */
+const HUB_L2_PAGE_SIZE = 4
+const hubL2PageStart = ref(0)
+
+const visibleHubChildSections = computed(() =>
+  hubChildSections.value.slice(hubL2PageStart.value, hubL2PageStart.value + HUB_L2_PAGE_SIZE),
+)
+
+const hubL2NeedsPager = computed(() => hubChildSections.value.length > HUB_L2_PAGE_SIZE)
+
+const hubL2CanPrev = computed(() => hubL2PageStart.value > 0)
+
+const hubL2CanNext = computed(
+  () => hubL2PageStart.value + HUB_L2_PAGE_SIZE < hubChildSections.value.length,
+)
+
+function clampHubL2PageStart(start: number): number {
+  const maxStart = Math.max(0, hubChildSections.value.length - HUB_L2_PAGE_SIZE)
+  return Math.max(0, Math.min(maxStart, start))
+}
+
+function shiftHubL2(dir: -1 | 1) {
+  hubL2PageStart.value = clampHubL2PageStart(hubL2PageStart.value + dir)
+}
+
+/** 保证当前选中的二级入口落在可见 4 格内 */
+function ensureHubL2ActiveVisible() {
+  const all = hubChildSections.value
+  if (all.length <= HUB_L2_PAGE_SIZE) {
+    hubL2PageStart.value = 0
+    return
+  }
+  const idx = all.findIndex((s) => s.id === activeOutlineSection.value)
+  if (idx < 0) {
+    hubL2PageStart.value = 0
+    return
+  }
+  if (idx < hubL2PageStart.value) {
+    hubL2PageStart.value = idx
+  } else if (idx >= hubL2PageStart.value + HUB_L2_PAGE_SIZE) {
+    hubL2PageStart.value = idx - HUB_L2_PAGE_SIZE + 1
+  }
+  hubL2PageStart.value = clampHubL2PageStart(hubL2PageStart.value)
+}
+
 watch(activeOutlineSection, (id, prev) => {
   activeHubGroupId.value = practiceHubGroupIdForSection(id)
+  ensureHubL2ActiveVisible()
   if (prev === 'chinese' && id !== 'chinese' && id !== 'install' && id !== 'settings') {
     clearWenguSessionOnAiLeave()
   }
+})
+
+watch(activeHubGroupId, () => {
+  ensureHubL2ActiveVisible()
 })
 
 function selectHubGroup(groupId: PracticeHubGroupId) {
@@ -807,12 +883,7 @@ function selectHubGroup(groupId: PracticeHubGroupId) {
     const first = children[0]
     if (first) selectOutlineSection(first.id)
   } else {
-    void nextTick(() => {
-      const active = practiceSidebarRef.value?.querySelector<HTMLElement>(
-        '.practice-sidebar__item--active',
-      )
-      active?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
-    })
+    ensureHubL2ActiveVisible()
   }
 }
 
@@ -827,12 +898,9 @@ function selectOutlineSection(id: PracticeHubSectionId) {
   if (chineseSessionActive.value) return
   activeOutlineSection.value = id
   activeHubGroupId.value = practiceHubGroupIdForSection(id)
+  ensureHubL2ActiveVisible()
   void nextTick(() => {
     practiceMainRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
-    const active = practiceSidebarRef.value?.querySelector<HTMLElement>(
-      '.practice-sidebar__item--active',
-    )
-    active?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
   })
 }
 
@@ -880,6 +948,7 @@ function nextQuestion() {
     sudokuQuestion.value = null
     circleGrammarQuestion.value = null
     shortenSentenceQuestion.value = null
+    schulteQuestion.value = null
   } else if (isTwentyFourPointMode(activeMode.value)) {
     const q = generateTwentyFourPointPuzzle(activeMode.value, questionSeq.value, lastQuestionFingerprint.value)
     twentyFourQuestion.value = q
@@ -889,6 +958,7 @@ function nextQuestion() {
     sudokuQuestion.value = null
     circleGrammarQuestion.value = null
     shortenSentenceQuestion.value = null
+    schulteQuestion.value = null
   } else if (isSudokuMode(activeMode.value)) {
     const q = generateSudokuPuzzle(activeMode.value, questionSeq.value, lastQuestionFingerprint.value)
     sudokuQuestion.value = q
@@ -898,6 +968,7 @@ function nextQuestion() {
     twentyFourQuestion.value = null
     circleGrammarQuestion.value = null
     shortenSentenceQuestion.value = null
+    schulteQuestion.value = null
   } else if (isCircleGrammarMode(activeMode.value)) {
     const q = generateCircleGrammarQuestion(activeMode.value, questionSeq.value)
     circleGrammarQuestion.value = q
@@ -908,6 +979,7 @@ function nextQuestion() {
     twentyFourQuestion.value = null
     sudokuQuestion.value = null
     shortenSentenceQuestion.value = null
+    schulteQuestion.value = null
   } else if (isShortenSentenceMode(activeMode.value)) {
     const q = generateShortenSentenceQuestion(activeMode.value, questionSeq.value)
     shortenSentenceQuestion.value = q
@@ -918,6 +990,24 @@ function nextQuestion() {
     twentyFourQuestion.value = null
     sudokuQuestion.value = null
     circleGrammarQuestion.value = null
+    schulteQuestion.value = null
+  } else if (isSchulteMode(activeMode.value)) {
+    const q = generateSchulteQuestion(
+      activeMode.value,
+      questionSeq.value,
+      sessionQuestionFingerprints.value,
+    )
+    schulteQuestion.value = q
+    lastQuestionFingerprint.value = getSchulteQuestionFingerprint(q)
+    sessionQuestionFingerprints.value.add(lastQuestionFingerprint.value)
+    question.value = null
+    graphicQuestion.value = null
+    twentyFourQuestion.value = null
+    sudokuQuestion.value = null
+    circleGrammarQuestion.value = null
+    shortenSentenceQuestion.value = null
+    schulteReviewing.value = false
+    schulteFeedbackDetail.value = ''
   } else {
     const mCfg = getMentalMathModeConfig(activeMode.value as MentalMathMode)
     const q = generateMentalMathQuestion(
@@ -935,9 +1025,13 @@ function nextQuestion() {
     sudokuQuestion.value = null
     circleGrammarQuestion.value = null
     shortenSentenceQuestion.value = null
+    schulteQuestion.value = null
   }
   feedback.value = null
-  acceptingInput.value = true
+  acceptingInput.value = !(activeMode.value && isSchulteMode(activeMode.value))
+  if (activeMode.value && isSchulteMode(activeMode.value)) {
+    pauseSchulteCountdown()
+  }
 }
 
 function finishSession(perfect = false) {
@@ -983,6 +1077,21 @@ function syncRemainingFromSession() {
   remainingMs.value = Math.max(0, totalMs.value - (Date.now() - sessionStartMs))
 }
 
+function pauseSchulteCountdown() {
+  if (!isSchulteSession.value || schulteCountdownPaused) return
+  schulteCountdownPaused = true
+  schultePauseStartedMs = Date.now()
+  syncRemainingFromSession()
+}
+
+function resumeSchulteCountdown() {
+  if (!schulteCountdownPaused) return
+  const pausedFor = Math.max(0, Date.now() - schultePauseStartedMs)
+  sessionStartMs += pausedFor
+  schulteCountdownPaused = false
+  syncRemainingFromSession()
+}
+
 function applyTimeDeltaForAnswer(ok: boolean) {
   let bonusSec = MENTAL_MATH_TIME_CORRECT_BONUS_SEC
   let penaltySec = MENTAL_MATH_TIME_WRONG_PENALTY_SEC
@@ -1022,6 +1131,8 @@ function beginPlaying(mode: PracticeMode) {
           ? getCircleGrammarModeConfig(mode)
           : isShortenSentenceMode(mode)
             ? getShortenSentenceModeConfig(mode)
+            : isSchulteMode(mode)
+              ? getSchulteModeConfig(mode)
         : getMentalMathModeConfig(mode as MentalMathMode)
   score.value = 0
   finishedByPerfect.value = false
@@ -1042,9 +1153,16 @@ function beginPlaying(mode: PracticeMode) {
   shortenSentenceReviewing.value = false
   shortenSentenceFeedbackDetail.value = ''
   shortenSentenceLastAnswer.value = ''
+  schulteReviewing.value = false
+  schulteFeedbackDetail.value = ''
+  schulteCountdownPaused = false
+  schultePauseStartedMs = 0
   sessionStartMs = Date.now()
   phase.value = 'playing'
   nextQuestion()
+  if (isSchulteMode(mode)) {
+    pauseSchulteCountdown()
+  }
 
   timerHandle = setInterval(() => {
     if (
@@ -1056,6 +1174,9 @@ function beginPlaying(mode: PracticeMode) {
       } else {
         elapsedMs.value = circleAccumulatedMs
       }
+      return
+    }
+    if (isSchulteMode(mode) && schulteCountdownPaused) {
       return
     }
     elapsedMs.value = Date.now() - sessionStartMs
@@ -1316,6 +1437,88 @@ function advanceCircleGrammar() {
   circleTimerRunning.value = true
 }
 
+function onSchultePreviewDone() {
+  if (phase.value !== 'playing' || !isSchulteSession.value || schulteReviewing.value) return
+  acceptingInput.value = true
+  resumeSchulteCountdown()
+}
+
+function finishSchulteAnswer(payload: { ok: boolean; clicked: string }) {
+  prepareQbPerfectMidi()
+  if (
+    phase.value !== 'playing' ||
+    !modeConfig.value ||
+    !schulteQuestion.value ||
+    !activeMode.value ||
+    !isSchulteMode(activeMode.value) ||
+    schulteReviewing.value
+  ) {
+    return
+  }
+
+  pauseSchulteCountdown()
+  const cfg = getSchulteModeConfig(activeMode.value)
+  const q = schulteQuestion.value
+  const ok = payload.ok
+  const reachedCeiling = applySessionScore(
+    ok,
+    ok ? cfg.correctDelta : cfg.wrongDelta,
+    cfg.maxScore,
+    clampSchulteScore,
+  )
+  records.value.push({
+    questionId: q.id,
+    expression: q.expression,
+    correctAnswer: q.correctAnswer,
+    chosenAnswer: payload.clicked,
+    chosenIndex: -1,
+    correct: ok,
+    scoreAfter: score.value,
+    elapsedMs: Date.now() - sessionStartMs,
+    explanation: q.explanation,
+  })
+  if (!ok) {
+    upsertMentalMathWrong({
+      modeId: activeMode.value,
+      expression: q.expression,
+      correctAnswer: q.correctAnswer,
+      chosenAnswer: payload.clicked,
+      explanation: q.explanation,
+    })
+  }
+
+  applyTimeDeltaForAnswer(ok)
+  feedback.value = ok ? 'correct' : 'wrong'
+  schulteFeedbackDetail.value = q.explanation
+  if (ok) playMentalMathCorrectSound()
+  else playMentalMathWrongSound()
+
+  acceptingInput.value = false
+  schulteReviewing.value = true
+
+  // 满分也先展示答案，点下一题再结束
+  if (reachedCeiling || remainingMs.value <= 0) {
+    /* defer finish to advanceSchulte */
+  }
+}
+
+function advanceSchulte() {
+  if (phase.value !== 'playing' || !schulteReviewing.value || !activeMode.value) return
+  if (!isSchulteMode(activeMode.value)) return
+
+  const cfg = getSchulteModeConfig(activeMode.value)
+  schulteReviewing.value = false
+  schulteFeedbackDetail.value = ''
+  feedback.value = null
+
+  if (score.value >= cfg.maxScore || remainingMs.value <= 0) {
+    finishSession(!sessionHadWrongAnswer && score.value >= cfg.maxScore)
+    return
+  }
+
+  nextQuestion()
+}
+
 function finishShortenSentenceAnswer(answer: string) {
   prepareQbPerfectMidi()
   if (
@@ -1407,6 +1610,7 @@ function applyAnswer(choiceIndex: number) {
     !isSudokuSession.value &&
     !isCircleGrammarSession.value &&
     !isShortenSentenceSession.value &&
+    !isSchulteSession.value &&
     !question.value
   ) {
     return
@@ -1547,7 +1751,8 @@ function onKeydown(e: KeyboardEvent) {
     isTwentyFourPointMode(activeMode.value) ||
     isSudokuMode(activeMode.value) ||
     isCircleGrammarMode(activeMode.value) ||
-    isShortenSentenceMode(activeMode.value)
+    isShortenSentenceMode(activeMode.value) ||
+    isSchulteMode(activeMode.value)
   ) {
     return
   }
@@ -1573,6 +1778,7 @@ function backToSelect() {
   sudokuQuestion.value = null
   circleGrammarQuestion.value = null
   shortenSentenceQuestion.value = null
+  schulteQuestion.value = null
   feedback.value = null
   countdownValue.value = null
   lastQuestionFingerprint.value = null
@@ -1585,6 +1791,10 @@ function backToSelect() {
   shortenSentenceReviewing.value = false
   shortenSentenceFeedbackDetail.value = ''
   shortenSentenceLastAnswer.value = ''
+  schulteReviewing.value = false
+  schulteFeedbackDetail.value = ''
+  schulteCountdownPaused = false
+  schultePauseStartedMs = 0
 }
 
 onMounted(() => {
@@ -1645,6 +1855,8 @@ onMounted(() => {
     activeOutlineSection.value = 'grammar-judgment'
   } else if (hash === 'rhetoric-device' || route.query.section === 'rhetoric-device') {
     activeOutlineSection.value = 'rhetoric-device'
+  } else if (hash === 'schulte' || route.query.section === 'schulte') {
+    activeOutlineSection.value = 'schulte'
   }
 })
 
@@ -1709,18 +1921,46 @@ onBeforeUnmount(() => {
         <div
           v-show="showHubLevel2"
           class="practice-sidebar__level2"
+          :class="{ 'practice-sidebar__level2--paged': hubL2NeedsPager }"
           aria-label="二级入口"
         >
           <button
-            v-for="section in hubChildSections"
-            :key="section.id"
+            v-if="hubL2NeedsPager"
             type="button"
-            class="practice-sidebar__item"
-            :class="{ 'practice-sidebar__item--active': activeOutlineSection === section.id }"
-            :disabled="chineseSessionActive && section.id !== activeOutlineSection"
-            @click="selectOutlineSection(section.id)"
+            class="practice-sidebar__l2-nav"
+            :disabled="!hubL2CanPrev"
+            aria-label="往前查看"
+            @click="shiftHubL2(-1)"
           >
-            {{ section.title }}
+            ‹
+          </button>
+          <div
+            class="practice-sidebar__level2-track"
+            :style="{
+              gridTemplateColumns: `repeat(${Math.min(HUB_L2_PAGE_SIZE, visibleHubChildSections.length) || 1}, minmax(0, 1fr))`,
+            }"
+          >
+            <button
+              v-for="section in visibleHubChildSections"
+              :key="section.id"
+              type="button"
+              class="practice-sidebar__item"
+              :class="{ 'practice-sidebar__item--active': activeOutlineSection === section.id }"
+              :disabled="chineseSessionActive && section.id !== activeOutlineSection"
+              @click="selectOutlineSection(section.id)"
+            >
+              {{ section.title }}
+            </button>
+          </div>
+          <button
+            v-if="hubL2NeedsPager"
+            type="button"
+            class="practice-sidebar__l2-nav"
+            :disabled="!hubL2CanNext"
+            aria-label="往后查看"
+            @click="shiftHubL2(1)"
+          >
+            ›
           </button>
         </div>
         <div class="practice-sidebar__flat" aria-label="全部入口">
@@ -2086,7 +2326,7 @@ onBeforeUnmount(() => {
         <section v-if="showHanziPatternSection" class="mode-section" id="practice-hanzi-pattern">
           <h3 class="mode-section__title">汉字规律</h3>
           <p class="mode-section__hint">
-            四字汉字规律快判：笔画数、交叉数、部件包含、封闭区域、结构与对称、连通块等。题干仅四字，选规律。答错记入下方错题集。
+            四字汉字规律快判：笔画数、部件包含、封闭区域、结构与对称、连通块等（不含笔画交叉数）。题干仅四字，选规律。答错记入下方错题集。
           </p>
           <div class="mode-grid">
             <button
@@ -2278,6 +2518,29 @@ onBeforeUnmount(() => {
             @active="factDeepenActive = $event"
           />
           <MentalMathWrongBookPanel v-show="!factDeepenActive" section="rhetoric-device" />
+        </section>
+
+        <section v-if="showSchulteSection" class="mode-section" id="practice-schulte">
+          <h3 class="mode-section__title">舒尔特</h3>
+          <p class="mode-section__hint">
+            成语/词语识记：先在方格上按序高亮目标字 2 秒（不计时），熄灭后再按同样顺序点选；其余键为形近干扰字。点完或点错即停表并公布释义。题库 200 条（成语与公考常用词语各半）。答错记入下方错题集。
+          </p>
+          <div class="mode-grid">
+            <button
+              v-for="m in SCHULTE_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--schulte"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">
+                {{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" />
+              </h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+          </div>
+          <MentalMathWrongBookPanel section="schulte" />
         </section>
 
         <section v-if="showTwentyFourSection" class="mode-section" id="practice-twentyfour">
@@ -3849,7 +4112,8 @@ onBeforeUnmount(() => {
           twentyFourQuestion ||
           sudokuQuestion ||
           circleGrammarQuestion ||
-          shortenSentenceQuestion)
+          shortenSentenceQuestion ||
+          schulteQuestion)
       "
       class="play-panel"
     >
@@ -3861,7 +4125,9 @@ onBeforeUnmount(() => {
                 ? `圈出所有语法 · ${modeConfig.label}`
                 : isShortenSentenceSession
                   ? `缩句练习 · ${modeConfig.label}`
-                  : modeConfig.label
+                  : isSchulteSession
+                    ? `舒尔特 · ${modeConfig.label}`
+                    : modeConfig.label
             }}</span>
             <span class="play-score">得分 <strong>{{ score }}</strong> / {{ modeConfig.maxScore }}</span>
           </div>
@@ -3983,6 +4249,24 @@ onBeforeUnmount(() => {
         @next="advanceShortenSentence"
       />
 
+      <SchultePanel
+        v-else-if="schulteQuestion"
+        ref="schultePanelRef"
+        :question="schulteQuestion"
+        :feedback="feedback"
+        :accepting-input="acceptingInput"
+        :reviewing="schulteReviewing"
+        :review-detail="schulteFeedbackDetail"
+        :preview-ms="
+          activeMode && isSchulteMode(activeMode)
+            ? getSchulteModeConfig(activeMode).previewMs
+            : 2000
+        "
+        @preview-done="onSchultePreviewDone"
+        @complete="finishSchulteAnswer"
+        @next="advanceSchulte"
+      />
+
       <template v-else-if="question">
         <div class="question-block">
           <p
@@ -4054,6 +4338,7 @@ onBeforeUnmount(() => {
           !isSudokuSession &&
           !isCircleGrammarSession &&
           !isShortenSentenceSession &&
+          !isSchulteSession &&
           mcqOptionCount > 0
         "
         class="hint"
@@ -4396,6 +4681,15 @@ onBeforeUnmount(() => {
 .mode-card--rhetoric-device:hover {
   border-color: color-mix(in srgb, #be185d 50%, var(--app-border-soft));
   box-shadow: 0 4px 16px rgba(190, 24, 93, 0.12);
+}
+
+.mode-card--schulte {
+  border-color: color-mix(in srgb, #475569 28%, var(--app-border-soft));
+}
+
+.mode-card--schulte:hover {
+  border-color: color-mix(in srgb, #475569 50%, var(--app-border-soft));
+  box-shadow: 0 4px 16px rgba(71, 85, 105, 0.12);
 }
 
 .mode-section__subtitle {
@@ -5240,10 +5534,45 @@ onBeforeUnmount(() => {
   }
 
   .practice-sidebar__level2 {
-    /* 与一级贴紧，避免粘连时中间露白 */
+    display: flex;
+    align-items: stretch;
+    gap: 4px;
     margin-top: 0;
-    padding: 8px 10px 10px;
+    padding: 8px 6px 10px;
     background: var(--app-surface);
+  }
+
+  .practice-sidebar__level2-track {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    gap: 6px;
+  }
+
+  .practice-sidebar__l2-nav {
+    flex: 0 0 28px;
+    width: 28px;
+    align-self: stretch;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--app-border-soft);
+    border-radius: 999px;
+    background: var(--app-surface-alt);
+    color: var(--el-color-primary);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .practice-sidebar__l2-nav:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    color: var(--app-text-muted);
   }
 
   .practice-sidebar__group {
