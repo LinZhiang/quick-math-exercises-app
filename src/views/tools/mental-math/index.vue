@@ -194,6 +194,7 @@ import {
 } from '@/utils/shortenSentencePractice'
 import {
   SCHULTE_MODES,
+  SCHULTE_POEM_MODES,
   clampSchulteScore,
   generateSchulteQuestion,
   getSchulteModeConfig,
@@ -2523,11 +2524,31 @@ onBeforeUnmount(() => {
         <section v-if="showSchulteSection" class="mode-section" id="practice-schulte">
           <h3 class="mode-section__title">舒尔特</h3>
           <p class="mode-section__hint">
-            成语/词语识记：开局先出示词语（不计时），再渐显舒尔特方格并按字序点选；其余键为形近干扰字。点完或点错即停表并公布释义。题库 500 条（成语与公考常用词语各半）。答错记入下方错题集。
+            成语（四字）/ 词语（二字）识记：开局先出示（成语 1.8 秒、词语 1 秒，不计时），再渐显方格按字序点选。题库 500 条。答错记入下方错题集。
           </p>
           <div class="mode-grid">
             <button
               v-for="m in SCHULTE_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--schulte"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">
+                {{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" />
+              </h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+          </div>
+
+          <h3 class="mode-section__title mode-section__title--sub">古诗词</h3>
+          <p class="mode-section__hint">
+            素材来自识记模块·诗词模块全部名句。出示形如「会当凌绝顶，一览众山小——杜甫」，时长按汉字数 ×0.25 秒；点选含作者名汉字。答完展示原注释。
+          </p>
+          <div class="mode-grid">
+            <button
+              v-for="m in SCHULTE_POEM_MODES"
               :key="m.id"
               type="button"
               class="mode-card mode-card--schulte"
@@ -4257,11 +4278,6 @@ onBeforeUnmount(() => {
         :accepting-input="acceptingInput"
         :reviewing="schulteReviewing"
         :review-detail="schulteFeedbackDetail"
-        :preview-ms="
-          activeMode && isSchulteMode(activeMode)
-            ? getSchulteModeConfig(activeMode).previewMs
-            : 2000
-        "
         @preview-done="onSchultePreviewDone"
         @complete="finishSchulteAnswer"
         @next="advanceSchulte"
@@ -4864,6 +4880,10 @@ onBeforeUnmount(() => {
   margin: 0 0 12px;
   font-size: 1rem;
   font-weight: 700;
+}
+
+.mode-section__title--sub {
+  margin-top: 22px;
 }
 
 .mode-section__hint {

@@ -257,7 +257,14 @@ export function mentalMathModeToWrongSection(modeId: string): MentalMathWrongSec
   if (modeId === 'rhetoric-device-normal' || modeId === 'rhetoric-device-deepen-normal') {
     return 'rhetoric-device'
   }
-  if (modeId === 'schulte-easy' || modeId === 'schulte-hard') {
+  if (
+    modeId === 'schulte-easy' ||
+    modeId === 'schulte-normal' ||
+    modeId === 'schulte-hard' ||
+    modeId === 'schulte-poem-easy' ||
+    modeId === 'schulte-poem-normal' ||
+    modeId === 'schulte-poem-hard'
+  ) {
     return 'schulte'
   }
   if (modeId === 'system-mgmt-normal' || modeId === 'system-mgmt-deepen-normal') {

@@ -271,10 +271,30 @@ const KNOWN_ITEM_LABELS: Record<string, { categoryId: string; categoryLabel: str
       categoryLabel: '舒尔特',
       itemLabel: '舒尔特 · 成语词语 · 简单题',
     },
+    'schulte-normal': {
+      categoryId: 'schulte',
+      categoryLabel: '舒尔特',
+      itemLabel: '舒尔特 · 成语词语 · 普通题',
+    },
     'schulte-hard': {
       categoryId: 'schulte',
       categoryLabel: '舒尔特',
       itemLabel: '舒尔特 · 成语词语 · 复杂题',
+    },
+    'schulte-poem-easy': {
+      categoryId: 'schulte',
+      categoryLabel: '舒尔特',
+      itemLabel: '舒尔特 · 古诗词 · 简单题',
+    },
+    'schulte-poem-normal': {
+      categoryId: 'schulte',
+      categoryLabel: '舒尔特',
+      itemLabel: '舒尔特 · 古诗词 · 普通题',
+    },
+    'schulte-poem-hard': {
+      categoryId: 'schulte',
+      categoryLabel: '舒尔特',
+      itemLabel: '舒尔特 · 古诗词 · 高难题',
     },
     'system-mgmt-normal': {
       categoryId: 'system-mgmt',
@@ -594,9 +614,15 @@ const PREFIX_RULES: PrefixRule[] = [
     prefix: 'schulte-',
     categoryId: 'schulte',
     categoryLabel: '舒尔特',
-    labelFor: (_mid, difficulty) => {
-      const d = difficulty || 'easy'
-      if (d === 'hard') return '舒尔特 · 成语词语 · 复杂题'
+    labelFor: (mid, difficulty) => {
+      const id = String(mid)
+      if (id.includes('poem')) {
+        if (id.includes('hard') || difficulty === 'hard') return '舒尔特 · 古诗词 · 高难题'
+        if (id.includes('normal') || difficulty === 'normal') return '舒尔特 · 古诗词 · 普通题'
+        return '舒尔特 · 古诗词 · 简单题'
+      }
+      if (id.includes('hard') || difficulty === 'hard') return '舒尔特 · 成语词语 · 复杂题'
+      if (id.includes('normal') || difficulty === 'normal') return '舒尔特 · 成语词语 · 普通题'
       return '舒尔特 · 成语词语 · 简单题'
     },
   },
