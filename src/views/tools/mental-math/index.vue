@@ -866,17 +866,6 @@ function ensureHubL2ActiveVisible() {
   hubL2PageStart.value = clampHubL2PageStart(hubL2PageStart.value)
 }
 
-watch(showSchulteSection, (show) => {
-  if (!show) return
-  void nextTick(() => {
-    void nextTick(() => {
-      const el = practiceMainRef.value
-      if (!el) return
-      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
-    })
-  })
-})
-
 watch(activeOutlineSection, (id, prev) => {
   activeHubGroupId.value = practiceHubGroupIdForSection(id)
   ensureHubL2ActiveVisible()
@@ -908,21 +897,24 @@ function isHubLevel1Active(item: (typeof PRACTICE_HUB_NAV_ITEMS)[number]): boole
   return activeOutlineSection.value === item.section.id
 }
 
+/** 测验中滚到主区域底部，方便看题与选项 */
+function scrollPracticeMainToBottom() {
+  void nextTick(() => {
+    void nextTick(() => {
+      const el = practiceMainRef.value
+      if (!el) return
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    })
+  })
+}
+
 function selectOutlineSection(id: PracticeHubSectionId) {
   if (chineseSessionActive.value) return
   activeOutlineSection.value = id
   activeHubGroupId.value = practiceHubGroupIdForSection(id)
   ensureHubL2ActiveVisible()
   void nextTick(() => {
-    void nextTick(() => {
-      const el = practiceMainRef.value
-      if (!el) return
-      if (id === 'schulte') {
-        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
-      } else {
-        el.scrollTo({ top: 0, behavior: 'smooth' })
-      }
-    })
+    practiceMainRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
   })
 }
 
@@ -1054,6 +1046,7 @@ function nextQuestion() {
   if (activeMode.value && isSchulteMode(activeMode.value)) {
     pauseSchulteCountdown()
   }
+  scrollPracticeMainToBottom()
 }
 
 function finishSession(perfect = false) {
@@ -1093,6 +1086,7 @@ function finishSession(perfect = false) {
     })
   }
   phase.value = 'finished'
+  scrollPracticeMainToBottom()
 }
 
 function syncRemainingFromSession() {
@@ -2019,7 +2013,7 @@ onBeforeUnmount(() => {
         <section v-if="showArithmeticSection" class="mode-section" id="practice-arithmetic">
           <h3 class="mode-section__title">四则口算</h3>
           <p class="mode-section__hint">
-            含简单/干扰/普通/高难，「累加/减数」「累加/减数（乘除）」「三位数加减法」「百分比加减运算」「乘法计算」。答错记入错题本；对 +1 秒 / 错 −1 秒，满分 100（本局有过错则最高显示 99、不计满分）。
+            含简单/干扰/普通/高难，「加减」「乘除」「累加/减数」「累加/减数（乘除）」「三位数加减法」「百分比加减运算」「乘法计算」。答错记入错题本；对 +1 秒 / 错 −1 秒，满分 100（本局有过错则最高显示 99、不计满分）。
           </p>
           <div class="mode-grid">
             <button
@@ -2566,7 +2560,7 @@ onBeforeUnmount(() => {
 
           <h3 class="mode-section__title mode-section__title--sub">古诗词</h3>
           <p class="mode-section__hint">
-            素材严格对齐识记模块·诗词模块正式篇目（不含阶段概述）。出示形如「会当凌绝顶，一览众山小——杜甫」，时长按汉字数 ×0.35 秒；点选含作者名汉字。答完展示原注释。
+            素材严格对齐识记模块·诗词模块正式篇目（不含阶段概述）。出示形如「会当凌绝顶，一览众山小——杜甫」，时长按汉字数 ×0.35 秒；点选含作者名汉字。简单≤13字 / 普通≤17字 / 高难≥13字。按知识点去重，未出优先，出完重置再循环。答完展示原注释。
           </p>
           <div class="mode-grid">
             <button
@@ -2586,7 +2580,7 @@ onBeforeUnmount(() => {
 
           <h3 class="mode-section__title mode-section__title--sub">生活常识</h3>
           <p class="mode-section__hint">
-            考点对齐快判「生活常识」题库：原一问一答改写为陈述句后出示；时长按汉字数 ×0.35 秒。简单/普通/复杂的格子与计分规则与上方「古诗词」三档一致，内容难度与原生活常识简单/普通/复杂一一对应。答完展示原释义。
+            考点对齐快判「生活常识」题库：原一问一答改写为陈述句后出示；时长按汉字数 ×0.35 秒。简单≤13字 / 普通≤17字 / 复杂≥13字；格子与计分对齐「古诗词」三档。按知识点去重，未出优先，出完重置再循环。答完展示原释义。
           </p>
           <div class="mode-grid">
             <button

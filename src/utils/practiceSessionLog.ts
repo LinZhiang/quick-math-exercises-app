@@ -92,6 +92,10 @@ const ARITHMETIC_LABELS: Record<string, string> = {
   'easy-distractor': '简单模式（干扰型）',
   normal: '普通模式',
   hard: '高难模式',
+  'addsub-easy': '加减 · 简单题',
+  'addsub-hard': '加减 · 复杂题',
+  'muldiv-easy': '乘除 · 简单题',
+  'muldiv-hard': '乘除 · 复杂题',
   'cumsum-easy': '累加/减数 · 简单题',
   'cumsum-hard': '累加/减数 · 复杂题',
   'threedigit-easy': '三位数加减法 · 简单题',
@@ -114,6 +118,26 @@ const KNOWN_ITEM_LABELS: Record<string, { categoryId: string; categoryLabel: str
     },
     normal: { categoryId: 'arithmetic', categoryLabel: '四则口算', itemLabel: '四则口算 · 普通模式' },
     hard: { categoryId: 'arithmetic', categoryLabel: '四则口算', itemLabel: '四则口算 · 高难模式' },
+    'addsub-easy': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 加减 · 简单题',
+    },
+    'addsub-hard': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 加减 · 复杂题',
+    },
+    'muldiv-easy': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 乘除 · 简单题',
+    },
+    'muldiv-hard': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 乘除 · 复杂题',
+    },
     'cumsum-easy': {
       categoryId: 'arithmetic',
       categoryLabel: '四则口算',
