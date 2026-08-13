@@ -1,6 +1,6 @@
 /** 快判·舒尔特题库条目 */
 
-export type SchulteWordKind = 'idiom' | 'word' | 'poem'
+export type SchulteWordKind = 'idiom' | 'word' | 'poem' | 'life'
 
 export type SchulteBankItem = {
   /** 稳定 id，如 idiom-001 / word-001 */

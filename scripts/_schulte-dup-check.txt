@@ -1,0 +1,4 @@
+wordBankDups 0
+poemBankDups 0
+fail 0
+[]

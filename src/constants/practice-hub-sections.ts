@@ -44,6 +44,7 @@ export const PRACTICE_HUB_SECTIONS: PracticeHubSection[] = [
   { id: 'fraction', title: '估算分数' },
   { id: 'divisibility', title: '整除及其性质' },
   { id: 'number-sequence', title: '数列' },
+  { id: 'schulte', title: '舒尔特' },
   { id: 'life-sense', title: '生活常识' },
   { id: 'what-is-this', title: '这是什么' },
   { id: 'economy-sense', title: '经济学常识' },
@@ -54,7 +55,6 @@ export const PRACTICE_HUB_SECTIONS: PracticeHubSection[] = [
   { id: 'wenyan-jushi', title: '文言句式' },
   { id: 'grammar-judgment', title: '语法判断' },
   { id: 'rhetoric-device', title: '修辞手法' },
-  { id: 'schulte', title: '舒尔特' },
   { id: 'twentyfour', title: '二十四点' },
   { id: 'sudoku', title: '数独' },
   { id: 'graphic', title: '图形推理' },
@@ -88,6 +88,7 @@ export const PRACTICE_HUB_GROUPS: PracticeHubGroup[] = [
     id: 'quick',
     title: '快判',
     sectionIds: [
+      'schulte',
       'life-sense',
       'what-is-this',
       'economy-sense',
@@ -98,7 +99,6 @@ export const PRACTICE_HUB_GROUPS: PracticeHubGroup[] = [
       'wenyan-jushi',
       'grammar-judgment',
       'rhetoric-device',
-      'schulte',
     ],
   },
   {
