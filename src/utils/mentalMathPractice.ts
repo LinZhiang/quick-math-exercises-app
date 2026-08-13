@@ -80,6 +80,10 @@ export type MentalMathMode =
   | 'easy-distractor'
   | 'normal'
   | 'hard'
+  | 'addsub-easy'
+  | 'addsub-hard'
+  | 'muldiv-easy'
+  | 'muldiv-hard'
   | 'cumsum-easy'
   | 'cumsum-hard'
   | 'threedigit-easy'
@@ -189,6 +193,50 @@ export const MENTAL_MATH_ARITHMETIC_MODES: MentalMathModeConfig[] = [
     wrongDelta: -28,
     maxScore: 100,
     desc: '40 秒 · 多因子组合速算（容量估算、连乘连除等）· 考场风格选项 · 对 +14 / 错 -28 · 对 +1 秒 / 错 -1 秒',
+  },
+  {
+    id: 'addsub-easy',
+    category: 'arithmetic',
+    label: '加减 · 简单题',
+    durationSec: 20,
+    optionCount: 3,
+    correctDelta: 4,
+    wrongDelta: -8,
+    maxScore: 100,
+    desc: '20 秒 · 12 以内加减（允许负数）· 干扰型选项 · 3 选项 · 对 +4 / 错 -8 · 对 +1 秒 / 错 -1 秒',
+  },
+  {
+    id: 'addsub-hard',
+    category: 'arithmetic',
+    label: '加减 · 复杂题',
+    durationSec: 40,
+    optionCount: 5,
+    correctDelta: 14,
+    wrongDelta: -28,
+    maxScore: 100,
+    desc: '40 秒 · 11～99 加减（允许负数；个位不为 0）· 干扰型选项 · 5 选项 · 对 +14 / 错 -28 · 对 +1 秒 / 错 -1 秒',
+  },
+  {
+    id: 'muldiv-easy',
+    category: 'arithmetic',
+    label: '乘除 · 简单题',
+    durationSec: 20,
+    optionCount: 3,
+    correctDelta: 4,
+    wrongDelta: -8,
+    maxScore: 100,
+    desc: '20 秒 · 个位相乘（允许负数）/ 除法商为个位数 · 干扰型选项 · 3 选项 · 对 +4 / 错 -8 · 对 +1 秒 / 错 -1 秒',
+  },
+  {
+    id: 'muldiv-hard',
+    category: 'arithmetic',
+    label: '乘除 · 复杂题',
+    durationSec: 40,
+    optionCount: 5,
+    correctDelta: 14,
+    wrongDelta: -28,
+    maxScore: 100,
+    desc: '40 秒 · 6～99 相乘（允许负数）为主 · 邻档乘积/符号干扰 · 5 选项 · 对 +14 / 错 -28 · 对 +1 秒 / 错 -1 秒',
   },
   {
     id: 'cumsum-easy',
@@ -657,6 +705,255 @@ function isEasyArithmeticMode(mode: MentalMathMode): boolean {
 
 function isCumsumMode(mode: MentalMathMode): mode is 'cumsum-easy' | 'cumsum-hard' {
   return mode === 'cumsum-easy' || mode === 'cumsum-hard'
+}
+
+function isAddSubFocusMode(mode: MentalMathMode): mode is 'addsub-easy' | 'addsub-hard' {
+  return mode === 'addsub-easy' || mode === 'addsub-hard'
+}
+
+function isMulDivFocusMode(mode: MentalMathMode): mode is 'muldiv-easy' | 'muldiv-hard' {
+  return mode === 'muldiv-easy' || mode === 'muldiv-hard'
+}
+
+function pickSignedFromAbsRange(minAbs: number, maxAbs: number, allowZero = false): number {
+  for (let i = 0; i < 30; i++) {
+    const abs = randInt(minAbs, maxAbs)
+    if (!allowZero && abs === 0) continue
+    return Math.random() < 0.5 ? abs : -abs
+  }
+  const abs = Math.max(minAbs, 1)
+  return Math.random() < 0.5 ? abs : -abs
+}
+
+/** 11～99 且个位不为 0（可带符号） */
+function pickSignedNoZeroOnes(minAbs: number, maxAbs: number): number {
+  for (let i = 0; i < 40; i++) {
+    const abs = randInt(minAbs, maxAbs)
+    if (abs % 10 === 0) continue
+    return Math.random() < 0.45 ? -abs : abs
+  }
+  return 11
+}
+
+function formatSignedOperand(n: number): string {
+  return String(n)
+}
+
+/** 加减专项：简单 12 以内；复杂 11～99 且个位非 0 */
+function generateAddSubFocusQuestion(
+  mode: 'addsub-easy' | 'addsub-hard',
+  id: number,
+  optionCount: number,
+): MentalMathQuestion {
+  const hard = mode === 'addsub-hard'
+  let a = 0
+  let b = 0
+  let op: '+' | '-' = '+'
+  let answer = 0
+  for (let attempt = 0; attempt < 48; attempt++) {
+    if (hard) {
+      a = pickSignedNoZeroOnes(11, 99)
+      b = pickSignedNoZeroOnes(11, 99)
+    } else {
+      a = pickSignedFromAbsRange(0, 12, true)
+      b = pickSignedFromAbsRange(0, 12, true)
+      if (a === 0 && b === 0) continue
+    }
+    op = Math.random() < 0.5 ? '+' : '-'
+    answer = op === '+' ? a + b : a - b
+    if (!hard) {
+      // 12 以内：运算数与结果绝对值都不超过 12
+      if (Math.abs(a) > 12 || Math.abs(b) > 12 || Math.abs(answer) > 12) continue
+    }
+    if (a === b && op === '-' && answer === 0 && Math.random() < 0.7) continue
+    break
+  }
+  const expression = `${formatSignedOperand(a)} ${op === '+' ? '+' : '−'} ${formatSignedOperand(b)} = ?`
+  const built: BuiltQuestion = {
+    expression,
+    answer,
+    hasNegativeInCalculation: hasNegativeInValues(a, b, answer),
+    opKind: op === '+' ? 'add' : 'sub',
+    operandA: a,
+    operandB: b,
+  }
+  const wrong = distinctEasyDistractorWrongAnswers(built, optionCount - 1)
+  const options = [...wrong, answer]
+  shuffleInPlace(options)
+  const correctIndex = options.findIndex((v) => v === answer)
+  return {
+    id,
+    expression,
+    correctAnswer: answer,
+    options,
+    correctIndex: correctIndex >= 0 ? correctIndex : 0,
+  }
+}
+
+/** 乘除专项干扰：运算符错位、符号错位、邻档乘数（如 4×9→4×8） */
+function distinctMulDivDistractorWrongAnswers(built: BuiltQuestion, count: number): number[] {
+  const correct = built.answer
+  if (typeof correct !== 'number') return []
+  const a = built.operandA
+  const b = built.operandB
+  if (a == null || b == null) {
+    return distinctWrongAnswers(correct, count, built.hasNegativeInCalculation)
+  }
+
+  const op = built.opKind
+  const trickPool: number[] = []
+  const fallback: number[] = []
+  const seen = new Set<number>([correct])
+  const offer = (v: number, bucket: number[]) => {
+    if (!Number.isFinite(v) || !Number.isInteger(v)) return
+    if (seen.has(v)) return
+    if (!isDistractorCloseEnough(correct, v)) return
+    seen.add(v)
+    bucket.push(v)
+  }
+
+  // 运算符错位
+  if (op !== 'add') offer(a + b, trickPool)
+  if (op !== 'sub') {
+    offer(a - b, trickPool)
+    offer(b - a, trickPool)
+  }
+  if (op !== 'mul') offer(a * b, trickPool)
+  if (op !== 'div') {
+    if (b !== 0 && a % b === 0) offer(Math.trunc(a / b), trickPool)
+    if (a !== 0 && b % a === 0) offer(Math.trunc(b / a), trickPool)
+  }
+
+  // 邻档相乘 / 邻档除数
+  const absA = Math.abs(a)
+  const absB = Math.abs(b)
+  const sign = Math.sign(a) * Math.sign(b) || 1
+  if (op === 'mul') {
+    for (const d of [-2, -1, 1, 2]) {
+      if (absB + d >= 1) offer(sign * absA * (absB + d), trickPool)
+      if (absA + d >= 1) offer(sign * (absA + d) * absB, trickPool)
+    }
+  }
+  if (op === 'div' && b !== 0) {
+    for (const d of [-2, -1, 1, 2]) {
+      const nb = absB + d
+      if (nb !== 0 && a % (Math.sign(b) * nb || nb) === 0) {
+        const divisor = (b < 0 ? -1 : 1) * nb
+        if (divisor !== 0 && a % divisor === 0) offer(Math.trunc(a / divisor), trickPool)
+      }
+      const na = absA + d
+      if (na > 0 && (Math.sign(a) * na) % b === 0) {
+        offer(Math.trunc((Math.sign(a) * na) / b), trickPool)
+      }
+    }
+  }
+
+  offerSignDistractorsToPool(correct, trickPool, seen, offer)
+
+  for (let d = 1; d <= 6; d++) {
+    offer(correct + d, fallback)
+    offer(correct - d, fallback)
+  }
+
+  const wrong: number[] = []
+  const shuffledTricks = [...trickPool]
+  for (let i = shuffledTricks.length - 1; i > 0; i--) {
+    const j = randInt(0, i)
+    ;[shuffledTricks[i], shuffledTricks[j]] = [shuffledTricks[j]!, shuffledTricks[i]!]
+  }
+  for (const v of shuffledTricks) {
+    if (wrong.length >= count) break
+    wrong.push(v)
+  }
+  for (const v of fallback) {
+    if (wrong.length >= count) break
+    if (seen.has(v)) continue
+    seen.add(v)
+    wrong.push(v)
+  }
+  while (wrong.length < count) {
+    const d = wrong.length + 1
+    const v = correct + (wrong.length % 2 === 0 ? d : -d)
+    if (!seen.has(v)) {
+      seen.add(v)
+      wrong.push(v)
+    } else {
+      break
+    }
+  }
+  return wrong.slice(0, count)
+}
+
+/** 乘除专项：简单个位相乘/商为个位；复杂 6～99 相乘为主 */
+function generateMulDivFocusQuestion(
+  mode: 'muldiv-easy' | 'muldiv-hard',
+  id: number,
+  optionCount: number,
+): MentalMathQuestion {
+  const hard = mode === 'muldiv-hard'
+  let built: BuiltQuestion | null = null
+
+  for (let attempt = 0; attempt < 48; attempt++) {
+    if (hard) {
+      // 复杂：以乘法为主，偶夹整除
+      if (Math.random() < 0.75) {
+        const a = pickSignedFromAbsRange(6, 99)
+        const b = pickSignedFromAbsRange(6, 99)
+        built = buildMul(a, b)
+      } else {
+        const quotient = pickSignedFromAbsRange(2, 24)
+        const divisor = pickSignedFromAbsRange(6, 99)
+        const dividend = quotient * divisor
+        built = {
+          expression: `${formatSignedOperand(dividend)} ÷ ${formatSignedOperand(divisor)} = ?`,
+          answer: quotient,
+          hasNegativeInCalculation: hasNegativeInValues(dividend, divisor, quotient),
+          opKind: 'div',
+          operandA: dividend,
+          operandB: divisor,
+        }
+      }
+      break
+    }
+
+    // 简单：乘法个位×个位，或除法商为个位
+    if (Math.random() < 0.55) {
+      const a = pickSignedFromAbsRange(1, 9)
+      const b = pickSignedFromAbsRange(1, 9)
+      built = buildMul(a, b)
+      break
+    }
+    const quotient = pickSignedFromAbsRange(1, 9)
+    const divisor = pickSignedFromAbsRange(1, 9)
+    const dividend = quotient * divisor
+    // 被除数可稍大，但商必须是个位
+    if (Math.abs(quotient) > 9) continue
+    built = {
+      expression: `${formatSignedOperand(dividend)} ÷ ${formatSignedOperand(divisor)} = ?`,
+      answer: quotient,
+      hasNegativeInCalculation: hasNegativeInValues(dividend, divisor, quotient),
+      opKind: 'div',
+      operandA: dividend,
+      operandB: divisor,
+    }
+    break
+  }
+
+  if (!built) {
+    built = buildMul(pickSignedFromAbsRange(1, 9), pickSignedFromAbsRange(1, 9))
+  }
+
+  const wrong = distinctMulDivDistractorWrongAnswers(built, optionCount - 1)
+  const options = [...wrong, built.answer as number]
+  shuffleInPlace(options)
+  const correctIndex = options.findIndex((v) => v === built!.answer)
+  return {
+    id,
+    expression: built.expression,
+    correctAnswer: built.answer,
+    options,
+    correctIndex: correctIndex >= 0 ? correctIndex : 0,
+  }
 }
 
 function isThreeDigitMode(mode: MentalMathMode): mode is 'threedigit-easy' | 'threedigit-hard' {
@@ -2182,6 +2479,14 @@ function buildMentalMathQuestionOnce(
 
   if (isCumsumMode(mode)) {
     return generateCumsumQuestion(mode, id, optionCount)
+  }
+
+  if (isAddSubFocusMode(mode)) {
+    return generateAddSubFocusQuestion(mode, id, optionCount)
+  }
+
+  if (isMulDivFocusMode(mode)) {
+    return generateMulDivFocusQuestion(mode, id, optionCount)
   }
 
   if (isThreeDigitMode(mode)) {
