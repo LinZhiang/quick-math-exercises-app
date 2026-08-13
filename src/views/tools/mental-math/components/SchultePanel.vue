@@ -11,7 +11,6 @@ const props = defineProps<{
   acceptingInput: boolean
   reviewing: boolean
   reviewDetail: string
-  previewMs: number
 }>()
 
 const emit = defineEmits<{
@@ -33,8 +32,16 @@ const gridStyle = computed(() => ({
 
 const showGrid = computed(() => phase.value !== 'word')
 
+const kindLabel = computed(() => {
+  if (props.question.kind === 'idiom') return '成语'
+  if (props.question.kind === 'poem') return '古诗词'
+  return '词语'
+})
+
 const progressText = computed(() => {
-  if (phase.value === 'word') return '记住这个词'
+  if (phase.value === 'word') {
+    return props.question.kind === 'poem' ? '记住这句诗' : '记住这个词'
+  }
   if (phase.value === 'reveal') return '格子出现中…'
   if (phase.value === 'review') return props.feedback === 'correct' ? '全部点对' : '点错了'
   return `进度 ${nextOrder.value}/${props.question.chars.length}`
@@ -58,14 +65,14 @@ function startPreview() {
   hitIds.value = []
   wrongId.value = null
 
-  // 先只显示词语，再渐显格子，最后开局计时
+  const showMs = Math.max(600, props.question.previewMs)
   previewTimer.value = setTimeout(() => {
     phase.value = 'reveal'
     revealTimer.value = setTimeout(() => {
       phase.value = 'play'
       emit('preview-done')
     }, GRID_REVEAL_MS)
-  }, Math.max(800, props.previewMs))
+  }, showMs)
 }
 
 function resetForQuestion() {
@@ -97,12 +104,16 @@ function onCellClick(cellId: number) {
   if (!cell) return
   if (hitIds.value.includes(cellId)) return
 
-  if (cell.orderIndex === nextOrder.value) {
+  // 全格字互异：按「下一个应点汉字」判定，避免同形误点到错误格子
+  const needChar = props.question.chars[nextOrder.value]
+  const ok = cell.char === needChar && cell.orderIndex === nextOrder.value
+
+  if (ok) {
     hitIds.value = [...hitIds.value, cellId]
     nextOrder.value += 1
     if (nextOrder.value >= props.question.chars.length) {
       phase.value = 'review'
-      emit('complete', { ok: true, clicked: props.question.word })
+      emit('complete', { ok: true, clicked: props.question.displayText })
     }
     return
   }
@@ -136,12 +147,14 @@ function cellClass(cellId: number) {
 <template>
   <div class="schulte-panel" :class="`schulte-panel--${phase}`">
     <div class="schulte-status" aria-live="polite">
-      <p class="schulte-status__kind">
-        {{ question.kind === 'idiom' ? '成语' : '词语' }} · {{ progressText }}
+      <p class="schulte-status__kind">{{ kindLabel }} · {{ progressText }}</p>
+      <p v-if="phase === 'reveal'" class="schulte-status__hint">
+        {{ question.kind === 'poem' ? '按诗句字序点选（含作者）' : '按刚才的词序点选' }}
       </p>
-      <p v-if="phase === 'reveal'" class="schulte-status__hint">按刚才的词序点选</p>
-      <p v-else-if="phase === 'play'" class="schulte-status__hint">按词语顺序点击格子</p>
-      <p v-else-if="phase === 'review'" class="schulte-status__word">{{ question.word }}</p>
+      <p v-else-if="phase === 'play'" class="schulte-status__hint">
+        {{ question.kind === 'poem' ? '按诗句顺序点击格子' : '按词语顺序点击格子' }}
+      </p>
+      <p v-else-if="phase === 'review'" class="schulte-status__word">{{ question.displayText }}</p>
     </div>
 
     <div
@@ -164,19 +177,31 @@ function cellClass(cellId: number) {
       </button>
     </div>
 
-    <div v-if="phase === 'word'" class="schulte-word-stage" aria-hidden="true">
+    <div v-if="phase === 'word'" class="schulte-word-stage">
       <p class="schulte-word-stage__label">请记住</p>
-      <p class="schulte-word-stage__word">{{ question.word }}</p>
+      <p
+        class="schulte-word-stage__word"
+        :class="{ 'schulte-word-stage__word--poem': question.kind === 'poem' }"
+      >
+        {{ question.displayText }}
+      </p>
+      <p v-if="question.kind === 'poem' && question.poemTitle" class="schulte-word-stage__meta">
+        {{ question.poemTitle }}
+      </p>
       <p class="schulte-word-stage__hint">随后将出现舒尔特方格</p>
     </div>
 
     <div v-if="reviewing" class="schulte-review">
       <p class="schulte-review__title">
-        {{ feedback === 'correct' ? '答对了' : '答错了' }} · 正确答案
+        {{ feedback === 'correct' ? '答对了' : '答错了' }} ·
+        {{ question.kind === 'poem' ? '诗句释义' : '正确答案' }}
       </p>
-      <p class="schulte-review__word">{{ question.word }}</p>
+      <p class="schulte-review__word">{{ question.displayText }}</p>
+      <p v-if="question.poemTitle" class="schulte-review__meta">{{ question.poemTitle }}</p>
       <p class="schulte-review__meaning">{{ question.meaning }}</p>
-      <p v-if="reviewDetail" class="schulte-review__detail">{{ reviewDetail }}</p>
+      <p v-if="reviewDetail && question.kind !== 'poem'" class="schulte-review__detail">
+        {{ reviewDetail }}
+      </p>
       <button type="button" class="schulte-next" @click="emit('next')">下一题</button>
     </div>
   </div>
@@ -216,10 +241,11 @@ function cellClass(cellId: number) {
 
 .schulte-status__word {
   margin: 0;
-  font-size: clamp(1.55rem, 5vw, 2rem);
+  font-size: clamp(1.1rem, 4vw, 1.45rem);
   font-weight: 750;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   color: var(--el-color-primary);
+  line-height: 1.45;
 }
 
 .schulte-word-stage {
@@ -252,6 +278,21 @@ function cellClass(cellId: number) {
   letter-spacing: 0.18em;
   color: var(--el-color-primary);
   line-height: 1.2;
+  text-align: center;
+}
+
+.schulte-word-stage__word--poem {
+  font-size: clamp(1.15rem, 4.2vw, 1.55rem);
+  letter-spacing: 0.06em;
+  line-height: 1.55;
+  font-weight: 750;
+}
+
+.schulte-word-stage__meta,
+.schulte-review__meta {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--el-text-color-secondary);
 }
 
 .schulte-word-stage__hint {
@@ -357,9 +398,10 @@ function cellClass(cellId: number) {
 
 .schulte-review__word {
   margin: 0;
-  font-size: 1.55rem;
+  font-size: 1.25rem;
   font-weight: 780;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
+  line-height: 1.45;
 }
 
 .schulte-review__meaning,
@@ -368,6 +410,7 @@ function cellClass(cellId: number) {
   font-size: 0.98rem;
   line-height: 1.55;
   color: var(--el-text-color-regular);
+  text-align: left;
 }
 
 .schulte-next {

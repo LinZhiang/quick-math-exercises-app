@@ -14,24 +14,19 @@ function assertBank() {
   if (IDIOMS.length !== 250) throw new Error(`成语应为 250，实际 ${IDIOMS.length}`)
   if (WORDS.length !== 250) throw new Error(`词语应为 250，实际 ${WORDS.length}`)
   const seen = new Set()
-  const idiomSet = new Set(IDIOMS.map(([w]) => w))
   for (const [w] of IDIOMS) {
     if (!w || /[^\u4e00-\u9fff]/.test(w)) throw new Error(`非法成语: ${w}`)
-    if (w.length < 2 || w.length > 8) throw new Error(`成语词长异常: ${w}`)
+    if (w.length !== 4) throw new Error(`成语须恰好 4 字: ${w} (${w.length})`)
+    if (new Set([...w]).size !== 4) throw new Error(`成语不得叠字: ${w}`)
     if (seen.has(w)) throw new Error(`重复: ${w}`)
     seen.add(w)
   }
   for (const [w] of WORDS) {
     if (!w || /[^\u4e00-\u9fff]/.test(w)) throw new Error(`非法词语: ${w}`)
-    if (w.length < 2 || w.length > 8) throw new Error(`词语词长异常: ${w}`)
-    if (w.length === 4) throw new Error(`词语 length 不得为 4: ${w}`)
+    if (w.length !== 2) throw new Error(`词语须恰好 2 字: ${w} (${w.length})`)
+    if (new Set([...w]).size !== 2) throw new Error(`词语不得叠字: ${w}`)
     if (seen.has(w)) throw new Error(`重复: ${w}`)
     seen.add(w)
-  }
-  for (const w of seen) {
-    if (w.length === 4 && !idiomSet.has(w)) {
-      throw new Error(`凡 length===4 必须在 IDIOMS: ${w}`)
-    }
   }
 }
 
