@@ -263,7 +263,10 @@ export function mentalMathModeToWrongSection(modeId: string): MentalMathWrongSec
     modeId === 'schulte-hard' ||
     modeId === 'schulte-poem-easy' ||
     modeId === 'schulte-poem-normal' ||
-    modeId === 'schulte-poem-hard'
+    modeId === 'schulte-poem-hard' ||
+    modeId === 'schulte-life-easy' ||
+    modeId === 'schulte-life-normal' ||
+    modeId === 'schulte-life-hard'
   ) {
     return 'schulte'
   }

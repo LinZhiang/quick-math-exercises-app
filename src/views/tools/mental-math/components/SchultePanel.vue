@@ -35,12 +35,19 @@ const showGrid = computed(() => phase.value !== 'word')
 const kindLabel = computed(() => {
   if (props.question.kind === 'idiom') return '成语'
   if (props.question.kind === 'poem') return '古诗词'
+  if (props.question.kind === 'life') return '生活常识'
   return '词语'
 })
 
+const isLongForm = computed(
+  () => props.question.kind === 'poem' || props.question.kind === 'life',
+)
+
 const progressText = computed(() => {
   if (phase.value === 'word') {
-    return props.question.kind === 'poem' ? '记住这句诗' : '记住这个词'
+    if (props.question.kind === 'poem') return '记住这句诗'
+    if (props.question.kind === 'life') return '记住这句陈述'
+    return '记住这个词'
   }
   if (phase.value === 'reveal') return '格子出现中…'
   if (phase.value === 'review') return props.feedback === 'correct' ? '全部点对' : '点错了'
@@ -149,10 +156,10 @@ function cellClass(cellId: number) {
     <div class="schulte-status" aria-live="polite">
       <p class="schulte-status__kind">{{ kindLabel }} · {{ progressText }}</p>
       <p v-if="phase === 'reveal'" class="schulte-status__hint">
-        {{ question.kind === 'poem' ? '按诗句字序点选（含作者）' : '按刚才的词序点选' }}
+        {{ isLongForm ? '按刚才出示的字序点选' : '按刚才的词序点选' }}
       </p>
       <p v-else-if="phase === 'play'" class="schulte-status__hint">
-        {{ question.kind === 'poem' ? '按诗句顺序点击格子' : '按词语顺序点击格子' }}
+        {{ isLongForm ? '按出示顺序点击格子' : '按词语顺序点击格子' }}
       </p>
       <p v-else-if="phase === 'review'" class="schulte-status__word">{{ question.displayText }}</p>
     </div>
@@ -181,7 +188,7 @@ function cellClass(cellId: number) {
       <p class="schulte-word-stage__label">请记住</p>
       <p
         class="schulte-word-stage__word"
-        :class="{ 'schulte-word-stage__word--poem': question.kind === 'poem' }"
+        :class="{ 'schulte-word-stage__word--poem': isLongForm }"
       >
         {{ question.displayText }}
       </p>
@@ -194,12 +201,12 @@ function cellClass(cellId: number) {
     <div v-if="reviewing" class="schulte-review">
       <p class="schulte-review__title">
         {{ feedback === 'correct' ? '答对了' : '答错了' }} ·
-        {{ question.kind === 'poem' ? '诗句释义' : '正确答案' }}
+        {{ isLongForm ? '释义' : '正确答案' }}
       </p>
       <p class="schulte-review__word">{{ question.displayText }}</p>
       <p v-if="question.poemTitle" class="schulte-review__meta">{{ question.poemTitle }}</p>
       <p class="schulte-review__meaning">{{ question.meaning }}</p>
-      <p v-if="reviewDetail && question.kind !== 'poem'" class="schulte-review__detail">
+      <p v-if="reviewDetail && !isLongForm" class="schulte-review__detail">
         {{ reviewDetail }}
       </p>
       <button type="button" class="schulte-next" @click="emit('next')">下一题</button>

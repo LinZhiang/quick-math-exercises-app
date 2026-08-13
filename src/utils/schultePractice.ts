@@ -1,12 +1,17 @@
 /**
  * 快判·舒尔特：先出示内容，再渐显方格后按序点选。
- * 成语/词语：简单 5×4 / 40 秒；普通 6×4 / 60 秒（计分同简单）；复杂 7×5 / 80 秒。
- * 古诗词：简单 5×4 / 90 秒；普通 6×4 / 105 秒（计分同简单）；高难 7×5 / 120 秒。
+ * 成语/词语：简单 5×4 / 28 秒；普通 6×4 / 33 秒（计分同简单）；复杂 7×5 / 40 秒。
+ * 古诗词 / 生活常识：简单 5×4 / 90 秒；普通 6×4 / 105 秒（计分同简单）；高难·复杂 7×5 / 120 秒。
  * 全格汉字互不相同。
  */
 
 import { SCHULTE_BANK } from '@/utils/schulteBank'
 import type { SchulteBankItem, SchulteWordKind } from '@/utils/schulteBankTypes'
+import {
+  SCHULTE_LIFE_SENSE_BANK,
+  schulteLifeSensePool,
+  type SchulteLifeSenseItem,
+} from '@/utils/schulteLifeSenseBank'
 import { SCHULTE_POEM_BANK, type SchultePoemItem } from '@/utils/schultePoemBank'
 
 export type SchulteMode =
@@ -16,6 +21,9 @@ export type SchulteMode =
   | 'schulte-poem-easy'
   | 'schulte-poem-normal'
   | 'schulte-poem-hard'
+  | 'schulte-life-easy'
+  | 'schulte-life-normal'
+  | 'schulte-life-hard'
 
 export type SchulteModeConfig = {
   id: SchulteMode
@@ -34,8 +42,8 @@ export type SchulteModeConfig = {
 /** 成语出示 1.8 秒；词语出示 1 秒 */
 export const SCHULTE_IDIOM_PREVIEW_MS = 1800
 export const SCHULTE_WORD_PREVIEW_MS = 1000
-/** 古诗词：每个汉字 0.25 秒（含作者名中的汉字） */
-export const SCHULTE_POEM_PREVIEW_PER_CHAR_MS = 250
+/** 古诗词：每个汉字 0.35 秒（含作者名中的汉字） */
+export const SCHULTE_POEM_PREVIEW_PER_CHAR_MS = 350
 
 /** 答对/答错分值 ×1.5 后四舍五入 */
 function scaleSchulteDelta(n: number): number {
@@ -45,36 +53,36 @@ function scaleSchulteDelta(n: number): number {
 export const SCHULTE_MODES: SchulteModeConfig[] = [
   {
     id: 'schulte-easy',
-    label: '成语词语 · 简单题',
-    durationSec: 40,
+    label: '成语/词语 · 简单题',
+    durationSec: 28,
     rows: 5,
     cols: 4,
     correctDelta: scaleSchulteDelta(10),
     wrongDelta: scaleSchulteDelta(-20),
     maxScore: 100,
-    desc: '40 秒 · 5行×4列 · 成语出示 1.8 秒 / 词语 1 秒 · 对 +15 / 错 -30',
+    desc: '28 秒 · 5行×4列 · 成语出示 1.8 秒 / 词语 1 秒 · 对 +15 / 错 -30',
   },
   {
     id: 'schulte-normal',
-    label: '成语词语 · 普通题',
-    durationSec: 60,
+    label: '成语/词语 · 普通题',
+    durationSec: 33,
     rows: 6,
     cols: 4,
     correctDelta: scaleSchulteDelta(10),
     wrongDelta: scaleSchulteDelta(-20),
     maxScore: 100,
-    desc: '60 秒 · 6行×4列 · 成语出示 1.8 秒 / 词语 1 秒 · 对 +15 / 错 -30',
+    desc: '33 秒 · 6行×4列 · 成语出示 1.8 秒 / 词语 1 秒 · 对 +15 / 错 -30',
   },
   {
     id: 'schulte-hard',
-    label: '成语词语 · 复杂题',
-    durationSec: 80,
+    label: '成语/词语 · 复杂题',
+    durationSec: 40,
     rows: 7,
     cols: 5,
     correctDelta: scaleSchulteDelta(15),
     wrongDelta: scaleSchulteDelta(-30),
     maxScore: 100,
-    desc: '80 秒 · 7行×5列 · 成语出示 1.8 秒 / 词语 1 秒 · 对 +23 / 错 -45',
+    desc: '40 秒 · 7行×5列 · 成语出示 1.8 秒 / 词语 1 秒 · 对 +23 / 错 -45',
   },
 ]
 
@@ -88,7 +96,7 @@ export const SCHULTE_POEM_MODES: SchulteModeConfig[] = [
     correctDelta: scaleSchulteDelta(15),
     wrongDelta: scaleSchulteDelta(-30),
     maxScore: 100,
-    desc: '1 分 30 秒 · 5行×4列 · 按字数出示（每字 0.25 秒）· 对 +23 / 错 -45',
+    desc: '1 分 30 秒 · 5行×4列 · 按字数出示（每字 0.35 秒）· 对 +23 / 错 -45',
   },
   {
     id: 'schulte-poem-normal',
@@ -99,7 +107,7 @@ export const SCHULTE_POEM_MODES: SchulteModeConfig[] = [
     correctDelta: scaleSchulteDelta(15),
     wrongDelta: scaleSchulteDelta(-30),
     maxScore: 100,
-    desc: '1 分 45 秒 · 6行×4列 · 按字数出示（每字 0.25 秒）· 对 +23 / 错 -45',
+    desc: '1 分 45 秒 · 6行×4列 · 按字数出示（每字 0.35 秒）· 对 +23 / 错 -45',
   },
   {
     id: 'schulte-poem-hard',
@@ -110,11 +118,52 @@ export const SCHULTE_POEM_MODES: SchulteModeConfig[] = [
     correctDelta: scaleSchulteDelta(20),
     wrongDelta: scaleSchulteDelta(-40),
     maxScore: 100,
-    desc: '2 分钟 · 7行×5列 · 按字数出示（每字 0.25 秒）· 对 +30 / 错 -60',
+    desc: '2 分钟 · 7行×5列 · 按字数出示（每字 0.35 秒）· 对 +30 / 错 -60',
   },
 ]
 
-export const ALL_SCHULTE_MODES: SchulteModeConfig[] = [...SCHULTE_MODES, ...SCHULTE_POEM_MODES]
+/** 生活常识：规则对齐古诗词三档；内容难度对齐原生活常识简单/普通/复杂 */
+export const SCHULTE_LIFE_MODES: SchulteModeConfig[] = [
+  {
+    id: 'schulte-life-easy',
+    label: '生活常识 · 简单题',
+    durationSec: 90,
+    rows: 5,
+    cols: 4,
+    correctDelta: scaleSchulteDelta(15),
+    wrongDelta: scaleSchulteDelta(-30),
+    maxScore: 100,
+    desc: '1 分 30 秒 · 5行×4列 · 陈述句出示（每字 0.35 秒）· 对 +23 / 错 -45',
+  },
+  {
+    id: 'schulte-life-normal',
+    label: '生活常识 · 普通题',
+    durationSec: 105,
+    rows: 6,
+    cols: 4,
+    correctDelta: scaleSchulteDelta(15),
+    wrongDelta: scaleSchulteDelta(-30),
+    maxScore: 100,
+    desc: '1 分 45 秒 · 6行×4列 · 陈述句出示（每字 0.35 秒）· 对 +23 / 错 -45',
+  },
+  {
+    id: 'schulte-life-hard',
+    label: '生活常识 · 复杂题',
+    durationSec: 120,
+    rows: 7,
+    cols: 5,
+    correctDelta: scaleSchulteDelta(20),
+    wrongDelta: scaleSchulteDelta(-40),
+    maxScore: 100,
+    desc: '2 分钟 · 7行×5列 · 陈述句出示（每字 0.35 秒）· 对 +30 / 错 -60',
+  },
+]
+
+export const ALL_SCHULTE_MODES: SchulteModeConfig[] = [
+  ...SCHULTE_MODES,
+  ...SCHULTE_POEM_MODES,
+  ...SCHULTE_LIFE_MODES,
+]
 
 export type SchulteCell = {
   id: number
@@ -146,13 +195,32 @@ export type SchulteQuestion = {
   author?: string
 }
 
-const USED_KEYS_STORAGE = 'mental-schulte-used-keys-v2'
+const USED_KEYS_STORAGE = 'mental-schulte-used-keys-v3'
 
-type UsedBucket = 'easy' | 'normal' | 'hard' | 'poemEasy' | 'poemNormal' | 'poemHard'
+type UsedBucket =
+  | 'easy'
+  | 'normal'
+  | 'hard'
+  | 'poemEasy'
+  | 'poemNormal'
+  | 'poemHard'
+  | 'lifeEasy'
+  | 'lifeNormal'
+  | 'lifeHard'
 type UsedMap = Record<UsedBucket, string[]>
 
 function emptyUsedMap(): UsedMap {
-  return { easy: [], normal: [], hard: [], poemEasy: [], poemNormal: [], poemHard: [] }
+  return {
+    easy: [],
+    normal: [],
+    hard: [],
+    poemEasy: [],
+    poemNormal: [],
+    poemHard: [],
+    lifeEasy: [],
+    lifeNormal: [],
+    lifeHard: [],
+  }
 }
 
 function normalizeKey(key: string): string {
@@ -192,6 +260,9 @@ function usedBucket(mode: SchulteMode): UsedBucket {
   if (mode === 'schulte-poem-easy') return 'poemEasy'
   if (mode === 'schulte-poem-normal') return 'poemNormal'
   if (mode === 'schulte-poem-hard') return 'poemHard'
+  if (mode === 'schulte-life-easy') return 'lifeEasy'
+  if (mode === 'schulte-life-normal') return 'lifeNormal'
+  if (mode === 'schulte-life-hard') return 'lifeHard'
   return 'easy'
 }
 
@@ -624,6 +695,173 @@ const SIMILAR_GROUPS: string[] = [
   '率摔蟀',
   '绿氯',
   '孪峦',
+  // —— 补强：公考常考形近/音近易混（规范汉字，无错字）——
+  '账帐胀',
+  '赃脏臧',
+  '赝膺鹰',
+  '佩配珮',
+  '废费肺',
+  '瞻赡蟾',
+  '缀辍啜',
+  '绌拙黜',
+  '止至致',
+  '反返',
+  '映应影',
+  '截接捷',
+  '恬括刮',
+  '歉欠谦',
+  '宵消销霄',
+  '采彩睬踩菜',
+  '密蜜秘宓',
+  '燥躁噪澡藻',
+  '喧暄渲楦',
+  '厉励砺疠沥',
+  '竞竟境镜兢',
+  '侯候猴喉',
+  '暑署曙薯',
+  '载裁栽戴带',
+  '毫豪壕嚎',
+  '蓝篮滥槛',
+  '幕墓慕募暮',
+  '羸嬴赢瀛',
+  '唯惟维帷',
+  '即既暨',
+  '度渡镀踱',
+  '坐座挫锉',
+  '做作昨',
+  '需须',
+  '辨辩辫瓣',
+  '梁粱',
+  '拆折析诉',
+  '刺剌辣赖',
+  '壁璧辟避',
+  '班斑',
+  '畔叛判拌',
+  '博搏膊薄',
+  '沧苍舱仓',
+  '恻测侧厕',
+  '曾增憎赠',
+  '谄陷馅',
+  '嗔瞋',
+  '驰弛池',
+  '沓杳',
+  '殆怠迨',
+  '殚惮弹',
+  '诋谛缔蒂',
+  '掂惦踮',
+  '玷沾粘',
+  '凋雕调',
+  '牒谍蝶碟',
+  '锭淀绽',
+  '陡徒',
+  '睹赌堵',
+  '妒护沪',
+  '堕坠惰',
+  '遏谒揭竭',
+  '愕腭谔',
+  '繁烦',
+  '绯诽啡',
+  '忿愤',
+  '俸奉捧',
+  '孚俘浮',
+  '俯腑',
+  '付附咐符',
+  '赋复覆腹',
+  '岗纲刚钢',
+  '诰浩皓',
+  '戈弋戟',
+  '亘恒桓垣',
+  '沽估咕诂',
+  '汩汨',
+  '悍捍焊',
+  '颔颌',
+  '瀚翰',
+  '阂核劾',
+  '亨享烹',
+  '弘宏泓',
+  '狐孤弧',
+  '怙估',
+  '哗华桦',
+  '猾滑',
+  '涣焕换唤',
+  '恍晃幌',
+  '诙恢灰',
+  '荟绘烩',
+  '讥饥肌',
+  '奸歼纤',
+  '俭险检捡',
+  '贱溅践',
+  '键健腱',
+  '槛滥',
+  '僭潜',
+  '疆僵缰',
+  '矫骄轿',
+  '皎佼',
+  '窖窑',
+  '孑孓',
+  '诘洁结',
+  '戒诫械',
+  '阱井',
+  '胫径经',
+  '纠赳',
+  '沮咀诅',
+  '眷卷券',
+  '倔崛掘',
+  '峻俊骏竣',
+  '铠凯恺',
+  '勘堪戡',
+  '亢吭抗炕',
+  '磕瞌嗑',
+  '垦恳',
+  '抠叩扣',
+  '挎跨垮胯',
+  '脍侩',
+  '诓眶框筐',
+  '旷圹',
+  '窥规',
+  '匮馈',
+  '廓郭',
+  '腊蜡猎',
+  '阑澜',
+  '揽缆榄览',
+  '涝捞劳',
+  '棱凌陵',
+  '俚狸理',
+  '砾烁',
+  '痢俐利',
+  '敛殓',
+  '缭撩僚燎',
+  '寥廖',
+  '凛禀',
+  '囹泠玲',
+  '瓴翎聆铃',
+  '琉硫',
+  '赂路洛络',
+  '峦挛銮孪',
+  '纶伦沦抡',
+  '萝逻锣箩',
+  '骡螺裸',
+  '珞洛落',
+  '缕偻',
+  '闾榈吕侣',
+  '履复',
+  '率摔蟀',
+  '绿氯',
+  '权利力厉',
+  '反应映应',
+  '截止至止',
+  '制订定订',
+  '的地得',
+  '再在',
+  '荼茶搽',
+  '菅管',
+  '盲肓',
+  '徒徙',
+  '祟崇',
+  '炙灸',
+  '籍藉',
+  '戮戳',
+
 ]
 
 /** 偏旁相近 / 公考易错汉字兜底池（偏形近，避免过简字） */
@@ -640,7 +878,9 @@ const FALLBACK_POOL =
   '窖嗟孑诘芥戒矜烬阱胫窘纠疚咎疽沮矩龃倨眷诀倔崛峻竣铠慨勘瞰亢' +
   '磕恪垦铿抠叩挎脍诓眶旷窥匮喟廓腊阑揽琅涝羸蕾磊肋棱俚莅栗砾痢' +
   '廉敛殓踉缭寥瞭趔凛吝赁囹泠玲瓴翎聆菱溜琉绺镂赂麓峦挛銮囵纶萝' +
-  '逻骡裸珞缕闾榈履率绿'
+  '逻骡裸珞缕闾榈履率绿账帐胀赃脏臧赝膺鹰佩配珮废费肺缀辍啜绌拙黜' +
+  '止至致反返映应影截接捷恬括刮歉欠谦宵消销霄采彩睬踩燥躁噪澡喧暄渲' +
+  '竞竟境镜兢侯候猴喉暑署曙薯毫豪壕嚎蓝篮滥槛羸嬴赢瀛唯惟维帷'
 
 /** 字 → 所属形近组索引，加速同组判断（组内自动去重，忽略不足 2 字的脏组） */
 const CHAR_TO_GROUPS: Map<string, number[]> = (() => {
@@ -720,6 +960,10 @@ function contextualChars(targetChars: string[], exclude: Set<string>): string[] 
     if (!it.chars.some((c) => targetSet.has(normalizeHanChar(c)))) continue
     for (const c of it.chars) bump(c, 2)
   }
+  for (const it of SCHULTE_LIFE_SENSE_BANK) {
+    if (!it.chars.some((c) => targetSet.has(normalizeHanChar(c)))) continue
+    for (const c of it.chars) bump(c, 2)
+  }
   return [...scored.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([c]) => c)
@@ -761,6 +1005,7 @@ const BANK_CHAR_POOL: string[] = [
   ...new Set([
     ...SCHULTE_BANK.flatMap((it) => Array.from(it.word).map((c) => c.normalize('NFC'))),
     ...SCHULTE_POEM_BANK.flatMap((it) => it.chars.map((c) => c.normalize('NFC'))),
+    ...SCHULTE_LIFE_SENSE_BANK.flatMap((it) => it.chars.map((c) => c.normalize('NFC'))),
   ]),
 ]
 
@@ -778,8 +1023,8 @@ function pickDistractors(need: number, targetChars: string[]): string[] {
     return true
   }
 
-  // 1) 多轮优先填形近字
-  for (let round = 0; round < 3 && bag.length < need; round++) {
+  // 1) 多轮优先填形近/易混字（加重轮次，尽量塞满同组干扰）
+  for (let round = 0; round < 6 && bag.length < need; round++) {
     for (const ch of shuffle([...targetChars])) {
       for (const s of shuffle(similarFor(ch, exclude))) {
         if (bag.length >= need) break
@@ -895,6 +1140,43 @@ function pickPoemItem(mode: SchulteMode, avoidFingerprints: Set<string>): Schult
   return chosen
 }
 
+function lifeDifficultyForMode(mode: SchulteMode): 'easy' | 'normal' | 'hard' {
+  if (mode === 'schulte-life-normal') return 'normal'
+  if (mode === 'schulte-life-hard') return 'hard'
+  return 'easy'
+}
+
+function pickLifeItem(mode: SchulteMode, avoidFingerprints: Set<string>): SchulteLifeSenseItem {
+  const bucket = usedBucket(mode)
+  const used = new Set(readUsedMap()[bucket])
+  const cfg = getSchulteModeConfig(mode)
+  const maxChars = cfg.rows * cfg.cols - 1
+  const difficulty = lifeDifficultyForMode(mode)
+  const pool = schulteLifeSensePool(difficulty).filter((it) => {
+    const chars = it.chars.map(normalizeHanChar)
+    if (!hasUniqueChars(chars)) return false
+    if (chars.length > maxChars) return false
+    const fp = `schulte:${it.key}`
+    if (avoidFingerprints.has(fp)) return false
+    return true
+  })
+  if (!pool.length) {
+    throw new Error('生活常识舒尔特题库为空（无可用不重复字陈述句）')
+  }
+  const fresh = pool.filter((it) => !used.has(normalizeKey(it.key)))
+  let chosen: SchulteLifeSenseItem
+  if (fresh.length > 0) {
+    chosen = pickOne(fresh)
+  } else {
+    const map = readUsedMap()
+    map[bucket] = []
+    writeUsedMap(map)
+    chosen = pickOne(pool)
+  }
+  markUsedKey(mode, chosen.key)
+  return chosen
+}
+
 function buildCellsFromChars(chars: string[], rows: number, cols: number): SchulteCell[] {
   const normalized = chars.map(normalizeHanChar)
   const total = rows * cols
@@ -927,7 +1209,10 @@ export function isSchulteMode(mode: string): mode is SchulteMode {
     mode === 'schulte-hard' ||
     mode === 'schulte-poem-easy' ||
     mode === 'schulte-poem-normal' ||
-    mode === 'schulte-poem-hard'
+    mode === 'schulte-poem-hard' ||
+    mode === 'schulte-life-easy' ||
+    mode === 'schulte-life-normal' ||
+    mode === 'schulte-life-hard'
   )
 }
 
@@ -936,6 +1221,14 @@ export function isSchultePoemMode(mode: string): boolean {
     mode === 'schulte-poem-easy' ||
     mode === 'schulte-poem-normal' ||
     mode === 'schulte-poem-hard'
+  )
+}
+
+export function isSchulteLifeMode(mode: string): boolean {
+  return (
+    mode === 'schulte-life-easy' ||
+    mode === 'schulte-life-normal' ||
+    mode === 'schulte-life-hard'
   )
 }
 
@@ -974,6 +1267,29 @@ export function generateSchulteQuestion(
       explanation: `【${item.title}】${item.display}\n释义：${item.meaning}`,
       poemTitle: item.title,
       author: item.author,
+    }
+  }
+
+  if (isSchulteLifeMode(mode)) {
+    const item = pickLifeItem(mode, avoidFingerprints)
+    const chars = item.chars.map((c) => c.normalize('NFC'))
+    const cells = buildCellsFromChars(chars, cfg.rows, cfg.cols)
+    const previewMs = Math.max(800, chars.length * SCHULTE_POEM_PREVIEW_PER_CHAR_MS)
+    return {
+      id,
+      key: item.key,
+      kind: 'life',
+      word: chars.join(''),
+      displayText: item.display,
+      previewMs,
+      meaning: item.meaning,
+      chars,
+      rows: cfg.rows,
+      cols: cfg.cols,
+      cells,
+      expression: item.display,
+      correctAnswer: item.display,
+      explanation: `【生活常识】${item.display}\n释义：${item.meaning}`,
     }
   }
 

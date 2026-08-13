@@ -195,6 +195,7 @@ import {
 import {
   SCHULTE_MODES,
   SCHULTE_POEM_MODES,
+  SCHULTE_LIFE_MODES,
   clampSchulteScore,
   generateSchulteQuestion,
   getSchulteModeConfig,
@@ -424,8 +425,8 @@ let sessionCompletionRecorded = false
 let sessionHadWrongAnswer = false
 
 /**
- * 更新得分；若本局有过错则封顶 maxScore-1。
- * 返回值：本次是否触及满分上限（用于提前结束；有过错时仍结束但非满分）。
+ * 更新得分；若本局有过错则封顶 maxScore-1（通常 99）。
+ * 返回值：得分是否达到提前结束线（>= maxScore-1，即到 99 分直接结束作答）。
  */
 function applySessionScore(
   ok: boolean,
@@ -434,19 +435,20 @@ function applySessionScore(
   clampFn: (n: number, max?: number) => number,
 ): boolean {
   if (!ok) sessionHadWrongAnswer = true
+  const earlyEndAt = Math.max(0, maxScore - 1)
   let next = clampFn(score.value + delta, maxScore)
-  const reachedCeiling = next >= maxScore
   if (sessionHadWrongAnswer && next >= maxScore) {
-    next = Math.max(0, maxScore - 1)
+    next = earlyEndAt
   }
   score.value = next
-  return reachedCeiling
+  return next >= earlyEndAt
 }
 
-/** 得分触及上限时结束；仅从未答错才算满分 */
+/** 得分达到提前结束线时结束；仅从未答错且达到满分才算满分 */
 function finishIfReachedMaxScore(reachedCeiling: boolean): boolean {
   if (!reachedCeiling) return false
-  finishSession(!sessionHadWrongAnswer)
+  const max = modeConfig.value?.maxScore ?? 100
+  finishSession(!sessionHadWrongAnswer && score.value >= max)
   return true
 }
 
@@ -864,6 +866,17 @@ function ensureHubL2ActiveVisible() {
   hubL2PageStart.value = clampHubL2PageStart(hubL2PageStart.value)
 }
 
+watch(showSchulteSection, (show) => {
+  if (!show) return
+  void nextTick(() => {
+    void nextTick(() => {
+      const el = practiceMainRef.value
+      if (!el) return
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    })
+  })
+})
+
 watch(activeOutlineSection, (id, prev) => {
   activeHubGroupId.value = practiceHubGroupIdForSection(id)
   ensureHubL2ActiveVisible()
@@ -901,7 +914,15 @@ function selectOutlineSection(id: PracticeHubSectionId) {
   activeHubGroupId.value = practiceHubGroupIdForSection(id)
   ensureHubL2ActiveVisible()
   void nextTick(() => {
-    practiceMainRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
+    void nextTick(() => {
+      const el = practiceMainRef.value
+      if (!el) return
+      if (id === 'schulte') {
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+      } else {
+        el.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    })
   })
 }
 
@@ -1512,7 +1533,8 @@ function advanceSchulte() {
   schulteFeedbackDetail.value = ''
   feedback.value = null
 
-  if (score.value >= cfg.maxScore || remainingMs.value <= 0) {
+  const earlyEndAt = Math.max(0, cfg.maxScore - 1)
+  if (score.value >= earlyEndAt || remainingMs.value <= 0) {
     finishSession(!sessionHadWrongAnswer && score.value >= cfg.maxScore)
     return
   }
@@ -2522,9 +2544,9 @@ onBeforeUnmount(() => {
         </section>
 
         <section v-if="showSchulteSection" class="mode-section" id="practice-schulte">
-          <h3 class="mode-section__title">舒尔特</h3>
+          <h3 class="mode-section__title">成语/词语 识记</h3>
           <p class="mode-section__hint">
-            成语（四字）/ 词语（二字）识记：开局先出示（成语 1.8 秒、词语 1 秒，不计时），再渐显方格按字序点选。题库 500 条。答错记入下方错题集。
+            开局先出示（成语 1.8 秒、词语 1 秒，不计时），再渐显方格按字序点选。题库侧重公考/事业编常考易错项；干扰格优先形近易混规范字。下方另有「古诗词」「生活常识」分组。答错记入下方错题集。
           </p>
           <div class="mode-grid">
             <button
@@ -2544,11 +2566,31 @@ onBeforeUnmount(() => {
 
           <h3 class="mode-section__title mode-section__title--sub">古诗词</h3>
           <p class="mode-section__hint">
-            素材来自识记模块·诗词模块全部名句。出示形如「会当凌绝顶，一览众山小——杜甫」，时长按汉字数 ×0.25 秒；点选含作者名汉字。答完展示原注释。
+            素材严格对齐识记模块·诗词模块正式篇目（不含阶段概述）。出示形如「会当凌绝顶，一览众山小——杜甫」，时长按汉字数 ×0.35 秒；点选含作者名汉字。答完展示原注释。
           </p>
           <div class="mode-grid">
             <button
               v-for="m in SCHULTE_POEM_MODES"
+              :key="m.id"
+              type="button"
+              class="mode-card mode-card--schulte"
+              @click="startMode(m.id)"
+            >
+              <h3 class="mode-card__title">
+                {{ m.label }} <PracticeCompletionStat :mode-id="m.id" perfect-label="满分" />
+              </h3>
+              <p class="mode-card__desc">{{ m.desc }}</p>
+              <span class="mode-card__cta">开始练习</span>
+            </button>
+          </div>
+
+          <h3 class="mode-section__title mode-section__title--sub">生活常识</h3>
+          <p class="mode-section__hint">
+            考点对齐快判「生活常识」题库：原一问一答改写为陈述句后出示；时长按汉字数 ×0.35 秒。简单/普通/复杂的格子与计分规则与上方「古诗词」三档一致，内容难度与原生活常识简单/普通/复杂一一对应。答完展示原释义。
+          </p>
+          <div class="mode-grid">
+            <button
+              v-for="m in SCHULTE_LIFE_MODES"
               :key="m.id"
               type="button"
               class="mode-card mode-card--schulte"
