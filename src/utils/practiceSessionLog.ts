@@ -563,6 +563,24 @@ const PREFIX_RULES: PrefixRule[] = [
     },
   },
   {
+    prefix: 'formula-recite-',
+    categoryId: 'formula-recite',
+    categoryLabel: '公式背诵',
+    labelFor: (mid) => {
+      const names: Record<string, string> = {
+        'travel-sol-geo': '行程·溶液·几何',
+        'perm-incl-count': '排列组合·容斥·计数',
+        'calc-seq-clock': '计算·数列·钟表',
+        'da-growth': '资料·增长与比较',
+        'da-share': '资料·比重贡献翻番',
+        'da-indicator': '资料·经贸指标与时期',
+        'da-ratio': '资料·比例相关',
+        'da-growth-calc': '资料·增长相关',
+      }
+      return `公式背诵 · ${names[mid] ?? mid} · 普通`
+    },
+  },
+  {
     prefix: 'op-skill-',
     categoryId: 'op-skill',
     categoryLabel: '运算技巧',
@@ -919,6 +937,7 @@ export const PRACTICE_LOG_CATEGORIES: { id: string; label: string }[] = [
   { id: 'op-skill', label: '运算技巧' },
   { id: 'op-highfreq', label: '高频运算' },
   { id: 'op-other', label: '其他运算' },
+  { id: 'formula-recite', label: '公式背诵' },
   { id: 'chinese', label: '语文练习' },
   { id: 'wrong-review', label: '错题复盘' },
   { id: 'other', label: '其他' },

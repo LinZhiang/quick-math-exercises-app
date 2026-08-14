@@ -26,6 +26,7 @@ export type PracticeHubSectionId =
   | 'op-skill'
   | 'op-highfreq'
   | 'op-other'
+  | 'formula-recite'
   | 'chinese'
   | 'install'
   | 'settings'
@@ -63,6 +64,7 @@ export const PRACTICE_HUB_SECTIONS: PracticeHubSection[] = [
   { id: 'op-skill', title: '运算技巧' },
   { id: 'op-highfreq', title: '高频运算' },
   { id: 'op-other', title: '其他运算' },
+  { id: 'formula-recite', title: '公式背诵' },
   { id: 'chinese', title: '语文练习' },
   { id: 'install', title: '安装' },
   { id: 'settings', title: '设置' },
@@ -113,6 +115,7 @@ export const PRACTICE_HUB_GROUPS: PracticeHubGroup[] = [
       'op-skill',
       'op-highfreq',
       'op-other',
+      'formula-recite',
     ],
   },
   { id: 'chinese', title: '语文', sectionIds: ['chinese'] },
