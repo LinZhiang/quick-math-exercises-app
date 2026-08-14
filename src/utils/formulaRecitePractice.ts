@@ -1339,11 +1339,6 @@ export function formulaDisplayLines(formula: string): string[] {
   return lines.length > 0 ? lines : [formula.trim()]
 }
 
-function sourceIdOf(id: string): string {
-  const i = id.indexOf('#')
-  return i >= 0 ? id.slice(0, i) : id
-}
-
 function variantHint(formula: string, siblings: string[]): string {
   const rhs = formula.includes('=') ? formula.slice(formula.indexOf('=') + 1).trim() : formula
   const blob = siblings.join('\n')
@@ -1391,7 +1386,9 @@ function expandEntryForQuiz(entry: FormulaEntry): FormulaEntry[] {
 }
 
 function quizFormulasForModule(moduleId: FormulaReciteModuleId): FormulaEntry[] {
-  return formulasForModule(moduleId).flatMap(expandEntryForQuiz)
+  return formulasForModule(moduleId)
+    .flatMap(expandEntryForQuiz)
+    .filter((e) => isQuizableFormula(e.formula))
 }
 
 function randInt(min: number, max: number): number {
@@ -1411,6 +1408,50 @@ function formulaQuestionStem(name: string): string {
   const n = name.trim()
   if (n.includes('公式')) return `${n}是什么？`
   return `${n}公式是什么？`
+}
+
+function cjkCount(s: string): number {
+  return (s.match(/[\u4e00-\u9fff]/g) ?? []).length
+}
+
+/** 左端是符号（S、A_n^m）则整式都是公式；中文名称只取等号右边 */
+function isSymbolicLhs(lhs: string): boolean {
+  const t = lhs.trim()
+  if (!t) return false
+  if (cjkCount(t) >= 2) return false
+  return /[A-Za-zπ]/.test(t) || /_\{/.test(t)
+}
+
+function formulaOptionText(formula: string): string {
+  const parts = splitByEqualsOutsideParens(formula)
+  if (parts.length < 2) return formula.trim()
+  const lhs = parts[0]!.trim()
+  const rhs = parts.slice(1).join(' = ').trim()
+  const paren = rhs.match(/[（(]([^（）()]*=[^（）()]*)[）)]/)
+  if (paren?.[1] && isSymbolicLhs(paren[1].split('=')[0]?.trim() ?? '')) {
+    return paren[1].trim()
+  }
+  if (isSymbolicLhs(lhs)) return `${lhs} = ${rhs}`
+  return rhs
+}
+
+function isQuizableFormula(formula: string): boolean {
+  const expr = formulaOptionText(formula)
+  const t = expr.trim()
+  if (!t || t.length > 72) return false
+  if (/[「」]|通常|又称|一般|问「|不是 |原来的|在单侧/.test(formula)) return false
+  if (/[：:]/.test(t) && !/[=＝]/.test(t)) return false
+  if (/[→←]/.test(t)) return false
+  const hasOp = /[=＝+\-−×÷*/^√]|\/\(|_\{|\^/.test(t)
+  if (!hasOp) return false
+  const hasSym =
+    /[A-Za-z0-9π]/.test(t) || /\([\u4e00-\u9fff]+\)\/\([\u4e00-\u9fff]+\)/.test(t)
+  if (!hasSym) return false
+  const compact = t.replace(/\s+/g, '')
+  if (cjkCount(compact) / compact.length > 0.7 && !/\([^)]+\)\/\([^)]+\)/.test(t)) {
+    return false
+  }
+  return true
 }
 
 function swapParenFractions(expr: string): string[] {
@@ -1437,75 +1478,50 @@ function swapPair(s: string, a: string, b: string): string[] {
   return out
 }
 
-function keepLhsMutations(expr: string): string[] {
-  const parts = splitByEqualsOutsideParens(expr)
-  if (parts.length !== 2) return []
-  const lhs = parts[0]!
-  const rhs = parts[1]!
-  const out: string[] = []
-  const add = (t: string) => {
-    const x = t.trim()
-    if (!x || x === rhs) return
-    if (/^(.+)\s*[−+\-×÷]\s*\1$/.test(x)) return
-    out.push(`${lhs} = ${x}`)
+function isCloseDistractor(correct: string, cand: string): boolean {
+  const a = normalizeOptKey(correct)
+  const b = normalizeOptKey(cand)
+  if (!b || b === a) return false
+  if (Math.abs(a.length - b.length) > Math.max(10, Math.floor(a.length * 0.55))) return false
+  const tokens = a.match(/[A-Za-zπ]+|[\u4e00-\u9fff]{1,6}/g) ?? []
+  const uniq = [...new Set(tokens.filter((x) => x.length >= 1))]
+  if (uniq.length >= 2) {
+    const shared = uniq.filter((tok) => b.includes(tok)).length
+    if (shared < 1) return false
   }
-  add(rhs.replaceAll(' × ', ' ÷ '))
-  add(rhs.replaceAll(' ÷ ', ' × '))
-  add(rhs.replaceAll(' + ', ' − '))
-  add(rhs.replaceAll(' − ', ' + '))
-  add(rhs.replaceAll('n−2', 'n−1'))
-  add(rhs.replaceAll('n−1', 'n+1'))
-  add(rhs.replaceAll('n+1', 'n−1'))
-  add(rhs.replaceAll('a^2', '4a'))
-  add(rhs.replaceAll('a^2', 'a^3'))
-  add(rhs.replaceAll('a^3', 'a^2'))
-  add(rhs.replaceAll('6a^2', '4a^2'))
-  add(rhs.replaceAll('4a', '2a'))
-  add(rhs.replaceAll('2πr', 'πr^2'))
-  add(rhs.replaceAll('πr^2', '2πr'))
-  add(rhs.replaceAll('(1)/(2)', '(1)/(3)'))
-  add(rhs.replaceAll('(1)/(3)', '(1)/(2)'))
-  add(rhs.replaceAll('(4)/(3)', '(3)/(4)'))
-  add(rhs.replaceAll('4N − 4', '4N'))
-  add(rhs.replaceAll('4N − 4', '2N − 4'))
-  add(rhs.replaceAll('30%', '3%'))
-  add(rhs.replaceAll('30%', '300%'))
-  add(rhs.replaceAll('2^n', '2n'))
-  add(rhs.replaceAll('2^3', '2×3'))
-  for (const [a, b] of [
-    ['部分增长量', '整体增长量'],
-    ['溶质质量', '溶液质量'],
-    ['现期量', '基期量'],
-    ['桥长', '火车长'],
-    ['速度', '时间'],
-    ['增长量', '基期量'],
-    ['食品消费支出', '总消费支出'],
-  ] as const) {
-    for (const x of swapPair(rhs, a, b)) add(x)
-  }
-  for (const s of swapParenFractions(rhs)) add(s)
-  return out
+  return true
 }
 
-/** 近形干扰：易混符号、正负号、阶乘位置、分子分母对调等 */
-function mutateExpr(expr: string): string[] {
+/** 只改对正确答案的近形，选项里不出现其它知识点 */
+function nearMissExprs(expr: string): string[] {
   const s = expr.trim()
   const out: string[] = []
   const add = (t: string) => {
     const x = t.trim()
-    if (x && x !== s) out.push(x)
+    if (!x || !isCloseDistractor(s, x)) return
+    if (/^(.+)\s*[−+\-×÷]\s*\1$/.test(x.replace(/^.*=\s*/, ''))) return
+    const ident = x.match(/\(([^()]+)\)\/\(([^()]+)\)/)
+    if (ident && normalizeOptKey(ident[1]!) === normalizeOptKey(ident[2]!)) return
+    if (out.some((c) => normalizeOptKey(c) === normalizeOptKey(x))) return
+    out.push(x)
   }
 
-  for (const m of keepLhsMutations(s)) add(m)
   for (const m of swapParenFractions(s)) add(m)
-
+  add(s.replaceAll(' × ', ' ÷ '))
+  add(s.replaceAll(' ÷ ', ' × '))
+  add(s.replaceAll('×', '÷'))
+  add(s.replaceAll('÷', '×'))
+  add(s.replaceAll(' + ', ' − '))
+  add(s.replaceAll(' − ', ' + '))
+  add(s.replaceAll('n−2', 'n−1'))
+  add(s.replaceAll('n−1', 'n+1'))
+  add(s.replaceAll('n+1', 'n−1'))
   add(s.replaceAll('n−m', 'n+m'))
   add(s.replaceAll('n−m', 'm−n'))
   add(s.replaceAll('(n−m)!', 'n!'))
   add(s.replaceAll('(n−m)!', 'm!'))
   add(s.replaceAll('n!', 'm!'))
   add(s.replaceAll('m!', 'n!'))
-  add(s.replaceAll('m!(n−m)!', '(n−m)!m!'))
   add(s.replaceAll('(n−m+1)', '(n−m)'))
   add(s.replaceAll('(n−m+1)', '(n−m−1)'))
   add(s.replaceAll('(n−m+1)', '(n+m−1)'))
@@ -1517,39 +1533,72 @@ function mutateExpr(expr: string): string[] {
   add(s.replaceAll('(1+b)', '(1+a)'))
   add(s.replaceAll('(a−b)', '(b−a)'))
   add(s.replaceAll('(a−b)', '(a+b)'))
-  add(s.replaceAll('n+1', 'n−1'))
-  add(s.replaceAll('n−1', 'n+1'))
+  add(s.replaceAll('= a^2', '= a^3'))
+  add(s.replaceAll('= a^2', '= 4a'))
+  add(s.replaceAll('= a^3', '= a^2'))
+  add(s.replaceAll('6a^2', '6a^3'))
+  add(s.replaceAll('6a^2', '4a^2'))
+  add(s.replaceAll('4a', '2a'))
+  add(s.replaceAll('4a', 'a^2'))
+  if (!(s.includes('2πr') && s.includes('πr^2'))) {
+    add(s.replaceAll('2πr', 'πr^2'))
+    add(s.replaceAll('πr^2', '2πr'))
+  }
+  add(s.replaceAll('πr^2', 'πr^3'))
+  add(s.replaceAll('πr^2', 'πr'))
+  add(s.replaceAll('(1)/(2)', '(1)/(3)'))
+  add(s.replaceAll('(1)/(3)', '(1)/(2)'))
+  add(s.replaceAll('(4)/(3)', '(3)/(4)'))
+  add(s.replaceAll('(1)/(6)', '(1)/(3)'))
+  add(s.replaceAll('4N − 4', '4N + 4'))
+  add(s.replaceAll('4N − 4', '4N'))
   add(s.replaceAll('2^n', '2n'))
   add(s.replaceAll('2^n', 'n^2'))
   add(s.replaceAll('2^3', '2×3'))
-  add(s.replaceAll('现期量 − 基期量', '基期量 − 现期量'))
-  add(s.replaceAll('基期量 × 增长率', '现期量 × 增长率'))
-  add(s.replaceAll('(增长量)/(基期量)', '(增长量)/(现期量)'))
-  add(s.replaceAll('(现期量)/(基期量) − 1', '(基期量)/(现期量) − 1'))
-  add(s.replaceAll('(现期量)/(1+r)', '(现期量)/(1−r)'))
-  add(s.replaceAll('(现期量)/(n+1)', '(现期量)/(n−1)'))
-  add(s.replaceAll('(现期量)/(n−1)', '(现期量)/(n+1)'))
+  add(s.replaceAll('V_{1}+V_{2}', 'V_{1}−V_{2}'))
+  add(s.replaceAll('V_{1}+V_{2}', 'V_{1}V_{2}'))
+  add(s.replaceAll('(2V_{1}V_{2})', '(V_{1}V_{2})'))
+  add(s.replaceAll('(2V_{1}V_{2})', '(V_{1}+V_{2})'))
+  add(s.replaceAll('vt', 'v/t'))
+  add(s.replaceAll('vt', 'v+t'))
+  add(s.replaceAll('s = vt', 'v = st'))
+  add(s.replaceAll('×100%', '×10%'))
+  add(s.replaceAll('×100%', ''))
+  add(s.replaceAll('100%', '10%'))
   add(s.replaceAll('r₁ + r₂ + r₁ × r₂', 'r₁ + r₂ − r₁ × r₂'))
-  add(s.replaceAll('r₁ + r₂ + r₁ × r₂', 'r₁ × r₂'))
-  add(s.replaceAll('(A)/(B) − 1', '(A)/(B) + 1'))
-  add(s.replaceAll('(A)/(B) × (1+b)/(1+a)', '(A)/(B) × (1+a)/(1+b)'))
-  add(s.replaceAll('(A)/(B) × (a−b)/(1+a)', '(A)/(B) × (a−b)/(1+b)'))
-  add(s.replaceAll('(a−b)/(1+b)', '(a−b)/(1+a)'))
+  add(s.replaceAll('r₁ + r₂ + r₁ × r₂', 'r₁ + r₂'))
+  add(s.replaceAll('(1+r)', '(1−r)'))
+  add(s.replaceAll('(n+1)', '(n−1)'))
+  add(s.replaceAll('(n−1)', '(n+1)'))
   add(s.replaceAll('总长÷间隔 + 1', '总长÷间隔 − 1'))
   add(s.replaceAll('总长÷间隔 − 1', '总长÷间隔 + 1'))
   add(s.replaceAll('(棵数−1)', '(棵数+1)'))
   add(s.replaceAll('(棵数+1)', '(棵数−1)'))
-  add(s.replaceAll('4N − 4', '4N + 4'))
-  add(s.replaceAll('4N − 4', '4(N − 1) + 4'))
-  add(s.replaceAll('溶质质量', '溶液质量'))
-  add(s.replaceAll('部分增长量', '整体增长量'))
-  add(s.replaceAll('S = a^2', 'S = 4a'))
-  add(s.replaceAll('C = 4a', 'C = a^2'))
-  add(s.replaceAll('S = πr^2', 'S = 2πr'))
-  add(s.replaceAll('C = 2πr', 'C = πr^2'))
+
+  for (const [a, b] of [
+    ['部分增长量', '整体增长量'],
+    ['溶质质量', '溶液质量'],
+    ['现期量', '基期量'],
+    ['食品消费支出', '总消费支出'],
+    ['V_{1}', 'V_{2}'],
+    ['a_{1}', 'a_{n}'],
+  ] as const) {
+    for (const x of swapPair(s, a, b)) add(x)
+  }
+
+  // (2X)/(Y) ↔ (X)/(2Y) ↔ (X)/(Y)
+  add(s.replace(/\((2[^()]+)\)\/\(([^()]+)\)/g, '($1)/(2$2)'))
+  add(s.replace(/\(2([^()]+)\)\/\(([^()]+)\)/g, '($1)/($2)'))
+  add(s.replace(/\(([^()]+)\)\/\(2([^()]+)\)/g, '(2$1)/($2)'))
 
   const m = s.match(/^\(([^()]+)\)\/\(([^()]+)\)$/)
-  if (m) add(`(${m[2]})/(${m[1]})`)
+  if (m) {
+    add(`(${m[2]})/(${m[1]})`)
+    add(`2(${m[1]})/(${m[2]})`)
+    if (!/[+\-−×÷]/.test(m[1]!) && !/[+\-−×÷]/.test(m[2]!)) {
+      add(`(${m[1]}+${m[2]})/2`)
+    }
+  }
 
   return out
 }
@@ -1558,72 +1607,16 @@ function normalizeOptKey(t: string): string {
   return t.replace(/\s+/g, '')
 }
 
-function looksLikeFormulaOption(text: string): boolean {
-  const t = text.trim()
-  if (!t) return false
-  return /[=＝+\-−×÷*/^²³√π]|\/|_\{/.test(t)
-}
-
-function formulaLhs(formula: string): string {
-  const i = formula.search(/[=＝]/)
-  if (i <= 0) return ''
-  return normalizeOptKey(formula.slice(0, i))
-}
-
-/** 选项一律写完整公式：近形改写（保左端）→ 同左端同组 → 同组 → 同模块 */
-function formulaDistractors(entry: FormulaEntry, pool: FormulaEntry[], need = 3): string[] {
-  const correct = entry.formula.trim()
-  const correctKey = normalizeOptKey(correct)
-  const correctLhs = formulaLhs(correct)
-  const src = sourceIdOf(entry.id)
-  const cands: string[] = []
-  const push = (t: string): boolean => {
-    const x = t.trim()
-    const k = normalizeOptKey(x)
-    if (!k || k === correctKey) return cands.length >= need
-    if (cands.some((c) => normalizeOptKey(c) === k)) return cands.length >= need
-    cands.push(x)
-    return cands.length >= need
-  }
-
-  const mutations = mutateExpr(correct).filter((m) => looksLikeFormulaOption(m))
-  shuffleInPlace(mutations)
-  for (const m of mutations) {
-    if (push(m)) return cands.slice(0, need)
-  }
-
-  const usable = pool.filter((e) => e.id !== entry.id && sourceIdOf(e.id) !== src)
-  const sameLhs = usable.filter((e) => correctLhs && formulaLhs(e.formula) === correctLhs)
-  shuffleInPlace(sameLhs)
-  for (const e of sameLhs) {
-    if (push(e.formula)) return cands.slice(0, need)
-  }
-
-  const sameGroup = usable.filter((e) => e.group === entry.group && formulaLhs(e.formula) !== correctLhs)
-  shuffleInPlace(sameGroup)
-  for (const e of sameGroup) {
-    if (push(e.formula)) return cands.slice(0, need)
-  }
-
-  const others = usable.filter((e) => e.group !== entry.group)
-  others.sort(
-    (a, b) =>
-      Math.abs(a.formula.length - correct.length) - Math.abs(b.formula.length - correct.length),
-  )
-  for (const e of others) {
-    if (push(e.formula)) return cands.slice(0, need)
-  }
-
+function formulaDistractors(correctOpt: string, need = 3): string[] {
+  const cands = nearMissExprs(correctOpt)
+  shuffleInPlace(cands)
   return cands.slice(0, need)
 }
 
-function buildQuestionFromEntry(
-  entry: FormulaEntry,
-  pool: FormulaEntry[],
-): FormulaReciteQuestion | null {
-  const correct = entry.formula.trim()
-  if (!correct) return null
-  const distractors = formulaDistractors(entry, pool, 3)
+function buildQuestionFromEntry(entry: FormulaEntry): FormulaReciteQuestion | null {
+  const correct = formulaOptionText(entry.formula)
+  if (!correct || !isQuizableFormula(entry.formula)) return null
+  const distractors = formulaDistractors(correct, 3)
   if (distractors.length < 3) return null
 
   const assembled = assembleFourChoiceMcq(correct, distractors, shuffleInPlace)
@@ -1650,7 +1643,7 @@ function buildQuestionFromEntry(
   }
 }
 
-const USED_STORAGE = 'formula-recite-used-v4'
+const USED_STORAGE = 'formula-recite-used-v5'
 
 type UsedMap = Partial<Record<FormulaReciteModuleId, string[]>>
 
@@ -1716,7 +1709,7 @@ export function generateFormulaRecitePaper(
   moduleId: FormulaReciteModuleId,
 ): FormulaReciteQuestion[] {
   const pool = quizFormulasForModule(moduleId)
-  if (pool.length < 4) return []
+  if (pool.length < 1) return []
 
   const need = Math.min(FORMULA_RECITE_QUESTION_COUNT, pool.length)
   const picks = pickEntries(pool, moduleId, need)
@@ -1726,7 +1719,7 @@ export function generateFormulaRecitePaper(
   const tryAdd = (entry: FormulaEntry) => {
     if (out.length >= need) return
     if (usedIds.has(entry.id)) return
-    const q = buildQuestionFromEntry(entry, pool)
+    const q = buildQuestionFromEntry(entry)
     if (!q || usedStems.has(q.stem)) return
     out.push(q)
     usedIds.add(entry.id)

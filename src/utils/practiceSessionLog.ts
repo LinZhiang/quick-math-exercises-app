@@ -2,6 +2,7 @@
  * 测验完成日志：每次完整完成一轮练习写入一条，供「导览 → 日志」筛选查看。
  */
 import { ref } from 'vue'
+import { findPersonalBankSubById } from '@/utils/personalQuestionBank'
 
 const STORAGE_KEY = 'practice-session-log-v1'
 const MAX_ENTRIES = 800
@@ -563,6 +564,16 @@ const PREFIX_RULES: PrefixRule[] = [
     },
   },
   {
+    prefix: 'personal-bank-',
+    categoryId: 'personal-bank',
+    categoryLabel: '个人题库',
+    labelFor: (mid) => {
+      const hit = findPersonalBankSubById(mid)
+      if (!hit) return '个人题库'
+      return `个人题库 · ${hit.category.name} · ${hit.sub.name}`
+    },
+  },
+  {
     prefix: 'formula-recite-',
     categoryId: 'formula-recite',
     categoryLabel: '公式背诵',
@@ -938,6 +949,7 @@ export const PRACTICE_LOG_CATEGORIES: { id: string; label: string }[] = [
   { id: 'op-highfreq', label: '高频运算' },
   { id: 'op-other', label: '其他运算' },
   { id: 'formula-recite', label: '公式背诵' },
+  { id: 'personal-bank', label: '个人题库' },
   { id: 'chinese', label: '语文练习' },
   { id: 'wrong-review', label: '错题复盘' },
   { id: 'other', label: '其他' },
