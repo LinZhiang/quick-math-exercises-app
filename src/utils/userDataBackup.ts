@@ -79,6 +79,7 @@ const USER_DATA_EXTRA_KEYS: string[] = [
   'fact-explanation-overrides-v1',
   'fact-deepen-group-stats-v1',
   'wengu-app-ui-settings-v1',
+  'personal-question-bank-v1',
   'wengu-ai-provider-v1',
   'wengu-api-origin-v1',
   'mental-math-strategy-guide-notes-v1',

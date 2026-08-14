@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "口算练习",
-  "short_name": "口算练习",
+  "name": "学习App",
+  "short_name": "学习App",
   "description": "口算、图形推理与语文练习",
   "start_url": "./",
   "scope": "./",

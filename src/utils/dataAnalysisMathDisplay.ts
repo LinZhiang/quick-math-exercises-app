@@ -586,3 +586,52 @@ export function renderDataAnalysisMathHtml(text: string): string {
 
   return html
 }
+
+const SKIP_MATH_TAGS = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'CODE', 'PRE'])
+
+function shouldSkipMathElement(el: Element): boolean {
+  if (SKIP_MATH_TAGS.has(el.tagName)) return true
+  const cls = el.classList
+  return (
+    cls.contains('da-math-frac') ||
+    cls.contains('da-math-root') ||
+    cls.contains('da-math-var') ||
+    cls.contains('da-math-radicand')
+  )
+}
+
+function applyMathToTextNode(node: Text, doc: Document) {
+  const text = node.textContent ?? ''
+  if (!text) return
+  const html = renderDataAnalysisMathHtml(text)
+  if (!html) {
+    node.textContent = ''
+    return
+  }
+  const tpl = doc.createElement('template')
+  tpl.innerHTML = html
+  node.parentNode?.replaceChild(tpl.content, node)
+}
+
+function walkMathNodes(node: Node, doc: Document) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    applyMathToTextNode(node as Text, doc)
+    return
+  }
+  if (node.nodeType !== Node.ELEMENT_NODE) return
+  const el = node as Element
+  if (shouldSkipMathElement(el)) return
+  for (const child of [...node.childNodes]) walkMathNodes(child, doc)
+}
+
+/** 在已有 HTML 的文本节点里渲染分式/幂次/根号，不破坏标签与插图。 */
+export function renderMathInRichHtml(html: string): string {
+  const raw = String(html ?? '')
+  if (!raw.trim()) return ''
+  if (typeof DOMParser === 'undefined') return renderDataAnalysisMathHtml(raw)
+  const doc = new DOMParser().parseFromString(`<div id="__math_root">${raw}</div>`, 'text/html')
+  const root = doc.getElementById('__math_root')
+  if (!root) return raw
+  walkMathNodes(root, doc)
+  return root.innerHTML
+}

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   PRACTICE_HUB_NAV_ITEMS,
   PRACTICE_HUB_SECTIONS,
@@ -231,6 +231,7 @@ type PracticeMode =
 const COUNTDOWN_STEPS: CountdownStep[] = [3, 2, 1, 'GO']
 
 const route = useRoute()
+const router = useRouter()
 const phase = ref<Phase>('select')
 const activeOutlineSection = ref<PracticeHubSectionId>('log')
 const activeMode = ref<PracticeMode | null>(null)
@@ -1956,7 +1957,10 @@ onBeforeUnmount(() => {
       v-if="phase === 'select' && !chineseSessionActive && !showChineseSection"
       class="page-hero"
     >
-      <h2 class="page-title">口算练习</h2>
+      <div class="page-hero__row">
+        <h2 class="page-title">学习App</h2>
+        <el-button size="small" @click="router.push({ name: 'personal-bank' })">个人题库</el-button>
+      </div>
       <p class="page-subtitle page-subtitle--full">
         限时口算、次幂、平方与立方、估算分数、整除、生活常识；数学推理含二十四点、数独、图形推理、资料分析、运算技巧、高频运算、其他运算、公式背诵；左侧「语文练习」含成语识记、词语识记、阅读理解等。
         口算/图形结果仅在本页展示；语文练习多子模块四选一、正计时，依赖 AI 出题（DeepSeek / 豆包，需在「导览 → 设置」登录），错题与收藏在「关题练习」。
@@ -4562,6 +4566,18 @@ onBeforeUnmount(() => {
   padding: 12px 12px 10px;
 }
 
+.page-hero__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.page-hero__row .page-title {
+  margin: 0;
+}
+
 .practice-shell {
   flex: 1;
   min-height: 420px;
@@ -5615,6 +5631,10 @@ onBeforeUnmount(() => {
   .page-title {
     margin: 0 0 4px;
     font-size: 1.2rem;
+  }
+
+  .page-hero__row .page-title {
+    margin: 0;
   }
 
   .page-subtitle--full {

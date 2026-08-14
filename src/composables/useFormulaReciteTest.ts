@@ -162,7 +162,7 @@ export function useFormulaReciteTest(moduleId: Ref<FormulaReciteModuleId | null>
     loadingMessage.value = '正在组卷…'
     try {
       const generated = generateFormulaRecitePaper(mid)
-      if (generated.length < 4) {
+      if (!generated.length) {
         throw new Error('组卷题目不足，请重试')
       }
       questions.value = generated
