@@ -1,6 +1,8 @@
-/**
+﻿/**
  * 公式背诵：数量关系公式 + 资料分析术语/公式。
- * 全部「普通题」：正计时、四选一、提交停表看答案；每轮 10 题。
+ * 全部「普通题」：正计时、四选一、提交停表看答案。
+ * 题干统一为「xxx公式是什么？」；选项一律写完整公式（近形干扰优先）。
+ * 多等号/分号拆成单条书写；每轮最多 10 题，题库不足则有多少出多少。
  * 去重：模块内未出优先，出完一轮后重置再循环。
  *
  * 数量关系：
@@ -36,42 +38,42 @@ export const FORMULA_RECITE_MODES: {
   {
     id: 'travel-sol-geo',
     label: '行程·溶液·几何',
-    desc: '普通题 · 每轮 10 题 · 路程速度、浓度、平面/立体公式 · 可查看公式',
+    desc: '普通题 · 每轮最多 10 题 · 路程速度、浓度、平面/立体公式 · 可查看公式',
   },
   {
     id: 'perm-incl-count',
     label: '排列组合·容斥·计数',
-    desc: '普通题 · 每轮 10 题 · 排列组合、容斥、植树方阵牛吃草 · 可查看公式',
+    desc: '普通题 · 每轮最多 10 题 · 排列组合、容斥、植树方阵牛吃草 · 可查看公式',
   },
   {
     id: 'calc-seq-clock',
     label: '计算·数列·钟表',
-    desc: '普通题 · 每轮 10 题 · 代数恒等式、等差等比、周期钟表 · 可查看公式',
+    desc: '普通题 · 每轮最多 10 题 · 代数恒等式、等差等比、周期钟表 · 可查看公式',
   },
   {
     id: 'da-growth',
     label: '资料·增长与比较',
-    desc: '普通题 · 每轮 10 题 · 现期基期、增长量率、年均/拉动、同比环比、百分数百分点',
+    desc: '普通题 · 每轮最多 10 题 · 现期基期、增长量率、年均/拉动、同比环比、百分数百分点',
   },
   {
     id: 'da-share',
     label: '资料·比重贡献翻番',
-    desc: '普通题 · 每轮 10 题 · 比重、增长贡献率、成数、翻番',
+    desc: '普通题 · 每轮最多 10 题 · 比重、增长贡献率、成数、翻番',
   },
   {
     id: 'da-indicator',
     label: '资料·经贸指标与时期',
-    desc: '普通题 · 每轮 10 题 · 顺差逆差、指数、恩格尔/基尼、五年规划、GDP',
+    desc: '普通题 · 每轮最多 10 题 · 顺差逆差、指数、恩格尔/基尼、五年规划、GDP',
   },
   {
     id: 'da-ratio',
     label: '资料·比例相关',
-    desc: '普通题 · 每轮 10 题 · 现期/基期比例、两期升降与差值、平均数增长率 · 可查看公式',
+    desc: '普通题 · 每轮最多 10 题 · 现期/基期比例、两期升降与差值、平均数增长率 · 可查看公式',
   },
   {
     id: 'da-growth-calc',
     label: '资料·增长相关',
-    desc: '普通题 · 每轮 10 题 · 一般/混合/间隔/年均增长率、增长量、基期现期计算 · 可查看公式',
+    desc: '普通题 · 每轮最多 10 题 · 一般/混合/间隔/年均增长率、增长量、基期现期计算 · 可查看公式',
   },
 ]
 
@@ -388,7 +390,7 @@ export const FORMULA_RECITE_CATALOG: FormulaEntry[] = [
     moduleId: 'travel-sol-geo',
     group: '平面几何',
     name: '三角形面积',
-    formula: 'S = (1)/(2)ah',
+    formula: 'S = (1)/(2)×ah',
     params: [...FP.tri],
   },
   {
@@ -404,7 +406,7 @@ export const FORMULA_RECITE_CATALOG: FormulaEntry[] = [
     moduleId: 'travel-sol-geo',
     group: '平面几何',
     name: '梯形面积',
-    formula: 'S = (1)/(2)(a+b)h',
+    formula: 'S = (1)/(2)×(a+b)h',
     params: [...FP.trap],
   },
   {
@@ -412,7 +414,7 @@ export const FORMULA_RECITE_CATALOG: FormulaEntry[] = [
     moduleId: 'travel-sol-geo',
     group: '平面几何',
     name: '扇形面积',
-    formula: 'S = (n)/(360)πr^2',
+    formula: 'S = (n)/(360)×πr^2',
     params: [...FP.sector],
   },
   {
@@ -460,7 +462,7 @@ export const FORMULA_RECITE_CATALOG: FormulaEntry[] = [
     moduleId: 'travel-sol-geo',
     group: '立体几何',
     name: '球体积',
-    formula: 'V = (4)/(3)πR^3 = (1)/(6)πD^3',
+    formula: 'V = (4)/(3)×πR^3 = (1)/(6)×πD^3',
     params: [...FP.sphere],
   },
   {
@@ -492,7 +494,7 @@ export const FORMULA_RECITE_CATALOG: FormulaEntry[] = [
     moduleId: 'travel-sol-geo',
     group: '立体几何',
     name: '圆锥体积',
-    formula: 'V = (1)/(3)πr^2h',
+    formula: 'V = (1)/(3)×πr^2h',
     params: [...FP.cone],
   },
   {
@@ -1287,24 +1289,6 @@ export function formulasForModule(moduleId: FormulaReciteModuleId): FormulaEntry
   return FORMULA_RECITE_CATALOG.filter((f) => f.moduleId === moduleId)
 }
 
-function randInt(min: number, max: number): number {
-  return min + Math.floor(Math.random() * (max - min + 1))
-}
-
-function shuffleInPlace<T>(arr: T[]): T[] {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[arr[i], arr[j]] = [arr[j]!, arr[i]!]
-  }
-  return arr
-}
-
-function pickN<T>(arr: readonly T[], n: number): T[] {
-  const copy = [...arr]
-  shuffleInPlace(copy)
-  return copy.slice(0, Math.min(n, copy.length))
-}
-
 /** 括号外按 = 拆分（支持链式多等号） */
 function splitByEqualsOutsideParens(text: string): string[] {
   const parts: string[] = []
@@ -1327,33 +1311,179 @@ function splitByEqualsOutsideParens(text: string): string[] {
   return parts
 }
 
-/** 分号分成多条；每条再按等号链拆开 */
-function equalityChainsOf(formula: string): string[][] {
+/** 分号分段；多等号拆成「左端 = 每一段」，供公式表与测验逐条书写 */
+export function formulaDisplayLines(formula: string): string[] {
   const clauses = formula
     .replace(/\uFF1B/g, ';')
     .split(';')
     .map((s) => s.trim())
     .filter((s) => s.length > 0)
   const source = clauses.length > 0 ? clauses : [formula.trim()]
-  const chains: string[][] = []
+  const lines: string[] = []
+  const seen = new Set<string>()
+  const push = (t: string) => {
+    const x = t.trim()
+    if (!x || seen.has(x)) return
+    seen.add(x)
+    lines.push(x)
+  }
   for (const clause of source) {
     const parts = splitByEqualsOutsideParens(clause)
-    if (parts.length >= 2) chains.push(parts)
-  }
-  return chains
-}
-
-function allEqualityParts(formula: string): string[] {
-  const out: string[] = []
-  const seen = new Set<string>()
-  for (const chain of equalityChainsOf(formula)) {
-    for (const p of chain) {
-      if (!seen.has(p)) {
-        seen.add(p)
-        out.push(p)
-      }
+    if (parts.length >= 2) {
+      const lhs = parts[0]!
+      for (let i = 1; i < parts.length; i++) push(`${lhs} = ${parts[i]}`)
+    } else {
+      push(clause)
     }
   }
+  return lines.length > 0 ? lines : [formula.trim()]
+}
+
+function sourceIdOf(id: string): string {
+  const i = id.indexOf('#')
+  return i >= 0 ? id.slice(0, i) : id
+}
+
+function variantHint(formula: string, siblings: string[]): string {
+  const rhs = formula.includes('=') ? formula.slice(formula.indexOf('=') + 1).trim() : formula
+  const blob = siblings.join('\n')
+  if (/πR|R\^|R_{|半径/.test(formula) && /πD|D\^|直径/.test(blob)) return '半径'
+  if (/πD|D\^|直径/.test(formula) && /πR|R\^|半径/.test(blob)) return '直径'
+  if (/(n!)|m!/.test(rhs) && /⋯/.test(blob)) return '阶乘'
+  if (/⋯/.test(rhs) && /(n!)|m!/.test(blob)) return '连乘'
+  if (/A_\{n\}\^\{m\}/.test(rhs) && /n!/.test(blob)) return '排列数'
+  if (rhs.includes('中位数')) return '中位数'
+  if (/a_\{1\}/.test(rhs) && /d/.test(rhs) && /a_\{m\}/.test(blob)) return '首项'
+  if (/a_\{m\}/.test(rhs) && /a_\{1\}/.test(blob)) return '第m项'
+  if (/(现期量\s*[−\-]\s*基期量)|(现期量\s*[−\-]\s*增长量)/.test(rhs)) return '作差'
+  if (/(基期量\s*×)|(×\s*增长率)|(×\s*r\b)/.test(rhs)) return '乘增长率'
+  if (rhs.includes('(现期量)/(1')) return '除以(1+r)'
+  if (rhs.includes('(现期量)/(基期量) − 1') || rhs.includes('(现期量)/(基期量)-1')) return '现期比基期'
+  if (rhs.includes('2^3') && /8\s*倍/.test(blob)) return '幂次'
+  if (/8\s*倍/.test(rhs) && /2\^3/.test(blob)) return '倍数'
+  if (rhs.includes('(3)/(10)') && /30%/.test(blob)) return '十分数'
+  if (/30%/.test(rhs) && /\(3\)\/\(10\)/.test(blob)) return '百分数'
+  if (rhs.includes('(A)/(B) × (1+b)/(1+a)') || rhs.includes('(1+b)/(1+a)')) return '交叉乘'
+  if (rhs.includes('(A)/(1+a)') && rhs.includes('÷')) return '分别还原'
+  return ''
+}
+
+function expandEntryForQuiz(entry: FormulaEntry): FormulaEntry[] {
+  const lines = formulaDisplayLines(entry.formula)
+  const eqLines = lines.filter((l) => /[=＝]/.test(l) && splitByEqualsOutsideParens(l).length >= 2)
+  if (eqLines.length <= 1) return [entry]
+  const lhss = eqLines.map((l) => splitByEqualsOutsideParens(l)[0]?.trim() ?? '')
+  const uniqueLhs = new Set(lhss.filter(Boolean)).size === eqLines.length
+  const baseName = entry.name.replace(/公式$/, '').replace(/（[^）]+）$/, '')
+  return eqLines.map((formula, i) => {
+    const hint = uniqueLhs ? lhss[i]! : variantHint(formula, eqLines)
+    const name =
+      hint && hint !== baseName && !baseName.includes(hint)
+        ? `${baseName}（${hint}）`
+        : entry.name
+    return {
+      ...entry,
+      id: `${entry.id}#${i}`,
+      name,
+      formula,
+    }
+  })
+}
+
+function quizFormulasForModule(moduleId: FormulaReciteModuleId): FormulaEntry[] {
+  return formulasForModule(moduleId).flatMap(expandEntryForQuiz)
+}
+
+function randInt(min: number, max: number): number {
+  return min + Math.floor(Math.random() * (max - min + 1))
+}
+
+function shuffleInPlace<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[arr[i], arr[j]] = [arr[j]!, arr[i]!]
+  }
+  return arr
+}
+
+/** 题干统一：「xxx公式是什么？」 */
+function formulaQuestionStem(name: string): string {
+  const n = name.trim()
+  if (n.includes('公式')) return `${n}是什么？`
+  return `${n}公式是什么？`
+}
+
+function swapParenFractions(expr: string): string[] {
+  const re = /\(([^()]+)\)\/\(([^()]+)\)/g
+  const out: string[] = []
+  const matches = [...expr.matchAll(re)]
+  for (const m of matches) {
+    if (m.index == null) continue
+    out.push(`${expr.slice(0, m.index)}(${m[2]})/(${m[1]})${expr.slice(m.index + m[0].length)}`)
+  }
+  return out
+}
+
+function swapPair(s: string, a: string, b: string): string[] {
+  const out: string[] = []
+  if (s.includes(a) && s.includes(b)) {
+    const ph = '\uE800'
+    out.push(s.split(a).join(ph).split(b).join(a).split(ph).join(b))
+  } else if (s.includes(a) && !s.includes(b)) {
+    out.push(s.split(a).join(b))
+  } else if (s.includes(b) && !s.includes(a)) {
+    out.push(s.split(b).join(a))
+  }
+  return out
+}
+
+function keepLhsMutations(expr: string): string[] {
+  const parts = splitByEqualsOutsideParens(expr)
+  if (parts.length !== 2) return []
+  const lhs = parts[0]!
+  const rhs = parts[1]!
+  const out: string[] = []
+  const add = (t: string) => {
+    const x = t.trim()
+    if (!x || x === rhs) return
+    if (/^(.+)\s*[−+\-×÷]\s*\1$/.test(x)) return
+    out.push(`${lhs} = ${x}`)
+  }
+  add(rhs.replaceAll(' × ', ' ÷ '))
+  add(rhs.replaceAll(' ÷ ', ' × '))
+  add(rhs.replaceAll(' + ', ' − '))
+  add(rhs.replaceAll(' − ', ' + '))
+  add(rhs.replaceAll('n−2', 'n−1'))
+  add(rhs.replaceAll('n−1', 'n+1'))
+  add(rhs.replaceAll('n+1', 'n−1'))
+  add(rhs.replaceAll('a^2', '4a'))
+  add(rhs.replaceAll('a^2', 'a^3'))
+  add(rhs.replaceAll('a^3', 'a^2'))
+  add(rhs.replaceAll('6a^2', '4a^2'))
+  add(rhs.replaceAll('4a', '2a'))
+  add(rhs.replaceAll('2πr', 'πr^2'))
+  add(rhs.replaceAll('πr^2', '2πr'))
+  add(rhs.replaceAll('(1)/(2)', '(1)/(3)'))
+  add(rhs.replaceAll('(1)/(3)', '(1)/(2)'))
+  add(rhs.replaceAll('(4)/(3)', '(3)/(4)'))
+  add(rhs.replaceAll('4N − 4', '4N'))
+  add(rhs.replaceAll('4N − 4', '2N − 4'))
+  add(rhs.replaceAll('30%', '3%'))
+  add(rhs.replaceAll('30%', '300%'))
+  add(rhs.replaceAll('2^n', '2n'))
+  add(rhs.replaceAll('2^3', '2×3'))
+  for (const [a, b] of [
+    ['部分增长量', '整体增长量'],
+    ['溶质质量', '溶液质量'],
+    ['现期量', '基期量'],
+    ['桥长', '火车长'],
+    ['速度', '时间'],
+    ['增长量', '基期量'],
+    ['食品消费支出', '总消费支出'],
+  ] as const) {
+    for (const x of swapPair(rhs, a, b)) add(x)
+  }
+  for (const s of swapParenFractions(rhs)) add(s)
   return out
 }
 
@@ -1365,6 +1495,9 @@ function mutateExpr(expr: string): string[] {
     const x = t.trim()
     if (x && x !== s) out.push(x)
   }
+
+  for (const m of keepLhsMutations(s)) add(m)
+  for (const m of swapParenFractions(s)) add(m)
 
   add(s.replaceAll('n−m', 'n+m'))
   add(s.replaceAll('n−m', 'm−n'))
@@ -1408,8 +1541,13 @@ function mutateExpr(expr: string): string[] {
   add(s.replaceAll('(棵数+1)', '(棵数−1)'))
   add(s.replaceAll('4N − 4', '4N + 4'))
   add(s.replaceAll('4N − 4', '4(N − 1) + 4'))
+  add(s.replaceAll('溶质质量', '溶液质量'))
+  add(s.replaceAll('部分增长量', '整体增长量'))
+  add(s.replaceAll('S = a^2', 'S = 4a'))
+  add(s.replaceAll('C = 4a', 'C = a^2'))
+  add(s.replaceAll('S = πr^2', 'S = 2πr'))
+  add(s.replaceAll('C = 2πr', 'C = πr^2'))
 
-  // 单个最外层分式分子分母对调
   const m = s.match(/^\(([^()]+)\)\/\(([^()]+)\)$/)
   if (m) add(`(${m[2]})/(${m[1]})`)
 
@@ -1420,224 +1558,99 @@ function normalizeOptKey(t: string): string {
   return t.replace(/\s+/g, '')
 }
 
-function strongDistractors(
-  correct: string,
-  entry: FormulaEntry,
-  pool: FormulaEntry[],
-  need = 3,
-  excludeExprs: string[] = [],
-): string[] {
+function looksLikeFormulaOption(text: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  return /[=＝+\-−×÷*/^²³√π]|\/|_\{/.test(t)
+}
+
+function formulaLhs(formula: string): string {
+  const i = formula.search(/[=＝]/)
+  if (i <= 0) return ''
+  return normalizeOptKey(formula.slice(0, i))
+}
+
+/** 选项一律写完整公式：近形改写（保左端）→ 同左端同组 → 同组 → 同模块 */
+function formulaDistractors(entry: FormulaEntry, pool: FormulaEntry[], need = 3): string[] {
+  const correct = entry.formula.trim()
   const correctKey = normalizeOptKey(correct)
-  const excludeKeys = new Set(
-    excludeExprs.filter(Boolean).map((x) => normalizeOptKey(x)),
-  )
-  excludeKeys.delete(correctKey)
+  const correctLhs = formulaLhs(correct)
+  const src = sourceIdOf(entry.id)
   const cands: string[] = []
-  const push = (t: string) => {
+  const push = (t: string): boolean => {
     const x = t.trim()
     const k = normalizeOptKey(x)
-    if (!k || k === correctKey) return
-    if (excludeKeys.has(k)) return
-    if (cands.some((c) => normalizeOptKey(c) === k)) return
-    if (x.length > Math.max(48, correct.length * 2.2) && x.includes('=')) return
+    if (!k || k === correctKey) return cands.length >= need
+    if (cands.some((c) => normalizeOptKey(c) === k)) return cands.length >= need
     cands.push(x)
+    return cands.length >= need
   }
 
-  for (const m of mutateExpr(correct)) push(m)
-
-  // 同一公式链其它写法（最强干扰）
-  for (const p of allEqualityParts(entry.formula)) {
-    if (normalizeOptKey(p) === correctKey || excludeKeys.has(normalizeOptKey(p))) continue
-    push(p)
-    for (const m of mutateExpr(p)) push(m)
+  const mutations = mutateExpr(correct).filter((m) => looksLikeFormulaOption(m))
+  shuffleInPlace(mutations)
+  for (const m of mutations) {
+    if (push(m)) return cands.slice(0, need)
   }
 
-  const sameGroup = pool.filter((e) => e.group === entry.group && e.id !== entry.id)
+  const usable = pool.filter((e) => e.id !== entry.id && sourceIdOf(e.id) !== src)
+  const sameLhs = usable.filter((e) => correctLhs && formulaLhs(e.formula) === correctLhs)
+  shuffleInPlace(sameLhs)
+  for (const e of sameLhs) {
+    if (push(e.formula)) return cands.slice(0, need)
+  }
+
+  const sameGroup = usable.filter((e) => e.group === entry.group && formulaLhs(e.formula) !== correctLhs)
+  shuffleInPlace(sameGroup)
   for (const e of sameGroup) {
-    for (const p of allEqualityParts(e.formula)) {
-      push(p)
-      for (const m of mutateExpr(p)) push(m)
-    }
+    if (push(e.formula)) return cands.slice(0, need)
   }
 
-  if (cands.length < need) {
-    for (const e of pool) {
-      if (e.id === entry.id) continue
-      for (const p of allEqualityParts(e.formula)) push(p)
-      if (cands.length >= need + 6) break
-    }
-  }
-
-  shuffleInPlace(cands)
-  cands.sort(
+  const others = usable.filter((e) => e.group !== entry.group)
+  others.sort(
     (a, b) =>
-      Math.abs(a.length - correct.length) - Math.abs(b.length - correct.length) ||
-      a.length - b.length,
+      Math.abs(a.formula.length - correct.length) - Math.abs(b.formula.length - correct.length),
   )
+  for (const e of others) {
+    if (push(e.formula)) return cands.slice(0, need)
+  }
+
   return cands.slice(0, need)
 }
 
-function strongNameDistractors(entry: FormulaEntry, pool: FormulaEntry[], need = 3): string[] {
-  const sameGroup = pool.filter((e) => e.group === entry.group && e.id !== entry.id)
-  const others = pool.filter((e) => e.id !== entry.id && e.group !== entry.group)
-  const names = [
-    ...pickN(sameGroup, Math.min(3, sameGroup.length)).map((e) => e.name),
-    ...pickN(others, 3).map((e) => e.name),
-  ].filter((n) => n !== entry.name)
-  const uniq: string[] = []
-  for (const n of names) {
-    if (!uniq.includes(n)) uniq.push(n)
-  }
-  while (uniq.length < need && others.length) {
-    const n = others[randInt(0, others.length - 1)]!.name
-    if (n !== entry.name && !uniq.includes(n)) uniq.push(n)
-    else break
-  }
-  return uniq.slice(0, need)
-}
-
-type BankItemKind = 'eq-link' | 'name-to-full' | 'full-to-name'
-
-type BankItem = {
-  id: string
-  entry: FormulaEntry
-  kind: BankItemKind
-  /** eq-link：问左求右 */
-  leftExpr?: string
-  rightExpr?: string
-}
-
-function buildBank(moduleId: FormulaReciteModuleId): BankItem[] {
-  const pool = formulasForModule(moduleId)
-  const items: BankItem[] = []
-  const seen = new Set<string>()
-  const add = (item: BankItem) => {
-    if (seen.has(item.id)) return
-    seen.add(item.id)
-    items.push(item)
-  }
-
-  for (const entry of pool) {
-    const chains = equalityChainsOf(entry.formula)
-    let hasMultiEq = false
-
-    for (let ci = 0; ci < chains.length; ci++) {
-      const parts = chains[ci]!
-      if (parts.length < 2) continue
-      if (parts.length >= 3) hasMultiEq = true
-
-      // 左端 = 右侧每一段（多等号拆题）
-      for (let j = 1; j < parts.length; j++) {
-        add({
-          id: `${entry.id}|eq|${ci}|0-${j}`,
-          entry,
-          kind: 'eq-link',
-          leftExpr: parts[0],
-          rightExpr: parts[j],
-        })
-      }
-      // 相邻等号也拆：B = C
-      for (let j = 1; j < parts.length - 1; j++) {
-        add({
-          id: `${entry.id}|eq|${ci}|${j}-${j + 1}`,
-          entry,
-          kind: 'eq-link',
-          leftExpr: parts[j],
-          rightExpr: parts[j + 1],
-        })
-      }
-    }
-
-    // 无多等号链时：保留「名称↔全文」；多等号则以拆题为主，另保留「全文→名称」
-    if (!hasMultiEq && chains.length <= 1) {
-      add({ id: `${entry.id}|f`, entry, kind: 'name-to-full' })
-      add({ id: `${entry.id}|n`, entry, kind: 'full-to-name' })
-    } else {
-      add({ id: `${entry.id}|n`, entry, kind: 'full-to-name' })
-      // 单等号（恰好 A=B）已由 eq-link 覆盖；若完全无等号则补名称题
-      if (chains.length === 0) {
-        add({ id: `${entry.id}|f`, entry, kind: 'name-to-full' })
-        add({ id: `${entry.id}|n2`, entry, kind: 'full-to-name' })
-      }
-    }
-  }
-  return items
-}
-
-function buildQuestionFromBankItem(
-  item: BankItem,
+function buildQuestionFromEntry(
+  entry: FormulaEntry,
   pool: FormulaEntry[],
 ): FormulaReciteQuestion | null {
-  const entry = item.entry
-  let stem: string
-  let correct: string
-  let distractors: string[]
-  let term: string
-  let method: string
-  let explanation: string
-  let kindTag: string
-
-  if (item.kind === 'eq-link' && item.leftExpr && item.rightExpr) {
-    term = entry.name
-    stem = `「${entry.name}」中，\n${item.leftExpr}\n等于下列哪一项？`
-    correct = item.rightExpr
-    distractors = strongDistractors(correct, entry, pool, 3, [item.leftExpr])
-    method = '多等号公式按「左边 = 哪一种写法」逐段记忆'
-    explanation = `${entry.group} · ${entry.name}\n${item.leftExpr} = ${item.rightExpr}\n完整：${entry.formula}`
-    kindTag = item.id
-  } else if (item.kind === 'name-to-full') {
-    term = entry.name
-    stem = `「${entry.name}」对应的内容是？`
-    correct = entry.formula
-    distractors = strongDistractors(correct, entry, pool, 3)
-    if (distractors.length < 3) {
-      distractors = [
-        ...distractors,
-        ...pickN(
-          pool.filter((e) => e.id !== entry.id).map((e) => e.formula),
-          3,
-        ),
-      ].filter((d, i, arr) => normalizeOptKey(d) !== normalizeOptKey(correct) && arr.indexOf(d) === i)
-        .slice(0, 3)
-    }
-    method = '对照公式表记忆名称与完整表述'
-    explanation = `${entry.group} · ${entry.name}：${entry.formula}`
-    kindTag = 'f'
-  } else {
-    term = entry.name
-    stem = `下列内容对应哪一项？\n${entry.formula}`
-    correct = entry.name
-    distractors = strongNameDistractors(entry, pool, 3)
-    method = '由表达式/定义反推名称'
-    explanation = `${entry.formula} → ${entry.group} · ${entry.name}`
-    kindTag = 'n'
-  }
-
+  const correct = entry.formula.trim()
+  if (!correct) return null
+  const distractors = formulaDistractors(entry, pool, 3)
   if (distractors.length < 3) return null
+
+  const assembled = assembleFourChoiceMcq(correct, distractors, shuffleInPlace)
+  if (!assembled) return null
+
+  let explanation = `${entry.group} · ${entry.name}：${entry.formula}`
   const legend = formatFormulaParamsLegend(entry.params)
   if (legend) explanation += `\n参数说明：${legend}`
 
-  const assembled = assembleFourChoiceMcq(correct, distractors.slice(0, 3), shuffleInPlace)
-  if (!assembled) return null
-
   return {
-    id: `fr-${entry.moduleId}-${kindTag}-${Date.now()}-${randInt(0, 9999)}`,
+    id: `fr-${entry.moduleId}-${entry.id}-${Date.now()}-${randInt(0, 9999)}`,
     topic: 'formula-recite',
     moduleId: entry.moduleId,
     difficulty: 'medium',
-    term,
+    term: entry.name,
     passage: '',
-    stem,
+    stem: formulaQuestionStem(entry.name),
     options: assembled.options,
     correctIndex: assembled.correctIndex,
-    method,
+    method: '对照公式表背完整公式',
     explanation,
-    fingerprint: `fr|${entry.moduleId}|${item.id}|${assembled.correctIndex}`,
+    fingerprint: `fr|${entry.moduleId}|${entry.id}|f`,
     formulaId: entry.id,
   }
 }
 
-const USED_STORAGE = 'formula-recite-used-v2'
+const USED_STORAGE = 'formula-recite-used-v4'
 
 type UsedMap = Partial<Record<FormulaReciteModuleId, string[]>>
 
@@ -1665,17 +1678,17 @@ function writeUsedMap(map: UsedMap) {
 /**
  * 未出优先；本模块题库用尽则开启下一轮循环。
  * 同一试卷内不重复；跨卷在未用尽前不重复。
+ * 不凑题：有多少出多少，且不超过上限。
  */
-function pickBankItems(moduleId: FormulaReciteModuleId, need: number): BankItem[] {
-  const bank = buildBank(moduleId)
-  if (!bank.length) return []
+function pickEntries(bank: FormulaEntry[], moduleId: FormulaReciteModuleId, need: number): FormulaEntry[] {
+  if (!bank.length || need <= 0) return []
 
   const map = readUsedMap()
   const used = new Set((map[moduleId] ?? []).filter(Boolean))
-  const picks: BankItem[] = []
+  const picks: FormulaEntry[] = []
   const pickedIds = new Set<string>()
 
-  const takeFrom = (candidates: BankItem[]) => {
+  const takeFrom = (candidates: FormulaEntry[]) => {
     shuffleInPlace(candidates)
     for (const b of candidates) {
       if (picks.length >= need) break
@@ -1694,10 +1707,6 @@ function pickBankItems(moduleId: FormulaReciteModuleId, need: number): BankItem[
     for (const b of picks) used.add(b.id)
   }
 
-  if (picks.length < need) {
-    takeFrom([...bank])
-  }
-
   map[moduleId] = [...used]
   writeUsedMap(map)
   return picks.slice(0, need)
@@ -1706,24 +1715,31 @@ function pickBankItems(moduleId: FormulaReciteModuleId, need: number): BankItem[
 export function generateFormulaRecitePaper(
   moduleId: FormulaReciteModuleId,
 ): FormulaReciteQuestion[] {
-  const pool = formulasForModule(moduleId)
+  const pool = quizFormulasForModule(moduleId)
   if (pool.length < 4) return []
 
-  const picks = pickBankItems(moduleId, FORMULA_RECITE_QUESTION_COUNT)
+  const need = Math.min(FORMULA_RECITE_QUESTION_COUNT, pool.length)
+  const picks = pickEntries(pool, moduleId, need)
   const out: FormulaReciteQuestion[] = []
-  for (const item of picks) {
-    const q = buildQuestionFromBankItem(item, pool)
-    if (q) out.push(q)
+  const usedIds = new Set<string>()
+  const usedStems = new Set<string>()
+  const tryAdd = (entry: FormulaEntry) => {
+    if (out.length >= need) return
+    if (usedIds.has(entry.id)) return
+    const q = buildQuestionFromEntry(entry, pool)
+    if (!q || usedStems.has(q.stem)) return
+    out.push(q)
+    usedIds.add(entry.id)
+    usedStems.add(q.stem)
   }
 
-  let guard = 0
-  const bank = buildBank(moduleId)
-  while (out.length < FORMULA_RECITE_QUESTION_COUNT && guard < 60) {
-    guard += 1
-    const item = bank[randInt(0, bank.length - 1)]!
-    const q = buildQuestionFromBankItem(item, pool)
-    if (q && !out.some((x) => x.fingerprint === q.fingerprint)) out.push(q)
+  for (const entry of picks) tryAdd(entry)
+
+  if (out.length < need) {
+    const rest = pool.filter((e) => !usedIds.has(e.id))
+    shuffleInPlace(rest)
+    for (const entry of rest) tryAdd(entry)
   }
 
-  return out.slice(0, FORMULA_RECITE_QUESTION_COUNT)
+  return out.slice(0, need)
 }

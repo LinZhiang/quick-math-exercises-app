@@ -6,10 +6,12 @@ import {
   type FormulaReciteResultRow,
 } from '@/composables/useFormulaReciteTest'
 import {
+  FORMULA_RECITE_QUESTION_COUNT,
   FORMULA_RECITE_MODES,
   formulaReciteDifficultyLabel,
   formulaReciteModuleLabel,
   formulasForModule,
+  formulaDisplayLines,
   type FormulaEntry,
   type FormulaReciteModuleId,
   type FormulaReciteQuestion,
@@ -149,8 +151,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   >
     <template v-if="!selectedModule && (test.phase === 'idle' || test.phase === 'loading')">
       <p class="mode-section__hint">
-        考点「公式背诵」：数量关系公式 + 资料分析术语/公式。模块考察重点互不交叉；全部为普通题，每轮
-        {{ test.questionCount }} 题四选一（未出优先，出完一轮后循环）。正计时，提交后暂停看答案。可点「查看公式」。
+        考点「公式背诵」：数量关系公式 + 资料分析术语/公式。题干统一为「xxx公式是什么」，选项为完整公式。模块考察重点互不交叉；全部为普通题，每轮最多
+        {{ FORMULA_RECITE_QUESTION_COUNT }} 题四选一（未出优先，出完一轮后循环）。正计时，提交后暂停看答案。可点「查看公式」。
       </p>
       <div class="mode-grid">
         <button
@@ -184,7 +186,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
     <template v-else-if="selectedModule && (test.phase === 'idle' || test.phase === 'loading')">
       <p class="mode-section__hint">
         当前：{{ formulaReciteModuleLabel(selectedModule) }} ·
-        {{ formulaReciteDifficultyLabel() }}。每轮 {{ test.questionCount }} 题 · 本地组卷。正计时，提交后暂停看答案。
+        {{ formulaReciteDifficultyLabel() }}。每轮最多 {{ FORMULA_RECITE_QUESTION_COUNT }} 题 · 本地组卷。正计时，提交后暂停看答案。
       </p>
       <div class="chinese-setup">
         <el-button size="small" plain @click="clearModule">返回模块</el-button>
@@ -248,7 +250,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         >
           <span class="chinese-option__key">{{ Number(idx) + 1 }}</span>
           <!-- eslint-disable-next-line vue/no-v-html -->
-          <span class="chinese-option__val" v-html="optionHtml(opt)" />
+          <span class="chinese-option__val formula-math" v-html="optionHtml(opt)" />
         </button>
       </div>
 
@@ -378,7 +380,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
               >
                 <span class="da-result-detail__key">{{ Number(idx) + 1 }}.</span>
                 <!-- eslint-disable-next-line vue/no-v-html -->
-                <span v-html="optionHtml(opt)" />
+                <span class="formula-math" v-html="optionHtml(opt)" />
                 <span v-if="Number(idx) === detailRow.question.correctIndex" class="da-tag da-tag--ok">
                   正确
                 </span>
@@ -432,7 +434,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             <li v-for="item in g.items" :key="item.id" class="formula-sheet__item">
               <span class="formula-sheet__name">{{ item.name }}</span>
               <!-- eslint-disable-next-line vue/no-v-html -->
-              <span class="formula-sheet__expr" v-html="mathHtml(item.formula)" />
+              <span
+                v-for="(line, li) in formulaDisplayLines(item.formula)"
+                :key="`${item.id}-line-${li}`"
+                class="formula-sheet__expr"
+                v-html="mathHtml(line)"
+              />
               <ul v-if="item.params?.length" class="formula-sheet__params">
                 <li v-for="(p, pi) in item.params" :key="`${item.id}-p-${pi}`">
                   <!-- eslint-disable-next-line vue/no-v-html -->
@@ -543,8 +550,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 }
 
 .formula-sheet__expr {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.12em 0.16em;
   font-size: 1.22rem;
-  line-height: 1.9;
+  line-height: 1.35;
   font-family: 'Cambria Math', Cambria, 'Times New Roman', 'Songti SC', 'SimSun', serif;
   color: var(--app-text, #111827);
   letter-spacing: 0.01em;
@@ -650,9 +661,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 .chinese-option {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   width: 100%;
+  min-height: 52px;
   text-align: left;
   padding: 12px 14px;
   border-radius: 10px;
@@ -661,6 +673,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   cursor: pointer;
   font-size: 16px;
   line-height: 1.7;
+}
+
+.formula-math {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.12em 0.16em;
+  line-height: 1.35;
+}
+
+.chinese-option__val {
+  flex: 1;
+  min-width: 0;
 }
 
 .chinese-option.is-selected:not(.is-correct):not(.is-wrong) {
@@ -856,7 +881,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .da-result-detail__opts li {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 6px 8px;
   margin: 0 0 8px;
   padding: 8px 10px;
@@ -899,17 +924,21 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   display: inline-flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   vertical-align: middle;
-  margin: 0 0.28em;
-  line-height: 1.15;
+  flex-shrink: 0;
+  margin: 0 0.18em;
+  line-height: 1.1;
 }
 
 :deep(.da-math-frac__num),
 :deep(.da-math-frac__den) {
   font-size: 0.92em;
-  padding: 0 0.35em;
+  padding: 0 0.28em;
   text-align: center;
   white-space: nowrap;
+  line-height: 1.2;
+  font-family: inherit;
 }
 
 :deep(.da-math-frac__rule) {
