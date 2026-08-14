@@ -41,6 +41,12 @@ function readAtomLeft(s: string, slashIdx: number): number {
   let i = slashIdx - 1
   while (i >= 0 && /\s/.test(s[i]!)) i--
   if (i < 0) return -1
+  // n!、m! 等：阶乘记号挂在原子右侧
+  if (s[i] === '!') {
+    i--
+    while (i >= 0 && /\s/.test(s[i]!)) i--
+    if (i < 0) return -1
+  }
   if (s[i] === ')') {
     let depth = 1
     i--
@@ -249,6 +255,15 @@ const UNI_SUB_TO_ASCII: Record<string, string> = {
   '₇': '7',
   '₈': '8',
   '₉': '9',
+  'ₙ': 'n',
+  'ₘ': 'm',
+  'ₖ': 'k',
+  'ᵢ': 'i',
+  'ⱼ': 'j',
+  'ₐ': 'a',
+  'ₑ': 'e',
+  'ₒ': 'o',
+  'ₓ': 'x',
 }
 
 const UNI_TO_ASCII_SUP: Record<string, string> = {
@@ -263,6 +278,83 @@ const UNI_TO_ASCII_SUP: Record<string, string> = {
   '⁸': '8',
   '⁹': '9',
   'ⁿ': 'n',
+  'ᵐ': 'm',
+  'ᵃ': 'a',
+  'ᵇ': 'b',
+  'ᶜ': 'c',
+  'ᵏ': 'k',
+  'ˣ': 'x',
+}
+
+/** Aₙᵐ、V₁ → A_{n}^{m}、V_{1}，便于书本式上下标叠排 */
+function unicodeLetterScriptsToMarkup(s: string): string {
+  const subRe = /[₀₁₂₃₄₅₆₇₈₉ₙₘₖᵢⱼₐₑₒₓ]/
+  const supRe = /[⁰¹²³⁴⁵⁶⁷⁸⁹ⁿᵐᵃᵇᶜᵏˣ]/
+  return s.replace(
+    /([A-Za-zπΠ])((?:[₀₁₂₃₄₅₆₇₈₉ₙₘₖᵢⱼₐₑₒₓ])+)?((?:[⁰¹²³⁴⁵⁶⁷⁸⁹ⁿᵐᵃᵇᶜᵏˣ])+)?/g,
+    (full, base: string, subs?: string, supers?: string) => {
+      if (!subs && !supers) return full
+      if (subs && !subRe.test(subs)) return full
+      if (supers && !supRe.test(supers)) return full
+      let out = base
+      if (subs) {
+        const sub = [...subs].map((c) => UNI_SUB_TO_ASCII[c] ?? c).join('')
+        out += `_{${sub}}`
+      }
+      if (supers) {
+        const sup = [...supers].map((c) => UNI_TO_ASCII_SUP[c] ?? c).join('')
+        out += `^{${sup}}`
+      }
+      return out
+    },
+  )
+}
+
+type ScriptSlot = { base: string; sub?: string; sup?: string }
+
+/** 抽取 A_{n}^{m} / A_n^m / a_{1} 为书本式叠排标记 */
+function extractScriptedSymbols(s: string, slots: ScriptSlot[]): string {
+  let cur = s
+  const push = (base: string, sub: string | undefined, sup: string | undefined) => {
+    const id = slots.length
+    slots.push({
+      base,
+      sub: sub || undefined,
+      sup: sup || undefined,
+    })
+    return `\uE600${id}\uE601`
+  }
+
+  // 同时有下标与上标：A_{n}^{m}、A_n^{m}、A_{n}^m、A_n^m
+  cur = cur.replace(
+    /([A-Za-zπΠ])(?:_\{([^{}]+)\}|_([A-Za-z0-9]))(?:\^\{([^{}]+)\}|\^([A-Za-z0-9]))/g,
+    (_m, base: string, subB?: string, sub1?: string, supB?: string, sup1?: string) =>
+      push(base, subB ?? sub1, supB ?? sup1),
+  )
+  // 仅下标：a_{1}、S_n、V_1
+  cur = cur.replace(
+    /([A-Za-zπΠ])(?:_\{([^{}]+)\}|_([A-Za-z0-9]))(?!\^)/g,
+    (_m, base: string, subB?: string, sub1?: string) => push(base, subB ?? sub1, undefined),
+  )
+  return cur
+}
+
+function expandScriptTokens(html: string, slots: ScriptSlot[]): string {
+  return html.replace(/\uE600(\d+)\uE601/g, (_m, id: string) => {
+    const slot = slots[Number(id)]
+    if (!slot) return ''
+    const base = escapeHtmlText(slot.base)
+    if (slot.sub && slot.sup) {
+      return `<span class="da-math-var">${base}<span class="da-math-ss"><sup class="da-math-sup">${escapeHtmlText(slot.sup)}</sup><sub class="da-math-sub">${escapeHtmlText(slot.sub)}</sub></span></span>`
+    }
+    if (slot.sub) {
+      return `<span class="da-math-var">${base}<sub class="da-math-sub">${escapeHtmlText(slot.sub)}</sub></span>`
+    }
+    if (slot.sup) {
+      return `<span class="da-math-var">${base}<sup class="da-math-sup">${escapeHtmlText(slot.sup)}</sup></span>`
+    }
+    return `<span class="da-math-var">${base}</span>`
+  })
 }
 
 function normalizeVulgarAndUnicodeFractions(s: string): string {
@@ -393,10 +485,11 @@ function expandPowerTokens(html: string, slots: PowerSlot[]): string {
 }
 
 /**
- * 转为可安全 v-html 的 HTML：分式上下排布；根号带被开方数横线；^n 转成上标。
+ * 转为可安全 v-html 的 HTML：分式上下排布；根号带被开方数横线；^n 转成上标；A_n^m 书本式叠排。
  */
 export function renderDataAnalysisMathHtml(text: string): string {
   let s = normalizeLatex(text)
+  s = unicodeLetterScriptsToMarkup(s)
   s = unicodeSuperscriptsToCaret(s)
 
   type RootSlot = { idx?: string; inner: string }
@@ -413,6 +506,9 @@ export function renderDataAnalysisMathHtml(text: string): string {
     if (next === s) break
     s = next
   }
+
+  const scripts: ScriptSlot[] = []
+  s = extractScriptedSymbols(s, scripts)
 
   const powers: PowerSlot[] = []
   s = extractCaretPowers(s, powers)
@@ -444,7 +540,10 @@ export function renderDataAnalysisMathHtml(text: string): string {
     /\uE200([\s\S]*?)\uE201([\s\S]*?)\uE202/g,
     (_m, idxHtml: string, innerRaw: string) => {
       const id = rootBlocks.length
-      const innerHtml = expandPowerTokens(expandSlotsToHtml(innerRaw, fracs), powers)
+      const innerHtml = expandPowerTokens(
+        expandScriptTokens(expandSlotsToHtml(innerRaw, fracs), scripts),
+        powers,
+      )
       rootBlocks.push(
         `<span class="da-math-root">${idxHtml}<span class="da-math-root__sym">√</span><span class="da-math-radicand">${innerHtml}</span></span>`,
       )
@@ -453,6 +552,7 @@ export function renderDataAnalysisMathHtml(text: string): string {
   )
 
   let html = expandSlotsToHtml(withRoots, fracs)
+  html = expandScriptTokens(html, scripts)
   html = expandPowerTokens(html, powers)
   html = html.replace(/\uE300(\d+)\uE301/g, (_m, id: string) => rootBlocks[Number(id)] ?? '')
 

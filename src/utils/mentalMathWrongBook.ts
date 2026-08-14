@@ -80,6 +80,7 @@ export type MentalMathWrongSection =
   | 'op-other-competition'
   | 'op-other-reverse'
   | 'op-other-sectional'
+  | 'formula-recite'
 
 export type MentalMathWrongRecord = {
   fingerprint: string
@@ -206,6 +207,7 @@ export const MENTAL_MATH_WRONG_SECTION_LABELS: Record<MentalMathWrongSection, st
   'op-other-competition': '其他运算 · 比赛问题',
   'op-other-reverse': '其他运算 · 逆推问题',
   'op-other-sectional': '其他运算 · 分段问题',
+  'formula-recite': '公式背诵',
 }
 
 /** 模式 id → 错题分区；不在集合内则不记错题本 */
@@ -681,6 +683,18 @@ export function mentalMathModeToWrongSection(modeId: string): MentalMathWrongSec
     modeId === 'op-other-sectional-hard'
   ) {
     return 'op-other-sectional'
+  }
+  if (
+    modeId === 'formula-recite-travel-sol-geo' ||
+    modeId === 'formula-recite-perm-incl-count' ||
+    modeId === 'formula-recite-calc-seq-clock' ||
+    modeId === 'formula-recite-da-growth' ||
+    modeId === 'formula-recite-da-share' ||
+    modeId === 'formula-recite-da-indicator' ||
+    modeId === 'formula-recite-da-ratio' ||
+    modeId === 'formula-recite-da-growth-calc'
+  ) {
+    return 'formula-recite'
   }
   return null
 }

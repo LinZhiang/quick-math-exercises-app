@@ -72,6 +72,7 @@ import FunctionGraphPanel from '@/views/tools/mental-math/components/FunctionGra
 import CompetitionPanel from '@/views/tools/mental-math/components/CompetitionPanel.vue'
 import ReversePanel from '@/views/tools/mental-math/components/ReversePanel.vue'
 import SectionalPanel from '@/views/tools/mental-math/components/SectionalPanel.vue'
+import FormulaRecitePanel from '@/views/tools/mental-math/components/FormulaRecitePanel.vue'
 import GraphicReasoningCell from '@/views/tools/graphic-reasoning/components/GraphicReasoningCell.vue'
 import TranslationReasonPanel from '@/views/tools/mental-math/components/TranslationReasonPanel.vue'
 import ComboArrangePanel from '@/views/tools/mental-math/components/ComboArrangePanel.vue'
@@ -332,6 +333,7 @@ const functionGraphPanelRef = ref<InstanceType<typeof FunctionGraphPanel> | null
 const competitionPanelRef = ref<InstanceType<typeof CompetitionPanel> | null>(null)
 const reversePanelRef = ref<InstanceType<typeof ReversePanel> | null>(null)
 const sectionalPanelRef = ref<InstanceType<typeof SectionalPanel> | null>(null)
+const formulaRecitePanelRef = ref<InstanceType<typeof FormulaRecitePanel> | null>(null)
 /** 资料分析「增长」子模块折叠：默认收起 */
 const dataAnalysisGrowthFoldOpen = ref(false)
 /** 资料分析「比重」子模块折叠：默认收起 */
@@ -716,6 +718,7 @@ const showDataAnalysisSection = computed(() => activeOutlineSection.value === 'd
 const showOpSkillSection = computed(() => activeOutlineSection.value === 'op-skill')
 const showOpHighfreqSection = computed(() => activeOutlineSection.value === 'op-highfreq')
 const showOpOtherSection = computed(() => activeOutlineSection.value === 'op-other')
+const showFormulaReciteSection = computed(() => activeOutlineSection.value === 'formula-recite')
 const showChineseSection = computed(() => activeOutlineSection.value === 'chinese')
 const chineseActiveTab = ref<import('@/constants/chinese-practice-tabs').ChinesePracticeTabId | null>(
   null,
@@ -793,7 +796,8 @@ const chineseSessionActive = computed(
     (functionGraphPanelRef.value?.isRunningOrLoading ?? false) ||
     (competitionPanelRef.value?.isRunningOrLoading ?? false) ||
     (reversePanelRef.value?.isRunningOrLoading ?? false) ||
-    (sectionalPanelRef.value?.isRunningOrLoading ?? false),
+    (sectionalPanelRef.value?.isRunningOrLoading ?? false) ||
+    (formulaRecitePanelRef.value?.isRunningOrLoading ?? false),
 )
 
 const mcqOptionCount = computed(() => {
@@ -844,6 +848,66 @@ function clampHubL2PageStart(start: number): number {
 
 function shiftHubL2(dir: -1 | 1) {
   hubL2PageStart.value = clampHubL2PageStart(hubL2PageStart.value + dir)
+}
+
+/** 二级菜单左右拖动/滑动翻页（有翻页按钮时） */
+const hubL2Swipe = {
+  active: false,
+  pointerId: -1,
+  startX: 0,
+  startY: 0,
+  suppressClick: false,
+}
+
+function onHubL2PointerDown(e: PointerEvent) {
+  if (!hubL2NeedsPager.value) return
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  hubL2Swipe.active = true
+  hubL2Swipe.pointerId = e.pointerId
+  hubL2Swipe.startX = e.clientX
+  hubL2Swipe.startY = e.clientY
+  hubL2Swipe.suppressClick = false
+  const el = e.currentTarget as HTMLElement | null
+  el?.setPointerCapture?.(e.pointerId)
+}
+
+function onHubL2PointerUp(e: PointerEvent) {
+  if (!hubL2Swipe.active || e.pointerId !== hubL2Swipe.pointerId) return
+  const dx = e.clientX - hubL2Swipe.startX
+  const dy = e.clientY - hubL2Swipe.startY
+  hubL2Swipe.active = false
+  hubL2Swipe.pointerId = -1
+  const el = e.currentTarget as HTMLElement | null
+  try {
+    el?.releasePointerCapture?.(e.pointerId)
+  } catch {
+    /* ignore */
+  }
+  const THRESH = 36
+  if (Math.abs(dx) < THRESH || Math.abs(dx) <= Math.abs(dy) * 1.15) return
+  // 左滑看后面，右滑看前面
+  if (dx < 0) {
+    if (hubL2CanNext.value) {
+      hubL2Swipe.suppressClick = true
+      shiftHubL2(1)
+    }
+  } else if (hubL2CanPrev.value) {
+    hubL2Swipe.suppressClick = true
+    shiftHubL2(-1)
+  }
+}
+
+function onHubL2PointerCancel(e: PointerEvent) {
+  if (e.pointerId !== hubL2Swipe.pointerId) return
+  hubL2Swipe.active = false
+  hubL2Swipe.pointerId = -1
+}
+
+function onHubL2ClickCapture(e: MouseEvent) {
+  if (!hubL2Swipe.suppressClick) return
+  hubL2Swipe.suppressClick = false
+  e.preventDefault()
+  e.stopPropagation()
 }
 
 /** 保证当前选中的二级入口落在可见 4 格内 */
@@ -1838,6 +1902,8 @@ onMounted(() => {
     activeOutlineSection.value = 'op-highfreq'
   } else if (hash === 'op-other' || route.query.section === 'op-other') {
     activeOutlineSection.value = 'op-other'
+  } else if (hash === 'formula-recite' || route.query.section === 'formula-recite') {
+    activeOutlineSection.value = 'formula-recite'
   } else if (hash === 'chinese' || hash === 'chinese-idiom' || route.query.section === 'chinese' || route.query.section === 'chinese-idiom') {
     activeOutlineSection.value = 'chinese'
   } else if (hash === 'chinese-key' || route.query.section === 'chinese-key') {
@@ -1892,7 +1958,7 @@ onBeforeUnmount(() => {
     >
       <h2 class="page-title">口算练习</h2>
       <p class="page-subtitle page-subtitle--full">
-        限时口算、次幂、平方与立方、估算分数、整除、生活常识；数学推理含二十四点、数独、图形推理、资料分析、运算技巧、高频运算、其他运算；左侧「语文练习」含成语识记、词语识记、阅读理解等。
+        限时口算、次幂、平方与立方、估算分数、整除、生活常识；数学推理含二十四点、数独、图形推理、资料分析、运算技巧、高频运算、其他运算、公式背诵；左侧「语文练习」含成语识记、词语识记、阅读理解等。
         口算/图形结果仅在本页展示；语文练习多子模块四选一、正计时，依赖 AI 出题（DeepSeek / 豆包，需在「导览 → 设置」登录），错题与收藏在「关题练习」。
       </p>
       <p class="page-subtitle page-subtitle--compact">
@@ -1953,9 +2019,14 @@ onBeforeUnmount(() => {
           </button>
           <div
             class="practice-sidebar__level2-track"
+            :class="{ 'practice-sidebar__level2-track--swipeable': hubL2NeedsPager }"
             :style="{
               gridTemplateColumns: `repeat(${Math.min(HUB_L2_PAGE_SIZE, visibleHubChildSections.length) || 1}, minmax(0, 1fr))`,
             }"
+            @pointerdown="onHubL2PointerDown"
+            @pointerup="onHubL2PointerUp"
+            @pointercancel="onHubL2PointerCancel"
+            @click.capture="onHubL2ClickCapture"
           >
             <button
               v-for="section in visibleHubChildSections"
@@ -4124,6 +4195,15 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
+        <section v-if="showFormulaReciteSection" class="mode-section" id="practice-formula-recite">
+          <h3 class="mode-section__title">公式背诵</h3>
+          <p class="mode-section__hint">
+            数量关系公式与资料分析术语/公式：含比例相关、增长相关等模块；每轮 10 题，未出优先、出完循环；普通题流程同其他运算；支持查看公式与参数说明。
+          </p>
+          <FormulaRecitePanel ref="formulaRecitePanelRef" />
+          <MentalMathWrongBookPanel section="formula-recite" />
+        </section>
+
         <section
           v-if="showChineseSection"
           class="mode-section mode-section--chinese"
@@ -5603,6 +5683,17 @@ onBeforeUnmount(() => {
     min-width: 0;
     display: grid;
     gap: 6px;
+  }
+
+  .practice-sidebar__level2-track--swipeable {
+    touch-action: pan-y;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .practice-sidebar__level2-track--swipeable:active {
+    cursor: grabbing;
   }
 
   .practice-sidebar__l2-nav {
