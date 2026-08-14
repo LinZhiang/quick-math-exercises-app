@@ -140,6 +140,15 @@ const CN_MATH_FRAC_LABELS = new Set([
   '期数',
   '末期',
   '初期',
+  '溶质质量',
+  '溶液质量',
+  '溶剂质量',
+  '部分增长量',
+  '整体增长量',
+  '食品消费支出',
+  '总消费支出',
+  '牛吃草效率',
+  '每天长草效率',
 ])
 
 function isMathyFractionPart(part: string): boolean {
@@ -149,6 +158,9 @@ function isMathyFractionPart(part: string): boolean {
   if (/[0-9A-Za-z_%％+\-−–—×÷·=<>≤≥≈^√π∞]/.test(t)) return true
   // 资料分析等攻略中的中文量名（如 部分/整体）
   if (CN_MATH_FRAC_LABELS.has(t)) return true
+  // 括号包裹的纯中文量名：（溶质质量）/（溶液质量）一定是分式，不是「提高/上升」
+  const wrapped = /^\s*[(（].+[)）]\s*$/.test(part)
+  if (wrapped && /^[\u4e00-\u9fff]{2,12}$/.test(t)) return true
   return false
 }
 
