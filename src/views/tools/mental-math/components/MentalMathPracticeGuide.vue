@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   DEFAULT_MENTAL_MATH_GUIDE_ARTICLE_ID,
@@ -123,6 +123,63 @@ function selectArticle(article: MentalMathGuideArticle) {
   if (group) activeGuideGroupId.value = group.id
 }
 
+/** 手机/App 横向菜单：窗口级跟手，避免按钮或外层竖滑把拖动吃掉 */
+function useChipRowDragScroll() {
+  let dragging = false
+  let moved = false
+  let startX = 0
+  let startScroll = 0
+  let pointerId = -1
+  let el: HTMLElement | null = null
+
+  function onWindowMove(e: PointerEvent) {
+    if (!dragging || e.pointerId !== pointerId || !el) return
+    const dx = e.clientX - startX
+    if (Math.abs(dx) > 6) {
+      moved = true
+      if (e.cancelable) e.preventDefault()
+    }
+    el.scrollLeft = startScroll - dx
+  }
+
+  function endDrag(e?: PointerEvent) {
+    if (!dragging) return
+    if (e && e.pointerId !== pointerId) return
+    dragging = false
+    pointerId = -1
+    el = null
+    window.removeEventListener('pointermove', onWindowMove)
+    window.removeEventListener('pointerup', endDrag)
+    window.removeEventListener('pointercancel', endDrag)
+  }
+
+  function onPointerDown(e: PointerEvent) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    el = e.currentTarget as HTMLElement
+    dragging = true
+    moved = false
+    startX = e.clientX
+    startScroll = el.scrollLeft
+    pointerId = e.pointerId
+    window.addEventListener('pointermove', onWindowMove, { passive: false })
+    window.addEventListener('pointerup', endDrag)
+    window.addEventListener('pointercancel', endDrag)
+  }
+
+  function onClickCapture(e: MouseEvent) {
+    if (!moved) return
+    e.preventDefault()
+    e.stopPropagation()
+    moved = false
+  }
+
+  onBeforeUnmount(() => endDrag())
+  return { onPointerDown, onClickCapture }
+}
+
+const guideL1Scroll = useChipRowDragScroll()
+const guideL2Scroll = useChipRowDragScroll()
+
 function startLinkedPractice() {
   const article = activeArticle.value
   if (!article || props.disabled) return
@@ -183,7 +240,12 @@ watch(
   <div class="mm-guide">
     <nav class="mm-guide-nav" aria-label="攻略目录">
       <div class="mm-guide-nav__mobile">
-        <div class="mm-guide-nav__mobile-l1" aria-label="一级分类">
+        <div
+          class="mm-guide-nav__mobile-l1"
+          aria-label="一级分类"
+          @pointerdown="guideL1Scroll.onPointerDown"
+          @click.capture="guideL1Scroll.onClickCapture"
+        >
           <button
             v-for="item in guideNavItems"
             :key="item.group.id"
@@ -200,6 +262,8 @@ watch(
           v-show="showGuideLevel2"
           class="mm-guide-nav__mobile-l2"
           aria-label="二级文章"
+          @pointerdown="guideL2Scroll.onPointerDown"
+          @click.capture="guideL2Scroll.onClickCapture"
         >
           <button
             v-for="article in activeGuideGroup.articles"
@@ -546,18 +610,22 @@ watch(
   color: var(--app-text-muted);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 720px), (display-mode: standalone) {
   .mm-guide {
     grid-template-columns: 1fr;
     min-height: 0;
   }
 
   .mm-guide-nav {
+    position: sticky;
+    top: 0;
+    z-index: 12;
     border-right: none;
     border-bottom: 1px solid var(--app-border-soft);
     max-height: none;
     overflow: visible;
     padding: 8px 10px;
+    background: var(--app-surface);
   }
 
   .mm-guide-nav__desktop {
@@ -579,7 +647,10 @@ watch(
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
     scrollbar-width: thin;
+    cursor: grab;
   }
 
   .mm-guide-nav__mobile-l1 {
@@ -612,6 +683,7 @@ watch(
     color: var(--app-text-muted);
     text-align: center;
     white-space: nowrap;
+    touch-action: pan-x;
     cursor: pointer;
   }
 
@@ -636,6 +708,7 @@ watch(
     padding: 6px 10px;
     border-radius: 999px;
     border: 1px solid var(--app-border-soft);
+    touch-action: pan-x;
     background: var(--app-surface-alt);
     font-size: 12px;
     line-height: 1.2;

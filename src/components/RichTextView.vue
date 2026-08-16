@@ -29,6 +29,7 @@ const safeHtml = computed(() => {
   line-height: 1.85;
   word-break: break-word;
   overflow-wrap: anywhere;
+  overflow-x: auto;
   min-width: 0;
 }
 
@@ -52,6 +53,28 @@ const safeHtml = computed(() => {
   display: block;
   margin: 8px 0;
   border-radius: 6px;
+}
+
+.rich-text-view :deep(table) {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 0.95em;
+}
+
+.rich-text-view :deep(th),
+.rich-text-view :deep(td) {
+  border: 1px solid #cbd5e1;
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+  word-break: break-word;
+}
+
+.rich-text-view :deep(th) {
+  background: #f8fafc;
+  font-weight: 700;
 }
 
 .rich-text-view :deep(h2),

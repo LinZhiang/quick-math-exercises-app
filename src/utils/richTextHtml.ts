@@ -2,8 +2,8 @@ import DOMPurify from 'dompurify'
 
 const SANITIZE_OPTS: Parameters<typeof DOMPurify.sanitize>[1] = {
   USE_PROFILES: { html: true },
-  ADD_TAGS: ['img'],
-  ADD_ATTR: ['class', 'style', 'src', 'alt', 'width', 'height', 'target', 'rel'],
+  ADD_TAGS: ['img', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'colgroup', 'col'],
+  ADD_ATTR: ['class', 'style', 'src', 'alt', 'width', 'height', 'target', 'rel', 'colspan', 'rowspan', 'align'],
   ADD_DATA_URI_TAGS: ['img'],
   ALLOW_DATA_ATTR: false,
 }

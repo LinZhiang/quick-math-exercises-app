@@ -119,6 +119,7 @@ import {
   MENTAL_MATH_POWER_MODES,
   MENTAL_MATH_SQUARE_CUBE_MODES,
   isNumberSequencePracticeMode,
+  isFractionEstimateMode,
   isSpecialFractionPracticeMode,
   isLifeSensePracticeMode,
   isWhatIsThisPracticeMode,
@@ -600,6 +601,19 @@ const isSpecialFractionSession = computed(
     !isShortenSentenceMode(activeMode.value) &&
     isSpecialFractionPracticeMode(activeMode.value as MentalMathMode),
 )
+const isFractionEstimateSession = computed(
+  () =>
+    activeMode.value != null &&
+    !isGraphicMode(activeMode.value) &&
+    !isTwentyFourPointMode(activeMode.value) &&
+    !isSudokuMode(activeMode.value) &&
+    !isCircleGrammarMode(activeMode.value) &&
+    !isShortenSentenceMode(activeMode.value) &&
+    isFractionEstimateMode(activeMode.value as MentalMathMode),
+)
+const isStackedFractionSession = computed(
+  () => isSpecialFractionSession.value || isFractionEstimateSession.value,
+)
 
 function formatSequenceMath(text: string | number): string {
   return renderDataAnalysisMathHtml(String(text ?? ''))
@@ -851,7 +865,7 @@ function shiftHubL2(dir: -1 | 1) {
   hubL2PageStart.value = clampHubL2PageStart(hubL2PageStart.value + dir)
 }
 
-/** 二级菜单左右拖动/滑动翻页（有翻页按钮时） */
+/** 二级菜单左右拖动/滑动翻页（有翻页按钮时）；窗口级跟手，避免格子按钮把滑动吃掉 */
 const hubL2Swipe = {
   active: false,
   pointerId: -1,
@@ -860,33 +874,26 @@ const hubL2Swipe = {
   suppressClick: false,
 }
 
-function onHubL2PointerDown(e: PointerEvent) {
-  if (!hubL2NeedsPager.value) return
-  if (e.pointerType === 'mouse' && e.button !== 0) return
-  hubL2Swipe.active = true
-  hubL2Swipe.pointerId = e.pointerId
-  hubL2Swipe.startX = e.clientX
-  hubL2Swipe.startY = e.clientY
-  hubL2Swipe.suppressClick = false
-  const el = e.currentTarget as HTMLElement | null
-  el?.setPointerCapture?.(e.pointerId)
+function onHubL2WindowMove(e: PointerEvent) {
+  if (!hubL2Swipe.active || e.pointerId !== hubL2Swipe.pointerId) return
+  const dx = e.clientX - hubL2Swipe.startX
+  const dy = e.clientY - hubL2Swipe.startY
+  if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) && e.cancelable) {
+    e.preventDefault()
+  }
 }
 
-function onHubL2PointerUp(e: PointerEvent) {
+function finishHubL2Swipe(e: PointerEvent) {
   if (!hubL2Swipe.active || e.pointerId !== hubL2Swipe.pointerId) return
   const dx = e.clientX - hubL2Swipe.startX
   const dy = e.clientY - hubL2Swipe.startY
   hubL2Swipe.active = false
   hubL2Swipe.pointerId = -1
-  const el = e.currentTarget as HTMLElement | null
-  try {
-    el?.releasePointerCapture?.(e.pointerId)
-  } catch {
-    /* ignore */
-  }
-  const THRESH = 36
-  if (Math.abs(dx) < THRESH || Math.abs(dx) <= Math.abs(dy) * 1.15) return
-  // 左滑看后面，右滑看前面
+  window.removeEventListener('pointermove', onHubL2WindowMove)
+  window.removeEventListener('pointerup', finishHubL2Swipe)
+  window.removeEventListener('pointercancel', finishHubL2Swipe)
+  const THRESH = 28
+  if (Math.abs(dx) < THRESH || Math.abs(dx) <= Math.abs(dy) * 1.05) return
   if (dx < 0) {
     if (hubL2CanNext.value) {
       hubL2Swipe.suppressClick = true
@@ -898,10 +905,17 @@ function onHubL2PointerUp(e: PointerEvent) {
   }
 }
 
-function onHubL2PointerCancel(e: PointerEvent) {
-  if (e.pointerId !== hubL2Swipe.pointerId) return
-  hubL2Swipe.active = false
-  hubL2Swipe.pointerId = -1
+function onHubL2PointerDown(e: PointerEvent) {
+  if (!hubL2NeedsPager.value) return
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  hubL2Swipe.active = true
+  hubL2Swipe.pointerId = e.pointerId
+  hubL2Swipe.startX = e.clientX
+  hubL2Swipe.startY = e.clientY
+  hubL2Swipe.suppressClick = false
+  window.addEventListener('pointermove', onHubL2WindowMove, { passive: false })
+  window.addEventListener('pointerup', finishHubL2Swipe)
+  window.addEventListener('pointercancel', finishHubL2Swipe)
 }
 
 function onHubL2ClickCapture(e: MouseEvent) {
@@ -1947,6 +1961,9 @@ onMounted(() => {
 onBeforeUnmount(() => {
   stopQbPerfectMidi()
   window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('pointermove', onHubL2WindowMove)
+  window.removeEventListener('pointerup', finishHubL2Swipe)
+  window.removeEventListener('pointercancel', finishHubL2Swipe)
   clearTimers()
 })
 </script>
@@ -2028,8 +2045,6 @@ onBeforeUnmount(() => {
               gridTemplateColumns: `repeat(${Math.min(HUB_L2_PAGE_SIZE, visibleHubChildSections.length) || 1}, minmax(0, 1fr))`,
             }"
             @pointerdown="onHubL2PointerDown"
-            @pointerup="onHubL2PointerUp"
-            @pointercancel="onHubL2PointerCancel"
             @click.capture="onHubL2ClickCapture"
           >
             <button
@@ -4406,11 +4421,11 @@ onBeforeUnmount(() => {
       <template v-else-if="question">
         <div class="question-block">
           <p
-            v-if="isNumberSequenceSession || isSpecialFractionSession"
+            v-if="isNumberSequenceSession || isStackedFractionSession"
             class="question-expression"
             :class="{
               'question-expression--sequence': isNumberSequenceSession,
-              'question-expression--special-fraction': isSpecialFractionSession,
+              'question-expression--special-fraction': isStackedFractionSession,
               'question-expression--ok': feedback === 'correct',
               'question-expression--bad': feedback === 'wrong',
             }"
@@ -4446,7 +4461,7 @@ onBeforeUnmount(() => {
           class="option-list"
           :class="{
             'option-list--sequence': isNumberSequenceSession,
-            'option-list--special-fraction': isSpecialFractionSession,
+            'option-list--special-fraction': isStackedFractionSession,
           }"
         >
           <li v-for="(opt, idx) in question.options" :key="idx">
@@ -4458,7 +4473,7 @@ onBeforeUnmount(() => {
             >
               <span class="option-btn__key">{{ idx + 1 }}</span>
               <span
-                v-if="isNumberSequenceSession || isSpecialFractionSession"
+                v-if="isNumberSequenceSession || isStackedFractionSession"
                 class="option-btn__val"
                 v-html="formatSequenceMath(opt)"
               />
@@ -4649,7 +4664,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: clip;
   padding: 16px 18px 20px;
   scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
@@ -4659,7 +4674,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding-bottom: 12px;
+  padding: 8px 12px 8px;
 }
 
 .practice-main--log :deep(.practice-log) {
@@ -4667,6 +4682,12 @@ onBeforeUnmount(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+.practice-main--log :deep(.mode-section__title) {
+  margin: 0 0 12px;
+  font-size: 1.45rem;
+  text-align: center;
 }
 
 .page-kicker {
@@ -5617,7 +5638,7 @@ onBeforeUnmount(() => {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 640px), (display-mode: standalone) {
   .mental-math-page:has(.practice-shell) {
     height: 100dvh;
     max-height: 100dvh;
@@ -5706,7 +5727,7 @@ onBeforeUnmount(() => {
   }
 
   .practice-sidebar__level2-track--swipeable {
-    touch-action: pan-y;
+    touch-action: pan-x;
     cursor: grab;
     user-select: none;
     -webkit-user-select: none;
@@ -5790,6 +5811,7 @@ onBeforeUnmount(() => {
     line-height: 1.25;
     white-space: normal;
     word-break: break-all;
+    touch-action: pan-x;
   }
 
   .practice-sidebar__item--active {
@@ -5800,6 +5822,10 @@ onBeforeUnmount(() => {
 
   .practice-main {
     padding: 12px 12px 24px;
+  }
+
+  .practice-main--log {
+    padding: 4px 8px 6px;
   }
 
   /* 语文区：去掉与顶栏重复的「语文练习」标题/说明 */

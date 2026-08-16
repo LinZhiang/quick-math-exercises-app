@@ -80,11 +80,7 @@ async function insertImageFile(file: File) {
     ElMessage.warning('请选择图片')
     return
   }
-  if (file.size > 800 * 1024) {
-    ElMessage.warning('图片请小于 800KB')
-    return
-  }
-  const dataUrl = await readFileAsDataUrl(file)
+  const dataUrl = await compressImageFile(file)
   editorRef.value?.focus()
   document.execCommand('insertImage', false, dataUrl)
   await nextTick()
@@ -97,6 +93,33 @@ function readFileAsDataUrl(file: File): Promise<string> {
     reader.onload = () => resolve(String(reader.result ?? ''))
     reader.onerror = () => reject(reader.error)
     reader.readAsDataURL(file)
+  })
+}
+
+function compressImageFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const maxEdge = 1600
+      const scale = Math.min(1, maxEdge / Math.max(img.naturalWidth || 1, img.naturalHeight || 1))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round((img.naturalWidth || 1) * scale))
+      canvas.height = Math.max(1, Math.round((img.naturalHeight || 1) * scale))
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        void readFileAsDataUrl(file).then(resolve, reject)
+        return
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL('image/jpeg', 0.86))
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      void readFileAsDataUrl(file).then(resolve, reject)
+    }
+    img.src = url
   })
 }
 
@@ -305,6 +328,26 @@ async function onFileChange(ev: Event) {
   max-width: 100%;
   height: auto;
   border-radius: 8px;
+}
+
+.rte__editor :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 0.95em;
+}
+
+.rte__editor :deep(th),
+.rte__editor :deep(td) {
+  border: 1px solid #cbd5e1;
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.rte__editor :deep(th) {
+  background: #f8fafc;
+  font-weight: 700;
 }
 
 .rte__file {

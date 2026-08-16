@@ -2,7 +2,7 @@ import DOMPurify from 'dompurify'
 
 const SANITIZE_OPTS = {
   USE_PROFILES: { html: true },
-  ADD_ATTR: ['class', 'target', 'rel'],
+  ADD_ATTR: ['class', 'target', 'rel', 'colspan', 'rowspan', 'align'],
 }
 
 export function sanitizeMarkdownHtml(raw: string): string {

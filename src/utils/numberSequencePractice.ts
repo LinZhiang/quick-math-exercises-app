@@ -197,18 +197,63 @@ function genGeometric(hard: boolean): Omit<NumberSequenceQuestion, 'id'> {
   }
 }
 
+function isMonotoneTriple(a: number, b: number, c: number): boolean {
+  return (a < b && b < c) || (a > b && b > c)
+}
+
 function genMechanical(hard: boolean): Omit<NumberSequenceQuestion, 'id'> {
-  if (randInt(0, 1) === 0) {
-    // 两数交替
-    const x = hard ? randInt(10, 40) : randInt(1, 9)
-    const y = hard ? randInt(10, 40) : randInt(1, 9)
-    if (x === y) return genMechanical(hard)
-    const len = hard ? 6 : 5
+  if (!hard) {
+    if (randInt(0, 1) === 0) {
+      const x = randInt(1, 9)
+      const y = randInt(1, 9)
+      if (x === y) return genMechanical(hard)
+      const len = 5
+      const nums: number[] = []
+      for (let i = 0; i < len; i++) nums.push(i % 2 === 0 ? x : y)
+      const correct = fmtNum(len % 2 === 0 ? x : y)
+      const wrongs = [fmtNum(x), fmtNum(y), fmtNum(x + 1), fmtNum(y + 1), fmtNum(x + y)]
+      const { options, correctIndex } = buildOptions(correct, wrongs, 4)
+      return {
+        expression: joinSeq(nums.map(fmtNum)),
+        correctAnswer: correct,
+        options,
+        correctIndex,
+        kind: 'mechanical',
+        explanation: `${KIND_LABEL.mechanical}：${x} 与 ${y} 交替出现，下一项是 ${correct}。`,
+      }
+    }
+    const a = randInt(1, 6)
+    const b = a + randInt(1, 3)
+    const c = b + randInt(1, 3)
+    const cycle = [a, b, c]
+    const len = 5
+    const nums: number[] = []
+    for (let i = 0; i < len; i++) nums.push(cycle[i % 3]!)
+    const correct = fmtNum(cycle[len % 3]!)
+    const wrongs = cycle.map(fmtNum).concat([fmtNum(a + 1), fmtNum(c + 1)])
+    const { options, correctIndex } = buildOptions(correct, wrongs, 4)
+    return {
+      expression: joinSeq(nums.map(fmtNum)),
+      correctAnswer: correct,
+      options,
+      correctIndex,
+      kind: 'mechanical',
+      explanation: `${KIND_LABEL.mechanical}：${a}、${b}、${c} 循环，下一项是 ${correct}。`,
+    }
+  }
+
+  // 复杂题：只出交替/分组重复，禁止「从小到大再循环」这类排序感
+  const style = randInt(0, 2)
+  if (style === 0) {
+    const x = randInt(10, 40)
+    let y = randInt(10, 40)
+    while (y === x) y = randInt(10, 40)
+    const len = 6
     const nums: number[] = []
     for (let i = 0; i < len; i++) nums.push(i % 2 === 0 ? x : y)
     const correct = fmtNum(len % 2 === 0 ? x : y)
     const wrongs = [fmtNum(x), fmtNum(y), fmtNum(x + 1), fmtNum(y + 1), fmtNum(x + y)]
-    const { options, correctIndex } = buildOptions(correct, wrongs, hard ? 5 : 4)
+    const { options, correctIndex } = buildOptions(correct, wrongs, 5)
     return {
       expression: joinSeq(nums.map(fmtNum)),
       correctAnswer: correct,
@@ -218,24 +263,58 @@ function genMechanical(hard: boolean): Omit<NumberSequenceQuestion, 'id'> {
       explanation: `${KIND_LABEL.mechanical}：${x} 与 ${y} 交替出现，下一项是 ${correct}。`,
     }
   }
-  // 三数循环
-  const a = hard ? randInt(5, 20) : randInt(1, 6)
-  const b = a + (hard ? randInt(2, 8) : randInt(1, 3))
-  const c = b + (hard ? randInt(2, 8) : randInt(1, 3))
-  const cycle = [a, b, c]
-  const len = hard ? 7 : 5
+  if (style === 1) {
+    let a = randInt(5, 28)
+    let b = randInt(5, 28)
+    let c = randInt(5, 28)
+    let guard = 0
+    while ((new Set([a, b, c]).size < 3 || isMonotoneTriple(a, b, c)) && guard < 24) {
+      a = randInt(5, 28)
+      b = randInt(5, 28)
+      c = randInt(5, 28)
+      guard += 1
+    }
+    if (isMonotoneTriple(a, b, c)) {
+      const tmp = a
+      a = c
+      c = tmp
+    }
+    const cycle = [a, b, c]
+    const len = 7
+    const nums: number[] = []
+    for (let i = 0; i < len; i++) nums.push(cycle[i % 3]!)
+    const correct = fmtNum(cycle[len % 3]!)
+    const wrongs = cycle.map(fmtNum).concat([fmtNum(a + 1), fmtNum(c + 1)])
+    const { options, correctIndex } = buildOptions(correct, wrongs, 5)
+    return {
+      expression: joinSeq(nums.map(fmtNum)),
+      correctAnswer: correct,
+      options,
+      correctIndex,
+      kind: 'mechanical',
+      explanation: `${KIND_LABEL.mechanical}：${a}、${b}、${c} 循环出现，下一项是 ${correct}。`,
+    }
+  }
+  const a = randInt(8, 30)
+  let b = randInt(8, 30)
+  while (b === a) b = randInt(8, 30)
+  const pairFirst = randInt(0, 1) === 0
+  const cycle = pairFirst ? [a, a, b] : [a, b, b]
+  const len = 7
   const nums: number[] = []
   for (let i = 0; i < len; i++) nums.push(cycle[i % 3]!)
   const correct = fmtNum(cycle[len % 3]!)
-  const wrongs = cycle.map(fmtNum).concat([fmtNum(a + 1), fmtNum(c + 1)])
-  const { options, correctIndex } = buildOptions(correct, wrongs, hard ? 5 : 4)
+  const wrongs = [fmtNum(a), fmtNum(b), fmtNum(a + 1), fmtNum(b + 1), fmtNum(a + b)]
+  const { options, correctIndex } = buildOptions(correct, wrongs, 5)
   return {
     expression: joinSeq(nums.map(fmtNum)),
     correctAnswer: correct,
     options,
     correctIndex,
     kind: 'mechanical',
-    explanation: `${KIND_LABEL.mechanical}：${a}、${b}、${c} 循环，下一项是 ${correct}。`,
+    explanation: pairFirst
+      ? `${KIND_LABEL.mechanical}：${a}、${a}、${b} 成组重复，下一项是 ${correct}。`
+      : `${KIND_LABEL.mechanical}：${a}、${b}、${b} 成组重复，下一项是 ${correct}。`,
   }
 }
 
