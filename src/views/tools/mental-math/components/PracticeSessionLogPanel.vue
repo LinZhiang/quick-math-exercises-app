@@ -204,6 +204,13 @@ async function onClearAll() {
 </template>
 
 <style scoped>
+.mode-section__title {
+  margin: 0 0 14px;
+  font-size: 1.45rem;
+  font-weight: 700;
+  text-align: center;
+}
+
 .practice-log__filters {
   display: flex;
   flex-wrap: wrap;
@@ -362,5 +369,61 @@ async function onClearAll() {
   margin: 16px 0 0;
   font-size: 13px;
   color: #94a3b8;
+}
+
+@media (max-width: 640px), (display-mode: standalone) {
+  .practice-log__filters {
+    gap: 6px 8px;
+    margin: 0 0 6px;
+  }
+
+  .practice-log__field {
+    min-width: 0;
+    flex: 1 1 calc(50% - 8px);
+    gap: 2px;
+  }
+
+  .practice-log__label {
+    font-size: 11px;
+  }
+
+  .practice-log__input,
+  .practice-log__btn {
+    height: 30px;
+    font-size: 12px;
+  }
+
+  .practice-log__actions {
+    width: 100%;
+    gap: 6px;
+  }
+
+  .practice-log__meta {
+    margin: 0 0 6px;
+    font-size: 12px;
+  }
+
+  .practice-log__list {
+    gap: 6px;
+    padding: 0;
+  }
+
+  .practice-log__item {
+    padding: 8px 10px;
+    border-radius: 8px;
+  }
+
+  .practice-log__item-title {
+    font-size: 13px;
+  }
+
+  .practice-log__item-stats {
+    margin: 2px 0 0;
+    font-size: 12px;
+  }
+
+  .practice-log__item-cat {
+    display: none;
+  }
 }
 </style>

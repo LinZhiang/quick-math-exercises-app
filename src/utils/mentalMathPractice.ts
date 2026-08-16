@@ -2104,6 +2104,57 @@ function pickFromPool(pool: number[]): number {
   return pool[randInt(0, pool.length - 1)]!
 }
 
+/** 把已排序整数拆成相邻差为 1 的连续段 */
+function consecutiveIntegerRuns(sortedUnique: number[]): number[][] {
+  const runs: number[][] = []
+  let cur: number[] = []
+  for (const n of sortedUnique) {
+    if (!cur.length || n === cur[cur.length - 1]! + 1) cur.push(n)
+    else {
+      runs.push(cur)
+      cur = [n]
+    }
+  }
+  if (cur.length) runs.push(cur)
+  return runs
+}
+
+/**
+ * 从题库里取一段「按规律连续」的键（次幂指数或平方/立方底数）。
+ * 正确答案随机落在这段的最小、中间或最大位置，避免总是中间值。
+ */
+function pickConsecutiveKeyWindow(
+  pool: readonly number[],
+  windowSize: number,
+  avoidKeys?: Set<number>,
+): { window: number[]; correctKey: number } | null {
+  const sorted = [...new Set(pool)].sort((a, b) => a - b)
+  const runs = consecutiveIntegerRuns(sorted).filter((r) => r.length >= windowSize)
+  if (!runs.length) return null
+  const prefer = avoidKeys?.size
+    ? runs.flatMap((run) => {
+        const starts: number[][] = []
+        for (let s = 0; s <= run.length - windowSize; s++) {
+          const w = run.slice(s, s + windowSize)
+          if (w.some((k) => !avoidKeys.has(k))) starts.push(w)
+        }
+        return starts
+      })
+    : []
+  const candidates =
+    prefer.length > 0
+      ? prefer
+      : runs.flatMap((run) => {
+          const out: number[][] = []
+          for (let s = 0; s <= run.length - windowSize; s++) out.push(run.slice(s, s + windowSize))
+          return out
+        })
+  if (!candidates.length) return null
+  const window = candidates[randInt(0, candidates.length - 1)]!
+  const correctKey = window[randInt(0, window.length - 1)]!
+  return { window, correctKey }
+}
+
 function assembleUniqueNumericOptions(
   correctAnswer: number,
   wrongValues: number[],
@@ -2229,7 +2280,6 @@ function generatePowerOfTwoQuestion(
   optionCount: number,
   avoidFingerprints: Set<string>,
 ): MentalMathQuestion | null {
-  const maxNeighbor = mode === 'power-easy' ? 2 : 3
   const minExp = -3
   const maxExp = 12
   const easyPool = integersInRange(minExp, maxExp)
@@ -2237,27 +2287,14 @@ function generatePowerOfTwoQuestion(
 
   for (let attempt = 0; attempt < 48; attempt++) {
     const pool = mode === 'power-hard' ? hardPool : easyPool
-    const fresh = pool.filter((e) => !avoidFingerprints.has(formatPowerOfTwoExpression(e)))
-    const exponent = fresh.length ? pickFromPool(fresh) : pickFromPool(pool)
-
-    const wrongExponents =
-      mode === 'power-hard'
-        ? distinctPowerWrongExponentsFromAllowed(
-            exponent,
-            optionCount - 1,
-            hardPool,
-            maxNeighbor,
-          )
-        : distinctPowerWrongExponents(
-            exponent,
-            optionCount - 1,
-            minExp,
-            maxExp,
-            maxNeighbor,
-          )
-
+    const avoidKeys = new Set(
+      pool.filter((e) => avoidFingerprints.has(formatPowerOfTwoExpression(e))),
+    )
+    const picked = pickConsecutiveKeyWindow(pool, optionCount, avoidKeys)
+    if (!picked) continue
+    const { window, correctKey: exponent } = picked
     const correctAnswer = 2 ** exponent
-    const wrongValues = wrongExponents.map((e) => 2 ** e)
+    const wrongValues = window.filter((e) => e !== exponent).map((e) => 2 ** e)
     const built = assembleUniqueNumericOptions(correctAnswer, wrongValues, optionCount)
     if (!built) continue
 
@@ -2305,55 +2342,33 @@ function generateSquareCubeQuestion(
   avoidFingerprints: Set<string>,
 ): MentalMathQuestion | null {
   const hard = mode === 'square-cube-hard'
-  const maxNeighbor = hard ? 3 : 2
   const kinds: NatPowerKind[] = ['square', 'cube']
 
   for (let attempt = 0; attempt < 48; attempt++) {
     shuffleInPlace(kinds)
-    let picked: {
-      kind: NatPowerKind
-      base: number
-      expression: string
-    } | null = null
-
     for (const kind of kinds) {
       const pool = natPowerBasePool(kind, hard)
-      if (!pool.length) continue
-      const fresh = pool.filter((b) => !avoidFingerprints.has(formatNatPowerExpression(b, kind)))
-      const base = fresh.length ? pickFromPool(fresh) : pickFromPool(pool)
+      if (pool.length < optionCount) continue
+      const avoidKeys = new Set(
+        pool.filter((b) => avoidFingerprints.has(formatNatPowerExpression(b, kind))),
+      )
+      const picked = pickConsecutiveKeyWindow(pool, optionCount, avoidKeys)
+      if (!picked) continue
+      const { window, correctKey: base } = picked
       const expression = formatNatPowerExpression(base, kind)
-      if (!avoidFingerprints.has(expression)) {
-        picked = { kind, base, expression }
-        break
+      if (avoidFingerprints.has(expression)) continue
+      const valueOf = (b: number) => computeNatPower(b, kind)
+      const correctAnswer = valueOf(base)
+      const wrongValues = window.filter((b) => b !== base).map((b) => valueOf(b))
+      const built = assembleUniqueNumericOptions(correctAnswer, wrongValues, optionCount)
+      if (!built) continue
+      return {
+        id,
+        expression,
+        correctAnswer,
+        options: built.options,
+        correctIndex: built.correctIndex,
       }
-      if (!picked) picked = { kind, base, expression }
-    }
-
-    if (!picked) continue
-    const { kind, base, expression } = picked
-    const { min, max } = natPowerExponentRange(kind, hard)
-    const valueOf = (b: number) => computeNatPower(b, kind)
-    const wrongBases = distinctPowerWrongExponents(
-      base,
-      optionCount - 1,
-      min,
-      max,
-      maxNeighbor,
-      valueOf,
-    ).filter((b) => !NAT_POWER_EXCLUDED_BASES.has(b))
-
-    const correctAnswer = valueOf(base)
-    const wrongValues = wrongBases.map((b) => valueOf(b))
-    const built = assembleUniqueNumericOptions(correctAnswer, wrongValues, optionCount)
-    if (!built) continue
-    if (avoidFingerprints.has(expression)) continue
-
-    return {
-      id,
-      expression,
-      correctAnswer,
-      options: built.options,
-      correctIndex: built.correctIndex,
     }
   }
 

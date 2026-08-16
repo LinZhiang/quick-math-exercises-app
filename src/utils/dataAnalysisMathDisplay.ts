@@ -207,6 +207,7 @@ function replaceInnermostSlashFraction(
     if (/真题|例题|习题|[题章节类项条]\s*$/.test(prefix)) continue
     if (
       /[\u4e00-\u9fff]\s*$/.test(prefix) &&
+      !/[和与及比大小于等于至到、，,]\s*$/.test(prefix) &&
       /^\(?\d{1,2}\)?$/.test(num) &&
       /^\(?\d{1,2}\)?$/.test(den)
     ) {
@@ -220,8 +221,34 @@ function replaceInnermostSlashFraction(
   return null
 }
 
-function normalizeLatex(s: string): string {
+/**
+ * 修复 AI/JSON 把 \frac、\text、\times 的反斜杠吃掉后的残片，并去掉 $...$ 定界。
+ * 例如 \frac → rac（\f 是换页符）、\text → ext（\t 是制表符）。
+ */
+function repairBrokenLatex(s: string): string {
   let out = String(s ?? '')
+  out = out.replace(/\u000c/g, '')
+  out = out.replace(/(^|[^A-Za-z\\])rac\{/g, '$1\\frac{')
+  out = out.replace(/(^|[^A-Za-z\\])dfrac\{/g, '$1\\dfrac{')
+  out = out.replace(/\\text\{([^{}]*)\}/g, '$1')
+  out = out.replace(/\u0009ext\{([^{}]*)\}/g, '$1')
+  out = out.replace(/(^|[^A-Za-z\\])ext\{([^{}]*)\}/g, '$1$2')
+  out = out.replace(/\u0009imes/g, '×')
+  out = out.replace(/\$\$([\s\S]+?)\$\$/g, '$1')
+  out = out.replace(/\$([^$\n]+)\$/g, '$1')
+  out = out.replace(/\\\(([\s\S]+?)\\\)/g, '$1')
+  out = out.replace(/\\\[([\s\S]+?)\\\]/g, '$1')
+  out = out.replace(/\\left/g, '').replace(/\\right/g, '')
+  out = out.replace(/\\cdot/g, '·')
+  out = out.replace(/\\pm/g, '±')
+  out = out.replace(/\\leq/g, '≤').replace(/\\geq/g, '≥').replace(/\\neq/g, '≠')
+  out = out.replace(/\\infty/g, '∞')
+  out = out.replace(/\\mathrm\{([^{}]*)\}/g, '$1')
+  return out
+}
+
+function normalizeLatex(s: string): string {
+  let out = repairBrokenLatex(s)
   out = out.replace(/\\times/g, '×').replace(/\\div/g, '÷').replace(/\\approx/g, '≈')
   out = out.replace(/\\%/g, '%')
   for (let n = 0; n < 8; n++) {
