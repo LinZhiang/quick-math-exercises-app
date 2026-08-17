@@ -40,7 +40,7 @@ app.use(express.static(distDir, { index: false, maxAge: '1h' }))
 app.get('*', (req, res, next) => {
   if (
     req.path.startsWith('/v1/') ||
-    req.path.startsWith('/api/ai/') ||
+    req.path.startsWith('/api/') ||
     req.path.startsWith('/auth/') ||
     req.path.startsWith('/admin/') ||
     req.path === '/health' ||

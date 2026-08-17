@@ -8,10 +8,13 @@ const props = withDefaults(
     modelValue: string
     placeholder?: string
     minHeight?: string
+    /** 撑满父级高度，正文在编辑区内滚动 */
+    fill?: boolean
   }>(),
   {
     placeholder: '请输入…',
     minHeight: '132px',
+    fill: false,
   },
 )
 
@@ -136,7 +139,7 @@ async function onFileChange(ev: Event) {
 </script>
 
 <template>
-  <div class="rte" :class="{ 'is-focused': focused }">
+  <div class="rte" :class="{ 'is-focused': focused, 'is-fill': fill }">
     <div class="rte__bar" role="toolbar" aria-label="富文本工具栏">
       <div class="rte__group">
         <button type="button" title="粗体" aria-label="粗体" @mousedown.prevent="run('bold')">
@@ -197,7 +200,7 @@ async function onFileChange(ev: Event) {
       <div
         ref="editorRef"
         class="rte__editor"
-        :style="{ minHeight }"
+        :style="fill ? undefined : { minHeight }"
         contenteditable="true"
         role="textbox"
         aria-multiline="true"
@@ -225,12 +228,20 @@ async function onFileChange(ev: Event) {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
+.rte.is-fill {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .rte.is-focused {
   border-color: color-mix(in srgb, var(--el-color-primary) 55%, #cbd5e1);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--el-color-primary) 16%, transparent);
 }
 
 .rte__bar {
+  flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -297,6 +308,12 @@ async function onFileChange(ev: Event) {
   position: relative;
 }
 
+.rte.is-fill .rte__wrap {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .rte__placeholder {
   position: absolute;
   top: 12px;
@@ -314,6 +331,15 @@ async function onFileChange(ev: Event) {
   line-height: 1.7;
   outline: none;
   color: #1e293b;
+}
+
+.rte.is-fill .rte__editor {
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-bottom: 72px;
+  overscroll-behavior: contain;
 }
 
 .rte__editor :deep(p) {

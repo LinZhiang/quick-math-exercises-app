@@ -33,7 +33,7 @@ let memorySession: StoredSession | null = null
 let hydratePromise: Promise<void> | null = null
 
 export const WENGU_LOGIN_REQUIRED_HINT =
-  '未登录：请到「导览 → 设置」登录后，再使用语文 AI 功能'
+  '未登录：请到右上角「设置」登录后，再使用语文 AI 功能'
 
 export { probeWenguAuthServer, usesRemoteWenguApi, type WenguServerProbe } from '@/utils/wenguApiFetch'
 

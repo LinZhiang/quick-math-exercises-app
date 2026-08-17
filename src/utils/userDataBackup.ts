@@ -1,13 +1,18 @@
 /**
  * 本机练习数据打包 / 导入（手机与电脑互通）
- * - wrong-favorite：错题 + 收藏 + 相关备注/复盘统计
- * - user-data：练习进度与偏好（不含登录密钥）
+ * - train：知识训练（错题收藏、日志、完成次数、出题去重等）
+ * - bank：题库整理（个人题库 + 其测验日志/完成次数）
+ * - wrong-favorite / user-data：旧版备份，仍可导入
  */
 import { localDateKey } from '@/utils/practiceSessionLog'
 
 export const WENGU_BACKUP_FORMAT = 'wengu-backup-v1' as const
 
-export type WenguBackupKind = 'wrong-favorite' | 'user-data'
+export type WenguModuleBackupKind = 'train' | 'bank'
+export type WenguLegacyBackupKind = 'wrong-favorite' | 'user-data'
+export type WenguBackupKind = WenguModuleBackupKind | WenguLegacyBackupKind
+
+export const MODULE_BACKUP_KINDS: WenguModuleBackupKind[] = ['train', 'bank']
 
 export type WenguBackupFile = {
   format: typeof WENGU_BACKUP_FORMAT
@@ -31,8 +36,14 @@ export type BackupApplyResult = {
 const SECRET_KEYS = new Set([
   'wengu-session-v1',
   'wengu-admin-session-v1',
+  'wengu-member-session-v1',
   'wengu-deepseek-auth-v1',
 ])
+
+const MIXED_LOG_KEY = 'practice-session-log-v1'
+const MIXED_COUNT_KEYS = ['practice-completion-counts-v1', 'practice-perfect-counts-v1'] as const
+const MIXED_KEYS: string[] = [MIXED_LOG_KEY, ...MIXED_COUNT_KEYS]
+const PERSONAL_BANK_KEY = 'personal-question-bank-v1'
 
 const WRONG_FAVORITE_KEYS: string[] = [
   'mental-math-wrong-book-v1',
@@ -71,17 +82,13 @@ const WRONG_FAVORITE_KEYS: string[] = [
   'chinese-memorization-wrong-v1',
 ]
 
-/** 全量用户练习数据额外键（不含密钥） */
-const USER_DATA_EXTRA_KEYS: string[] = [
-  'practice-session-log-v1',
+/** 知识训练额外键（不含密钥、界面设置、个人题库） */
+const TRAIN_EXTRA_KEYS: string[] = [
+  MIXED_LOG_KEY,
   'practice-completion-counts-v1',
   'practice-perfect-counts-v1',
   'fact-explanation-overrides-v1',
   'fact-deepen-group-stats-v1',
-  'wengu-app-ui-settings-v1',
-  'personal-question-bank-v1',
-  'wengu-ai-provider-v1',
-  'wengu-api-origin-v1',
   'mental-math-strategy-guide-notes-v1',
   // 生成去重历史
   'chinese-generated-history-idiom-v1',
@@ -121,23 +128,92 @@ const USER_DATA_EXTRA_KEYS: string[] = [
   'chinese-generated-history-op-other-function-graph-v1',
 ]
 
+const LEGACY_USER_DATA_ONLY_KEYS: string[] = [
+  'wengu-app-ui-settings-v1',
+  PERSONAL_BANK_KEY,
+  'wengu-ai-provider-v1',
+  'wengu-api-origin-v1',
+]
+
+const USER_DATA_EXTRA_KEYS: string[] = [...TRAIN_EXTRA_KEYS, ...LEGACY_USER_DATA_ONLY_KEYS]
+const BANK_KEYS: string[] = [PERSONAL_BANK_KEY, ...MIXED_KEYS]
+const TRAIN_KEYS: string[] = [...new Set([...WRONG_FAVORITE_KEYS, ...TRAIN_EXTRA_KEYS])]
+
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === 'object' && !Array.isArray(v)
 }
 
+function isBankModeId(id: string): boolean {
+  return id.startsWith('personal-bank-')
+}
+
+function isBankLogItem(item: unknown): boolean {
+  if (!isPlainObject(item)) return false
+  const cat = String(item.categoryId ?? '')
+  const mode = String(item.modeId ?? '')
+  return cat === 'personal-bank' || isBankModeId(mode)
+}
+
 function keysForKind(kind: WenguBackupKind): string[] {
   if (kind === 'wrong-favorite') return [...WRONG_FAVORITE_KEYS]
+  if (kind === 'train') return [...TRAIN_KEYS]
+  if (kind === 'bank') return [...BANK_KEYS]
   return [...new Set([...WRONG_FAVORITE_KEYS, ...USER_DATA_EXTRA_KEYS])]
 }
 
-function collectEntries(keys: string[]): Record<string, string> {
+function moduleOfKind(kind: WenguBackupKind): WenguModuleBackupKind | null {
+  if (kind === 'train' || kind === 'bank') return kind
+  return null
+}
+
+function parseJsonUnknown(raw: string): unknown {
+  try {
+    return JSON.parse(raw) as unknown
+  } catch {
+    return null
+  }
+}
+
+function sliceLogRaw(raw: string, module: WenguModuleBackupKind): string {
+  const parsed = parseJsonUnknown(raw)
+  if (!Array.isArray(parsed)) return raw
+  const keepBank = module === 'bank'
+  return JSON.stringify(parsed.filter((item) => isBankLogItem(item) === keepBank))
+}
+
+function sliceCountsRaw(raw: string, module: WenguModuleBackupKind): string {
+  const parsed = parseJsonUnknown(raw)
+  if (!isPlainObject(parsed)) return raw
+  const keepBank = module === 'bank'
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(parsed)) {
+    if (isBankModeId(k) === keepBank) out[k] = v
+  }
+  return JSON.stringify(out)
+}
+
+function sliceMixedValue(key: string, raw: string, module: WenguModuleBackupKind): string {
+  if (key === MIXED_LOG_KEY) return sliceLogRaw(raw, module)
+  if ((MIXED_COUNT_KEYS as readonly string[]).includes(key)) return sliceCountsRaw(raw, module)
+  return raw
+}
+
+function isEmptyBackupValue(raw: string): boolean {
+  const t = raw.trim()
+  return !t || t === '[]' || t === '{}'
+}
+
+function collectEntries(keys: string[], module: WenguModuleBackupKind | null = null): Record<string, string> {
   const out: Record<string, string> = {}
   if (typeof localStorage === 'undefined') return out
   for (const key of keys) {
     if (SECRET_KEYS.has(key)) continue
     try {
-      const raw = localStorage.getItem(key)
-      if (raw != null && raw !== '') out[key] = raw
+      let raw = localStorage.getItem(key)
+      if (raw == null || raw === '') continue
+      if (module && MIXED_KEYS.includes(key)) raw = sliceMixedValue(key, raw, module)
+      if (isEmptyBackupValue(raw)) continue
+      out[key] = raw
     } catch {
       /* skip */
     }
@@ -146,7 +222,7 @@ function collectEntries(keys: string[]): Record<string, string> {
 }
 
 export function countBackupKeys(kind: WenguBackupKind): number {
-  return Object.keys(collectEntries(keysForKind(kind))).length
+  return Object.keys(collectEntries(keysForKind(kind), moduleOfKind(kind))).length
 }
 
 export function buildBackupPayload(kind: WenguBackupKind): WenguBackupFile {
@@ -155,17 +231,27 @@ export function buildBackupPayload(kind: WenguBackupKind): WenguBackupFile {
     kind,
     exportedAt: new Date().toISOString(),
     app: 'quick-math-exercises-app',
-    entries: collectEntries(keysForKind(kind)),
+    entries: collectEntries(keysForKind(kind), moduleOfKind(kind)),
   }
 }
 
 export function backupKindLabel(kind: WenguBackupKind): string {
-  return kind === 'wrong-favorite' ? '错题与收藏' : '全部练习数据'
+  if (kind === 'train') return '知识训练'
+  if (kind === 'bank') return '题库整理'
+  if (kind === 'wrong-favorite') return '错题与收藏'
+  return '全部练习数据'
 }
 
 export function suggestBackupFilename(kind: WenguBackupKind): string {
   const day = localDateKey()
-  const tag = kind === 'wrong-favorite' ? 'wrong-favorite' : 'user-data'
+  const tag =
+    kind === 'train'
+      ? 'train'
+      : kind === 'bank'
+        ? 'bank'
+        : kind === 'wrong-favorite'
+          ? 'wrong-favorite'
+          : 'user-data'
   return `wengu-${tag}-${day}.json`
 }
 
@@ -222,12 +308,135 @@ function mergeNumberMaps(
   return out
 }
 
+function mergeArraysById(local: unknown[], incoming: unknown[]): unknown[] {
+  const map = new Map<string, unknown>()
+  const rest: unknown[] = []
+  const take = (arr: unknown[], overwrite: boolean) => {
+    for (const item of arr) {
+      if (!isPlainObject(item) || typeof item.id !== 'string' || !item.id) {
+        rest.push(item)
+        continue
+      }
+      if (!overwrite && map.has(item.id)) continue
+      map.set(item.id, item)
+    }
+  }
+  take(local, false)
+  take(incoming, true)
+  return [...map.values(), ...rest]
+}
+
+function asCategoryList(v: unknown): Record<string, unknown>[] {
+  if (!isPlainObject(v) || !Array.isArray(v.categories)) return []
+  return v.categories.filter(isPlainObject)
+}
+
+function mergePersonalBankRaw(localRaw: string | null, incomingRaw: string): string {
+  if (!localRaw) return incomingRaw
+  const localCats = asCategoryList(parseJsonUnknown(localRaw))
+  const incomingCats = asCategoryList(parseJsonUnknown(incomingRaw))
+  if (!incomingCats.length) return localRaw
+  const cats = new Map<string, Record<string, unknown>>()
+  for (const c of localCats) {
+    const id = String(c.id ?? '')
+    if (id) cats.set(id, { ...c, subs: Array.isArray(c.subs) ? [...c.subs] : [] })
+  }
+  for (const ic of incomingCats) {
+    const id = String(ic.id ?? '')
+    if (!id) continue
+    const existing = cats.get(id)
+    if (!existing) {
+      cats.set(id, { ...ic, subs: Array.isArray(ic.subs) ? [...ic.subs] : [] })
+      continue
+    }
+    if (typeof ic.name === 'string' && ic.name.trim()) existing.name = ic.name.trim()
+    const subs = new Map<string, Record<string, unknown>>()
+    const existingSubs = Array.isArray(existing.subs) ? existing.subs.filter(isPlainObject) : []
+    for (const s of existingSubs) {
+      const sid = String(s.id ?? '')
+      if (sid) subs.set(sid, { ...s, questions: Array.isArray(s.questions) ? [...s.questions] : [] })
+    }
+    const incomingSubs = Array.isArray(ic.subs) ? ic.subs.filter(isPlainObject) : []
+    for (const isub of incomingSubs) {
+      const sid = String(isub.id ?? '')
+      if (!sid) continue
+      const es = subs.get(sid)
+      if (!es) {
+        subs.set(sid, { ...isub, questions: Array.isArray(isub.questions) ? [...isub.questions] : [] })
+        continue
+      }
+      if (typeof isub.name === 'string' && isub.name.trim()) es.name = isub.name.trim()
+      const qs = new Map<string, Record<string, unknown>>()
+      const existingQs = Array.isArray(es.questions) ? es.questions.filter(isPlainObject) : []
+      for (const q of existingQs) {
+        const qid = String(q.id ?? '')
+        if (qid) qs.set(qid, q)
+      }
+      const incomingQs = Array.isArray(isub.questions) ? isub.questions.filter(isPlainObject) : []
+      for (const iq of incomingQs) {
+        const qid = String(iq.id ?? '')
+        if (!qid) continue
+        const eq = qs.get(qid)
+        if (!eq) {
+          qs.set(qid, iq)
+          continue
+        }
+        const quizCount = Math.max(Number(eq.quizCount) || 0, Number(iq.quizCount) || 0)
+        qs.set(qid, { ...eq, ...iq, quizCount })
+      }
+      es.questions = [...qs.values()]
+      subs.set(sid, es)
+    }
+    existing.subs = [...subs.values()]
+    cats.set(id, existing)
+  }
+  return JSON.stringify({ categories: [...cats.values()] })
+}
+
+function combineMixedValue(
+  key: string,
+  localRaw: string | null,
+  incomingRaw: string,
+  mode: BackupImportMode,
+  module: WenguModuleBackupKind,
+): string {
+  const local = localRaw ?? (key === MIXED_LOG_KEY ? '[]' : '{}')
+  const otherModule: WenguModuleBackupKind = module === 'train' ? 'bank' : 'train'
+  const keepOther = sliceMixedValue(key, local, otherModule)
+  const incomingSliced = sliceMixedValue(key, incomingRaw, module)
+  if (key === MIXED_LOG_KEY) {
+    const other = parseJsonUnknown(keepOther)
+    const otherArr = Array.isArray(other) ? other : []
+    if (mode === 'replace') {
+      const incoming = parseJsonUnknown(incomingSliced)
+      return JSON.stringify([...otherArr, ...(Array.isArray(incoming) ? incoming : [])])
+    }
+    const localSlice = parseJsonUnknown(sliceMixedValue(key, local, module))
+    const incoming = parseJsonUnknown(incomingSliced)
+    const merged = mergeArraysById(
+      Array.isArray(localSlice) ? localSlice : [],
+      Array.isArray(incoming) ? incoming : [],
+    )
+    return JSON.stringify([...otherArr, ...merged])
+  }
+  const other = parseJsonUnknown(keepOther)
+  const otherObj = isPlainObject(other) ? other : {}
+  const incoming = parseJsonUnknown(incomingSliced)
+  const incomingObj = isPlainObject(incoming) ? incoming : {}
+  if (mode === 'replace') return JSON.stringify({ ...otherObj, ...incomingObj })
+  const localSlice = parseJsonUnknown(sliceMixedValue(key, local, module))
+  const localObj = isPlainObject(localSlice) ? localSlice : {}
+  return JSON.stringify({ ...otherObj, ...mergeNumberMaps(localObj, incomingObj) })
+}
+
 function mergeStorageValue(key: string, localRaw: string | null, incomingRaw: string): string {
   if (!localRaw) return incomingRaw
+  if (key === PERSONAL_BANK_KEY) return mergePersonalBankRaw(localRaw, incomingRaw)
   try {
     const local = JSON.parse(localRaw) as unknown
     const incoming = JSON.parse(incomingRaw) as unknown
     if (Array.isArray(local) && Array.isArray(incoming)) {
+      if (key === MIXED_LOG_KEY) return JSON.stringify(mergeArraysById(local, incoming))
       return JSON.stringify(mergeArraysByFingerprint(local, incoming))
     }
     if (isPlainObject(local) && isPlainObject(incoming)) {
@@ -236,7 +445,6 @@ function mergeStorageValue(key: string, localRaw: string | null, incomingRaw: st
         key.includes('perfect-counts') ||
         key.includes('review-stats')
       ) {
-        // review-stats 是 { scope: { attempted, correct, completeReviews } }
         if (key.includes('review-stats')) {
           const out: Record<string, Record<string, number>> = {}
           for (const src of [local, incoming]) {
@@ -257,13 +465,24 @@ function mergeStorageValue(key: string, localRaw: string | null, incomingRaw: st
         }
         return JSON.stringify(mergeNumberMaps(local, incoming))
       }
-      // 备注、设置等：incoming 覆盖同名键，保留本地独有键
       return JSON.stringify({ ...local, ...incoming })
     }
   } catch {
     /* fallthrough */
   }
   return incomingRaw
+}
+
+function isKnownBackupKind(v: unknown): v is WenguBackupKind {
+  return v === 'train' || v === 'bank' || v === 'wrong-favorite' || v === 'user-data'
+}
+
+function isKeyAllowedForKind(kind: WenguBackupKind, key: string): boolean {
+  if (SECRET_KEYS.has(key)) return false
+  if (kind === 'train') return TRAIN_KEYS.includes(key)
+  if (kind === 'bank') return BANK_KEYS.includes(key)
+  if (kind === 'wrong-favorite') return WRONG_FAVORITE_KEYS.includes(key)
+  return true
 }
 
 export function parseBackupJson(text: string): WenguBackupFile {
@@ -277,9 +496,7 @@ export function parseBackupJson(text: string): WenguBackupFile {
   if (parsed.format !== WENGU_BACKUP_FORMAT) {
     throw new Error('不支持的备份版本（需要 wengu-backup-v1）')
   }
-  if (parsed.kind !== 'wrong-favorite' && parsed.kind !== 'user-data') {
-    throw new Error('未知备份类型')
-  }
+  if (!isKnownBackupKind(parsed.kind)) throw new Error('未知备份类型')
   if (!isPlainObject(parsed.entries)) throw new Error('备份缺少 entries')
   const entries: Record<string, string> = {}
   for (const [k, v] of Object.entries(parsed.entries)) {
@@ -304,21 +521,24 @@ export function applyBackup(
   if (typeof localStorage === 'undefined') {
     throw new Error('当前环境无法写入本机数据')
   }
+  const module = moduleOfKind(backup.kind)
   let written = 0
   let skipped = 0
   for (const [key, incomingRaw] of Object.entries(backup.entries)) {
-    if (SECRET_KEYS.has(key)) {
+    if (!isKeyAllowedForKind(backup.kind, key)) {
       skipped += 1
       continue
     }
     try {
-      if (mode === 'replace') {
-        localStorage.setItem(key, incomingRaw)
-        written += 1
-        continue
-      }
       const localRaw = localStorage.getItem(key)
-      const next = mergeStorageValue(key, localRaw, incomingRaw)
+      let next = incomingRaw
+      if (module && MIXED_KEYS.includes(key)) {
+        next = combineMixedValue(key, localRaw, incomingRaw, mode, module)
+      } else if (mode === 'merge') {
+        next = mergeStorageValue(key, localRaw, incomingRaw)
+      } else if (key === PERSONAL_BANK_KEY && mode === 'replace') {
+        next = incomingRaw
+      }
       localStorage.setItem(key, next)
       written += 1
     } catch {

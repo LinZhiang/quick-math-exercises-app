@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import RichTextView from '@/components/RichTextView.vue'
@@ -8,7 +8,8 @@ import ImageCropPanel from '@/components/ImageCropPanel.vue'
 import PersonalBankQuizPanel from '@/views/personal-bank/PersonalBankQuizPanel.vue'
 import {
   extractPersonalBankFieldFromPhoto,
-  extractPersonalBankQuestionFromPhoto,
+  extractPersonalBankQuestionsFromPhoto,
+  PERSONAL_BANK_PHOTO_MAX,
   type PersonalBankPhotoField,
 } from '@/utils/personalBankPhotoExtract'
 import { generatePersonalBankVariant } from '@/utils/personalBankVariant'
@@ -35,19 +36,27 @@ import {
   deletePersonalBankQuestion,
   deletePersonalBankSub,
   filterPersonalBankQuestionsByScope,
+  isOpenChoiceQuestion,
   listPersonalBankCategories,
+  movePersonalBankQuestion,
+  personalBankChoiceModeOf,
   personalBankModeId,
   personalBankQuestionTypeLabel,
+  PERSONAL_BANK_CHOICE_MODES,
   PERSONAL_BANK_QUESTION_TYPES,
   renamePersonalBankCategory,
   renamePersonalBankSub,
   updatePersonalBankQuestion,
   type PersonalBankCategory,
+  type PersonalBankChoiceMode,
   type PersonalBankQuestion,
   type PersonalBankQuestionType,
   type PersonalBankQuizScope,
 } from '@/utils/personalQuestionBank'
+import { useAppChromeTitle } from '@/composables/useAppChrome'
+import { goBackOr } from '@/utils/appNavigation'
 
+const route = useRoute()
 const router = useRouter()
 const categories = ref<PersonalBankCategory[]>(listPersonalBankCategories())
 const activeCategoryId = ref<string | null>(null)
@@ -58,13 +67,17 @@ const formOpen = ref(false)
 const photoOpen = ref(false)
 const photoTarget = ref<'full' | PersonalBankPhotoField>('full')
 const photoIntent = ref<'recognize' | 'upload'>('recognize')
-const cropList = ref<string[]>([])
 const cropIndex = ref(0)
-const croppedPhotos = ref<string[]>([])
+const photoSlots = ref<Array<{ original: string; cropped: string | null }>>([])
 const photoBusy = ref(false)
 const cameraInputRef = ref<HTMLInputElement | null>(null)
 const albumInputRef = ref<HTMLInputElement | null>(null)
-const photoSrc = computed(() => cropList.value[cropIndex.value] ?? '')
+const photoSrc = computed(() => photoSlots.value[cropIndex.value]?.original ?? '')
+const currentPhotoCropped = computed(() => !!photoSlots.value[cropIndex.value]?.cropped)
+const croppedPhotoCount = computed(() => photoSlots.value.filter((s) => s.cropped).length)
+const allPhotosCropped = computed(
+  () => photoSlots.value.length > 0 && photoSlots.value.every((s) => s.cropped),
+)
 const aiProvider = computed({
   get() {
     void aiProviderTick.value
@@ -81,6 +94,11 @@ const exportOpen = ref(false)
 const exportBusy = ref(false)
 const exportBusyText = ref('')
 const variantBusyId = ref<string | null>(null)
+const moveOpen = ref(false)
+const moveQuestion = ref<PersonalBankQuestion | null>(null)
+const moveCategoryId = ref('')
+const moveSubId = ref('')
+const CHOICE_OPTION_LETTERS = ['A', 'B', 'C', 'D'] as const
 const exportContentMode = ref<'questions' | 'all'>('all')
 const exportTreeRef = ref<{ setCheckedKeys: (keys: string[]) => void; getCheckedKeys: (leafOnly?: boolean) => string[] } | null>(null)
 
@@ -93,11 +111,14 @@ const canExport = computed(() =>
 const form = reactive({
   title: '',
   type: 'short-answer' as PersonalBankQuestionType,
+  choiceMode: 'fixed' as PersonalBankChoiceMode,
   score: DEFAULT_PERSONAL_BANK_SCORE,
   stemHtml: '',
   answer: '',
   answerHtml: '',
   explanationHtml: '',
+  optionsHtml: ['', '', '', ''] as string[],
+  correctIndex: 0,
 })
 
 const activeCategory = computed(
@@ -135,8 +156,9 @@ const pageTitle = computed(() => {
   if (viewingSub.value && activeCategory.value && activeSub.value) {
     return `${activeCategory.value.name} · ${activeSub.value.name}`
   }
-  return '个人题库'
+  return '题库整理'
 })
+useAppChromeTitle(pageTitle)
 
 const photoBusyText = computed(() => {
   if (photoIntent.value === 'upload') return '正在插入照片…'
@@ -145,16 +167,12 @@ const photoBusyText = computed(() => {
     : aiRequestProgressText('识别文字', 'doubao')
 })
 
-const quizNeedsChoiceAi = computed(() => quizPaper.value.some((q) => q.type === 'choice'))
+const quizNeedsChoiceAi = computed(() => quizPaper.value.some((q) => isOpenChoiceQuestion(q)))
 
-const showPhotoBtn = computed(
-  () =>
-    viewingSub.value &&
-    !quizActive.value &&
-    !formOpen.value &&
-    !detailId.value &&
-    !photoOpen.value,
-)
+const moveSubOptions = computed(() => {
+  const cat = categories.value.find((c) => c.id === moveCategoryId.value)
+  return cat?.subs ?? []
+})
 
 function reload() {
   categories.value = listPersonalBankCategories()
@@ -184,35 +202,122 @@ function reload() {
   }
 }
 
+function fillEditForm(q: PersonalBankQuestion) {
+  editingId.value = q.id
+  form.title = q.title
+  form.type = q.type
+  form.choiceMode = personalBankChoiceModeOf(q)
+  form.score = q.score
+  form.stemHtml = q.stemHtml
+  form.answer = q.answer
+  form.answerHtml = q.answerHtml
+  form.explanationHtml = q.explanationHtml
+  form.optionsHtml = padOptions(q.optionsHtml)
+  form.correctIndex = q.correctIndex ?? 0
+}
+
+function pushBank(opts: {
+  categoryId?: string | null
+  subId?: string | null
+  view?: string
+  qid?: string | null
+  photoTarget?: string
+  photoIntent?: string
+  replace?: boolean
+}) {
+  const cat = opts.categoryId ?? activeCategoryId.value
+  const sub = opts.subId ?? activeSubId.value
+  if (!cat || !sub) {
+    const loc = { name: 'bank' as const }
+    const nav = opts.replace ? router.replace(loc) : router.push(loc)
+    void nav.catch(() => {})
+    return
+  }
+  const query: Record<string, string> = {}
+  if (opts.view) query.view = opts.view
+  if (opts.qid) query.qid = opts.qid
+  if (opts.view === 'photo') {
+    query.photoTarget = opts.photoTarget ?? 'full'
+    query.photoIntent = opts.photoIntent ?? 'recognize'
+  }
+  const loc = {
+    name: 'bank-sub' as const,
+    params: { categoryId: cat, subId: sub },
+    query,
+  }
+  const nav = opts.replace ? router.replace(loc) : router.push(loc)
+  void nav.catch(() => {})
+}
+
+function bankFallback() {
+  const view = String(route.query.view ?? '')
+  const photoTargetQ = String(route.query.photoTarget ?? 'full')
+  const photoIntentQ = String(route.query.photoIntent ?? 'recognize')
+  if (view === 'photo' && (photoTargetQ !== 'full' || photoIntentQ === 'upload')) {
+    const qid = route.query.qid
+    return {
+      name: 'bank-sub' as const,
+      params: route.params,
+      query: qid ? { view: 'edit', qid: String(qid) } : { view: 'new' },
+    }
+  }
+  if (view) {
+    return { name: 'bank-sub' as const, params: route.params }
+  }
+  if (route.name === 'bank-sub') return { name: 'bank' as const }
+  return { name: 'home' as const }
+}
+
+function applyBankRoute() {
+  const cat = typeof route.params.categoryId === 'string' ? route.params.categoryId : null
+  const sub = typeof route.params.subId === 'string' ? route.params.subId : null
+  activeCategoryId.value = cat
+  activeSubId.value = sub
+  if (cat && !categories.value.some((c) => c.id === cat)) {
+    void router.replace({ name: 'bank' })
+    return
+  }
+  if (cat && sub) {
+    const found = categories.value.find((c) => c.id === cat)
+    if (found && !found.subs.some((s) => s.id === sub)) {
+      void router.replace({ name: 'bank' })
+      return
+    }
+  }
+  const view = String(route.query.view ?? '')
+  const qid = typeof route.query.qid === 'string' ? route.query.qid : null
+  const nextPhotoTarget = String(route.query.photoTarget ?? 'full')
+  photoTarget.value =
+    nextPhotoTarget === 'stem' || nextPhotoTarget === 'answer' || nextPhotoTarget === 'explanation'
+      ? nextPhotoTarget
+      : 'full'
+  photoIntent.value = String(route.query.photoIntent ?? 'recognize') === 'upload' ? 'upload' : 'recognize'
+  quizActive.value = view === 'quiz'
+  photoOpen.value = view === 'photo'
+  formOpen.value = view === 'new' || view === 'edit'
+  detailId.value = view === 'detail' ? qid : null
+  if (view === 'edit' && qid) {
+    const q = questions.value.find((x) => x.id === qid)
+    if (q && editingId.value !== q.id) fillEditForm(q)
+  } else if (view === 'new') {
+    editingId.value = null
+  } else if (view !== 'photo') {
+    editingId.value = view === 'edit' ? editingId.value : null
+  }
+  if (view !== 'photo' && photoSlots.value.length) resetPhotoQueue()
+}
+
+watch(
+  () => route.fullPath,
+  () => {
+    applyBankRoute()
+  },
+  { immediate: true },
+)
+
 function goBack() {
-  if (quizActive.value) {
-    quizActive.value = false
-    reload()
-    return
-  }
-  if (photoOpen.value) {
-    const backToForm = photoTarget.value !== 'full' || photoIntent.value === 'upload'
-    photoOpen.value = false
-    resetPhotoQueue()
-    photoTarget.value = 'full'
-    photoIntent.value = 'recognize'
-    if (backToForm) formOpen.value = true
-    return
-  }
-  if (formOpen.value) {
-    formOpen.value = false
-    resetForm()
-    return
-  }
-  if (detailId.value) {
-    detailId.value = null
-    return
-  }
-  if (viewingSub.value) {
-    activeSubId.value = null
-    return
-  }
-  void router.push({ name: 'home' })
+  if (quizActive.value) reload()
+  goBackOr(router, bankFallback())
 }
 
 async function promptName(title: string, current = ''): Promise<string | null> {
@@ -358,50 +463,88 @@ function openSub(cat: PersonalBankCategory, subId: string) {
     ElMessage.warning('请先在该大类下新建小类')
     return
   }
-  activeCategoryId.value = cat.id
-  activeSubId.value = subId
-  quizActive.value = false
-  formOpen.value = false
-  photoOpen.value = false
-  resetPhotoQueue()
-  photoTarget.value = 'full'
-  photoIntent.value = 'recognize'
-  detailId.value = null
+  if (
+    route.name === 'bank-sub' &&
+    route.params.categoryId === cat.id &&
+    route.params.subId === subId &&
+    !route.query.view
+  ) {
+    return
+  }
+  pushBank({ categoryId: cat.id, subId })
+}
+
+function padOptions(list?: string[]): string[] {
+  const next = [...(list ?? [])]
+  while (next.length < 4) next.push('')
+  return next.slice(0, 4)
+}
+
+function questionPayload() {
+  return {
+    title: form.title,
+    type: form.type,
+    score: form.score,
+    stemHtml: form.stemHtml,
+    answer: form.answer,
+    answerHtml: form.answerHtml,
+    explanationHtml: form.explanationHtml,
+    choiceMode: form.choiceMode,
+    optionsHtml: form.optionsHtml,
+    correctIndex: form.correctIndex,
+  }
+}
+
+function applyExtractToForm(extracted: {
+  title: string
+  type: PersonalBankQuestionType
+  score?: number
+  stemHtml: string
+  answer: string
+  answerHtml: string
+  explanationHtml: string
+  choiceMode?: PersonalBankChoiceMode
+  optionsHtml?: string[]
+  correctIndex?: number
+}) {
+  form.title = extracted.title
+  form.type = extracted.type
+  form.score = extracted.score ?? DEFAULT_PERSONAL_BANK_SCORE
+  form.stemHtml = extracted.stemHtml
+  form.answer = extracted.answer
+  form.answerHtml = extracted.answerHtml
+  form.explanationHtml = extracted.explanationHtml
+  form.choiceMode = extracted.type === 'choice' ? extracted.choiceMode ?? 'fixed' : 'fixed'
+  form.optionsHtml = padOptions(extracted.optionsHtml)
+  form.correctIndex = extracted.correctIndex ?? 0
 }
 
 function resetForm() {
   editingId.value = null
   form.title = ''
   form.type = 'short-answer'
+  form.choiceMode = 'fixed'
   form.score = DEFAULT_PERSONAL_BANK_SCORE
   form.stemHtml = ''
   form.answer = ''
   form.answerHtml = ''
   form.explanationHtml = ''
+  form.optionsHtml = ['', '', '', '']
+  form.correctIndex = 0
 }
 
 function openCreateQuestion() {
-  detailId.value = null
   resetForm()
-  formOpen.value = true
+  pushBank({ view: 'new' })
 }
 
 function openEditQuestion(q: PersonalBankQuestion) {
-  detailId.value = null
-  editingId.value = q.id
-  form.title = q.title
-  form.type = q.type
-  form.score = q.score
-  form.stemHtml = q.stemHtml
-  form.answer = q.answer
-  form.answerHtml = q.answerHtml
-  form.explanationHtml = q.explanationHtml
-  formOpen.value = true
+  fillEditForm(q)
+  pushBank({ view: 'edit', qid: q.id })
 }
 
 function openQuestionDetail(q: PersonalBankQuestion) {
-  formOpen.value = false
-  detailId.value = q.id
+  pushBank({ view: 'detail', qid: q.id })
 }
 
 function saveQuestion() {
@@ -409,15 +552,7 @@ function saveQuestion() {
   const sub = activeSub.value
   if (!cat || !sub) return
   try {
-    const payload = {
-      title: form.title,
-      type: form.type,
-      score: form.score,
-      stemHtml: form.stemHtml,
-      answer: form.answer,
-      answerHtml: form.answerHtml,
-      explanationHtml: form.explanationHtml,
-    }
+    const payload = questionPayload()
     if (editingId.value) {
       updatePersonalBankQuestion(cat.id, sub.id, editingId.value, payload)
       ElMessage.success('已修改题目')
@@ -428,6 +563,7 @@ function saveQuestion() {
     formOpen.value = false
     resetForm()
     reload()
+    pushBank({ replace: true })
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '保存失败')
   }
@@ -451,14 +587,8 @@ async function onGenerateVariant(q: PersonalBankQuestion) {
     const variant = await generatePersonalBankVariant(q)
     editingId.value = null
     detailId.value = null
-    form.title = variant.title
-    form.type = variant.type
-    form.score = variant.score
-    form.stemHtml = variant.stemHtml
-    form.answer = variant.answer
-    form.answerHtml = variant.answerHtml
-    form.explanationHtml = variant.explanationHtml
-    formOpen.value = true
+    applyExtractToForm(variant)
+    pushBank({ view: 'new' })
     ElMessage.success('已生成变式，请核对后保存')
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '变式生成失败')
@@ -482,6 +612,7 @@ async function onDeleteQuestion(q: PersonalBankQuestion) {
   }
   try {
     deletePersonalBankQuestion(cat.id, sub.id, q.id)
+    if (detailId.value === q.id) pushBank({ replace: true })
     reload()
     ElMessage.success('已删除')
   } catch (e) {
@@ -497,39 +628,43 @@ function startQuiz() {
     return
   }
   quizActive.value = true
+  pushBank({ view: 'quiz' })
 }
 
 function onQuizExit() {
-  quizActive.value = false
   reload()
+  goBackOr(router, { name: 'bank-sub', params: route.params })
 }
 
 function resetPhotoQueue() {
-  cropList.value = []
+  photoSlots.value = []
   cropIndex.value = 0
-  croppedPhotos.value = []
   photoBusy.value = false
 }
 
 function openPhotoSort() {
-  photoTarget.value = 'full'
-  photoIntent.value = 'recognize'
   resetPhotoQueue()
-  photoOpen.value = true
+  pushBank({ view: 'photo', photoTarget: 'full', photoIntent: 'recognize' })
 }
 
 function openFieldPhoto(field: PersonalBankPhotoField) {
-  photoTarget.value = field
-  photoIntent.value = 'recognize'
   resetPhotoQueue()
-  photoOpen.value = true
+  pushBank({
+    view: 'photo',
+    photoTarget: field,
+    photoIntent: 'recognize',
+    qid: editingId.value,
+  })
 }
 
 function openFieldUpload(field: PersonalBankPhotoField) {
-  photoTarget.value = field
-  photoIntent.value = 'upload'
   resetPhotoQueue()
-  photoOpen.value = true
+  pushBank({
+    view: 'photo',
+    photoTarget: field,
+    photoIntent: 'upload',
+    qid: editingId.value,
+  })
 }
 
 function readImageFiles(files: File[]): Promise<string[]> {
@@ -559,9 +694,19 @@ async function onPickPhoto(ev: Event) {
   try {
     const urls = (await readImageFiles(files)).filter(Boolean)
     if (!urls.length) return
-    const wasEmpty = cropList.value.length === 0
-    cropList.value = [...cropList.value, ...urls].slice(0, 8)
+    const wasEmpty = photoSlots.value.length === 0
+    const room = PERSONAL_BANK_PHOTO_MAX - photoSlots.value.length
+    const added = urls.slice(0, Math.max(0, room)).map((original) => ({ original, cropped: null }))
+    if (!added.length) {
+      ElMessage.warning(`最多 ${PERSONAL_BANK_PHOTO_MAX} 张`)
+      return
+    }
+    photoSlots.value = [...photoSlots.value, ...added]
     if (wasEmpty) cropIndex.value = 0
+    else if (photoSlots.value[cropIndex.value]?.cropped) {
+      const firstNew = photoSlots.value.findIndex((s) => !s.cropped)
+      if (firstNew >= 0) cropIndex.value = firstNew
+    }
   } catch {
     ElMessage.error('读取图片失败')
   }
@@ -580,28 +725,41 @@ async function finishCroppedPhotos(urls: string[]) {
     if (photoIntent.value === 'upload') {
       const field = photoTarget.value === 'full' ? 'stem' : photoTarget.value
       appendImagesToRichField(field, urls)
-      photoOpen.value = false
       resetPhotoQueue()
-      photoTarget.value = 'full'
-      photoIntent.value = 'recognize'
-      formOpen.value = true
+      pushBank({
+        view: editingId.value ? 'edit' : 'new',
+        qid: editingId.value,
+        replace: true,
+      })
       ElMessage.success('已插入照片，可再编辑')
       return
     }
     if (photoTarget.value === 'full') {
-      const extracted = await extractPersonalBankQuestionFromPhoto(urls)
-      resetForm()
-      form.title = extracted.title
-      form.type = extracted.type
-      form.stemHtml = extracted.stemHtml
-      form.answer = extracted.answer
-      form.answerHtml = extracted.answerHtml
-      form.explanationHtml = extracted.explanationHtml
-      photoOpen.value = false
+      const extractedList = await extractPersonalBankQuestionsFromPhoto(urls)
+      const cat = activeCategory.value
+      const sub = activeSub.value
       resetPhotoQueue()
-      photoTarget.value = 'full'
-      formOpen.value = true
-      ElMessage.success('已填入新建题目，请核对后保存')
+      if (extractedList.length === 1) {
+        resetForm()
+        applyExtractToForm(extractedList[0]!)
+        pushBank({ view: 'new', replace: true })
+        ElMessage.success('已填入题目，请核对后保存')
+        return
+      }
+      if (!cat || !sub) throw new Error('请先进入一个小类')
+      let saved = 0
+      for (const row of extractedList) {
+        try {
+          createPersonalBankQuestion(cat.id, sub.id, row)
+          saved += 1
+        } catch {
+          /* skip invalid */
+        }
+      }
+      reload()
+      if (!saved) throw new Error('识别到多题，但都无法保存，请重试或改拍')
+      pushBank({ replace: true })
+      ElMessage.success(`已识别并保存 ${saved} 题，请在列表里逐题核对`)
       return
     }
     const field = photoTarget.value
@@ -613,18 +771,28 @@ async function finishCroppedPhotos(urls: string[]) {
       if (!form.title.trim()) form.title = extracted.text.slice(0, 18)
     } else if (field === 'explanation') {
       form.explanationHtml = extracted.html
-    } else if (form.type === 'choice') {
-      form.answerHtml = extracted.html
-      form.answer = extracted.text
     } else {
-      form.answer = extracted.text
-      form.answerHtml = ''
+      if (form.type === 'choice') {
+        form.answerHtml = extracted.html
+        form.answer = extracted.text
+        if (form.choiceMode === 'fixed') {
+          form.optionsHtml[form.correctIndex] = extracted.html
+        }
+      } else {
+        form.answer = extracted.text
+        form.answerHtml = ''
+      }
+      if (extracted.explanationHtml) form.explanationHtml = extracted.explanationHtml
     }
-    photoOpen.value = false
     resetPhotoQueue()
-    photoTarget.value = 'full'
-    formOpen.value = true
-    ElMessage.success('已填入识别结果，请核对')
+    pushBank({
+      view: editingId.value ? 'edit' : 'new',
+      qid: editingId.value,
+      replace: true,
+    })
+    ElMessage.success(
+      field === 'answer' && extracted.explanationHtml ? '已填入答案和解析，请核对' : '已填入识别结果，请核对',
+    )
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '识别失败')
   } finally {
@@ -632,47 +800,94 @@ async function finishCroppedPhotos(urls: string[]) {
   }
 }
 
-async function onCropConfirm(dataUrl: string) {
-  const nextCropped = [...croppedPhotos.value, dataUrl]
-  if (cropIndex.value < cropList.value.length - 1) {
-    croppedPhotos.value = nextCropped
-    cropIndex.value += 1
+function onCropConfirm(dataUrl: string) {
+  const slot = photoSlots.value[cropIndex.value]
+  if (!slot) return
+  slot.cropped = dataUrl
+  const nextUncropped = photoSlots.value.findIndex((s, i) => i > cropIndex.value && !s.cropped)
+  if (nextUncropped >= 0) {
+    cropIndex.value = nextUncropped
     return
   }
-  await finishCroppedPhotos(nextCropped)
+  const earlier = photoSlots.value.findIndex((s) => !s.cropped)
+  if (earlier >= 0) {
+    cropIndex.value = earlier
+    return
+  }
+  if (photoSlots.value.length === 1) void startPhotoRecognize()
 }
 
 function recaptureCurrent() {
-  const next = cropList.value.filter((_, i) => i !== cropIndex.value)
-  cropList.value = next
-  if (cropIndex.value >= next.length) cropIndex.value = Math.max(0, next.length - 1)
+  if (!photoSlots.value.length) return
+  photoSlots.value = photoSlots.value.filter((_, i) => i !== cropIndex.value)
+  if (cropIndex.value >= photoSlots.value.length) cropIndex.value = Math.max(0, photoSlots.value.length - 1)
+}
+
+function selectPhotoSlot(index: number) {
+  if (index < 0 || index >= photoSlots.value.length) return
+  cropIndex.value = index
+}
+
+function shiftPhotoSlot(delta: number) {
+  const i = cropIndex.value
+  const j = i + delta
+  if (j < 0 || j >= photoSlots.value.length) return
+  const next = [...photoSlots.value]
+  const tmp = next[i]!
+  next[i] = next[j]!
+  next[j] = tmp
+  photoSlots.value = next
+  cropIndex.value = j
+}
+
+async function startPhotoRecognize() {
+  const urls = photoSlots.value.map((s) => s.cropped).filter((u): u is string => !!u)
+  if (!urls.length) {
+    ElMessage.warning('请先裁切照片')
+    return
+  }
+  if (!allPhotosCropped.value) {
+    ElMessage.warning('还有未裁切的照片。不需要的请先去掉，再开始识别。')
+    return
+  }
+  await finishCroppedPhotos(urls)
+}
+
+function openMoveQuestion(q: PersonalBankQuestion) {
+  moveQuestion.value = q
+  moveCategoryId.value = activeCategoryId.value ?? ''
+  moveSubId.value = activeSubId.value ?? ''
+  moveOpen.value = true
+}
+
+async function confirmMoveQuestion() {
+  const q = moveQuestion.value
+  const cat = activeCategory.value
+  const sub = activeSub.value
+  if (!q || !cat || !sub) return
+  if (!moveCategoryId.value || !moveSubId.value) {
+    ElMessage.warning('请选择目标大类和小类')
+    return
+  }
+  try {
+    movePersonalBankQuestion(cat.id, sub.id, q.id, moveCategoryId.value, moveSubId.value)
+    moveOpen.value = false
+    moveQuestion.value = null
+    reload()
+    pushBank({ replace: true })
+    ElMessage.success('已调整到新的分类')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '调整失败')
+  }
 }
 </script>
 
 <template>
   <section class="personal-bank-page">
-    <header class="personal-bank-bar">
-      <div class="personal-bank-bar__side personal-bank-bar__side--left">
-        <el-button size="small" @click="goBack">返回</el-button>
-      </div>
-      <h1 class="personal-bank-bar__title">{{ pageTitle }}</h1>
-      <div class="personal-bank-bar__side personal-bank-bar__side--right">
-        <el-button
-          v-if="showPhotoBtn"
-          class="personal-bank-bar__photo"
-          size="small"
-          type="primary"
-          @click="openPhotoSort"
-        >
-          拍照整理
-        </el-button>
-      </div>
-    </header>
-
     <div v-if="!viewingSub" class="personal-bank-body">
       <div class="personal-bank-toolbar">
         <el-button type="primary" @click="onCreateCategory">新建大类</el-button>
-        <el-button :disabled="!canExport" @click="openExport">导出题库</el-button>
+        <el-button :disabled="!canExport" @click="openExport">导出 Word</el-button>
       </div>
       <p v-if="!categories.length" class="personal-bank-empty">
         还没有大类。先新建大类，再在大类里新建小类；大小类都有之后，才能点进小类放题目。
@@ -727,13 +942,13 @@ function recaptureCurrent() {
         <p class="personal-bank-lead">
           {{
             photoIntent === 'upload'
-              ? '可一次拍多张或从相册多选，按顺序裁切后插入富文本。也可在编辑器里直接粘贴图片。'
+              ? '可一次拍多张或从相册多选。按顺序排好后逐张裁切，再插入富文本。也可在编辑器里直接粘贴图片。'
               : photoTarget === 'full'
-                ? '可一次拍多张或从相册多选，按顺序裁切后由豆包拼成一道题。'
-                : '可一次拍多张或从相册多选，按顺序裁切后由豆包填入这一栏。'
+                ? '可一次拍多张或从相册多选。多张会按顺序联动：同一题的上下页会拼在一起，一页多题会拆成多道。裁切完再点开始识别。'
+                : '可一次拍多张或从相册多选。多张按顺序拼成这一栏；拍答案时若画面里还有解析，会一并填入解析。'
           }}
           <template v-if="photoIntent === 'recognize'">
-            只认印刷试题文字，忽略手写批注、圈画和旁边无关文字。
+            只认印刷试题文字，忽略手写批注、圈画和旁边无关文字。题号（如 1.）不会写入题干。
           </template>
         </p>
         <div class="personal-bank-toolbar personal-bank-toolbar--row">
@@ -743,21 +958,75 @@ function recaptureCurrent() {
       </template>
       <div v-else class="pb-photo-stage">
         <p class="personal-bank-lead">
-          第 {{ cropIndex + 1 }} / {{ cropList.length }} 张
-          <template v-if="photoIntent === 'recognize'"> · 裁切后按顺序交给豆包</template>
+          第 {{ cropIndex + 1 }} / {{ photoSlots.length }} 张
+          <template v-if="currentPhotoCropped"> · 已裁切</template>
+          · 已裁 {{ croppedPhotoCount }}/{{ photoSlots.length }}
         </p>
+        <div class="pb-photo-strip" aria-label="照片顺序">
+          <button
+            v-for="(slot, i) in photoSlots"
+            :key="`${i}-${slot.original.slice(-12)}`"
+            type="button"
+            class="pb-photo-strip__item"
+            :class="{
+              'is-active': i === cropIndex,
+              'is-done': !!slot.cropped,
+            }"
+            @click="selectPhotoSlot(i)"
+          >
+            <img :src="slot.cropped || slot.original" alt="">
+            <span>{{ i + 1 }}</span>
+          </button>
+        </div>
+        <div class="personal-bank-toolbar personal-bank-toolbar--row">
+          <el-button size="small" :disabled="cropIndex <= 0" @click="selectPhotoSlot(cropIndex - 1)">
+            上一张
+          </el-button>
+          <el-button
+            size="small"
+            :disabled="cropIndex >= photoSlots.length - 1"
+            @click="selectPhotoSlot(cropIndex + 1)"
+          >
+            下一张
+          </el-button>
+          <el-button size="small" :disabled="cropIndex <= 0" @click="shiftPhotoSlot(-1)">左移</el-button>
+          <el-button
+            size="small"
+            :disabled="cropIndex >= photoSlots.length - 1"
+            @click="shiftPhotoSlot(1)"
+          >
+            右移
+          </el-button>
+        </div>
         <ImageCropPanel
           :key="`${cropIndex}-${photoSrc.slice(0, 24)}`"
           :src="photoSrc"
+          :confirm-label="currentPhotoCropped ? '重新裁切' : '确认裁切'"
           @confirm="onCropConfirm"
           @recapture="recaptureCurrent"
         />
         <div class="personal-bank-toolbar personal-bank-toolbar--row">
-          <el-button size="small" :disabled="cropList.length >= 8" @click="cameraInputRef?.click()">
+          <el-button
+            size="small"
+            :disabled="photoSlots.length >= PERSONAL_BANK_PHOTO_MAX"
+            @click="cameraInputRef?.click()"
+          >
             再拍一张
           </el-button>
-          <el-button size="small" :disabled="cropList.length >= 8" @click="albumInputRef?.click()">
+          <el-button
+            size="small"
+            :disabled="photoSlots.length >= PERSONAL_BANK_PHOTO_MAX"
+            @click="albumInputRef?.click()"
+          >
             再加一张
+          </el-button>
+          <el-button
+            type="primary"
+            :disabled="!allPhotosCropped || photoBusy"
+            :loading="photoBusy"
+            @click="startPhotoRecognize"
+          >
+            {{ photoIntent === 'upload' ? '插入照片' : '开始识别' }}
           </el-button>
         </div>
         <div v-if="photoBusy" class="pb-photo-busy">{{ photoBusyText }}</div>
@@ -783,11 +1052,13 @@ function recaptureCurrent() {
     <div v-else-if="formOpen" class="personal-bank-body">
       <p class="personal-bank-lead">
         {{
-          form.type === 'choice'
-            ? '选择题只需写正确项，测验时由 AI 生成另外三个选项。'
-            : '简答题提交后对照参考答案，再自行评分。'
+          form.type === 'choice' && form.choiceMode === 'fixed'
+            ? '定项选择题：把卷面 A/B/C/D 选项原样录入，测验时不再改选项。'
+            : form.type === 'choice'
+              ? '非定项选择题：只写正确项，测验时由 AI 生成另外三个选项。'
+              : '简答题提交后对照参考答案，再自行评分。'
         }}
-        题目、答案、解析可拍照识别；题目/解析也可拍照上传或直接粘贴图片。只认印刷文字，忽略手写批注。
+        题目、答案、解析可拍照识别；拍答案时若带解析会一并填入。题目/解析也可拍照上传或直接粘贴图片。
       </p>
       <el-form class="pb-q-form" label-position="top">
         <section class="pb-q-block">
@@ -803,6 +1074,17 @@ function recaptureCurrent() {
                   :value="t.id"
                 >
                   {{ t.label }}
+                </el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item v-if="form.type === 'choice'" label="选项方式" required>
+              <el-radio-group v-model="form.choiceMode">
+                <el-radio-button
+                  v-for="m in PERSONAL_BANK_CHOICE_MODES"
+                  :key="m.id"
+                  :value="m.id"
+                >
+                  {{ m.label }}
                 </el-radio-button>
               </el-radio-group>
             </el-form-item>
@@ -839,7 +1121,34 @@ function recaptureCurrent() {
           </el-form-item>
         </section>
         <section class="pb-q-block">
-          <el-form-item v-if="form.type === 'choice'" required>
+          <template v-if="form.type === 'choice' && form.choiceMode === 'fixed'">
+            <p class="pb-q-option-hint">
+              勾选正确项。选项按 A–D 原样保存。
+              <el-button size="small" type="primary" plain @click.stop.prevent="openFieldPhoto('answer')">
+                拍照识别答案
+              </el-button>
+            </p>
+            <el-form-item
+              v-for="(letter, idx) in CHOICE_OPTION_LETTERS"
+              :key="letter"
+              :required="idx < 2"
+            >
+              <template #label>
+                <div class="pb-q-field-head">
+                  <label class="pb-q-option-correct">
+                    <input v-model.number="form.correctIndex" type="radio" :value="idx">
+                    {{ letter }}. 正确项
+                  </label>
+                </div>
+              </template>
+              <RichTextEditor
+                v-model="form.optionsHtml[idx]"
+                min-height="72px"
+                :placeholder="`${letter} 选项`"
+              />
+            </el-form-item>
+          </template>
+          <el-form-item v-else-if="form.type === 'choice'" required>
             <template #label>
               <div class="pb-q-field-head">
                 <span>正确答案</span>
@@ -905,7 +1214,7 @@ function recaptureCurrent() {
 
     <div v-else-if="detailQuestion" class="personal-bank-body">
       <p class="personal-bank-q__meta">
-        {{ personalBankQuestionTypeLabel(detailQuestion.type) }} · {{ detailQuestion.score }} 分 · 已测验
+        {{ personalBankQuestionTypeLabel(detailQuestion.type, personalBankChoiceModeOf(detailQuestion)) }} · {{ detailQuestion.score }} 分 · 已测验
         {{ detailQuestion.quizCount }} 次
       </p>
       <section class="pb-q-block">
@@ -914,8 +1223,19 @@ function recaptureCurrent() {
       </section>
       <section class="pb-q-block">
         <h3 class="pb-q-detail__label">答案</h3>
+        <template v-if="detailQuestion.type === 'choice' && personalBankChoiceModeOf(detailQuestion) === 'fixed'">
+          <ol class="pb-q-detail__options">
+            <li
+              v-for="(opt, idx) in detailQuestion.optionsHtml"
+              :key="idx"
+              :class="{ 'is-correct': idx === detailQuestion.correctIndex }"
+            >
+              <RichTextView :html="opt" />
+            </li>
+          </ol>
+        </template>
         <RichTextView
-          v-if="detailQuestion.type === 'choice'"
+          v-else-if="detailQuestion.type === 'choice'"
           :html="detailQuestion.answerHtml || detailQuestion.answer"
         />
         <div v-else class="pb-q-detail__plain">
@@ -933,6 +1253,7 @@ function recaptureCurrent() {
         >
           生成变式
         </el-button>
+        <el-button @click="openMoveQuestion(detailQuestion)">调整分类</el-button>
         <el-button @click="openEditQuestion(detailQuestion)">修改</el-button>
         <el-button type="danger" plain @click="onDeleteQuestion(detailQuestion)">删除</el-button>
       </div>
@@ -941,6 +1262,7 @@ function recaptureCurrent() {
     <div v-else class="personal-bank-body">
       <div class="personal-bank-toolbar personal-bank-toolbar--row">
         <el-button type="primary" @click="openCreateQuestion">新建题目</el-button>
+        <el-button type="primary" plain @click="openPhotoSort">拍照整理</el-button>
         <el-radio-group v-model="quizScope" class="personal-bank-toolbar__scope">
           <el-radio-button value="short-answer" :disabled="!hasShortAnswer">简答题</el-radio-button>
           <el-radio-button value="choice" :disabled="!hasChoice">选择题</el-radio-button>
@@ -958,7 +1280,7 @@ function recaptureCurrent() {
         </el-button>
       </div>
       <p v-if="!questions.length" class="personal-bank-empty">
-        还没有题目。可建简答题或选择题；选择题只需写正确项（富文本），测验时由 AI 生成另外三个强干扰项。
+        还没有题目。可建简答题、定项选择题（选项固定）或非定项选择题（测验时再生成干扰项）。拍照整理一次可识别多道题。
       </p>
       <ul v-else class="personal-bank-qs">
         <li v-for="q in questions" :key="q.id" class="personal-bank-q">
@@ -974,6 +1296,7 @@ function recaptureCurrent() {
             >
               生成变式
             </el-button>
+            <el-button size="small" @click="openMoveQuestion(q)">调整分类</el-button>
             <el-button size="small" @click="openEditQuestion(q)">修改</el-button>
             <el-button size="small" type="danger" plain @click="onDeleteQuestion(q)">删除</el-button>
           </div>
@@ -983,13 +1306,13 @@ function recaptureCurrent() {
 
     <el-dialog
       v-model="exportOpen"
-      title="导出题库"
+      title="导出 Word"
       width="min(92vw, 480px)"
       :close-on-click-modal="!exportBusy"
       :close-on-press-escape="!exportBusy"
       :show-close="!exportBusy"
     >
-      <p class="pb-export__hint">勾选要导出的大类 / 小类，导出为 .docx。选择题会先用豆包补上三个强干扰项；分数按行内公式写入，选项与答案不额外换行。</p>
+      <p class="pb-export__hint">勾选要导出的大类 / 小类，导出为 Word（.docx）。整库 JSON 请用右上角「导出」。定项选择题用原选项；非定项会先用豆包补干扰项。</p>
       <el-radio-group v-model="exportContentMode" class="pb-export__mode" :disabled="exportBusy">
         <el-radio value="questions">仅题目</el-radio>
         <el-radio value="all">题目 + 答案解析</el-radio>
@@ -1008,6 +1331,26 @@ function recaptureCurrent() {
       <template #footer>
         <el-button :disabled="exportBusy" @click="exportOpen = false">取消</el-button>
         <el-button type="primary" :loading="exportBusy" @click="confirmExport">导出 Word</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="moveOpen" title="调整分类" width="min(92vw, 420px)">
+      <p class="pb-export__hint">把本题挪到另一个大类 / 小类。</p>
+      <el-form label-position="top">
+        <el-form-item label="大类">
+          <el-select v-model="moveCategoryId" placeholder="选择大类" style="width: 100%" @change="moveSubId = ''">
+            <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="小类">
+          <el-select v-model="moveSubId" placeholder="选择小类" style="width: 100%">
+            <el-option v-for="s in moveSubOptions" :key="s.id" :label="s.name" :value="s.id" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="moveOpen = false">取消</el-button>
+        <el-button type="primary" @click="confirmMoveQuestion">确定</el-button>
       </template>
     </el-dialog>
   </section>
@@ -1454,6 +1797,91 @@ function recaptureCurrent() {
 
 .pb-photo-stage {
   position: relative;
+}
+
+.pb-photo-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0 10px;
+  margin-bottom: 6px;
+}
+
+.pb-photo-strip__item {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 2px solid var(--app-border, #d0d5dd);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0f172a;
+  cursor: pointer;
+}
+
+.pb-photo-strip__item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pb-photo-strip__item span {
+  position: absolute;
+  left: 4px;
+  bottom: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 70%);
+}
+
+.pb-photo-strip__item.is-active {
+  border-color: var(--el-color-primary);
+}
+
+.pb-photo-strip__item.is-done::after {
+  content: '✓';
+  position: absolute;
+  right: 3px;
+  top: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #bbf7d0;
+}
+
+.pb-q-option-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--app-text-muted);
+}
+
+.pb-q-option-correct {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pb-q-detail__options {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.pb-q-detail__options li {
+  margin: 0 0 8px;
+}
+
+.pb-q-detail__options li.is-correct {
+  font-weight: 700;
 }
 
 .pb-photo-busy {

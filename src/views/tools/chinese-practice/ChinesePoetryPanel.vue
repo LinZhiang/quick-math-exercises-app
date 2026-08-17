@@ -52,6 +52,7 @@ const isRunningOrLoading = computed(
 
 defineExpose({
   isRunningOrLoading,
+  resetToIdle: () => test.resetToIdle(),
   startWith(questions: PoetryRecognitionQuestion[], keyReview?: ChineseKeyReviewMeta) {
     test.resetToIdle()
     test.startQuiz(questions, keyReview ? { keyReview } : undefined)
@@ -304,7 +305,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           </el-button>
         </div>
         <p v-if="!isAiChatConfigured()" class="chinese-quiz__assist-muted">
-          未登录，无法讲解。请到「导览 → 设置」登录后再试。
+          未登录，无法讲解。请到右上角「设置」登录后再试。
         </p>
         <template v-else>
           <p

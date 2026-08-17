@@ -3,6 +3,7 @@ import { parseAiJsonObjectLenient } from '@/utils/aiJsonParse'
 import { getAiProvider, getAiProviderLabel } from '@/utils/aiProviderStore'
 import { markdownToDisplaySafeHtml } from '@/utils/markdownToHtml'
 import {
+  personalBankChoiceModeOf,
   personalBankQuestionTypeLabel,
   type PersonalBankQuestion,
   type PersonalBankQuestionInput,
@@ -53,10 +54,14 @@ export async function generatePersonalBankVariant(
           '- 表格用 GitHub Markdown 表格，不要改成纯文字；',
           '- 不要输出图片，也不要编造原题没有的图表结构（可改表内数字）；',
           question.type === 'choice'
-            ? '- 选择题：stem 不要带 A/B/C/D 选项清单；answer 只写正确答案本身（正确选项正文），不要写整组选项。'
+            ? personalBankChoiceModeOf(question) === 'fixed'
+              ? '- 保持定项选择题：给出 4 个新选项（options 数组）和 correctIndex；stem 不要带 A/B/C/D 清单。'
+              : '- 非定项选择题：stem 不要带选项清单；answer 只写正确答案本身。'
             : '- 简答题：answer 写最终答案正文。',
           '返回 JSON：',
-          '{ "title": "不超过20字短标题", "stem": "题干 Markdown", "answer": "答案 Markdown", "explanation": "解析 Markdown" }',
+          personalBankChoiceModeOf(question) === 'fixed'
+            ? '{ "title": "不超过20字短标题", "stem": "题干 Markdown", "options": ["A","B","C","D"], "correctIndex": 0, "explanation": "解析 Markdown" }'
+            : '{ "title": "不超过20字短标题", "stem": "题干 Markdown", "answer": "答案 Markdown", "explanation": "解析 Markdown" }',
           '原题：',
           JSON.stringify(
             {
@@ -87,6 +92,28 @@ export async function generatePersonalBankVariant(
   const title = variantTitle(question.title, asText(rec.title))
 
   if (question.type === 'choice') {
+    const mode = personalBankChoiceModeOf(question)
+    if (mode === 'fixed') {
+      const options = Array.isArray(rec.options)
+        ? rec.options.map((x) => toRichHtml(asText(x))).filter(Boolean)
+        : []
+      let correctIndex = Math.max(0, Math.floor(Number(rec.correctIndex) || 0))
+      if (options.length < 2) throw new Error('变式定项选择题缺少选项，请重试')
+      if (correctIndex >= options.length) correctIndex = 0
+      const answerHtml = options[correctIndex]!
+      return {
+        title,
+        type: 'choice',
+        score: question.score,
+        stemHtml,
+        answer: richHtmlPlainText(answerHtml, 5000),
+        answerHtml,
+        explanationHtml,
+        choiceMode: 'fixed',
+        optionsHtml: options,
+        correctIndex,
+      }
+    }
     const answerHtml = toRichHtml(answerRaw)
     if (!answerHtml.trim()) throw new Error('变式选择题缺少正确答案，请重试')
     return {
@@ -97,6 +124,9 @@ export async function generatePersonalBankVariant(
       answer: richHtmlPlainText(answerHtml, 5000),
       answerHtml,
       explanationHtml,
+      choiceMode: 'open',
+      optionsHtml: [],
+      correctIndex: 0,
     }
   }
 
@@ -110,5 +140,8 @@ export async function generatePersonalBankVariant(
     answer,
     answerHtml: '',
     explanationHtml,
+    choiceMode: 'open',
+    optionsHtml: [],
+    correctIndex: 0,
   }
 }

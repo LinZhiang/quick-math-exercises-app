@@ -4,12 +4,16 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   PRACTICE_HUB_NAV_ITEMS,
   PRACTICE_HUB_SECTIONS,
+  TRAIN_HUB_SECTIONS,
+  isTrainHubSectionId,
   practiceHubGroupHasMultiple,
   practiceHubGroupIdForSection,
   practiceHubSectionsInGroup,
   type PracticeHubGroupId,
   type PracticeHubSectionId,
 } from '@/constants/practice-hub-sections'
+import { useAppChromeTitle } from '@/composables/useAppChrome'
+import { goBackOr, omitQueryKey } from '@/utils/appNavigation'
 import MentalMathPracticeGuide from '@/views/tools/mental-math/components/MentalMathPracticeGuide.vue'
 import PracticeSessionLogPanel from '@/views/tools/mental-math/components/PracticeSessionLogPanel.vue'
 import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
@@ -207,13 +211,12 @@ import {
   type SchulteQuestion,
 } from '@/utils/schultePractice'
 import ChinesePracticeSection from '@/views/tools/chinese-practice/ChinesePracticeSection.vue'
-import PwaInstallPanel from '@/components/PwaInstallPanel.vue'
 import { clearWenguSessionOnAiLeave } from '@/utils/wenguAuthStore'
 import MentalMathWrongBookPanel from '@/views/tools/mental-math/components/MentalMathWrongBookPanel.vue'
 import FactDeepenMemorizationPanel from '@/views/tools/mental-math/components/FactDeepenMemorizationPanel.vue'
 import SystemMgmtMindmapButton from '@/views/tools/mental-math/components/SystemMgmtMindmapButton.vue'
 import { upsertMentalMathWrong } from '@/utils/mentalMathWrongBook'
-import { wrongBookWorkspaceActive } from '@/utils/wrongBookWorkspaceGate'
+import { resetWrongBookWorkspaceGate, wrongBookWorkspaceActive } from '@/utils/wrongBookWorkspaceGate'
 import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
 import { renderDataAnalysisMathHtml } from '@/utils/dataAnalysisMathDisplay'
 import type { FactDeepenKind } from '@/utils/factDeepenMemorization'
@@ -741,8 +744,6 @@ const chineseActiveTab = ref<import('@/constants/chinese-practice-tabs').Chinese
 const isChinesePoetOverview = computed(
   () => showChineseSection.value && chineseActiveTab.value === 'poet-overview',
 )
-const showInstallSection = computed(() => activeOutlineSection.value === 'install')
-const showSettingsSection = computed(() => activeOutlineSection.value === 'settings')
 const showGuideSection = computed(() => activeOutlineSection.value === 'guide')
 const showLogSection = computed(() => activeOutlineSection.value === 'log')
 
@@ -987,8 +988,7 @@ function scrollPracticeMainToBottom() {
   })
 }
 
-function selectOutlineSection(id: PracticeHubSectionId) {
-  if (chineseSessionActive.value) return
+function applyTrainSection(id: PracticeHubSectionId) {
   activeOutlineSection.value = id
   activeHubGroupId.value = practiceHubGroupIdForSection(id)
   ensureHubL2ActiveVisible()
@@ -997,14 +997,40 @@ function selectOutlineSection(id: PracticeHubSectionId) {
   })
 }
 
+function selectOutlineSection(id: PracticeHubSectionId) {
+  if (chineseSessionActive.value) return
+  if (id === 'install' || id === 'settings') {
+    void router.push({ name: id })
+    return
+  }
+  const current = String(route.params.section ?? '')
+  if (current === id) {
+    applyTrainSection(id)
+    return
+  }
+  void router.replace({
+    name: 'train',
+    params: { section: id },
+    query: omitQueryKey(route.query, 'play'),
+  })
+}
+
 function onGuideStartPractice(modeId: string) {
   startMode(modeId as PracticeMode)
 }
 
 function onGuideGoChineseTab(tabId: string) {
-  activeOutlineSection.value = 'chinese'
-  void nextTick(() => {
-    chinesePracticeRef.value?.selectTab?.(tabId as import('@/constants/chinese-practice-tabs').ChinesePracticeTabId)
+  const goTab = () => {
+    chinesePracticeRef.value?.selectTab?.(
+      tabId as import('@/constants/chinese-practice-tabs').ChinesePracticeTabId,
+    )
+  }
+  if (String(route.params.section ?? '') === 'chinese') {
+    goTab()
+    return
+  }
+  void router.replace({ name: 'train', params: { section: 'chinese' } }).then(() => {
+    void nextTick(goTab)
   })
 }
 
@@ -1307,6 +1333,9 @@ function startMode(mode: PracticeMode) {
   phase.value = 'countdown'
   countdownValue.value = COUNTDOWN_STEPS[0]
   runCountdownStep(0, mode)
+  if (route.query.play !== '1') {
+    void router.push({ query: { ...route.query, play: '1' } })
+  }
 }
 
 function openFactDeepen(kind: FactDeepenKind) {
@@ -1862,7 +1891,7 @@ function onKeydown(e: KeyboardEvent) {
   applyAnswer(idx)
 }
 
-function backToSelect() {
+function backToSelectCore() {
   stopQbPerfectMidi()
   clearTimers()
   phase.value = 'select'
@@ -1893,68 +1922,134 @@ function backToSelect() {
   schultePauseStartedMs = 0
 }
 
+function exitEmbeddedSessions() {
+  factDeepenRef.value?.close()
+  resetWrongBookWorkspaceGate()
+  chinesePracticeRef.value?.resetToIdle?.()
+  const panels = [
+    dataAnalysisPanelRef,
+    dataAnalysisGrowthPanelRef,
+    dataAnalysisGrowthInterYearPanelRef,
+    dataAnalysisGrowthAvgAnnualPanelRef,
+    dataAnalysisGrowthMixedPanelRef,
+    dataAnalysisProportionBasicPanelRef,
+    dataAnalysisProportionBasePanelRef,
+    dataAnalysisAverageBasicPanelRef,
+    dataAnalysisAverageBasePanelRef,
+    dataAnalysisMultipleBasicPanelRef,
+    dataAnalysisMultipleBasePanelRef,
+    dataAnalysisIndexPanelRef,
+    dataAnalysisPullPanelRef,
+    dataAnalysisSurplusPanelRef,
+    divisibilityJudgePanelRef,
+    primeCompositePanelRef,
+    gcdLcmPanelRef,
+    ratioMultPanelRef,
+    remPropPanelRef,
+    subElimPanelRef,
+    equationMethodPanelRef,
+    specialValuePanelRef,
+    ratioMethodPanelRef,
+    translationReasonPanelRef,
+    comboArrangePanelRef,
+    truthFalsePanelRef,
+    evalReasonPanelRef,
+    strengthenReasonPanelRef,
+    weakenReasonPanelRef,
+    dailyConclusionPanelRef,
+    explainPhenomPanelRef,
+    crossMethodPanelRef,
+    sumDiffRatioPanelRef,
+    geometryPanelRef,
+    rightTrianglePanelRef,
+    similarTrianglePanelRef,
+    coloringPanelRef,
+    ordinaryTravelPanelRef,
+    meetPursuePanelRef,
+    boatCurrentPanelRef,
+    ordinaryWorkPanelRef,
+    cooperativeWorkPanelRef,
+    profitCalcPanelRef,
+    profitRatePanelRef,
+    concentrationPanelRef,
+    permCombBasicPanelRef,
+    permCombConstraintPanelRef,
+    permCombClassicPanelRef,
+    probabilityPanelRef,
+    inclusionExclusionPanelRef,
+    sequencePanelRef,
+    extremumPanelRef,
+    datePanelRef,
+    agePanelRef,
+    clockPanelRef,
+    yingKuiPanelRef,
+    chickenRabbitPanelRef,
+    functionGraphPanelRef,
+    competitionPanelRef,
+    reversePanelRef,
+    sectionalPanelRef,
+    formulaRecitePanelRef,
+  ]
+  for (const r of panels) {
+    ;(r.value as { resetToIdle?: () => void } | null)?.resetToIdle?.()
+  }
+}
+
+function backToSelect() {
+  if (route.query.play === '1') {
+    goBackOr(router, {
+      name: 'train',
+      params: route.params,
+      query: omitQueryKey(route.query, 'play'),
+    })
+    return
+  }
+  backToSelectCore()
+  exitEmbeddedSessions()
+}
+
+watch(
+  () => String(route.params.section ?? ''),
+  (section) => {
+    if (!isTrainHubSectionId(section) || section === 'install' || section === 'settings') return
+    if (activeOutlineSection.value !== section) applyTrainSection(section)
+  },
+  { immediate: true },
+)
+
+watch(
+  () => route.query.play,
+  (play, prev) => {
+    if (play === '1') return
+    if (prev !== '1') return
+    backToSelectCore()
+    exitEmbeddedSessions()
+  },
+)
+
+watch(chineseSessionActive, (on) => {
+  if (on) {
+    if (route.query.play !== '1') {
+      void router.push({ query: { ...route.query, play: '1' } })
+    }
+    return
+  }
+  if (route.query.play === '1' && phase.value === 'select') {
+    void router.replace({ query: omitQueryKey(route.query, 'play') })
+  }
+})
+
+const trainChromeTitle = computed(() => {
+  const sec = PRACTICE_HUB_SECTIONS.find((s) => s.id === activeOutlineSection.value)
+  return sec?.title ?? '知识训练'
+})
+useAppChromeTitle(trainChromeTitle)
+
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
   prepareQbPerfectMidi()
-  const hash = route.hash.replace('#', '')
-  if (hash === 'log' || route.query.section === 'log') {
-    activeOutlineSection.value = 'log'
-  } else if (hash === 'guide' || route.query.section === 'guide') {
-    activeOutlineSection.value = 'guide'
-  } else if (hash === 'twentyfour' || route.query.section === 'twentyfour') {
-    activeOutlineSection.value = 'twentyfour'
-  } else if (hash === 'sudoku' || route.query.section === 'sudoku') {
-    activeOutlineSection.value = 'sudoku'
-  } else if (hash === 'graphic' || route.query.section === 'graphic') {
-    activeOutlineSection.value = 'graphic'
-  } else if (hash === 'logic-reason' || route.query.section === 'logic-reason') {
-    activeOutlineSection.value = 'logic-reason'
-  } else if (hash === 'data-analysis' || route.query.section === 'data-analysis') {
-    activeOutlineSection.value = 'data-analysis'
-  } else if (hash === 'op-skill' || route.query.section === 'op-skill') {
-    activeOutlineSection.value = 'op-skill'
-  } else if (hash === 'op-highfreq' || route.query.section === 'op-highfreq') {
-    activeOutlineSection.value = 'op-highfreq'
-  } else if (hash === 'op-other' || route.query.section === 'op-other') {
-    activeOutlineSection.value = 'op-other'
-  } else if (hash === 'formula-recite' || route.query.section === 'formula-recite') {
-    activeOutlineSection.value = 'formula-recite'
-  } else if (hash === 'chinese' || hash === 'chinese-idiom' || route.query.section === 'chinese' || route.query.section === 'chinese-idiom') {
-    activeOutlineSection.value = 'chinese'
-  } else if (hash === 'chinese-key' || route.query.section === 'chinese-key') {
-    activeOutlineSection.value = 'chinese'
-  } else if (hash === 'install' || route.query.section === 'install') {
-    activeOutlineSection.value = 'install'
-  } else if (hash === 'settings' || route.query.section === 'settings') {
-    activeOutlineSection.value = 'settings'
-  } else if (hash === 'fraction' || route.query.section === 'fraction') {
-    activeOutlineSection.value = 'fraction'
-  } else if (hash === 'divisibility' || route.query.section === 'divisibility') {
-    activeOutlineSection.value = 'divisibility'
-  } else if (hash === 'number-sequence' || route.query.section === 'number-sequence') {
-    activeOutlineSection.value = 'number-sequence'
-  } else if (hash === 'life-sense' || route.query.section === 'life-sense') {
-    activeOutlineSection.value = 'life-sense'
-  } else if (hash === 'what-is-this' || route.query.section === 'what-is-this') {
-    activeOutlineSection.value = 'what-is-this'
-  } else if (hash === 'economy-sense' || route.query.section === 'economy-sense') {
-    activeOutlineSection.value = 'economy-sense'
-  } else if (hash === 'system-mgmt' || route.query.section === 'system-mgmt') {
-    activeOutlineSection.value = 'system-mgmt'
-  } else if (hash === 'wenyan-shici' || route.query.section === 'wenyan-shici') {
-    activeOutlineSection.value = 'wenyan-shici'
-  } else if (hash === 'hanzi-pattern' || route.query.section === 'hanzi-pattern') {
-    activeOutlineSection.value = 'hanzi-pattern'
-  } else if (hash === 'wenyan-xuci' || route.query.section === 'wenyan-xuci') {
-    activeOutlineSection.value = 'wenyan-xuci'
-  } else if (hash === 'wenyan-jushi' || route.query.section === 'wenyan-jushi') {
-    activeOutlineSection.value = 'wenyan-jushi'
-  } else if (hash === 'grammar-judgment' || route.query.section === 'grammar-judgment') {
-    activeOutlineSection.value = 'grammar-judgment'
-  } else if (hash === 'rhetoric-device' || route.query.section === 'rhetoric-device') {
-    activeOutlineSection.value = 'rhetoric-device'
-  } else if (hash === 'schulte' || route.query.section === 'schulte') {
-    activeOutlineSection.value = 'schulte'
+  if (route.query.play === '1' && phase.value === 'select') {
+    void router.replace({ query: omitQueryKey(route.query, 'play') })
   }
 })
 
@@ -1970,23 +2065,6 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="mental-math-page">
-    <header
-      v-if="phase === 'select' && !chineseSessionActive && !showChineseSection"
-      class="page-hero"
-    >
-      <div class="page-hero__row">
-        <h2 class="page-title">学习App</h2>
-        <el-button size="small" @click="router.push({ name: 'personal-bank' })">个人题库</el-button>
-      </div>
-      <p class="page-subtitle page-subtitle--full">
-        限时口算、次幂、平方与立方、估算分数、整除、生活常识；数学推理含二十四点、数独、图形推理、资料分析、运算技巧、高频运算、其他运算、公式背诵；左侧「语文练习」含成语识记、词语识记、阅读理解等。
-        口算/图形结果仅在本页展示；语文练习多子模块四选一、正计时，依赖 AI 出题（DeepSeek / 豆包，需在「导览 → 设置」登录），错题与收藏在「关题练习」。
-      </p>
-      <p class="page-subtitle page-subtitle--compact">
-        点上方分类找模式，点卡片开始练习。
-      </p>
-    </header>
-
     <div
       v-if="phase === 'select'"
       class="practice-shell"
@@ -2072,7 +2150,7 @@ onBeforeUnmount(() => {
         </div>
         <div class="practice-sidebar__flat" aria-label="全部入口">
         <button
-          v-for="section in PRACTICE_HUB_SECTIONS"
+          v-for="section in TRAIN_HUB_SECTIONS"
           :key="section.id"
           type="button"
           class="practice-sidebar__item"
@@ -4234,13 +4312,10 @@ onBeforeUnmount(() => {
           </p>
           <ChinesePracticeSection
             ref="chinesePracticeRef"
-            @go-install="activeOutlineSection = 'settings'"
+            @go-install="router.push({ name: 'settings' })"
             @tab-change="chineseActiveTab = $event"
           />
         </section>
-
-        <PwaInstallPanel v-if="showInstallSection" panel="install" />
-        <PwaInstallPanel v-if="showSettingsSection" panel="settings" />
       </div>
     </div>
 
@@ -4567,7 +4642,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 100vh;
+  min-height: 0;
   min-width: 0;
   width: 100%;
   max-width: none;
@@ -5640,8 +5715,8 @@ onBeforeUnmount(() => {
 
 @media (max-width: 640px), (display-mode: standalone) {
   .mental-math-page:has(.practice-shell) {
-    height: 100dvh;
-    max-height: 100dvh;
+    height: 100%;
+    max-height: 100%;
     overflow: hidden;
   }
 

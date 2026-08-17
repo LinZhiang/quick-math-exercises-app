@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import RichTextView from '@/components/RichTextView.vue'
 import { usePersonalBankQuiz, type PersonalBankQuizResultRow } from '@/composables/usePersonalBankQuiz'
 import {
+  personalBankChoiceModeOf,
   personalBankQuestionTypeLabel,
   type PersonalBankQuestion,
 } from '@/utils/personalQuestionBank'
@@ -101,7 +102,7 @@ function onKeydown(ev: KeyboardEvent) {
     <template v-else-if="test.phase === 'running' && test.currentQuestion">
       <div class="pb-quiz__top">
         <span>第 {{ test.currentIndex + 1 }} / {{ test.questionCount }} 题</span>
-        <span>{{ personalBankQuestionTypeLabel(test.currentQuestion.type) }} · {{ test.currentQuestion.score }} 分</span>
+        <span>{{ personalBankQuestionTypeLabel(test.currentQuestion.type, personalBankChoiceModeOf(test.currentQuestion)) }} · {{ test.currentQuestion.score }} 分</span>
         <span class="pb-quiz__timer" :class="{ 'is-paused': test.quizTimerPaused }">
           {{ test.quizRunningElapsedText }}
         </span>
@@ -255,7 +256,7 @@ function onKeydown(ev: KeyboardEvent) {
       >
         <div v-if="detailRow" class="pb-quiz__detail">
           <p>
-            {{ personalBankQuestionTypeLabel(detailRow.question.type) }} ·
+            {{ personalBankQuestionTypeLabel(detailRow.question.type, personalBankChoiceModeOf(detailRow.question)) }} ·
             <strong>{{ resultTag(detailRow) }} {{ detailRow.awardedScore }}/{{ detailRow.fullScore }}</strong>
           </p>
           <section>

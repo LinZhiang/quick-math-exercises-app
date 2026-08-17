@@ -27,7 +27,13 @@ const isRunningOrLoading = computed(
     test.phase === 'summary',
 )
 
-defineExpose({ isRunningOrLoading })
+defineExpose({
+  isRunningOrLoading,
+  resetToIdle() {
+    selectedDifficulty.value = null
+    test.resetToIdle()
+  },
+})
 
 function selectDifficulty(d: TruthFalseDifficulty) {
   if (test.phase === 'loading') return

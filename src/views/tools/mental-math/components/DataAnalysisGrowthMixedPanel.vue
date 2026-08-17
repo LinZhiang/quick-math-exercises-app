@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import {
   useDataAnalysisGrowthMixedTest,
@@ -30,7 +30,13 @@ const isRunningOrLoading = computed(
     test.phase === 'summary',
 )
 
-defineExpose({ isRunningOrLoading })
+defineExpose({
+  isRunningOrLoading,
+  resetToIdle() {
+    selectedDifficulty.value = null
+    test.resetToIdle()
+  },
+})
 
 function selectDifficulty(d: GrowthMixedDifficulty) {
   if (test.phase === 'loading') return
@@ -171,7 +177,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         已备好 {{ test.questions.length }} 题，点击「开始练习」后计时。
       </p>
       <p v-else-if="!isAiChatConfigured()" class="chinese-setup__loading">
-        未登录，无法生成。请到「导览 → 设置」登录后再试。
+        未登录，无法生成。请到右上角「设置」登录后再试。
       </p>
     </template>
 

@@ -70,6 +70,14 @@ export const PRACTICE_HUB_SECTIONS: PracticeHubSection[] = [
   { id: 'settings', title: '设置' },
 ]
 
+export const TRAIN_HUB_SECTIONS: PracticeHubSection[] = PRACTICE_HUB_SECTIONS.filter(
+  (s) => s.id !== 'install' && s.id !== 'settings',
+)
+
+export function isTrainHubSectionId(id: string): id is PracticeHubSectionId {
+  return TRAIN_HUB_SECTIONS.some((s) => s.id === id)
+}
+
 /** 手机端二级菜单：一级分类 */
 export type PracticeHubGroupId = 'browse' | 'mental' | 'quick' | 'puzzle' | 'chinese'
 
@@ -80,7 +88,7 @@ export type PracticeHubGroup = {
 }
 
 export const PRACTICE_HUB_GROUPS: PracticeHubGroup[] = [
-  { id: 'browse', title: '导览', sectionIds: ['log', 'guide', 'install', 'settings'] },
+  { id: 'browse', title: '导览', sectionIds: ['log', 'guide'] },
   {
     id: 'mental',
     title: '口算',

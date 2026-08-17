@@ -9,6 +9,7 @@ import { generatePersonalBankChoiceOptions } from '@/utils/personalBankChoiceAi'
 import { aiRequestProgressText, type AiProvider } from '@/utils/aiProviderStore'
 import {
   incrementPersonalBankQuestionQuizCount,
+  isOpenChoiceQuestion,
   type PersonalBankQuestion,
 } from '@/utils/personalQuestionBank'
 import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
@@ -188,7 +189,7 @@ export function usePersonalBankQuiz() {
     }
     const token = ++startToken
     phase.value = 'loading'
-    loadingMessage.value = input.paper.some((q) => q.type === 'choice')
+    loadingMessage.value = input.paper.some((q) => isOpenChoiceQuestion(q))
       ? aiRequestProgressText('生成选择题干扰项', input.provider)
       : '正在组卷…'
     try {

@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 
-const props = defineProps<{
-  src: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    src: string
+    confirmLabel?: string
+    hint?: string
+  }>(),
+  {
+    hint: '拖动或拉伸选框，只留下本题相关区域。多张照片会按顺序拼在一起识别。',
+  },
+)
 
 const emit = defineEmits<{
   confirm: [dataUrl: string]
@@ -117,7 +124,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="crop">
-    <p class="crop__hint">拖动或拉伸选框，只留下题目区域。</p>
+    <p class="crop__hint">{{ hint }}</p>
     <div ref="stageRef" class="crop__stage">
       <img
         ref="imgRef"
@@ -160,8 +167,8 @@ onBeforeUnmount(() => {
       </div>
     </div>
     <div class="crop__actions">
-      <el-button @click="emit('recapture')">重选照片</el-button>
-      <el-button type="primary" @click="exportCrop">确认裁切并识别</el-button>
+      <el-button @click="emit('recapture')">去掉这张</el-button>
+      <el-button type="primary" @click="exportCrop">{{ confirmLabel || '确认裁切' }}</el-button>
     </div>
   </div>
 </template>

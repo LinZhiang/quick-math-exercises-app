@@ -10,7 +10,7 @@ const BUILD_ORIGIN =
 export const WENGU_API_ORIGIN_STORAGE_KEY = 'wengu-api-origin-v1'
 
 export const WENGU_MEMBER_CUSTOM_API_HINT =
-  '成员账号不能使用本站默认 API。请到「导览 → 设置」登录后填写你自己的 API 地址并重新登录。'
+  '成员账号不能使用本站默认 API。请到右上角「设置」登录后填写你自己的 API 地址并重新登录。'
 
 function readStoredOrigin(): string {
   try {

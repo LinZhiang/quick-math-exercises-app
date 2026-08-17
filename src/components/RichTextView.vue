@@ -1,26 +1,39 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { renderMathInRichHtml } from '@/utils/dataAnalysisMathDisplay'
 import { sanitizeRichHtml } from '@/utils/richTextHtml'
+import ImageZoomOverlay from '@/components/ImageZoomOverlay.vue'
 
 const props = withDefaults(
   defineProps<{
     html?: string
     /** 将文本中的分式、幂次、根号转成书本式显示 */
     math?: boolean
+    /** 点击正文插图放大，支持拖动与双指缩放 */
+    zoomImages?: boolean
   }>(),
-  { math: true },
+  { math: true, zoomImages: true },
 )
+
+const previewSrc = ref('')
 
 const safeHtml = computed(() => {
   const sanitized = sanitizeRichHtml(props.html ?? '')
   return props.math ? renderMathInRichHtml(sanitized) : sanitized
 })
+
+function onClick(ev: MouseEvent) {
+  if (!props.zoomImages) return
+  const t = ev.target
+  if (!(t instanceof HTMLImageElement) || !t.src) return
+  previewSrc.value = t.src
+}
 </script>
 
 <template>
   <!-- eslint-disable-next-line vue/no-v-html -->
-  <div class="rich-text-view" v-html="safeHtml" />
+  <div class="rich-text-view" :class="{ 'is-zoomable': zoomImages }" v-html="safeHtml" @click="onClick" />
+  <ImageZoomOverlay v-if="previewSrc" :src="previewSrc" @close="previewSrc = ''" />
 </template>
 
 <style scoped>
@@ -53,6 +66,10 @@ const safeHtml = computed(() => {
   display: block;
   margin: 8px 0;
   border-radius: 6px;
+}
+
+.rich-text-view.is-zoomable :deep(img) {
+  cursor: zoom-in;
 }
 
 .rich-text-view :deep(table) {

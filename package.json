@@ -21,6 +21,7 @@
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
     "docx": "^9.7.1",
     "dompurify": "^3.4.12",
     "element-plus": "^2.13.7",
