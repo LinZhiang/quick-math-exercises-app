@@ -2,7 +2,10 @@ import { aiChatCompletion } from '@/services/ai'
 import { getAiProvider, type AiProvider } from '@/utils/aiProviderStore'
 import { parseAiJsonArrayLenient, parseAiJsonObjectLenient } from '@/utils/aiJsonParse'
 import { CHINESE_MCQ_SURFACE_PARITY_RULES } from '@/utils/chineseMcqAiFields'
-import type { PersonalBankQuestion } from '@/utils/personalQuestionBank'
+import {
+  personalBankChoiceModeOf,
+  type PersonalBankQuestion,
+} from '@/utils/personalQuestionBank'
 import { richHtmlIsEmpty, richHtmlPlainText, sanitizeRichHtml } from '@/utils/richTextHtml'
 
 export type PersonalBankChoiceOptions = {
@@ -129,6 +132,15 @@ async function requestOne(q: PersonalBankQuestion, provider: AiProvider): Promis
   return map.get(q.id) ?? [...map.values()][0] ?? []
 }
 
+export function packStoredChoiceOptions(q: PersonalBankQuestion): PersonalBankChoiceOptions | null {
+  if (personalBankChoiceModeOf(q) !== 'fixed') return null
+  const optionsHtml = (q.optionsHtml ?? []).map((h) => sanitizeRichHtml(h)).filter((h) => !richHtmlIsEmpty(h))
+  if (optionsHtml.length < 2) return null
+  let correctIndex = Math.max(0, Math.floor(Number(q.correctIndex) || 0))
+  if (correctIndex >= optionsHtml.length) correctIndex = 0
+  return { optionsHtml, correctIndex }
+}
+
 export async function generatePersonalBankChoiceOptions(
   questions: PersonalBankQuestion[],
   provider: AiProvider = getAiProvider(),
@@ -137,14 +149,22 @@ export async function generatePersonalBankChoiceOptions(
   const result = new Map<string, PersonalBankChoiceOptions>()
   if (!choiceQs.length) return result
 
+  for (const q of choiceQs) {
+    const packed = packStoredChoiceOptions(q)
+    if (packed) result.set(q.id, packed)
+  }
+
+  const openQs = choiceQs.filter((q) => !result.has(q.id))
+  if (!openQs.length) return result
+
   let batch = new Map<string, string[]>()
   try {
-    batch = await requestDistractors(choiceQs, provider)
+    batch = await requestDistractors(openQs, provider)
   } catch {
     batch = new Map()
   }
 
-  for (const q of choiceQs) {
+  for (const q of openQs) {
     const correctHtml = sanitizeRichHtml(q.answerHtml || '')
     if (richHtmlIsEmpty(correctHtml)) {
       throw new Error(`选择题「${q.title}」缺少正确答案`)

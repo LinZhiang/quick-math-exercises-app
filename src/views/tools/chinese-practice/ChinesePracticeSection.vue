@@ -187,10 +187,28 @@ function onKeyPractice(payload: KeyPracticePayload) {
   })
 }
 
+function resetToIdle() {
+  idiomRef.value?.resetToIdle?.()
+  wordMemorizationRef.value?.resetToIdle?.()
+  charLiteracyRef.value?.resetToIdle?.()
+  poetryRef.value?.resetToIdle?.()
+  classicalChineseRef.value?.resetToIdle?.()
+  rhetoricUsageRef.value?.resetToIdle?.()
+  readingComprehensionRef.value?.resetToIdle?.()
+  historyCommonSenseRef.value?.resetToIdle?.()
+  partyHistoryRef.value?.resetToIdle?.()
+  theoryPolicyRef.value?.resetToIdle?.()
+  legalCommonSenseRef.value?.resetToIdle?.()
+  economyCommonSenseRef.value?.resetToIdle?.()
+  lifeCommonSenseRef.value?.resetToIdle?.()
+  geographyCommonSenseRef.value?.resetToIdle?.()
+}
+
 defineExpose({
   isRunningOrLoading,
   selectTab,
   activeTab,
+  resetToIdle,
   startKeyPractice(source: ChineseKeyQuestionSource, questions: KeyPracticePayload['questions']) {
     onKeyPractice({ source, questions } as KeyPracticePayload)
   },

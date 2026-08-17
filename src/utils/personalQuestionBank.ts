@@ -17,6 +17,14 @@ export const PERSONAL_BANK_QUESTION_TYPES = [
 
 export type PersonalBankQuestionType = (typeof PERSONAL_BANK_QUESTION_TYPES)[number]['id']
 
+/** 定项：选项固定；非定项：只固定正确答案，测验时再生成干扰项 */
+export type PersonalBankChoiceMode = 'fixed' | 'open'
+
+export const PERSONAL_BANK_CHOICE_MODES = [
+  { id: 'fixed', label: '定项选择题' },
+  { id: 'open', label: '非定项选择题' },
+] as const
+
 export type PersonalBankQuestion = {
   id: string
   title: string
@@ -28,6 +36,12 @@ export type PersonalBankQuestion = {
   /** 选择题正确选项（富文本）；简答题可为空 */
   answerHtml: string
   explanationHtml: string
+  /** 选择题：fixed 用卷面选项；open 仅正确项固定 */
+  choiceMode: PersonalBankChoiceMode
+  /** 定项选择题全部选项（含正确项） */
+  optionsHtml: string[]
+  /** 定项选择题正确项下标 */
+  correctIndex: number
   /** 进入测验并完成本题的次数 */
   quizCount: number
   createdAt: number
@@ -42,6 +56,9 @@ export type PersonalBankQuestionInput = {
   answer: string
   answerHtml: string
   explanationHtml: string
+  choiceMode?: PersonalBankChoiceMode
+  optionsHtml?: string[]
+  correctIndex?: number
 }
 
 export type PersonalBankQuizScope = 'short-answer' | 'choice' | 'all'
@@ -74,8 +91,29 @@ function createId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-export function personalBankQuestionTypeLabel(type: string): string {
+export function personalBankQuestionTypeLabel(
+  type: string,
+  choiceMode?: PersonalBankChoiceMode | string | null,
+): string {
+  if (type === 'choice') {
+    return choiceMode === 'open' ? '非定项选择题' : choiceMode === 'fixed' ? '定项选择题' : '选择题'
+  }
   return PERSONAL_BANK_QUESTION_TYPES.find((t) => t.id === type)?.label ?? type
+}
+
+export function personalBankChoiceModeOf(
+  q: Pick<PersonalBankQuestion, 'type' | 'choiceMode' | 'optionsHtml'>,
+): PersonalBankChoiceMode {
+  if (q.type !== 'choice') return 'open'
+  if (q.choiceMode === 'fixed' || q.choiceMode === 'open') return q.choiceMode
+  const opts = (q.optionsHtml ?? []).filter((h) => !richHtmlIsEmpty(h))
+  return opts.length >= 2 ? 'fixed' : 'open'
+}
+
+export function isOpenChoiceQuestion(
+  q: Pick<PersonalBankQuestion, 'type' | 'choiceMode' | 'optionsHtml'>,
+): boolean {
+  return q.type === 'choice' && personalBankChoiceModeOf(q) === 'open'
 }
 
 export function personalBankModeId(subId: string): string {
@@ -92,6 +130,16 @@ function clampScore(n: number): number {
   return Math.min(100, Math.max(0.5, rounded))
 }
 
+function sanitizeOptionList(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  const out: string[] = []
+  for (const item of raw) {
+    const html = sanitizeRichHtml(String(item ?? ''))
+    if (!richHtmlIsEmpty(html)) out.push(html)
+  }
+  return out.slice(0, 6)
+}
+
 function normalizeQuestion(raw: unknown): PersonalBankQuestion | null {
   if (!raw || typeof raw !== 'object') return null
   const q = raw as Record<string, unknown>
@@ -103,13 +151,32 @@ function normalizeQuestion(raw: unknown): PersonalBankQuestion | null {
   const now = Date.now()
   let answer = String(q.answer ?? '').trim()
   let answerHtml = sanitizeRichHtml(String(q.answerHtml ?? ''))
+  const optionsHtml = sanitizeOptionList(q.optionsHtml)
+  let correctIndex = Math.max(0, Math.floor(Number(q.correctIndex) || 0))
+  let choiceMode: PersonalBankChoiceMode =
+    q.choiceMode === 'fixed' || q.choiceMode === 'open'
+      ? q.choiceMode
+      : optionsHtml.length >= 2
+        ? 'fixed'
+        : 'open'
   if (q.type === 'choice') {
-    if (richHtmlIsEmpty(answerHtml)) {
-      if (!answer) return null
-      answerHtml = plainTextToRichHtml(answer)
+    if (choiceMode === 'fixed') {
+      if (optionsHtml.length < 2) {
+        choiceMode = 'open'
+      } else {
+        if (correctIndex >= optionsHtml.length) correctIndex = 0
+        answerHtml = optionsHtml[correctIndex] ?? answerHtml
+        answer = richHtmlPlainText(answerHtml, 5000)
+      }
     }
-    if (richHtmlIsEmpty(answerHtml)) return null
-    answer = richHtmlPlainText(answerHtml, 5000)
+    if (choiceMode === 'open') {
+      if (richHtmlIsEmpty(answerHtml)) {
+        if (!answer) return null
+        answerHtml = plainTextToRichHtml(answer)
+      }
+      if (richHtmlIsEmpty(answerHtml)) return null
+      answer = richHtmlPlainText(answerHtml, 5000)
+    }
   } else if (!answer) {
     answer = richHtmlPlainText(answerHtml, 5000)
     answerHtml = ''
@@ -124,8 +191,11 @@ function normalizeQuestion(raw: unknown): PersonalBankQuestion | null {
     score: clampScore(Number(q.score)),
     stemHtml,
     answer,
-    answerHtml,
+    answerHtml: q.type === 'choice' ? answerHtml : '',
     explanationHtml: sanitizeRichHtml(String(q.explanationHtml ?? '')),
+    choiceMode: q.type === 'choice' ? choiceMode : 'open',
+    optionsHtml: q.type === 'choice' && choiceMode === 'fixed' ? optionsHtml : [],
+    correctIndex: q.type === 'choice' && choiceMode === 'fixed' ? correctIndex : 0,
     quizCount: Math.max(0, Math.floor(Number(q.quizCount) || 0)),
     createdAt: Number(q.createdAt) || now,
     updatedAt: Number(q.updatedAt) || now,
@@ -139,6 +209,27 @@ function normalizeInput(input: PersonalBankQuestionInput): PersonalBankQuestionI
   const stemHtml = sanitizeRichHtml(input.stemHtml ?? '')
   if (richHtmlIsEmpty(stemHtml)) throw new Error('请输入题目')
   if (input.type === 'choice') {
+    const optionsHtml = sanitizeOptionList(input.optionsHtml)
+    let choiceMode: PersonalBankChoiceMode =
+      input.choiceMode === 'open' ? 'open' : optionsHtml.length >= 2 ? 'fixed' : 'open'
+    if (choiceMode === 'fixed') {
+      if (optionsHtml.length < 2) throw new Error('定项选择题请至少填写两个选项')
+      let correctIndex = Math.max(0, Math.floor(Number(input.correctIndex) || 0))
+      if (correctIndex >= optionsHtml.length) throw new Error('请选择正确选项')
+      const answerHtml = optionsHtml[correctIndex]!
+      return {
+        title,
+        type: input.type,
+        score: clampScore(Number(input.score)),
+        stemHtml,
+        answer: richHtmlPlainText(answerHtml, 5000),
+        answerHtml,
+        explanationHtml: sanitizeRichHtml(input.explanationHtml ?? ''),
+        choiceMode: 'fixed',
+        optionsHtml,
+        correctIndex,
+      }
+    }
     const answerHtml = sanitizeRichHtml(input.answerHtml ?? '')
     if (richHtmlIsEmpty(answerHtml)) throw new Error('请输入正确答案（富文本）')
     return {
@@ -149,6 +240,9 @@ function normalizeInput(input: PersonalBankQuestionInput): PersonalBankQuestionI
       answer: richHtmlPlainText(answerHtml, 5000),
       answerHtml,
       explanationHtml: sanitizeRichHtml(input.explanationHtml ?? ''),
+      choiceMode: 'open',
+      optionsHtml: [],
+      correctIndex: 0,
     }
   }
   const answer = String(input.answer ?? '').trim()
@@ -161,6 +255,9 @@ function normalizeInput(input: PersonalBankQuestionInput): PersonalBankQuestionI
     answer,
     answerHtml: '',
     explanationHtml: sanitizeRichHtml(input.explanationHtml ?? ''),
+    choiceMode: 'open',
+    optionsHtml: [],
+    correctIndex: 0,
   }
 }
 
@@ -349,6 +446,9 @@ export function createPersonalBankQuestion(
   const row: PersonalBankQuestion = {
     id: createId('q'),
     ...body,
+    choiceMode: body.choiceMode ?? 'open',
+    optionsHtml: body.optionsHtml ?? [],
+    correctIndex: body.correctIndex ?? 0,
     quizCount: 0,
     createdAt: now,
     updatedAt: now,
@@ -377,6 +477,29 @@ export function deletePersonalBankQuestion(categoryId: string, subId: string, qu
   const store = readStore()
   const sub = requireSub(store, categoryId, subId)
   sub.questions = sub.questions.filter((q) => q.id !== questionId)
+  writeStore(store)
+}
+
+export function movePersonalBankQuestion(
+  fromCategoryId: string,
+  fromSubId: string,
+  questionId: string,
+  toCategoryId: string,
+  toSubId: string,
+): void {
+  if (fromCategoryId === toCategoryId && fromSubId === toSubId) {
+    throw new Error('已在该小类中')
+  }
+  const store = readStore()
+  const fromSub = requireSub(store, fromCategoryId, fromSubId)
+  requireSub(store, toCategoryId, toSubId)
+  const idx = fromSub.questions.findIndex((q) => q.id === questionId)
+  if (idx < 0) throw new Error('题目不存在')
+  const [row] = fromSub.questions.splice(idx, 1)
+  if (!row) throw new Error('题目不存在')
+  const toSub = requireSub(store, toCategoryId, toSubId)
+  row.updatedAt = Date.now()
+  toSub.questions.push(row)
   writeStore(store)
 }
 

@@ -8,6 +8,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { attachAuthRoutes, isAuthConfigured, noStoreCacheMiddleware, requireAuth } from './auth-core.mjs'
+import { attachComputerBasicsRoutes } from './computer-basics-store.mjs'
 import {
   appendAiRequestLog,
   readRecentAiRequestLogs,
@@ -93,6 +94,7 @@ export function createAiProxyApp() {
   app.use(express.json({ limit: '32mb' }))
 
   attachAuthRoutes(app)
+  attachComputerBasicsRoutes(app)
 
   app.get('/health', (_req, res) => {
     res.json({

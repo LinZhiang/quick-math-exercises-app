@@ -34,7 +34,13 @@ const isRunningOrLoading = computed(
     test.phase === 'summary',
 )
 
-defineExpose({ isRunningOrLoading })
+defineExpose({
+  isRunningOrLoading,
+  resetToIdle() {
+    selectedModule.value = null
+    test.resetToIdle()
+  },
+})
 
 const formulaGroups = computed(() => {
   const mid = formulaSheetModule.value

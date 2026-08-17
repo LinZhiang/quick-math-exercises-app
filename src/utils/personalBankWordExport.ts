@@ -255,7 +255,12 @@ export async function exportPersonalBankToWord(
   const choiceQs = questions.filter((q) => q.type === 'choice')
   let choiceMap = new Map<string, { optionsHtml: string[]; correctIndex: number }>()
   if (choiceQs.length) {
-    onProgress?.(`正在用豆包补全 ${choiceQs.length} 道选择题的干扰项…`)
+    const openN = choiceQs.filter((q) => !q.optionsHtml?.length).length
+    onProgress?.(
+      openN
+        ? `正在用豆包补全 ${openN} 道非定项选择题的干扰项…`
+        : '正在整理选择题选项…',
+    )
     choiceMap = await generatePersonalBankChoiceOptions(choiceQs, 'doubao')
   }
 
