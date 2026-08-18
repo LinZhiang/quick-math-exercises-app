@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { renderMathInRichHtml } from '@/utils/dataAnalysisMathDisplay'
+import { wrapHtmlTablesForScroll } from '@/utils/markdownToHtml'
 import { sanitizeRichHtml } from '@/utils/richTextHtml'
 import ImageZoomOverlay from '@/components/ImageZoomOverlay.vue'
 
@@ -19,7 +20,8 @@ const previewSrc = ref('')
 
 const safeHtml = computed(() => {
   const sanitized = sanitizeRichHtml(props.html ?? '')
-  return props.math ? renderMathInRichHtml(sanitized) : sanitized
+  const rendered = props.math ? renderMathInRichHtml(sanitized) : sanitized
+  return wrapHtmlTablesForScroll(rendered)
 })
 
 function onClick(ev: MouseEvent) {
@@ -42,7 +44,7 @@ function onClick(ev: MouseEvent) {
   line-height: 1.85;
   word-break: break-word;
   overflow-wrap: anywhere;
-  overflow-x: auto;
+  overflow-x: visible;
   min-width: 0;
 }
 
@@ -73,11 +75,16 @@ function onClick(ev: MouseEvent) {
 }
 
 .rich-text-view :deep(table) {
-  width: 100%;
-  max-width: 100%;
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
   border-collapse: collapse;
   margin: 8px 0;
   font-size: 0.95em;
+}
+
+.rich-text-view :deep(.md-table-scroll > table) {
+  margin: 0;
 }
 
 .rich-text-view :deep(th),
@@ -86,7 +93,10 @@ function onClick(ev: MouseEvent) {
   padding: 6px 8px;
   text-align: left;
   vertical-align: top;
-  word-break: break-word;
+  min-width: 5.25em;
+  max-width: 18em;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .rich-text-view :deep(th) {
