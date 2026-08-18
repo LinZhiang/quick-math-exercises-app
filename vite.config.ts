@@ -55,6 +55,9 @@ export default defineConfig(() => {
     },
     build: {
       chunkSizeWarningLimit: 3500,
+      // CF Pages 构建内存紧，gzip 统计大资源容易把进程打死
+      reportCompressedSize: !lightAssets,
+      sourcemap: false,
       rollupOptions: {
         onwarn(warning, warn) {
           const msg = String(warning?.message ?? '')
