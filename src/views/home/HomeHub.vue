@@ -94,7 +94,7 @@ function openModule(mod: (typeof modules)[number]) {
 
 .home-hub__grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -105,7 +105,7 @@ function openModule(mod: (typeof modules)[number]) {
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
-  min-height: 9.5rem;
+  min-height: 7.25rem;
   padding: 16px 14px 14px;
   border: 1px solid var(--app-border-soft);
   border-radius: 16px;
@@ -149,7 +149,7 @@ function openModule(mod: (typeof modules)[number]) {
     padding: 14px 12px 20px;
   }
   .home-hub__card {
-    min-height: 8.4rem;
+    min-height: 6.6rem;
     padding: 14px 12px 12px;
   }
 }
