@@ -188,13 +188,13 @@ onMounted(() => {
         </el-tooltip>
       </div>
       <p class="computer-page__lead">
-        分类是树形结构，大类下可叠多层小类。内容从本机 Node 读取（插图按文件存放）。
+        分类是树形结构，大类下可叠多层小类。讲义存在本机 Node，出门用的 pages.dev 需同步到云端。
       </p>
     </header>
 
     <div class="computer-tree-card">
       <div class="computer-tree-head">名称</div>
-      <p v-if="loading" class="computer-tree__status">正在从 Node 读取目录…</p>
+      <p v-if="loading" class="computer-tree__status">正在读取目录…</p>
       <p v-else-if="error" class="computer-tree__status computer-tree__status--error">
         {{ error }}
         <el-button size="small" @click="load">重试</el-button>

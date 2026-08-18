@@ -34,6 +34,30 @@ function offlineHint(): string {
   )
 }
 
+function looksLikeHtml(text: string): boolean {
+  const head = text.trimStart().slice(0, 96).toLowerCase()
+  return head.startsWith('<!doctype') || head.startsWith('<html') || head.startsWith('<head')
+}
+
+function nonJsonMessage(res: Response, text: string): string {
+  if (looksLikeHtml(text)) {
+    let path = ''
+    try {
+      path = new URL(res.url).pathname
+    } catch {
+      path = ''
+    }
+    if (path.includes('computer-basics') || path.includes('/api/media/computer-basics')) {
+      return (
+        '云端还没有计算机基础数据接口（当前返回了网页）。请部署本仓库的 Pages Functions，' +
+        '绑定 KV：WENGU_KV，然后在电脑执行 npm run sync:cf-computer。这与 DEEPSEEK_API_KEY 无关。'
+      )
+    }
+    return `接口返回了网页而不是数据（${path || `HTTP ${res.status}`}）。${offlineHint()}`
+  }
+  return `服务器返回了非 JSON（HTTP ${res.status}）。${offlineHint()}`
+}
+
 export async function readWenguJsonResponse<T>(res: Response): Promise<T> {
   const text = await res.text()
   if (!text.trim()) {
@@ -42,10 +66,7 @@ export async function readWenguJsonResponse<T>(res: Response): Promise<T> {
   try {
     return JSON.parse(text) as T
   } catch {
-    throw new WenguApiError(
-      `服务器返回了非 JSON（HTTP ${res.status}）。${offlineHint()}`,
-      res.status,
-    )
+    throw new WenguApiError(nonJsonMessage(res, text), res.status)
   }
 }
 
