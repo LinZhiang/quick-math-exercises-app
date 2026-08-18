@@ -1,0 +1,205 @@
+{
+  "tree": [
+    {
+      "id": "part-1",
+      "name": "第一部分 计算机科学技术基础",
+      "children": [
+        {
+          "id": "app-basics",
+          "name": "计算机及其应用基础知识",
+          "children": [],
+          "entries": [
+            {
+              "id": "overview",
+              "title": "计算机概述",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-22",
+              "title": "数制及其转换，信息编码，数据表示与运算",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-23",
+              "title": "计算机系统的组成",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-24",
+              "title": "计算机软件系统",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-25",
+              "title": "程序设计语言和面向对象技术",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-26",
+              "title": "大数据技术基础知识",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-27",
+              "title": "物联网技术基础知识",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-28",
+              "title": "云计算技术基础知识",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-29",
+              "title": "人工智能技术基础知识",
+              "ready": true,
+              "type": "handout"
+            }
+          ]
+        },
+        {
+          "id": "security",
+          "name": "计算机信息安全技术",
+          "children": [],
+          "entries": [
+            {
+              "id": "q-31",
+              "title": "信息安全概述",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-32",
+              "title": "计算机病毒",
+              "ready": true,
+              "type": "handout"
+            }
+          ]
+        }
+      ],
+      "entries": [
+        {
+          "id": "q-30",
+          "title": "多媒体技术基础知识",
+          "ready": true,
+          "type": "handout"
+        }
+      ]
+    },
+    {
+      "id": "part-2",
+      "name": "第二部分 WIN10操作系统",
+      "children": [
+        {
+          "id": "win10",
+          "name": "WIN10特点、运行环境和操作方法",
+          "children": [],
+          "entries": [
+            {
+              "id": "q-33",
+              "title": "Windows 10操作系统",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-34",
+              "title": "Windows 10的基础知识和基本操作",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-35",
+              "title": "文件资源管理器、文件和文件夹",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-36",
+              "title": "控制面板相关知识及使用方法",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-37",
+              "title": "回收站、任务管理器、注册表编辑器",
+              "ready": true,
+              "type": "handout"
+            }
+          ]
+        },
+        {
+          "id": "excel",
+          "name": "Excel2016",
+          "children": [],
+          "entries": [
+            {
+              "id": "q-38",
+              "title": "基本功能、启动、工作窗口",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-39",
+              "title": "Excel2016基础知识与基本操作",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-40",
+              "title": "工作表与图表的基本操作",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-41",
+              "title": "单元格的计算与公式、常用函数",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-42",
+              "title": "Excel数据管理与分析【完整版·补全数据有效性】",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-43",
+              "title": "工作簿和工作表的安全性",
+              "ready": true,
+              "type": "handout"
+            },
+            {
+              "id": "q-44",
+              "title": "Excel页面设置与报表打印",
+              "ready": true,
+              "type": "handout"
+            }
+          ]
+        },
+        {
+          "id": "word",
+          "name": "Word2016",
+          "children": [],
+          "entries": []
+        },
+        {
+          "id": "ppt",
+          "name": "ppt2016",
+          "children": [],
+          "entries": []
+        }
+      ],
+      "entries": []
+    }
+  ],
+  "seededAt": "2026-08-17T20:01:23.375Z",
+  "updatedAt": "2026-08-17T23:18:22.792Z"
+}

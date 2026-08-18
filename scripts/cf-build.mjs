@@ -2,6 +2,7 @@
  * Cloudflare Pages / 本地统一构建入口
  * CF 上跳过 vue-tsc，关掉体积统计，并提高 Node 内存上限，避免构建被杀掉。
  */
+import fs from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -40,4 +41,12 @@ function run(cmd, args) {
 if (!isCf) {
   run('npx', ['vue-tsc', '-b'])
 }
+
+const srcData = path.join(root, 'server', 'data', 'computer-basics')
+const publicData = path.join(root, 'public', 'cb-data')
+if (fs.existsSync(path.join(srcData, 'catalog.json'))) {
+  fs.cpSync(srcData, publicData, { recursive: true })
+  console.log('[cf-build] 已同步计算机基础快照到 public/cb-data')
+}
+
 run('npx', isCf ? ['vite', 'build', '--logLevel', 'warn'] : ['vite', 'build'])
