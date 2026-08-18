@@ -16,7 +16,7 @@ const BLACKLIST_KEY = 'blacklist-v1'
 const MEMBER_TTL_MS = 2 * 60 * 60 * 1000
 const ADMIN_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
-export function json(data, status = 200) {
+function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {

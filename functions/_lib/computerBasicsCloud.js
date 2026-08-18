@@ -26,6 +26,28 @@ function kv(env) {
   return env.WENGU_KV || null
 }
 
+async function fetchAsset(env, request, pathname) {
+  if (!env.ASSETS || typeof env.ASSETS.fetch !== 'function' || !request) return null
+  try {
+    const url = new URL(pathname, request.url)
+    const res = await env.ASSETS.fetch(new Request(url.toString(), { method: 'GET' }))
+    if (!res.ok) return null
+    return res
+  } catch {
+    return null
+  }
+}
+
+async function readJsonAsset(env, request, pathname) {
+  const res = await fetchAsset(env, request, pathname)
+  if (!res) return null
+  try {
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
 function noKv() {
   return json(
     {
@@ -196,11 +218,16 @@ async function deleteItemFiles(env, id) {
   await Promise.all(listed.keys.map((k) => store.delete(k.name)))
 }
 
-async function readItem(env, id) {
+async function readItem(env, id, request) {
   const safe = safeId(id)
   if (!safe) return null
-  const rec = await kv(env).get(itemKey(safe), { type: 'json' })
-  return rec && typeof rec === 'object' ? rec : null
+  const store = kv(env)
+  if (store) {
+    const rec = await store.get(itemKey(safe), { type: 'json' })
+    if (rec && typeof rec === 'object') return rec
+  }
+  const snap = await readJsonAsset(env, request, `/cb-data/items/${safe}.json`)
+  return snap && typeof snap === 'object' ? snap : null
 }
 
 function pathSegs(pathParam) {
@@ -217,14 +244,22 @@ export async function handleComputerBasics(env, request, pathParam) {
   const method = request.method.toUpperCase()
   try {
     if (method === 'GET' && segs[0] === 'tree' && segs.length === 1) {
-      if (!kv(env)) return noKv()
-      const { tree } = await readRawCatalog(env)
-      return json({ ok: true, tree: await applyReadyFlags(env, tree) })
+      const store = kv(env)
+      if (store) {
+        const raw = await readRawCatalog(env)
+        if (Array.isArray(raw.tree) && raw.tree.length) {
+          return json({ ok: true, tree: await applyReadyFlags(env, raw.tree) })
+        }
+      }
+      const snap = await readJsonAsset(env, request, '/cb-data/catalog.json')
+      if (snap && Array.isArray(snap.tree)) {
+        return json({ ok: true, tree: snap.tree })
+      }
+      return json({ ok: true, tree: [] })
     }
 
     if (method === 'GET' && segs[0] === 'items' && segs.length === 2) {
-      if (!kv(env)) return noKv()
-      const item = await readItem(env, segs[1])
+      const item = await readItem(env, segs[1], request)
       if (!item) return json({ ok: false, message: '未找到该讲义' }, 404)
       return json({ ok: true, item })
     }
@@ -253,20 +288,32 @@ export async function handleComputerBasics(env, request, pathParam) {
   }
 }
 
-export async function handleComputerBasicsMedia(env, fileName) {
+export async function handleComputerBasicsMedia(env, fileName, request) {
   const name = safeId(fileName)
   if (!name) return new Response('not found', { status: 404 })
   const store = kv(env)
-  if (!store) return new Response('not found', { status: 404 })
-  const rec = await store.getWithMetadata(mediaKey(name), { type: 'arrayBuffer' })
-  if (!rec.value) return new Response('not found', { status: 404 })
-  const mime = rec.metadata?.mime || guessMime(name)
-  return new Response(rec.value, {
-    headers: {
-      'content-type': mime,
-      'cache-control': 'public, max-age=86400',
-    },
-  })
+  if (store) {
+    const rec = await store.getWithMetadata(mediaKey(name), { type: 'arrayBuffer' })
+    if (rec.value) {
+      const mime = rec.metadata?.mime || guessMime(name)
+      return new Response(rec.value, {
+        headers: {
+          'content-type': mime,
+          'cache-control': 'public, max-age=86400',
+        },
+      })
+    }
+  }
+  const asset = await fetchAsset(env, request, `/cb-data/media/${name}`)
+  if (asset) {
+    return new Response(asset.body, {
+      headers: {
+        'content-type': guessMime(name),
+        'cache-control': 'public, max-age=86400',
+      },
+    })
+  }
+  return new Response('not found', { status: 404 })
 }
 
 async function handleImport(env, request) {
