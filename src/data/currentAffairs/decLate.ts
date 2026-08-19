@@ -1,6 +1,6 @@
 /** 时政识记 · 十二下 材料整理 */
 
-import type { CurrentAffairsArticle } from '@/utils/currentAffairsTypes'
+import type { CurrentAffairsArticle } from '@/utils/chinese/currentAffairsTypes'
 
 /**
  * 分类约定：【学习】【文件】【会议】及政治类 → politics；【综合】及社会类 → society

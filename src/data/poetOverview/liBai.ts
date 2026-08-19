@@ -1,6 +1,6 @@
 /** 唐朝·李白：全人生阶段应试背诵整理（后续诗人照此格式） */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const LI_BAI_PROFILE: PoetOverviewProfile = {
   id: 'li-bai',

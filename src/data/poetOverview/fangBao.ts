@@ -1,6 +1,6 @@
 /** 其他·方苞 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const FANG_BAO_PROFILE: PoetOverviewProfile = {
   id: 'fang-bao',

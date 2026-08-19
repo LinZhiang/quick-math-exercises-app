@@ -7,7 +7,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const OUT = path.join(__dirname, '../src/utils/hanziPatternBank.ts')
+const OUT = path.join(__dirname, '../src/utils/chinese/hanziPatternBank.ts')
 const FW = '\u3000'
 
 // ═══════════════════ 可核验属性（只用有把握的常用字）═══════════════════
@@ -801,7 +801,7 @@ function main() {
  * 由 scripts/generate-hanzi-pattern-bank.mjs 生成；勿手改整表，改种子后重跑脚本。
  * stem 仅为四字（全角空格分隔）。
  */
-import type { HanziPatternBankItem } from '@/utils/hanziPatternBankTypes'
+import type { HanziPatternBankItem } from '@/utils/chinese/hanziPatternBankTypes'
 
 export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
 ${body},

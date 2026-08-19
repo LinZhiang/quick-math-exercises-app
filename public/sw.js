@@ -1,4 +1,4 @@
-const CACHE = 'quick-math-v4'
+const CACHE = 'quick-math-v5'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -26,6 +26,12 @@ self.addEventListener('activate', (event) => {
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   )
+})
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
 })
 
 self.addEventListener('fetch', (event) => {

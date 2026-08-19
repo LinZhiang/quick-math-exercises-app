@@ -1,6 +1,6 @@
 /** 唐朝·岑参：全人生阶段应试背诵整理 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const CEN_SHEN_PROFILE: PoetOverviewProfile = {
   id: 'cen-shen',

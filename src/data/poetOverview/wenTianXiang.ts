@@ -1,6 +1,6 @@
 /** 宋朝·文天祥 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const WEN_TIAN_XIANG_PROFILE: PoetOverviewProfile = {
   id: 'wen-tian-xiang',

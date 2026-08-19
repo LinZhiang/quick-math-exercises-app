@@ -1,6 +1,6 @@
 /** 其他·姚鼐 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const YAO_NAI_PROFILE: PoetOverviewProfile = {
   id: 'yao-nai',

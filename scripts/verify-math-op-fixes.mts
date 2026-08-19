@@ -2,16 +2,16 @@
  * 运算技巧 / 识记相关修复自检
  * 运行：npx tsx scripts/verify-math-op-fixes.mts
  */
-import { crossYieldCostRatio, ratiosEquivalent, uniqueMcqStrings } from '../src/utils/mathOpMcqHelpers.ts'
-import { generateCrossMethodPaper } from '../src/utils/crossMethodPractice.ts'
-import { generateRatioMethodPaper } from '../src/utils/ratioMethodPractice.ts'
-import { generateSpecValPaper } from '../src/utils/specialValuePractice.ts'
-import { generateSubElimPaper } from '../src/utils/subElimPractice.ts'
-import { generateRemPropPaper } from '../src/utils/remPropPractice.ts'
+import { crossYieldCostRatio, ratiosEquivalent, uniqueMcqStrings } from '../src/utils/math/mathOpMcqHelpers.ts'
+import { generateCrossMethodPaper } from '../src/utils/math/crossMethodPractice.ts'
+import { generateRatioMethodPaper } from '../src/utils/math/ratioMethodPractice.ts'
+import { generateSpecValPaper } from '../src/utils/math/specialValuePractice.ts'
+import { generateSubElimPaper } from '../src/utils/math/subElimPractice.ts'
+import { generateRemPropPaper } from '../src/utils/math/remPropPractice.ts'
 import {
   extractPoetDrillAllowlist,
   poetDrillQuestionInMaterial,
-} from '../src/utils/poetDrillMaterial.ts'
+} from '../src/utils/chinese/poetDrillMaterial.ts'
 
 const errors: string[] = []
 function err(msg: string) {

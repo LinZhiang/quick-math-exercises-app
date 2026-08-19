@@ -10,58 +10,58 @@ import type { KeyPracticePayload } from '@/types/chinese-practice'
 import type {
   StoredCharLiteracyFavoriteRecord,
   StoredCharLiteracyRecord,
-} from '@/utils/chineseCharLiteracyStorage'
+} from '@/utils/chinese/chineseCharLiteracyStorage'
 import {
   listChineseCharLiteracyFavoriteRecords,
   listChineseCharLiteracyWrongRecords,
   removeChineseCharLiteracyFavorite,
   removeChineseCharLiteracyWrong,
   storedCharLiteracyToQuestion,
-} from '@/utils/chineseCharLiteracyStorage'
+} from '@/utils/chinese/chineseCharLiteracyStorage'
 import type {
   StoredClassicalChineseFavoriteRecord,
   StoredClassicalChineseRecord,
-} from '@/utils/chineseClassicalChineseStorage'
+} from '@/utils/chinese/chineseClassicalChineseStorage'
 import {
   listChineseClassicalChineseFavoriteRecords,
   listChineseClassicalChineseWrongRecords,
   removeChineseClassicalChineseFavorite,
   removeChineseClassicalChineseWrong,
   storedClassicalChineseToQuestion,
-} from '@/utils/chineseClassicalChineseStorage'
+} from '@/utils/chinese/chineseClassicalChineseStorage'
 import type {
   StoredGeographyCommonSenseFavoriteRecord,
   StoredGeographyCommonSenseRecord,
-} from '@/utils/chineseGeographyCommonSenseStorage'
+} from '@/utils/chinese/chineseGeographyCommonSenseStorage'
 import {
   listChineseGeographyCommonSenseFavoriteRecords,
   listChineseGeographyCommonSenseWrongRecords,
   removeChineseGeographyCommonSenseFavorite,
   removeChineseGeographyCommonSenseWrong,
   storedGeographyCommonSenseToQuestion,
-} from '@/utils/chineseGeographyCommonSenseStorage'
+} from '@/utils/chinese/chineseGeographyCommonSenseStorage'
 import type {
   StoredEconomyCommonSenseFavoriteRecord,
   StoredEconomyCommonSenseRecord,
-} from '@/utils/chineseEconomyCommonSenseStorage'
+} from '@/utils/chinese/chineseEconomyCommonSenseStorage'
 import {
   listChineseEconomyCommonSenseFavoriteRecords,
   listChineseEconomyCommonSenseWrongRecords,
   removeChineseEconomyCommonSenseFavorite,
   removeChineseEconomyCommonSenseWrong,
   storedEconomyCommonSenseToQuestion,
-} from '@/utils/chineseEconomyCommonSenseStorage'
+} from '@/utils/chinese/chineseEconomyCommonSenseStorage'
 import type {
   StoredHistoryCommonSenseFavoriteRecord,
   StoredHistoryCommonSenseRecord,
-} from '@/utils/chineseHistoryCommonSenseStorage'
+} from '@/utils/chinese/chineseHistoryCommonSenseStorage'
 import {
   listChineseHistoryCommonSenseFavoriteRecords,
   listChineseHistoryCommonSenseWrongRecords,
   removeChineseHistoryCommonSenseFavorite,
   removeChineseHistoryCommonSenseWrong,
   storedHistoryCommonSenseToQuestion,
-} from '@/utils/chineseHistoryCommonSenseStorage'
+} from '@/utils/chinese/chineseHistoryCommonSenseStorage'
 import {
   chinesePracticeDataTick,
   listChineseFavoriteRecords,
@@ -71,40 +71,40 @@ import {
   storedToQuestion,
   type StoredFavoriteRecord,
   type StoredIdiomRecord,
-} from '@/utils/chineseIdiomStorage'
+} from '@/utils/chinese/chineseIdiomStorage'
 import type {
   StoredLegalCommonSenseFavoriteRecord,
   StoredLegalCommonSenseRecord,
-} from '@/utils/chineseLegalCommonSenseStorage'
+} from '@/utils/chinese/chineseLegalCommonSenseStorage'
 import {
   listChineseLegalCommonSenseFavoriteRecords,
   listChineseLegalCommonSenseWrongRecords,
   removeChineseLegalCommonSenseFavorite,
   removeChineseLegalCommonSenseWrong,
   storedLegalCommonSenseToQuestion,
-} from '@/utils/chineseLegalCommonSenseStorage'
+} from '@/utils/chinese/chineseLegalCommonSenseStorage'
 import type {
   StoredLifeCommonSenseFavoriteRecord,
   StoredLifeCommonSenseRecord,
-} from '@/utils/chineseLifeCommonSenseStorage'
+} from '@/utils/chinese/chineseLifeCommonSenseStorage'
 import {
   listChineseLifeCommonSenseFavoriteRecords,
   listChineseLifeCommonSenseWrongRecords,
   removeChineseLifeCommonSenseFavorite,
   removeChineseLifeCommonSenseWrong,
   storedLifeCommonSenseToQuestion,
-} from '@/utils/chineseLifeCommonSenseStorage'
+} from '@/utils/chinese/chineseLifeCommonSenseStorage'
 import type {
   StoredPartyHistoryFavoriteRecord,
   StoredPartyHistoryRecord,
-} from '@/utils/chinesePartyHistoryStorage'
+} from '@/utils/chinese/chinesePartyHistoryStorage'
 import {
   listChinesePartyHistoryFavoriteRecords,
   listChinesePartyHistoryWrongRecords,
   removeChinesePartyHistoryFavorite,
   removeChinesePartyHistoryWrong,
   storedPartyHistoryToQuestion,
-} from '@/utils/chinesePartyHistoryStorage'
+} from '@/utils/chinese/chinesePartyHistoryStorage'
 import {
   listChinesePoetryFavoriteRecords,
   listChinesePoetryWrongRecords,
@@ -113,99 +113,99 @@ import {
   storedPoetryToQuestion,
   type StoredPoetryFavoriteRecord,
   type StoredPoetryRecord,
-} from '@/utils/chinesePoetryStorage'
+} from '@/utils/chinese/chinesePoetryStorage'
 import type {
   StoredReadingComprehensionFavoriteRecord,
   StoredReadingComprehensionRecord,
-} from '@/utils/chineseReadingComprehensionStorage'
+} from '@/utils/chinese/chineseReadingComprehensionStorage'
 import {
   listChineseReadingComprehensionFavoriteRecords,
   listChineseReadingComprehensionWrongRecords,
   removeChineseReadingComprehensionFavorite,
   removeChineseReadingComprehensionWrong,
   storedReadingComprehensionToQuestion,
-} from '@/utils/chineseReadingComprehensionStorage'
+} from '@/utils/chinese/chineseReadingComprehensionStorage'
 import type {
   StoredRhetoricUsageFavoriteRecord,
   StoredRhetoricUsageRecord,
-} from '@/utils/chineseRhetoricUsageStorage'
+} from '@/utils/chinese/chineseRhetoricUsageStorage'
 import {
   listChineseRhetoricUsageFavoriteRecords,
   listChineseRhetoricUsageWrongRecords,
   removeChineseRhetoricUsageFavorite,
   removeChineseRhetoricUsageWrong,
   storedRhetoricUsageToQuestion,
-} from '@/utils/chineseRhetoricUsageStorage'
+} from '@/utils/chinese/chineseRhetoricUsageStorage'
 import type {
   StoredTheoryPolicyFavoriteRecord,
   StoredTheoryPolicyRecord,
-} from '@/utils/chineseTheoryPolicyStorage'
+} from '@/utils/chinese/chineseTheoryPolicyStorage'
 import {
   listChineseTheoryPolicyFavoriteRecords,
   listChineseTheoryPolicyWrongRecords,
   removeChineseTheoryPolicyFavorite,
   removeChineseTheoryPolicyWrong,
   storedTheoryPolicyToQuestion,
-} from '@/utils/chineseTheoryPolicyStorage'
+} from '@/utils/chinese/chineseTheoryPolicyStorage'
 import type {
   StoredWordMemorizationFavoriteRecord,
   StoredWordMemorizationRecord,
-} from '@/utils/chineseWordMemorizationStorage'
+} from '@/utils/chinese/chineseWordMemorizationStorage'
 import {
   listChineseWordMemorizationFavoriteRecords,
   listChineseWordMemorizationWrongRecords,
   removeChineseWordMemorizationFavorite,
   removeChineseWordMemorizationWrong,
   storedWordMemorizationToQuestion,
-} from '@/utils/chineseWordMemorizationStorage'
-import { charLiteracyQuestionTypeLabel } from '@/utils/charLiteracyPractice'
-import { classicalChineseQuestionTypeLabel } from '@/utils/classicalChinesePractice'
-import { economyCommonSenseQuestionTypeLabel } from '@/utils/economyCommonSensePractice'
-import { geographyCommonSenseQuestionTypeLabel } from '@/utils/geographyCommonSensePractice'
-import { historyCommonSenseQuestionTypeLabel } from '@/utils/historyCommonSensePractice'
-import { idiomQuestionTypeLabel } from '@/utils/idiomRecognitionPractice'
-import { legalCommonSenseQuestionTypeLabel } from '@/utils/legalCommonSensePractice'
-import { lifeCommonSenseQuestionTypeLabel } from '@/utils/lifeCommonSensePractice'
-import { partyHistoryQuestionTypeLabel } from '@/utils/partyHistoryPractice'
-import { poetryQuestionTypeLabel } from '@/utils/poetryRecognitionPractice'
+} from '@/utils/chinese/chineseWordMemorizationStorage'
+import { charLiteracyQuestionTypeLabel } from '@/utils/chinese/charLiteracyPractice'
+import { classicalChineseQuestionTypeLabel } from '@/utils/chinese/classicalChinesePractice'
+import { economyCommonSenseQuestionTypeLabel } from '@/utils/chinese/economyCommonSensePractice'
+import { geographyCommonSenseQuestionTypeLabel } from '@/utils/chinese/geographyCommonSensePractice'
+import { historyCommonSenseQuestionTypeLabel } from '@/utils/chinese/historyCommonSensePractice'
+import { idiomQuestionTypeLabel } from '@/utils/chinese/idiomRecognitionPractice'
+import { legalCommonSenseQuestionTypeLabel } from '@/utils/chinese/legalCommonSensePractice'
+import { lifeCommonSenseQuestionTypeLabel } from '@/utils/chinese/lifeCommonSensePractice'
+import { partyHistoryQuestionTypeLabel } from '@/utils/chinese/partyHistoryPractice'
+import { poetryQuestionTypeLabel } from '@/utils/chinese/poetryRecognitionPractice'
 import {
   readingComprehensionQuestionTypeLabel,
   type ChineseReadingQuestionType,
-} from '@/utils/readingComprehensionPractice'
-import { rhetoricUsageQuestionTypeLabel } from '@/utils/rhetoricUsagePractice'
-import { theoryPolicyQuestionTypeLabel } from '@/utils/theoryPolicyPractice'
-import { wordMemorizationQuestionTypeLabel } from '@/utils/wordMemorizationPractice'
-import { buildKeyPracticeQuestionsWithVariants } from '@/utils/chineseKeyQuestionVariants'
+} from '@/utils/chinese/readingComprehensionPractice'
+import { rhetoricUsageQuestionTypeLabel } from '@/utils/chinese/rhetoricUsagePractice'
+import { theoryPolicyQuestionTypeLabel } from '@/utils/chinese/theoryPolicyPractice'
+import { wordMemorizationQuestionTypeLabel } from '@/utils/chinese/wordMemorizationPractice'
+import { buildKeyPracticeQuestionsWithVariants } from '@/utils/chinese/chineseKeyQuestionVariants'
 import { isAiChatConfigured } from '@/services/deepseek'
-import { getKeyQuestionNote, setKeyQuestionNote } from '@/utils/chineseKeyQuestionNotes'
-import { markdownToDisplaySafeHtml } from '@/utils/markdownToHtml'
+import { getKeyQuestionNote, setKeyQuestionNote } from '@/utils/chinese/chineseKeyQuestionNotes'
+import { markdownToDisplaySafeHtml } from '@/utils/markdown/markdownToHtml'
 import {
   filterWrongBookByMeta,
   recordDateKey,
   WRONG_BOOK_BATCH_SIZE,
-} from '@/utils/mentalMathWrongQuiz'
+} from '@/utils/math/mentalMathWrongQuiz'
 import {
   enterWrongBookWorkspace,
   leaveWrongBookWorkspace,
-} from '@/utils/wrongBookWorkspaceGate'
+} from '@/utils/app/wrongBookWorkspaceGate'
 import {
   acquireWrongBookOverlayLock,
   releaseWrongBookOverlayLock,
-} from '@/utils/wrongBookOverlayLock'
+} from '@/utils/app/wrongBookOverlayLock'
 import {
   chineseWrongReviewScope,
-} from '@/utils/wrongBookReviewStats'
-import WrongBookReviewStat from '@/views/tools/mental-math/components/WrongBookReviewStat.vue'
+} from '@/utils/app/wrongBookReviewStats'
+import WrongBookReviewStat from '@/views/tools/mental-math/components/shared/WrongBookReviewStat.vue'
 import WrongBookImmersivePreview, {
   type WrongBookPreviewItem,
-} from '@/views/tools/mental-math/components/WrongBookImmersivePreview.vue'
+} from '@/views/tools/mental-math/components/shared/WrongBookImmersivePreview.vue'
 import VocabRelatedLearningDialog from '@/views/tools/chinese-practice/VocabRelatedLearningDialog.vue'
 import CharLiteracyRelatedLearningDialog from '@/views/tools/chinese-practice/CharLiteracyRelatedLearningDialog.vue'
-import type { VocabRelatedSourceRow } from '@/utils/vocabRelatedLearning'
-import type { CharLiteracyRelatedSourceRow } from '@/utils/charLiteracyRelatedLearning'
-import { pruneVocabRelatedLearningCache } from '@/utils/vocabRelatedLearningCache'
-import { pruneCharLiteracyRelatedLearningCache } from '@/utils/charLiteracyRelatedLearningCache'
-import { renderReadingPassageHtml } from '@/utils/readingComprehensionPractice'
+import type { VocabRelatedSourceRow } from '@/utils/chinese/vocabRelatedLearning'
+import type { CharLiteracyRelatedSourceRow } from '@/utils/chinese/charLiteracyRelatedLearning'
+import { pruneVocabRelatedLearningCache } from '@/utils/chinese/vocabRelatedLearningCache'
+import { pruneCharLiteracyRelatedLearningCache } from '@/utils/chinese/charLiteracyRelatedLearningCache'
+import { renderReadingPassageHtml } from '@/utils/chinese/readingComprehensionPractice'
 
 type StoredRow =
   | StoredIdiomRecord

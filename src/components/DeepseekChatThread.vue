@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { markdownToDisplaySafeHtml } from '@/utils/markdownToHtml'
-import type { DeepSeekDisplayTurn } from '@/composables/useDeepseekConversation'
-import { getAiProviderShortName, aiProviderTick } from '@/utils/aiProviderStore'
+import { markdownToDisplaySafeHtml } from '@/utils/markdown/markdownToHtml'
+import type { DeepSeekDisplayTurn } from '@/composables/app/useDeepseekConversation'
+import { getAiProviderShortName, aiProviderTick } from '@/utils/app/aiProviderStore'
 
 const props = defineProps<{
   turns: DeepSeekDisplayTurn[]

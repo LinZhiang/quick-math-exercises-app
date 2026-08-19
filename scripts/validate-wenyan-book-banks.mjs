@@ -5,9 +5,9 @@ function keys(file) {
   return [...t.matchAll(/key:\s*"([^"]+)"/g)].map((m) => m[1])
 }
 
-const xuci = keys('src/utils/wenyanXuciBank.ts')
-const jushi = keys('src/utils/wenyanJushiBank.ts')
-const hanzi = keys('src/utils/hanziPatternBank.ts')
+const xuci = keys('src/utils/chinese/wenyanXuciBank.ts')
+const jushi = keys('src/utils/chinese/wenyanJushiBank.ts')
+const hanzi = keys('src/utils/chinese/hanziPatternBank.ts')
 
 console.log('xuci', xuci.length, 'uniq', new Set(xuci).size)
 console.log('jushi', jushi.length, 'uniq', new Set(jushi).size)
@@ -35,8 +35,8 @@ if (bad.length) console.log('BAD cats', bad)
 else console.log('jushi cats ok (all 4)')
 
 // book examples presence
-const xt = fs.readFileSync('src/utils/wenyanXuciBank.ts', 'utf8')
-const jt = fs.readFileSync('src/utils/wenyanJushiBank.ts', 'utf8')
+const xt = fs.readFileSync('src/utils/chinese/wenyanXuciBank.ts', 'utf8')
+const jt = fs.readFileSync('src/utils/chinese/wenyanJushiBank.ts', 'utf8')
 const mustX = [
   '扣而聆之',
   '大王来何操',

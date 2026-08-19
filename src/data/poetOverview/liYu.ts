@@ -1,6 +1,6 @@
 /** 其他·李煜：南唐后主（五代词人，勿归入唐宋常规诗人序列） */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const LI_YU_PROFILE: PoetOverviewProfile = {
   id: 'li-yu',

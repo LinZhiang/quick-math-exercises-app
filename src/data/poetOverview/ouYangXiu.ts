@@ -1,6 +1,6 @@
 /** 宋朝·欧阳修 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const OU_YANG_XIU_PROFILE: PoetOverviewProfile = {
   id: 'ou-yang-xiu',

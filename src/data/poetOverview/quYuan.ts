@@ -1,6 +1,6 @@
 /** 其他·屈原 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const QU_YUAN_PROFILE: PoetOverviewProfile = {
   id: 'qu-yuan',

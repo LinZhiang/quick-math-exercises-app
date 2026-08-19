@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { ChineseKeyReviewMeta } from '@/utils/chineseKeyReviewSession'
-import { useChineseKeyReviewQuizUi } from '@/utils/chineseKeyReviewSession'
-import { useChineseLifeCommonSenseTest } from '@/composables/useChineseLifeCommonSenseTest'
-import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
+import type { ChineseKeyReviewMeta } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseKeyReviewQuizUi } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseLifeCommonSenseTest } from '@/composables/chinese/useChineseLifeCommonSenseTest'
+import { useDeepseekConversation } from '@/composables/app/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
 import {
   isChineseLifeCommonSenseFavorite,
   toggleChineseLifeCommonSenseFavorite,
-} from '@/utils/chineseLifeCommonSenseStorage'
-import { lifeCommonSenseQuestionTypeLabel } from '@/utils/lifeCommonSensePractice'
-import type { LifeCommonSenseQuestion } from '@/utils/lifeCommonSensePractice'
-import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+} from '@/utils/chinese/chineseLifeCommonSenseStorage'
+import { lifeCommonSenseQuestionTypeLabel } from '@/utils/chinese/lifeCommonSensePractice'
+import type { LifeCommonSenseQuestion } from '@/utils/chinese/lifeCommonSensePractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/PracticeCompletionStat.vue'
 
 const LIFE_ASSIST_SYSTEM =
   '你是事业编联考 C 类「公共基础知识·生活科学」教练，擅长物理、化学、生物、科技与生活等高频易考点。讲解通俗浅显，紧扣高频考点，不要公式推导或过深实验细节。用简体中文，回答要具体。'

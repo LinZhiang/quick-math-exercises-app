@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { watch } from 'vue'
-import { useCharLiteracyRelatedLearning } from '@/composables/useCharLiteracyRelatedLearning'
+import { useCharLiteracyRelatedLearning } from '@/composables/chinese/useCharLiteracyRelatedLearning'
 
 const emit = defineEmits<{ (e: 'active', v: boolean): void }>()
 

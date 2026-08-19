@@ -1,23 +1,23 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { ChineseKeyReviewMeta } from '@/utils/chineseKeyReviewSession'
-import { useChineseKeyReviewQuizUi } from '@/utils/chineseKeyReviewSession'
-import { useChineseWordMemorizationTest } from '@/composables/useChineseWordMemorizationTest'
-import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
+import type { ChineseKeyReviewMeta } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseKeyReviewQuizUi } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseWordMemorizationTest } from '@/composables/chinese/useChineseWordMemorizationTest'
+import { useDeepseekConversation } from '@/composables/app/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
 import {
   isChineseWordMemorizationFavorite,
   toggleChineseWordMemorizationFavorite,
-} from '@/utils/chineseWordMemorizationStorage'
+} from '@/utils/chinese/chineseWordMemorizationStorage'
 import {
   buildWordMemorizationDisplayStem,
   wordMemorizationQuestionTypeLabel,
   shouldShowWordMemorizationTermBeforeSubmit,
-} from '@/utils/wordMemorizationPractice'
-import type { WordMemorizationQuestion } from '@/utils/wordMemorizationPractice'
-import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+} from '@/utils/chinese/wordMemorizationPractice'
+import type { WordMemorizationQuestion } from '@/utils/chinese/wordMemorizationPractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/PracticeCompletionStat.vue'
 
 const WORD_MEM_ASSIST_SYSTEM =
   '你是事业编与公务员考试言语理解教练，擅长词语辨析（非成语）：实词、虚词、关联词与近义辨析。用简体中文讲解，可结合适用语境与记忆要点。回答要具体，避免空泛。'

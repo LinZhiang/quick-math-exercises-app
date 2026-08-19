@@ -2,8 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
-import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
-import { useTouchPrimaryDevice } from '@/composables/useTouchPointerDrag'
+import { useDeepseekConversation } from '@/composables/app/useDeepseekConversation'
+import { useTouchPrimaryDevice } from '@/composables/app/useTouchPointerDrag'
 import { isAiChatConfigured, DEEPSEEK_NOT_CONFIGURED_HINT, requestAssistantMarkdown } from '@/services/deepseek'
 import {
   aiProviderTick,
@@ -12,16 +12,16 @@ import {
   getAiProviderShortName,
   setAiProvider,
   type AiProvider,
-} from '@/utils/aiProviderStore'
-import { wenguAuthTick } from '@/utils/wenguAuthStore'
-import type { ComputerHandoutItem } from '@/utils/computerBasics'
-import { stripHandoutImagesForAi } from '@/utils/computerBasics'
+} from '@/utils/app/aiProviderStore'
+import { wenguAuthTick } from '@/utils/computer/wenguAuthStore'
+import type { ComputerHandoutItem } from '@/utils/computer/computerBasics'
+import { stripHandoutImagesForAi } from '@/utils/computer/computerBasics'
 
-const STORAGE_KEY = 'qmea-computer-ask-layout'
+const STORAGE_KEY = 'qmea-computer-ask-layout-v2'
 const DRAG_THRESHOLD_PX = 8
 const MIN_PANEL_W = 260
-const MIN_PANEL_H = 180
-const RESIZE_DIRS = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'] as const
+const MIN_PANEL_H = 200
+const RESIZE_DIRS = ['n', 's'] as const
 
 type ResizeDir = (typeof RESIZE_DIRS)[number]
 type DragKind = 'tab' | 'panel' | ResizeDir
@@ -43,6 +43,7 @@ const { isCompactLayout } = useTouchPrimaryDevice()
 
 const keywordInput = ref('')
 const panelOpen = ref(false)
+const panelFullscreen = ref(false)
 const MAX_LEN = 500
 
 const dockRef = ref<HTMLElement | null>(null)
@@ -122,6 +123,7 @@ const systemPrompt = computed(() => {
 })
 
 let saved: SavedLayout = {}
+let beforeFullscreen: { x: number; y: number; w: number; h: number } | null = null
 let drag: {
   kind: DragKind
   pointerId: number
@@ -154,14 +156,14 @@ function defaultTabPos() {
 
 function defaultPanelBox() {
   const { w, h } = dockSize()
-  const pad = 10
+  const pad = 8
   const compact = isCompactLayout.value
-  const width = compact ? Math.max(MIN_PANEL_W, w - pad * 2) : Math.min(440, Math.max(MIN_PANEL_W, w - pad * 2))
+  const width = Math.max(MIN_PANEL_W, w - pad * 2)
   const height = compact
-    ? clamp(Math.round(h * 0.32), MIN_PANEL_H, Math.min(250, h - pad * 2))
-    : clamp(Math.round(h * 0.42), MIN_PANEL_H, Math.min(400, h - pad * 2))
+    ? clamp(Math.round(h * 0.36), MIN_PANEL_H, Math.min(300, h - pad * 2))
+    : clamp(Math.round(h * 0.32), MIN_PANEL_H, Math.min(340, h - pad * 2))
   return {
-    x: Math.max(pad, w - pad - width),
+    x: pad,
     y: Math.max(pad, h - pad - height),
     w: width,
     h: height,
@@ -180,13 +182,37 @@ function clampTab() {
 function clampPanel() {
   const { w, h } = dockSize()
   if (w <= 0 || h <= 0) return
-  panelBox.w = clamp(panelBox.w, MIN_PANEL_W, Math.max(MIN_PANEL_W, w))
-  panelBox.h = clamp(panelBox.h, MIN_PANEL_H, Math.max(MIN_PANEL_H, h))
-  panelBox.x = clamp(panelBox.x, 0, Math.max(0, w - panelBox.w))
-  panelBox.y = clamp(panelBox.y, 0, Math.max(0, h - panelBox.h))
+  if (panelFullscreen.value) {
+    panelBox.x = 0
+    panelBox.y = 0
+    panelBox.w = w
+    panelBox.h = h
+    return
+  }
+  const pad = 8
+  panelBox.w = Math.max(MIN_PANEL_W, w - pad * 2)
+  panelBox.h = clamp(panelBox.h, MIN_PANEL_H, Math.max(MIN_PANEL_H, h - pad))
+  panelBox.x = pad
+  panelBox.y = clamp(panelBox.y, pad, Math.max(pad, h - pad - panelBox.h))
+}
+
+function toggleFullscreen() {
+  if (!panelFullscreen.value) {
+    beforeFullscreen = { x: panelBox.x, y: panelBox.y, w: panelBox.w, h: panelBox.h }
+    panelFullscreen.value = true
+    clampPanel()
+    return
+  }
+  panelFullscreen.value = false
+  if (beforeFullscreen) {
+    Object.assign(panelBox, beforeFullscreen)
+    beforeFullscreen = null
+  }
+  clampPanel()
 }
 
 function persist() {
+  if (panelFullscreen.value) return
   saved = {
     tabX: tabPos.x,
     tabY: tabPos.y,
@@ -250,19 +276,13 @@ function onPointerMove(ev: PointerEvent) {
     return
   }
   if (drag.kind === 'panel') {
-    panelBox.x = orig.x + dx
     panelBox.y = orig.y + dy
     clampPanel()
     return
   }
   let { x, y, w, h } = orig
   const dir = drag.kind
-  if (dir.includes('e')) w = orig.w + dx
   if (dir.includes('s')) h = orig.h + dy
-  if (dir.includes('w')) {
-    w = orig.w - dx
-    x = orig.x + dx
-  }
   if (dir.includes('n')) {
     h = orig.h - dy
     y = orig.y + dy
@@ -293,6 +313,7 @@ function endDrag(ev: PointerEvent) {
 }
 
 function beginDrag(kind: DragKind, ev: PointerEvent) {
+  if (panelFullscreen.value && kind !== 'tab') return
   if (ev.button !== 0) return
   ev.preventDefault()
   ev.stopPropagation()
@@ -355,6 +376,7 @@ async function ask() {
 
 watch(panelOpen, async (open) => {
   if (!open) {
+    panelFullscreen.value = false
     await nextTick()
     placeTab(true)
     return
@@ -412,19 +434,32 @@ onBeforeUnmount(() => {
       v-else
       ref="panelRef"
       class="computer-ask"
-      :class="{ 'is-placed': panelPlaced }"
+      :class="{
+        'is-placed': panelPlaced,
+        'is-full': panelFullscreen,
+        'has-chat': displayTurns.length,
+      }"
       :style="panelStyle"
     >
+      <template v-if="!panelFullscreen">
+        <div
+          v-for="dir in RESIZE_DIRS"
+          :key="dir"
+          class="computer-ask__resize"
+          :class="`is-${dir}`"
+          @pointerdown="beginDrag(dir, $event)"
+        />
+      </template>
       <div
-        v-for="dir in RESIZE_DIRS"
-        :key="dir"
-        class="computer-ask__resize"
-        :class="`is-${dir}`"
-        @pointerdown="beginDrag(dir, $event)"
-      />
-      <div class="computer-ask__head" @pointerdown="beginDrag('panel', $event)">
+        class="computer-ask__head"
+        :class="{ 'is-static': panelFullscreen }"
+        @pointerdown="beginDrag('panel', $event)"
+      >
         <span class="computer-ask__grip" aria-hidden="true" />
         <span class="computer-ask__title">问 AI · {{ providerName }}</span>
+        <button type="button" class="computer-ask__toggle-act" @click.stop="toggleFullscreen">
+          {{ panelFullscreen ? '退出全屏' : '全屏' }}
+        </button>
         <button type="button" class="computer-ask__toggle-act" @click.stop="panelOpen = false">
           收起
         </button>
@@ -438,28 +473,33 @@ onBeforeUnmount(() => {
           </el-radio-group>
         </div>
         <p class="computer-ask__hint">
-          请围绕当前讲义提问；对话会保留上下文。需先在右上角「设置」登录。
+          请围绕当前讲义提问；对话会保留上下文。需先在首页「设置」登录。
         </p>
         <div class="computer-ask__thread">
           <DeepseekChatThread :turns="displayTurns" />
         </div>
-        <p v-if="error" class="computer-ask__error">{{ error }}</p>
-        <el-input
-          v-model="keywordInput"
-          type="textarea"
-          :rows="inputRows"
-          maxlength="500"
-          :disabled="loading || !aiReady"
-          placeholder="例如：常见易错点、核心概念…"
-          @keydown.ctrl.enter="ask"
-        />
-        <div class="computer-ask__meta">
-          <span>{{ remain }}/{{ MAX_LEN }}</span>
-          <el-button type="primary" :loading="loading" :disabled="!aiReady" @click="ask">
-            向 {{ providerName }} 提问
-          </el-button>
+        <div class="computer-ask__composer">
+          <p v-if="error" class="computer-ask__error">{{ error }}</p>
+          <el-input
+            v-model="keywordInput"
+            class="computer-ask__input"
+            type="textarea"
+            resize="none"
+            :autosize="false"
+            :rows="inputRows"
+            maxlength="500"
+            :disabled="loading || !aiReady"
+            placeholder="例如：常见易错点、核心概念…"
+            @keydown.ctrl.enter="ask"
+          />
+          <div class="computer-ask__meta">
+            <span>{{ remain }}/{{ MAX_LEN }}</span>
+            <el-button type="primary" :loading="loading" :disabled="!aiReady" @click="ask">
+              向 {{ providerName }} 提问
+            </el-button>
+          </div>
+          <p v-if="!aiReady" class="computer-ask__login">{{ DEEPSEEK_NOT_CONFIGURED_HINT }}</p>
         </div>
-        <p v-if="!aiReady" class="computer-ask__login">{{ DEEPSEEK_NOT_CONFIGURED_HINT }}</p>
       </div>
     </aside>
   </div>
@@ -563,23 +603,35 @@ onBeforeUnmount(() => {
 
 .computer-ask {
   position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 10px;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
   z-index: 13;
   display: flex;
   flex-direction: column;
-  height: min(32vh, 250px);
+  height: min(36vh, 300px);
+  min-height: 200px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, #2563eb 28%, var(--app-border-soft));
+  border: none;
   border-radius: 12px;
-  background: var(--app-surface);
+  background: #fff;
   box-shadow: 0 10px 28px rgb(37 99 235 / 12%);
 }
 
 .computer-ask.is-placed {
   right: auto;
   bottom: auto;
+}
+
+.computer-ask.is-full {
+  inset: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.computer-ask.is-full .computer-ask__head {
+  border-radius: 0;
+  cursor: default;
 }
 
 .computer-ask__resize {
@@ -604,52 +656,41 @@ onBeforeUnmount(() => {
   bottom: 0;
 }
 
-.computer-ask__resize.is-e,
-.computer-ask__resize.is-w {
-  top: 14px;
-  bottom: 14px;
-  width: 12px;
-  cursor: ew-resize;
+.computer-ask__composer {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--app-border-soft) 70%, transparent);
+  background: #fff;
 }
 
-.computer-ask__resize.is-e {
-  right: 0;
+.computer-ask.has-chat .computer-ask__composer {
+  flex: 0 0 auto;
 }
 
-.computer-ask__resize.is-w {
-  left: 0;
+.computer-ask__input {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.computer-ask__resize.is-ne,
-.computer-ask__resize.is-nw,
-.computer-ask__resize.is-se,
-.computer-ask__resize.is-sw {
-  width: 18px;
-  height: 18px;
+.computer-ask__input :deep(.el-textarea) {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-.computer-ask__resize.is-ne {
-  top: 0;
-  right: 0;
-  cursor: nesw-resize;
-}
-
-.computer-ask__resize.is-nw {
-  top: 0;
-  left: 0;
-  cursor: nwse-resize;
-}
-
-.computer-ask__resize.is-se {
-  right: 0;
-  bottom: 0;
-  cursor: nwse-resize;
-}
-
-.computer-ask__resize.is-sw {
-  left: 0;
-  bottom: 0;
-  cursor: nesw-resize;
+.computer-ask__input :deep(.el-textarea__inner) {
+  flex: 1 1 auto;
+  min-height: 72px !important;
+  height: 100% !important;
+  resize: none;
 }
 
 .computer-ask__head {
@@ -673,6 +714,11 @@ onBeforeUnmount(() => {
 
 .computer-ask__head:active {
   cursor: grabbing;
+}
+
+.computer-ask__head.is-static,
+.computer-ask__head.is-static:active {
+  cursor: default;
 }
 
 .computer-ask__grip {
@@ -711,12 +757,18 @@ onBeforeUnmount(() => {
   min-height: 0;
   padding: 12px 14px 14px;
   overflow: hidden;
+  background: #fff;
 }
 
 .computer-ask__thread {
+  display: none;
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+}
+
+.computer-ask.has-chat .computer-ask__thread {
+  display: block;
 }
 
 .computer-ask__switch {
@@ -752,9 +804,7 @@ onBeforeUnmount(() => {
 
 @media (min-width: 901px) {
   .computer-ask {
-    left: auto;
-    width: 440px;
-    height: min(42vh, 400px);
+    height: min(38vh, 340px);
   }
 }
 </style>

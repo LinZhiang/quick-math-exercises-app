@@ -12,18 +12,18 @@ import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getDataAnalysisStrategyGuide } from '@/constants/dataAnalysisStrategyGuides'
 import { getMathOpStrategyGuide } from '@/constants/mathOpStrategyGuides'
-import { renderDataAnalysisMathHtml } from '@/utils/dataAnalysisMathDisplay'
+import { renderDataAnalysisMathHtml } from '@/utils/data-analysis/dataAnalysisMathDisplay'
 import {
   getStrategyGuideNote,
   setStrategyGuideNote,
-} from '@/utils/strategyGuideNotes'
-import GeometryFigureView from '@/views/tools/mental-math/components/GeometryFigureView.vue'
-import ProbabilityGeoDiagram from '@/views/tools/mental-math/components/ProbabilityGeoDiagram.vue'
-import InclusionExclusionVennDiagram from '@/views/tools/mental-math/components/InclusionExclusionVennDiagram.vue'
-import ClockFaceDiagram from '@/views/tools/mental-math/components/ClockFaceDiagram.vue'
-import FunctionGraphCurveView from '@/views/tools/mental-math/components/FunctionGraphCurveView.vue'
-import type { GeometryFigureSpec } from '@/utils/geometryPractice'
-import type { FunctionGraphKind } from '@/utils/functionGraphPractice'
+} from '@/utils/app/strategyGuideNotes'
+import GeometryFigureView from '@/views/tools/mental-math/components/math/GeometryFigureView.vue'
+import ProbabilityGeoDiagram from '@/views/tools/mental-math/components/math/ProbabilityGeoDiagram.vue'
+import InclusionExclusionVennDiagram from '@/views/tools/mental-math/components/math/InclusionExclusionVennDiagram.vue'
+import ClockFaceDiagram from '@/views/tools/mental-math/components/math/ClockFaceDiagram.vue'
+import FunctionGraphCurveView from '@/views/tools/mental-math/components/math/FunctionGraphCurveView.vue'
+import type { GeometryFigureSpec } from '@/utils/math/geometryPractice'
+import type { FunctionGraphKind } from '@/utils/math/functionGraphPractice'
 
 const MEMO_MAX_LEN = 3000
 

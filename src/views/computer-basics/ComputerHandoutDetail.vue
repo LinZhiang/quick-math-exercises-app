@@ -3,8 +3,8 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Download, EditPen, FullScreen } from '@element-plus/icons-vue'
-import { useAppChromeTitle } from '@/composables/useAppChrome'
-import { goBackOr, omitQueryKey } from '@/utils/appNavigation'
+import { useAppChromeTitle } from '@/composables/app/useAppChrome'
+import { goBackOr, omitQueryKey } from '@/utils/app/appNavigation'
 import ImageCropPanel from '@/components/ImageCropPanel.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import RichTextView from '@/components/RichTextView.vue'
@@ -17,15 +17,16 @@ import {
   updateComputerItem,
   type ComputerHandoutItem,
   type ComputerTreeEntry,
-} from '@/utils/computerBasics'
+} from '@/utils/computer/computerBasics'
 import {
   COMPUTER_HANDOUT_PHOTO_MAX,
   extractComputerHandoutFromPhoto,
-} from '@/utils/computerHandoutPhotoExtract'
-import { aiRequestProgressText } from '@/utils/aiProviderStore'
-import { sanitizeRichHtml } from '@/utils/richTextHtml'
-import { isWenguAdmin, wenguAuthTick } from '@/utils/wenguAuthStore'
+} from '@/utils/computer/computerHandoutPhotoExtract'
+import { aiRequestProgressText } from '@/utils/app/aiProviderStore'
+import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
+import { isWenguAdmin, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 import ComputerAskPanel from './ComputerAskPanel.vue'
+import ComputerQuizPanel from './ComputerQuizPanel.vue'
 
 type PhotoSlot = { original: string; cropped: string | null }
 type PhotoIntent = 'recognize' | 'upload'
@@ -33,6 +34,7 @@ type PhotoIntent = 'recognize' | 'upload'
 const route = useRoute()
 const router = useRouter()
 const fullscreen = ref(false)
+const quizOpen = ref(false)
 const loading = ref(true)
 const error = ref('')
 const item = ref<ComputerHandoutItem | null>(null)
@@ -418,6 +420,9 @@ watch(photoOpen, (open) => {
           <el-tooltip v-if="isAdmin" content="删除讲义" placement="top">
             <el-button size="small" circle type="danger" plain :icon="Delete" @click="onDeleteCurrent" />
           </el-tooltip>
+          <el-button size="small" type="primary" plain :disabled="editing" @click="quizOpen = true">
+            AI 测验
+          </el-button>
         </div>
         <div v-if="isAdmin && editing && !photoOpen" class="computer-detail__edit-btns">
           <el-button size="small" @click="cancelEdit">取消</el-button>
@@ -426,7 +431,7 @@ watch(photoOpen, (open) => {
       </div>
     </header>
 
-    <div v-if="!editing" class="computer-detail__pager">
+    <div v-if="!editing && !quizOpen" class="computer-detail__pager">
       <el-button size="small" text :disabled="navIndex <= 0" @click="goNav(-1)">‹ 上一条</el-button>
       <span>第 {{ Math.max(navIndex, 0) + 1 }} / {{ readyList.length || 1 }} 条</span>
       <el-button size="small" text :disabled="navIndex < 0 || navIndex >= readyList.length - 1" @click="goNav(1)">
@@ -434,7 +439,10 @@ watch(photoOpen, (open) => {
       </el-button>
     </div>
 
-    <article class="computer-detail__paper" :class="{ 'is-editing': editing && !photoOpen }">
+    <div v-if="quizOpen && !editing && !photoOpen" class="computer-detail__paper computer-detail__quiz">
+      <ComputerQuizPanel :item="item" @close="quizOpen = false" />
+    </div>
+    <article v-else class="computer-detail__paper" :class="{ 'is-editing': editing && !photoOpen }">
       <template v-if="photoOpen">
         <template v-if="!photoSrc">
           <p class="computer-photo__lead">
@@ -557,7 +565,7 @@ watch(photoOpen, (open) => {
       </template>
       <RichTextView v-else :html="html" />
     </article>
-    <ComputerAskPanel v-if="!fullscreen && !photoOpen" :item="item" />
+    <ComputerAskPanel v-if="!fullscreen && !photoOpen && !quizOpen" :item="item" />
   </section>
 </template>
 
@@ -651,6 +659,12 @@ watch(photoOpen, (open) => {
   flex-direction: column;
   overflow: hidden;
   padding-bottom: 16px;
+}
+
+.computer-detail__quiz {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .computer-detail__paper.is-editing > :deep(.el-input) {

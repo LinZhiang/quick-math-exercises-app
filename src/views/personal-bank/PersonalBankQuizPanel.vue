@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import RichTextView from '@/components/RichTextView.vue'
-import { usePersonalBankQuiz, type PersonalBankQuizResultRow } from '@/composables/usePersonalBankQuiz'
+import { usePersonalBankQuiz, type PersonalBankQuizResultRow } from '@/composables/app/usePersonalBankQuiz'
 import {
   personalBankChoiceModeOf,
   personalBankQuestionTypeLabel,
   type PersonalBankQuestion,
-} from '@/utils/personalQuestionBank'
-import type { AiProvider } from '@/utils/aiProviderStore'
+} from '@/utils/personal-bank/personalQuestionBank'
+import type { AiProvider } from '@/utils/app/aiProviderStore'
 
 const props = defineProps<{
   paper: PersonalBankQuestion[]

@@ -1,34 +1,33 @@
-# 口算练习（独立项目）
+# 学习 App
 
-从「温故智学网」拆出的口算练习模块，可单独 `git init` 后推送到独立仓库。
+公务员 / 事业编练习站：口算与数量关系、资料分析、逻辑判断、语文、个人题库、计算机基础讲义。
 
-## 功能
+**接手代码请先读 [`项目结构.md`](./项目结构.md)**（目录分层、AI 入口、如何加新题型）。
 
-- 四则口算、2 的 n 次幂、平方与立方、估算分数
-- 二十四点、数独、图形推理
-- 练习攻略与键盘作答（1～5 选项）
+## 功能概览
+
+- **知识训练**：四则口算、快判（舒尔特等）、数量关系、资料分析、逻辑判断、语文练习
+- **题库整理**：分类、拍照录入、测验、导出
+- **计算机基础**：讲义树、问 AI、AI 测验、错题/收藏
+- 安装为 PWA；安装与设置入口仅首页可见
 
 ## 开发
 
 ```bash
 npm install
-npm run dev
+npm run dev:full
 ```
 
-默认端口 **5174**（与主站 `my-learning-app` 的 5173 错开）。
+`dev:full` 会同时起 Vite 前端和本地 AI/登录代理。只起页面可用 `npm run dev`（默认端口 **5174**）。
 
-## 与主站联动
-
-主站 `my-learning-app` 菜单「口算练习」会通过环境变量跳转到本项目：
-
-- 开发：`.env` 中 `VITE_QUICK_MATH_APP_URL=http://localhost:5174`
-- 生产：部署本仓库静态资源后，将上述变量改为实际 URL
-
-主站仍保留 `/tools/mental-math` 路由作重定向，兼容旧书签。
-
-## 构建
+生产构建：
 
 ```bash
 npm run build
-npm run preview
 ```
+
+类型检查：`npm run type-check`。
+
+## 部署
+
+静态前端 + Cloudflare Pages Functions（`functions/`）。计算机基础树可同步到 Pages；环境变量与密钥用仓库内 `scripts/sync-*.mjs` / `push-cf-*.mjs`，不要把 API Key 写进前端代码。

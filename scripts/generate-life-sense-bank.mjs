@@ -23,8 +23,8 @@ import { getExtraQaByDifficulty } from './life-sense-extra-data.mjs'
 import { getCultureQaByDifficulty } from './life-sense-culture-data.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const outJson = path.join(__dirname, '../src/utils/lifeSenseBank.generated.json')
-const outTs = path.join(__dirname, '../src/utils/lifeSenseBank.generated.ts')
+const outJson = path.join(__dirname, '../src/utils/chinese/lifeSenseBank.generated.json')
+const outTs = path.join(__dirname, '../src/utils/chinese/lifeSenseBank.generated.ts')
 
 /** @typedef {{ difficulty: 'easy'|'normal'|'hard', stem: string, correct: string, distractors: string[], explanation: string, key: string }} Item */
 
@@ -1643,8 +1643,8 @@ fs.writeFileSync(outJson, JSON.stringify(payload), 'utf8')
 fs.writeFileSync(
   outTs,
   `/** 由 scripts/generate-life-sense-bank.mjs 生成，请勿手改 */
-import type { LifeSenseBankItem } from '@/utils/lifeSenseBankTypes'
-import raw from '@/utils/lifeSenseBank.generated.json'
+import type { LifeSenseBankItem } from '@/utils/chinese/lifeSenseBankTypes'
+import raw from '@/utils/chinese/lifeSenseBank.generated.json'
 
 export type { LifeSenseBankItem }
 

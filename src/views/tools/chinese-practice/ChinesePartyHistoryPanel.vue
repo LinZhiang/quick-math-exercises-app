@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { ChineseKeyReviewMeta } from '@/utils/chineseKeyReviewSession'
-import { useChineseKeyReviewQuizUi } from '@/utils/chineseKeyReviewSession'
-import { useChinesePartyHistoryTest } from '@/composables/useChinesePartyHistoryTest'
-import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
+import type { ChineseKeyReviewMeta } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseKeyReviewQuizUi } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChinesePartyHistoryTest } from '@/composables/chinese/useChinesePartyHistoryTest'
+import { useDeepseekConversation } from '@/composables/app/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
 import {
   isChinesePartyHistoryFavorite,
   toggleChinesePartyHistoryFavorite,
-} from '@/utils/chinesePartyHistoryStorage'
-import { partyHistoryQuestionTypeLabel } from '@/utils/partyHistoryPractice'
-import type { PartyHistoryQuestion } from '@/utils/partyHistoryPractice'
-import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+} from '@/utils/chinese/chinesePartyHistoryStorage'
+import { partyHistoryQuestionTypeLabel } from '@/utils/chinese/partyHistoryPractice'
+import type { PartyHistoryQuestion } from '@/utils/chinese/partyHistoryPractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/PracticeCompletionStat.vue'
 
 const PARTY_ASSIST_SYSTEM =
   '你是事业编与公务员考试常识判断「中共党史」教练，擅长重要会议内容与意义、事件、人物贡献、路线方针辨析，时间节点仅作辅助。用简体中文讲解，表述客观准确，回答要具体。'

@@ -84,14 +84,14 @@ const payload = {
   items,
 }
 
-const jsonPath = path.join(root, 'src/utils/whatIsThisBank.generated.json')
-const tsPath = path.join(root, 'src/utils/whatIsThisBank.generated.ts')
+const jsonPath = path.join(root, 'src/utils/chinese/whatIsThisBank.generated.json')
+const tsPath = path.join(root, 'src/utils/chinese/whatIsThisBank.generated.ts')
 fs.writeFileSync(jsonPath, JSON.stringify(payload), 'utf8')
 fs.writeFileSync(
   tsPath,
   `/** 由 scripts/generate-what-is-this-bank.mjs 生成，请勿手改 */
-import type { WhatIsThisBankItem } from '@/utils/whatIsThisBankTypes'
-import raw from '@/utils/whatIsThisBank.generated.json'
+import type { WhatIsThisBankItem } from '@/utils/chinese/whatIsThisBankTypes'
+import raw from '@/utils/chinese/whatIsThisBank.generated.json'
 
 export type { WhatIsThisBankItem }
 

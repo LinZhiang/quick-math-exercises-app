@@ -1,6 +1,6 @@
 /** 宋朝·苏辙 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const SU_ZHE_PROFILE: PoetOverviewProfile = {
   id: 'su-zhe',

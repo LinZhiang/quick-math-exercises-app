@@ -2,7 +2,7 @@
  * 审计语法题库字符覆盖率
  * 运行：node --experimental-strip-types --no-warnings scripts/audit-grammar-bank-coverage.mjs
  */
-import { GRAMMAR_JUDGMENT_BANK } from '../src/utils/grammarJudgmentBank.ts'
+import { GRAMMAR_JUDGMENT_BANK } from '../src/utils/chinese/grammarJudgmentBank.ts'
 
 const SKIP = new Set(
   '，。！？、；： \t,.!?;:()（）【】《》…—""\'\'“”‘’'.split(''),

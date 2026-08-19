@@ -1,6 +1,6 @@
 /** 其他·关汉卿 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const GUAN_HAN_QING_PROFILE: PoetOverviewProfile = {
   id: 'guan-han-qing',

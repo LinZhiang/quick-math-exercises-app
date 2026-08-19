@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { ChineseKeyReviewMeta } from '@/utils/chineseKeyReviewSession'
-import { useChineseKeyReviewQuizUi } from '@/utils/chineseKeyReviewSession'
-import { useChineseHistoryCommonSenseTest } from '@/composables/useChineseHistoryCommonSenseTest'
-import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
+import type { ChineseKeyReviewMeta } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseKeyReviewQuizUi } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseHistoryCommonSenseTest } from '@/composables/chinese/useChineseHistoryCommonSenseTest'
+import { useDeepseekConversation } from '@/composables/app/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
 import {
   isChineseHistoryCommonSenseFavorite,
   toggleChineseHistoryCommonSenseFavorite,
-} from '@/utils/chineseHistoryCommonSenseStorage'
-import { historyCommonSenseQuestionTypeLabel } from '@/utils/historyCommonSensePractice'
-import type { HistoryCommonSenseQuestion } from '@/utils/historyCommonSensePractice'
-import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+} from '@/utils/chinese/chineseHistoryCommonSenseStorage'
+import { historyCommonSenseQuestionTypeLabel } from '@/utils/chinese/historyCommonSensePractice'
+import type { HistoryCommonSenseQuestion } from '@/utils/chinese/historyCommonSensePractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/PracticeCompletionStat.vue'
 
 const HIST_ASSIST_SYSTEM =
   '你是事业编与公务员考试常识判断「历史」教练，擅长中国古代史与近现代史高频考点；世界史仅作少量补充。用简体中文讲解，回答要具体，避免空泛。'

@@ -1,10 +1,11 @@
+/** 入口：密钥守卫、注册 SW、挂载 Vue。开发请用 npm run dev:full（前端+本地 AI 代理）。 */
 import { createApp } from 'vue'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import App from './App.vue'
 import router from './router'
 import './style.css'
-import { applyPullToRefreshPreference } from '@/utils/appUiSettings'
+import { applyPullToRefreshPreference } from '@/utils/app/appUiSettings'
 
 /** 防止调试日志意外输出 sk- 密钥 */
 function installSecretLogGuard() {

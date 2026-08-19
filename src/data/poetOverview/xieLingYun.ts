@@ -1,6 +1,6 @@
 /** 其他·谢灵运 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const XIE_LING_YUN_PROFILE: PoetOverviewProfile = {
   id: 'xie-ling-yun',

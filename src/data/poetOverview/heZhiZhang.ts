@@ -1,6 +1,6 @@
 /** 唐朝·贺知章：全人生阶段应试背诵整理 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const HE_ZHI_ZHANG_PROFILE: PoetOverviewProfile = {
   id: 'he-zhi-zhang',

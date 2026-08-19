@@ -5,24 +5,24 @@ import {
   CURRENT_AFFAIRS_CATEGORIES,
   CURRENT_AFFAIRS_PERIODS,
 } from '@/data/currentAffairs/bank'
-import { useChineseCurrentAffairsDrillTest } from '@/composables/useChineseCurrentAffairsDrillTest'
+import { useChineseCurrentAffairsDrillTest } from '@/composables/chinese/useChineseCurrentAffairsDrillTest'
 import { isAiChatConfigured } from '@/services/deepseek'
 import {
   currentAffairsDrillQuestionTypeLabel,
   normalizeOrderOption,
   orderSegmentsToReadingText,
   type CurrentAffairsDrillMode,
-} from '@/utils/currentAffairsDrillPractice'
+} from '@/utils/chinese/currentAffairsDrillPractice'
 import {
   currentAffairsStarsText,
   parseCurrentAffairsBoldParts,
   type CurrentAffairsArticle,
   type CurrentAffairsCategoryId,
   type CurrentAffairsPeriodId,
-} from '@/utils/currentAffairsTypes'
-import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+} from '@/utils/chinese/currentAffairsTypes'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/PracticeCompletionStat.vue'
 import SentenceOrderBoard from '@/views/tools/chinese-practice/SentenceOrderBoard.vue'
-import type { ChineseCurrentAffairsDrillResultRow } from '@/composables/useChineseCurrentAffairsDrillTest'
+import type { ChineseCurrentAffairsDrillResultRow } from '@/composables/chinese/useChineseCurrentAffairsDrillTest'
 
 const emit = defineEmits<{ (e: 'back'): void }>()
 

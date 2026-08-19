@@ -1,3 +1,4 @@
+<!-- 首页四张卡片：知识训练、题库整理、计算机基础、前端学习（未开放）。 -->
 <script setup lang="ts">
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { ElMessage } from 'element-plus'

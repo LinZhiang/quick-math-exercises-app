@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { ChineseKeyReviewMeta } from '@/utils/chineseKeyReviewSession'
-import { useChineseKeyReviewQuizUi } from '@/utils/chineseKeyReviewSession'
-import { useChineseClassicalChineseTest } from '@/composables/useChineseClassicalChineseTest'
-import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
+import type { ChineseKeyReviewMeta } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseKeyReviewQuizUi } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseClassicalChineseTest } from '@/composables/chinese/useChineseClassicalChineseTest'
+import { useDeepseekConversation } from '@/composables/app/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
 import {
   isChineseClassicalChineseFavorite,
   toggleChineseClassicalChineseFavorite,
-} from '@/utils/chineseClassicalChineseStorage'
-import { classicalChineseQuestionTypeLabel } from '@/utils/classicalChinesePractice'
-import type { ClassicalChineseQuestion } from '@/utils/classicalChinesePractice'
-import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+} from '@/utils/chinese/chineseClassicalChineseStorage'
+import { classicalChineseQuestionTypeLabel } from '@/utils/chinese/classicalChinesePractice'
+import type { ClassicalChineseQuestion } from '@/utils/chinese/classicalChinesePractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/PracticeCompletionStat.vue'
 
 const CLASSICAL_ASSIST_SYSTEM =
   '你是事业编与公务员考试「文言知识」教练，擅长实词虚词意义、古今异义、文言句式、通假字、一词多义等考点。用简体中文讲解，结合例句与易混辨析，回答要具体。'

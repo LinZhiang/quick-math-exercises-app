@@ -1,6 +1,6 @@
 /** 其他·龚自珍 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const GONG_ZI_ZHEN_PROFILE: PoetOverviewProfile = {
   id: 'gong-zi-zhen',

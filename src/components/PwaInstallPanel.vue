@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { usePwaInstall } from '@/composables/usePwaInstall'
+import { usePwaInstall } from '@/composables/app/usePwaInstall'
 import DeepseekApiAuthPanel from '@/components/DeepseekApiAuthPanel.vue'
 import JsonTransferButtons from '@/components/JsonTransferButtons.vue'
+import { clearComputerBasicsCache, loadComputerBasicsTree } from '@/utils/computer/computerBasics'
 import {
   applyPullToRefreshPreference,
   appUiSettingsTick,
   isPullToRefreshEnabled,
   setPullToRefreshEnabled,
-} from '@/utils/appUiSettings'
+} from '@/utils/app/appUiSettings'
 
 const props = withDefaults(
   defineProps<{
@@ -20,6 +21,7 @@ const props = withDefaults(
 )
 
 const { canInstall, showIosHint, installed, promptInstall } = usePwaInstall()
+const updatingApp = ref(false)
 
 const pullToRefreshOn = computed({
   get() {
@@ -41,6 +43,31 @@ async function onInstall() {
   if (r === 'accepted') ElMessage.success('已安装，出门有网也能用')
   else if (r === 'dismissed') ElMessage.info('已取消')
   else ElMessage.info('Chrome 菜单 → 安装应用 / 添加到主屏幕')
+}
+
+async function updateAppContent() {
+  updatingApp.value = true
+  try {
+    clearComputerBasicsCache()
+    try {
+      await loadComputerBasicsTree(true)
+    } catch {
+      /* 离线时仍继续清缓存刷新前端 */
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys()
+      await Promise.all(keys.map((k) => caches.delete(k)))
+    }
+    const reg = await navigator.serviceWorker?.getRegistration()
+    await reg?.update()
+    const waiting = reg?.waiting
+    waiting?.postMessage({ type: 'SKIP_WAITING' })
+    ElMessage.success('已检查最新内容，即将刷新')
+    window.setTimeout(() => window.location.reload(), 350)
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '更新失败')
+    updatingApp.value = false
+  }
 }
 </script>
 
@@ -70,6 +97,14 @@ async function onInstall() {
         <p class="install-card__text">iPhone：Safari → 分享 → 添加到主屏幕</p>
       </div>
     </template>
+
+    <div class="install-card">
+      <p class="install-card__title">更新 App 内容</p>
+      <p class="install-card__text">
+        拉取最新页面与计算机基础目录。有网时点一次即可，完成后会自动刷新。
+      </p>
+      <el-button :loading="updatingApp" @click="updateAppContent">检查并更新</el-button>
+    </div>
   </section>
 
   <template v-else>

@@ -14,34 +14,34 @@ import {
   type MemorizationWrongModule,
   type MemorizationWrongQuizItem,
   type MemorizationWrongRecord,
-} from '@/utils/memorizationWrongBook'
+} from '@/utils/chinese/memorizationWrongBook'
 import {
   currentAffairsDrillQuestionTypeLabel,
   normalizeOrderOption,
   orderArrangementToOption,
   orderSegmentsToReadingText,
-} from '@/utils/currentAffairsDrillPractice'
-import { poetDrillQuestionTypeLabel } from '@/utils/poetDrillPractice'
-import { shouldShowPoetDrillTermBeforeSubmit } from '@/utils/poetDrillPractice'
-import type { PoetDrillQuestion } from '@/utils/poetDrillPractice'
+} from '@/utils/chinese/currentAffairsDrillPractice'
+import { poetDrillQuestionTypeLabel } from '@/utils/chinese/poetDrillPractice'
+import { shouldShowPoetDrillTermBeforeSubmit } from '@/utils/chinese/poetDrillPractice'
+import type { PoetDrillQuestion } from '@/utils/chinese/poetDrillPractice'
 import {
   recordWrongBookReviewAttempt,
   recordWrongBookReviewComplete,
   type WrongBookReviewScope,
-} from '@/utils/wrongBookReviewStats'
-import WrongBookReviewStat from '@/views/tools/mental-math/components/WrongBookReviewStat.vue'
+} from '@/utils/app/wrongBookReviewStats'
+import WrongBookReviewStat from '@/views/tools/mental-math/components/shared/WrongBookReviewStat.vue'
 import WrongBookImmersivePreview, {
   type WrongBookPreviewItem,
-} from '@/views/tools/mental-math/components/WrongBookImmersivePreview.vue'
+} from '@/views/tools/mental-math/components/shared/WrongBookImmersivePreview.vue'
 import SentenceOrderBoard from '@/views/tools/chinese-practice/SentenceOrderBoard.vue'
 import {
   enterWrongBookWorkspace,
   leaveWrongBookWorkspace,
-} from '@/utils/wrongBookWorkspaceGate'
+} from '@/utils/app/wrongBookWorkspaceGate'
 import {
   acquireWrongBookOverlayLock,
   releaseWrongBookOverlayLock,
-} from '@/utils/wrongBookOverlayLock'
+} from '@/utils/app/wrongBookOverlayLock'
 
 const props = defineProps<{
   module: MemorizationWrongModule

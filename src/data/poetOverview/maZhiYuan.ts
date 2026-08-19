@@ -1,6 +1,6 @@
 /** 其他·马致远 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const MA_ZHI_YUAN_PROFILE: PoetOverviewProfile = {
   id: 'ma-zhi-yuan',

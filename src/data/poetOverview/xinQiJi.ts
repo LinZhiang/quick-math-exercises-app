@@ -1,6 +1,6 @@
 /** 宋朝·辛弃疾 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const XIN_QI_JI_PROFILE: PoetOverviewProfile = {
   id: 'xin-qi-ji',

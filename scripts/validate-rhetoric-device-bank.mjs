@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { DEVICES, ENTRIES, SENTENCES } from './rhetoric-device-data.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const BANK = path.join(__dirname, '../src/utils/rhetoricDeviceBank.ts')
+const BANK = path.join(__dirname, '../src/utils/chinese/rhetoricDeviceBank.ts')
 
 const errors = []
 const warnings = []

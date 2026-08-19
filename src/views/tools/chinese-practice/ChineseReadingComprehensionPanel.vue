@@ -1,23 +1,23 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { ChineseKeyReviewMeta } from '@/utils/chineseKeyReviewSession'
-import { useChineseKeyReviewQuizUi } from '@/utils/chineseKeyReviewSession'
-import { useChineseReadingComprehensionTest } from '@/composables/useChineseReadingComprehensionTest'
-import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
+import type { ChineseKeyReviewMeta } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseKeyReviewQuizUi } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseReadingComprehensionTest } from '@/composables/chinese/useChineseReadingComprehensionTest'
+import { useDeepseekConversation } from '@/composables/app/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
 import {
   isChineseReadingComprehensionFavorite,
   toggleChineseReadingComprehensionFavorite,
-} from '@/utils/chineseReadingComprehensionStorage'
+} from '@/utils/chinese/chineseReadingComprehensionStorage'
 import {
   readingComprehensionQuestionTypeLabel,
   renderReadingPassageHtml,
   type ChineseReadingQuestionType,
   type ReadingComprehensionQuestion,
-} from '@/utils/readingComprehensionPractice'
-import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+} from '@/utils/chinese/readingComprehensionPractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/PracticeCompletionStat.vue'
 
 const READING_ASSIST_SYSTEM =
   '你是事业编与公务员考试「言语理解·阅读理解」教练，擅长主旨观点、细节判断、词句理解、推断下文、标题添加等题型。用简体中文讲解，紧扣材料、分析干扰项，回答要具体。'

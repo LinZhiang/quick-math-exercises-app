@@ -11,7 +11,7 @@ import {
   type BackupImportMode,
   type WenguBackupKind,
   type WenguModuleBackupKind,
-} from '@/utils/userDataBackup'
+} from '@/utils/app/userDataBackup'
 
 const props = withDefaults(
   defineProps<{

@@ -65,7 +65,7 @@ import {
 import {
   listPoetsByDynasty,
   type PoetOverviewProfile,
-} from '@/utils/poetOverviewTypes'
+} from '@/utils/chinese/poetOverviewTypes'
 import type { PoetOverviewDynastyId } from '@/constants/chinese-practice-tabs'
 
 export const POET_OVERVIEW_BANK: PoetOverviewProfile[] = [

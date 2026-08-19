@@ -1,6 +1,6 @@
 /** 宋朝·王安石 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const WANG_AN_SHI_PROFILE: PoetOverviewProfile = {
   id: 'wang-an-shi',

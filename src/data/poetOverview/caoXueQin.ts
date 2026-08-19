@@ -1,6 +1,6 @@
 /** 其他·曹雪芹 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const CAO_XUE_QIN_PROFILE: PoetOverviewProfile = {
   id: 'cao-xue-qin',

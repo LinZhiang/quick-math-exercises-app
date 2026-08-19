@@ -11,13 +11,13 @@ import {
   extractPersonalBankQuestionsFromPhoto,
   PERSONAL_BANK_PHOTO_MAX,
   type PersonalBankPhotoField,
-} from '@/utils/personalBankPhotoExtract'
-import { generatePersonalBankVariant } from '@/utils/personalBankVariant'
+} from '@/utils/personal-bank/personalBankPhotoExtract'
+import { generatePersonalBankVariant } from '@/utils/personal-bank/personalBankVariant'
 import {
   allPersonalBankExportLeafIds,
   buildPersonalBankExportTree,
   exportPersonalBankToWord,
-} from '@/utils/personalBankWordExport'
+} from '@/utils/personal-bank/personalBankWordExport'
 import {
   aiProviderTick,
   aiRequestProgressText,
@@ -26,7 +26,7 @@ import {
   getAiProviderShortName,
   setAiProvider,
   type AiProvider,
-} from '@/utils/aiProviderStore'
+} from '@/utils/app/aiProviderStore'
 import {
   createPersonalBankCategory,
   createPersonalBankQuestion,
@@ -52,9 +52,9 @@ import {
   type PersonalBankQuestion,
   type PersonalBankQuestionType,
   type PersonalBankQuizScope,
-} from '@/utils/personalQuestionBank'
-import { useAppChromeTitle } from '@/composables/useAppChrome'
-import { goBackOr } from '@/utils/appNavigation'
+} from '@/utils/personal-bank/personalQuestionBank'
+import { useAppChromeTitle } from '@/composables/app/useAppChrome'
+import { goBackOr } from '@/utils/app/appNavigation'
 
 const route = useRoute()
 const router = useRouter()

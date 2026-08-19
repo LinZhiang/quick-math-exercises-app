@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { DEVICES, ENTRIES } from './rhetoric-device-data.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const OUT = path.join(__dirname, '../src/utils/rhetoricDeviceBank.ts')
+const OUT = path.join(__dirname, '../src/utils/chinese/rhetoricDeviceBank.ts')
 
 function hash(s) {
   let h = 2166136261
@@ -93,7 +93,7 @@ fs.writeFileSync(
  * 快判·修辞手法本地题库（普通难度，恰好 300 题：10 种×30）
  * 由 scripts/generate-rhetoric-device-bank.mjs 生成；原料见 rhetoric-device-data.mjs。
  */
-import type { RhetoricDeviceBankItem } from '@/utils/rhetoricDeviceBankTypes'
+import type { RhetoricDeviceBankItem } from '@/utils/chinese/rhetoricDeviceBankTypes'
 
 export const RHETORIC_DEVICE_BANK: RhetoricDeviceBankItem[] = [
 ${body},

@@ -17,7 +17,7 @@ import {
   type WenguMemberUser,
   type WenguServerProbe,
   wenguAuthTick,
-} from '@/utils/wenguAuthStore'
+} from '@/utils/computer/wenguAuthStore'
 import {
   describeWenguApiTarget,
   getBuildTimeWenguApiOrigin,
@@ -25,7 +25,7 @@ import {
   hasWenguApiOriginOverride,
   isMemberCustomApiOriginValid,
   setWenguApiOriginOverride,
-} from '@/utils/wenguApiOrigin'
+} from '@/utils/computer/wenguApiOrigin'
 import AiProviderSwitch from '@/components/AiProviderSwitch.vue'
 
 const serverProbe = ref<WenguServerProbe | null>(null)

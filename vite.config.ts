@@ -40,9 +40,9 @@ export default defineConfig(() => {
         ...(lightAssets
           ? [
               {
-                find: '@/utils/qb-perfect-sound',
+                find: '@/utils/app/qb-perfect-sound',
                 replacement: fileURLToPath(
-                  new URL('./src/utils/qb-perfect-sound.lite.ts', import.meta.url),
+                  new URL('./src/utils/app/qb-perfect-sound.lite.ts', import.meta.url),
                 ),
               },
             ]
