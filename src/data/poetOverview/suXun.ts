@@ -1,6 +1,6 @@
 /** 宋朝·苏洵 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const SU_XUN_PROFILE: PoetOverviewProfile = {
   id: 'su-xun',

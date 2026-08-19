@@ -232,6 +232,10 @@ strong {
   font-weight: 600;
 }
 
+.deepseek-md :is(p, li) {
+  max-width: 100%;
+}
+
 .deepseek-md a {
   color: var(--app-primary);
 }

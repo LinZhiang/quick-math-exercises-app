@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { orderSegmentsToReadingText } from '@/utils/currentAffairsDrillPractice'
+import { orderSegmentsToReadingText } from '@/utils/chinese/currentAffairsDrillPractice'
 
 const props = defineProps<{
   segments: string[]

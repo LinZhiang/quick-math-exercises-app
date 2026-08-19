@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const outPath = join(__dirname, '../src/utils/shortenSentenceBank.ts')
+const outPath = join(__dirname, '../src/utils/chinese/shortenSentenceBank.ts')
 
 /** @typedef {[string, string, string, string, string[]?]} Row */
 

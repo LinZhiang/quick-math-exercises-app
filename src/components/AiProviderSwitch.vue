@@ -9,7 +9,7 @@ import {
   setAiProvider,
   aiProviderTick,
   type AiProvider,
-} from '@/utils/aiProviderStore'
+} from '@/utils/app/aiProviderStore'
 
 const provider = computed({
   get() {

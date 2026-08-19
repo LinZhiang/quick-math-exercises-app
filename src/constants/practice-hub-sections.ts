@@ -1,3 +1,4 @@
+/** 知识训练侧栏 section id。与 /train/:section、MentalMathView 的面板切换对应。 */
 export type PracticeHubSectionId =
   | 'log'
   | 'guide'

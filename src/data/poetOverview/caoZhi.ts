@@ -1,6 +1,6 @@
 /** 其他·曹植 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const CAO_ZHI_PROFILE: PoetOverviewProfile = {
   id: 'cao-zhi',

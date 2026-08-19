@@ -1,23 +1,23 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { ChineseKeyReviewMeta } from '@/utils/chineseKeyReviewSession'
-import { useChineseKeyReviewQuizUi } from '@/utils/chineseKeyReviewSession'
-import { useChineseIdiomTest } from '@/composables/useChineseIdiomTest'
-import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
+import type { ChineseKeyReviewMeta } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseKeyReviewQuizUi } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseIdiomTest } from '@/composables/chinese/useChineseIdiomTest'
+import { useDeepseekConversation } from '@/composables/app/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
 import {
   isChineseFavorite,
   toggleChineseFavorite,
-} from '@/utils/chineseIdiomStorage'
+} from '@/utils/chinese/chineseIdiomStorage'
 import {
   buildIdiomDisplayStem,
   idiomQuestionTypeLabel,
   shouldShowIdiomTermBeforeSubmit,
-} from '@/utils/idiomRecognitionPractice'
-import type { IdiomRecognitionQuestion } from '@/utils/idiomRecognitionPractice'
-import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+} from '@/utils/chinese/idiomRecognitionPractice'
+import type { IdiomRecognitionQuestion } from '@/utils/chinese/idiomRecognitionPractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/PracticeCompletionStat.vue'
 
 const IDIOM_ASSIST_SYSTEM =
   '你是事业编与公务员考试言语理解教练，擅长四字成语辨析与选词填空考点。用简体中文讲解，可结合近义成语对比、适用语境与记忆要点。回答要具体，避免空泛。'

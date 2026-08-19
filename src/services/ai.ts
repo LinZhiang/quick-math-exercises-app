@@ -9,17 +9,17 @@ import {
   type AiCapability,
   type AiProvider,
   AI_VISION_UNSUPPORTED_HINT,
-} from '@/utils/aiProviderStore'
+} from '@/utils/app/aiProviderStore'
 import {
   getWenguAuthToken,
   hydrateWenguAuthStore,
   isWenguApiReadyForCurrentUser,
   WENGU_ACCOUNT_DISABLED_HINT,
   WENGU_LOGIN_REQUIRED_HINT,
-} from '@/utils/wenguAuthStore'
-import { WENGU_MEMBER_CUSTOM_API_HINT } from '@/utils/wenguApiOrigin'
-import { wenguApiFetch } from '@/utils/wenguApiFetch'
-import { resolveDeepSeekApiKey } from '@/utils/deepseekApiKeyStore'
+} from '@/utils/computer/wenguAuthStore'
+import { WENGU_MEMBER_CUSTOM_API_HINT } from '@/utils/computer/wenguApiOrigin'
+import { wenguApiFetch } from '@/utils/computer/wenguApiFetch'
+import { resolveDeepSeekApiKey } from '@/utils/app/deepseekApiKeyStore'
 
 export type { AiCapability, AiProvider }
 export {
@@ -32,7 +32,7 @@ export {
   assertVisionAllowed,
   AI_VISION_UNSUPPORTED_HINT,
   aiProviderTick,
-} from '@/utils/aiProviderStore'
+} from '@/utils/app/aiProviderStore'
 
 const WENGU_AI_SOURCE = 'quick-math-exercises-app'
 const DEEPSEEK_DIRECT_API = 'https://api.deepseek.com/chat/completions'

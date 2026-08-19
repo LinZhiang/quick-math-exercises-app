@@ -1,6 +1,6 @@
 /** 其他·归有光 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const GUI_YOU_GUANG_PROFILE: PoetOverviewProfile = {
   id: 'gui-you-guang',

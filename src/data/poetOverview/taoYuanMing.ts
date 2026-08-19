@@ -1,6 +1,6 @@
 /** 其他·陶渊明 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const TAO_YUAN_MING_PROFILE: PoetOverviewProfile = {
   id: 'tao-yuan-ming',

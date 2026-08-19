@@ -1,6 +1,6 @@
 /** 其他·郑光祖（元曲四大家，精简） */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const ZHENG_GUANG_ZU_PROFILE: PoetOverviewProfile = {
   id: 'zheng-guang-zu',

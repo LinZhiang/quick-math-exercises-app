@@ -1,6 +1,6 @@
 /** 唐朝·柳宗元：全人生阶段应试背诵整理 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const LIU_ZONG_YUAN_PROFILE: PoetOverviewProfile = {
   id: 'liu-zong-yuan',

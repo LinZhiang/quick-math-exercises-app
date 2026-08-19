@@ -12,7 +12,7 @@ import {
   type CurrentAffairsArticle,
   type CurrentAffairsCategoryId,
   type CurrentAffairsPeriodId,
-} from '@/utils/currentAffairsTypes'
+} from '@/utils/chinese/currentAffairsTypes'
 
 export const CURRENT_AFFAIRS_BANK: CurrentAffairsArticle[] = [
   ...OCT_EARLY_ARTICLES,

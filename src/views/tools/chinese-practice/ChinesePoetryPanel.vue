@@ -1,22 +1,22 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { ChineseKeyReviewMeta } from '@/utils/chineseKeyReviewSession'
-import { useChineseKeyReviewQuizUi } from '@/utils/chineseKeyReviewSession'
-import { useChinesePoetryTest } from '@/composables/useChinesePoetryTest'
-import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
+import type { ChineseKeyReviewMeta } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseKeyReviewQuizUi } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChinesePoetryTest } from '@/composables/chinese/useChinesePoetryTest'
+import { useDeepseekConversation } from '@/composables/app/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
 import {
   isChinesePoetryFavorite,
   toggleChinesePoetryFavorite,
-} from '@/utils/chinesePoetryStorage'
+} from '@/utils/chinese/chinesePoetryStorage'
 import {
   poetryQuestionTypeLabel,
   shouldShowPoetryTermBeforeSubmit,
-} from '@/utils/poetryRecognitionPractice'
-import type { PoetryRecognitionQuestion } from '@/utils/poetryRecognitionPractice'
-import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+} from '@/utils/chinese/poetryRecognitionPractice'
+import type { PoetryRecognitionQuestion } from '@/utils/chinese/poetryRecognitionPractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/PracticeCompletionStat.vue'
 
 const POETRY_ASSIST_SYSTEM =
   '你是事业编与公务员考试古诗文常识教练，擅长作者生平、名句出处、意境赏析与公考常考篇目。用简体中文讲解，可结合时代背景、同类篇目对比与记忆口诀。回答要具体，避免空泛。'

@@ -1,6 +1,6 @@
 /** 唐朝·杜牧：全人生阶段应试背诵整理 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const DU_MU_PROFILE: PoetOverviewProfile = {
   id: 'du-mu',

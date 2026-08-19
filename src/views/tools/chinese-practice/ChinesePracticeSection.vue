@@ -1,3 +1,7 @@
+<!--
+  语文练习分区壳：成语 / 诗词 / 常识 / 文言 / 阅读等 tab。
+  具体面板与本目录其它 *Panel.vue；出题走 composables/chinese + services/deepseek。
+-->
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import {
@@ -30,9 +34,9 @@ import ChineseTheoryPolicyPanel from '@/views/tools/chinese-practice/ChineseTheo
 import ChineseWordMemorizationPanel from '@/views/tools/chinese-practice/ChineseWordMemorizationPanel.vue'
 import ChinesePoetOverviewPanel from '@/views/tools/chinese-practice/ChinesePoetOverviewPanel.vue'
 import { isAiChatConfigured, DEEPSEEK_NOT_CONFIGURED_HINT } from '@/services/deepseek'
-import { wenguAuthTick } from '@/utils/wenguAuthStore'
-import { wrongBookWorkspaceActive } from '@/utils/wrongBookWorkspaceGate'
-import { chineseKeyReviewExitTick } from '@/utils/chineseKeyReviewSession'
+import { wenguAuthTick } from '@/utils/computer/wenguAuthStore'
+import { wrongBookWorkspaceActive } from '@/utils/app/wrongBookWorkspaceGate'
+import { chineseKeyReviewExitTick } from '@/utils/chinese/chineseKeyReviewSession'
 import AiProviderSwitch from '@/components/AiProviderSwitch.vue'
 
 export type { KeyPracticePayload } from '@/types/chinese-practice'
@@ -148,7 +152,7 @@ function onKeyPractice(payload: KeyPracticePayload) {
   const keyReview = payload.keyReview
   if (readingMode && payload.source.startsWith('reading-')) {
     selectTab('reading-comprehension')
-    const questions = payload.questions as import('@/utils/readingComprehensionPractice').ReadingComprehensionQuestion[]
+    const questions = payload.questions as import('@/utils/chinese/readingComprehensionPractice').ReadingComprehensionQuestion[]
     void nextTick(() => {
       readingComprehensionRef.value?.startWith(questions, readingMode, keyReview)
     })

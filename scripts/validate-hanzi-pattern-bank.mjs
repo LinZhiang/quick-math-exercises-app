@@ -25,7 +25,7 @@ import {
 } from './generate-hanzi-pattern-bank.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const bankPath = path.join(__dirname, '../src/utils/hanziPatternBank.ts')
+const bankPath = path.join(__dirname, '../src/utils/chinese/hanziPatternBank.ts')
 const raw = fs.readFileSync(bankPath, 'utf8')
 
 const STEM_RE = /^.\u3000.\u3000.\u3000.$/

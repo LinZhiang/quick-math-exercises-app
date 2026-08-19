@@ -1,3 +1,8 @@
+<!--
+  知识训练总壳（路由 /train/:section）。
+  脚本负责切换题型与计时；具体出题/判分在 composables + utils；
+  各题型面板按领域放在 components/{math,data-analysis,logic,chinese,shared}/。
+-->
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -12,80 +17,80 @@ import {
   type PracticeHubGroupId,
   type PracticeHubSectionId,
 } from '@/constants/practice-hub-sections'
-import { useAppChromeTitle } from '@/composables/useAppChrome'
-import { goBackOr, omitQueryKey } from '@/utils/appNavigation'
-import MentalMathPracticeGuide from '@/views/tools/mental-math/components/MentalMathPracticeGuide.vue'
-import PracticeSessionLogPanel from '@/views/tools/mental-math/components/PracticeSessionLogPanel.vue'
-import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
-import TwentyFourPointPanel from '@/views/tools/mental-math/components/TwentyFourPointPanel.vue'
-import SudokuPanel from '@/views/tools/mental-math/components/SudokuPanel.vue'
-import CircleGrammarPanel from '@/views/tools/mental-math/components/CircleGrammarPanel.vue'
-import ShortenSentencePanel from '@/views/tools/mental-math/components/ShortenSentencePanel.vue'
-import SchultePanel from '@/views/tools/mental-math/components/SchultePanel.vue'
-import DataAnalysisPanel from '@/views/tools/mental-math/components/DataAnalysisPanel.vue'
-import DataAnalysisGrowthPanel from '@/views/tools/mental-math/components/DataAnalysisGrowthPanel.vue'
-import DataAnalysisGrowthInterYearPanel from '@/views/tools/mental-math/components/DataAnalysisGrowthInterYearPanel.vue'
-import DataAnalysisGrowthAvgAnnualPanel from '@/views/tools/mental-math/components/DataAnalysisGrowthAvgAnnualPanel.vue'
-import DataAnalysisGrowthMixedPanel from '@/views/tools/mental-math/components/DataAnalysisGrowthMixedPanel.vue'
-import DataAnalysisProportionBasicPanel from '@/views/tools/mental-math/components/DataAnalysisProportionBasicPanel.vue'
-import DataAnalysisProportionBasePanel from '@/views/tools/mental-math/components/DataAnalysisProportionBasePanel.vue'
-import DataAnalysisAverageBasicPanel from '@/views/tools/mental-math/components/DataAnalysisAverageBasicPanel.vue'
-import DataAnalysisAverageBasePanel from '@/views/tools/mental-math/components/DataAnalysisAverageBasePanel.vue'
-import DataAnalysisMultipleBasicPanel from '@/views/tools/mental-math/components/DataAnalysisMultipleBasicPanel.vue'
-import DataAnalysisMultipleBasePanel from '@/views/tools/mental-math/components/DataAnalysisMultipleBasePanel.vue'
-import DataAnalysisIndexPanel from '@/views/tools/mental-math/components/DataAnalysisIndexPanel.vue'
-import DataAnalysisPullPanel from '@/views/tools/mental-math/components/DataAnalysisPullPanel.vue'
-import DataAnalysisSurplusPanel from '@/views/tools/mental-math/components/DataAnalysisSurplusPanel.vue'
-import DataAnalysisStrategyGuideButton from '@/views/tools/mental-math/components/DataAnalysisStrategyGuideButton.vue'
-import DivisibilityJudgePanel from '@/views/tools/mental-math/components/DivisibilityJudgePanel.vue'
-import PrimeCompositePanel from '@/views/tools/mental-math/components/PrimeCompositePanel.vue'
-import GcdLcmPanel from '@/views/tools/mental-math/components/GcdLcmPanel.vue'
-import RatioMultPanel from '@/views/tools/mental-math/components/RatioMultPanel.vue'
-import RemPropPanel from '@/views/tools/mental-math/components/RemPropPanel.vue'
-import SubElimPanel from '@/views/tools/mental-math/components/SubElimPanel.vue'
-import EquationMethodPanel from '@/views/tools/mental-math/components/EquationMethodPanel.vue'
-import SpecialValuePanel from '@/views/tools/mental-math/components/SpecialValuePanel.vue'
-import RatioMethodPanel from '@/views/tools/mental-math/components/RatioMethodPanel.vue'
-import CrossMethodPanel from '@/views/tools/mental-math/components/CrossMethodPanel.vue'
-import SumDiffRatioPanel from '@/views/tools/mental-math/components/SumDiffRatioPanel.vue'
-import GeometryPanel from '@/views/tools/mental-math/components/GeometryPanel.vue'
-import RightTrianglePanel from '@/views/tools/mental-math/components/RightTrianglePanel.vue'
-import SimilarTrianglePanel from '@/views/tools/mental-math/components/SimilarTrianglePanel.vue'
-import ColoringPanel from '@/views/tools/mental-math/components/ColoringPanel.vue'
-import OrdinaryTravelPanel from '@/views/tools/mental-math/components/OrdinaryTravelPanel.vue'
-import MeetPursuePanel from '@/views/tools/mental-math/components/MeetPursuePanel.vue'
-import BoatCurrentPanel from '@/views/tools/mental-math/components/BoatCurrentPanel.vue'
-import OrdinaryWorkPanel from '@/views/tools/mental-math/components/OrdinaryWorkPanel.vue'
-import CooperativeWorkPanel from '@/views/tools/mental-math/components/CooperativeWorkPanel.vue'
-import ProfitCalcPanel from '@/views/tools/mental-math/components/ProfitCalcPanel.vue'
-import ProfitRatePanel from '@/views/tools/mental-math/components/ProfitRatePanel.vue'
-import ConcentrationPanel from '@/views/tools/mental-math/components/ConcentrationPanel.vue'
-import PermCombBasicPanel from '@/views/tools/mental-math/components/PermCombBasicPanel.vue'
-import PermCombConstraintPanel from '@/views/tools/mental-math/components/PermCombConstraintPanel.vue'
-import PermCombClassicPanel from '@/views/tools/mental-math/components/PermCombClassicPanel.vue'
-import ProbabilityPanel from '@/views/tools/mental-math/components/ProbabilityPanel.vue'
-import InclusionExclusionPanel from '@/views/tools/mental-math/components/InclusionExclusionPanel.vue'
-import SequencePanel from '@/views/tools/mental-math/components/SequencePanel.vue'
-import ExtremumPanel from '@/views/tools/mental-math/components/ExtremumPanel.vue'
-import DatePanel from '@/views/tools/mental-math/components/DatePanel.vue'
-import AgePanel from '@/views/tools/mental-math/components/AgePanel.vue'
-import ClockPanel from '@/views/tools/mental-math/components/ClockPanel.vue'
-import YingKuiPanel from '@/views/tools/mental-math/components/YingKuiPanel.vue'
-import ChickenRabbitPanel from '@/views/tools/mental-math/components/ChickenRabbitPanel.vue'
-import FunctionGraphPanel from '@/views/tools/mental-math/components/FunctionGraphPanel.vue'
-import CompetitionPanel from '@/views/tools/mental-math/components/CompetitionPanel.vue'
-import ReversePanel from '@/views/tools/mental-math/components/ReversePanel.vue'
-import SectionalPanel from '@/views/tools/mental-math/components/SectionalPanel.vue'
-import FormulaRecitePanel from '@/views/tools/mental-math/components/FormulaRecitePanel.vue'
+import { useAppChromeTitle } from '@/composables/app/useAppChrome'
+import { goBackOr, omitQueryKey } from '@/utils/app/appNavigation'
+import MentalMathPracticeGuide from '@/views/tools/mental-math/components/shared/MentalMathPracticeGuide.vue'
+import PracticeSessionLogPanel from '@/views/tools/mental-math/components/shared/PracticeSessionLogPanel.vue'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/PracticeCompletionStat.vue'
+import TwentyFourPointPanel from '@/views/tools/mental-math/components/math/TwentyFourPointPanel.vue'
+import SudokuPanel from '@/views/tools/mental-math/components/math/SudokuPanel.vue'
+import CircleGrammarPanel from '@/views/tools/mental-math/components/chinese/CircleGrammarPanel.vue'
+import ShortenSentencePanel from '@/views/tools/mental-math/components/chinese/ShortenSentencePanel.vue'
+import SchultePanel from '@/views/tools/mental-math/components/math/SchultePanel.vue'
+import DataAnalysisPanel from '@/views/tools/mental-math/components/data-analysis/DataAnalysisPanel.vue'
+import DataAnalysisGrowthPanel from '@/views/tools/mental-math/components/data-analysis/DataAnalysisGrowthPanel.vue'
+import DataAnalysisGrowthInterYearPanel from '@/views/tools/mental-math/components/data-analysis/DataAnalysisGrowthInterYearPanel.vue'
+import DataAnalysisGrowthAvgAnnualPanel from '@/views/tools/mental-math/components/data-analysis/DataAnalysisGrowthAvgAnnualPanel.vue'
+import DataAnalysisGrowthMixedPanel from '@/views/tools/mental-math/components/data-analysis/DataAnalysisGrowthMixedPanel.vue'
+import DataAnalysisProportionBasicPanel from '@/views/tools/mental-math/components/data-analysis/DataAnalysisProportionBasicPanel.vue'
+import DataAnalysisProportionBasePanel from '@/views/tools/mental-math/components/data-analysis/DataAnalysisProportionBasePanel.vue'
+import DataAnalysisAverageBasicPanel from '@/views/tools/mental-math/components/data-analysis/DataAnalysisAverageBasicPanel.vue'
+import DataAnalysisAverageBasePanel from '@/views/tools/mental-math/components/data-analysis/DataAnalysisAverageBasePanel.vue'
+import DataAnalysisMultipleBasicPanel from '@/views/tools/mental-math/components/data-analysis/DataAnalysisMultipleBasicPanel.vue'
+import DataAnalysisMultipleBasePanel from '@/views/tools/mental-math/components/data-analysis/DataAnalysisMultipleBasePanel.vue'
+import DataAnalysisIndexPanel from '@/views/tools/mental-math/components/data-analysis/DataAnalysisIndexPanel.vue'
+import DataAnalysisPullPanel from '@/views/tools/mental-math/components/data-analysis/DataAnalysisPullPanel.vue'
+import DataAnalysisSurplusPanel from '@/views/tools/mental-math/components/data-analysis/DataAnalysisSurplusPanel.vue'
+import DataAnalysisStrategyGuideButton from '@/views/tools/mental-math/components/data-analysis/DataAnalysisStrategyGuideButton.vue'
+import DivisibilityJudgePanel from '@/views/tools/mental-math/components/math/DivisibilityJudgePanel.vue'
+import PrimeCompositePanel from '@/views/tools/mental-math/components/math/PrimeCompositePanel.vue'
+import GcdLcmPanel from '@/views/tools/mental-math/components/math/GcdLcmPanel.vue'
+import RatioMultPanel from '@/views/tools/mental-math/components/math/RatioMultPanel.vue'
+import RemPropPanel from '@/views/tools/mental-math/components/math/RemPropPanel.vue'
+import SubElimPanel from '@/views/tools/mental-math/components/math/SubElimPanel.vue'
+import EquationMethodPanel from '@/views/tools/mental-math/components/math/EquationMethodPanel.vue'
+import SpecialValuePanel from '@/views/tools/mental-math/components/math/SpecialValuePanel.vue'
+import RatioMethodPanel from '@/views/tools/mental-math/components/math/RatioMethodPanel.vue'
+import CrossMethodPanel from '@/views/tools/mental-math/components/math/CrossMethodPanel.vue'
+import SumDiffRatioPanel from '@/views/tools/mental-math/components/math/SumDiffRatioPanel.vue'
+import GeometryPanel from '@/views/tools/mental-math/components/math/GeometryPanel.vue'
+import RightTrianglePanel from '@/views/tools/mental-math/components/math/RightTrianglePanel.vue'
+import SimilarTrianglePanel from '@/views/tools/mental-math/components/math/SimilarTrianglePanel.vue'
+import ColoringPanel from '@/views/tools/mental-math/components/math/ColoringPanel.vue'
+import OrdinaryTravelPanel from '@/views/tools/mental-math/components/math/OrdinaryTravelPanel.vue'
+import MeetPursuePanel from '@/views/tools/mental-math/components/math/MeetPursuePanel.vue'
+import BoatCurrentPanel from '@/views/tools/mental-math/components/math/BoatCurrentPanel.vue'
+import OrdinaryWorkPanel from '@/views/tools/mental-math/components/math/OrdinaryWorkPanel.vue'
+import CooperativeWorkPanel from '@/views/tools/mental-math/components/math/CooperativeWorkPanel.vue'
+import ProfitCalcPanel from '@/views/tools/mental-math/components/math/ProfitCalcPanel.vue'
+import ProfitRatePanel from '@/views/tools/mental-math/components/math/ProfitRatePanel.vue'
+import ConcentrationPanel from '@/views/tools/mental-math/components/math/ConcentrationPanel.vue'
+import PermCombBasicPanel from '@/views/tools/mental-math/components/math/PermCombBasicPanel.vue'
+import PermCombConstraintPanel from '@/views/tools/mental-math/components/math/PermCombConstraintPanel.vue'
+import PermCombClassicPanel from '@/views/tools/mental-math/components/math/PermCombClassicPanel.vue'
+import ProbabilityPanel from '@/views/tools/mental-math/components/math/ProbabilityPanel.vue'
+import InclusionExclusionPanel from '@/views/tools/mental-math/components/math/InclusionExclusionPanel.vue'
+import SequencePanel from '@/views/tools/mental-math/components/math/SequencePanel.vue'
+import ExtremumPanel from '@/views/tools/mental-math/components/math/ExtremumPanel.vue'
+import DatePanel from '@/views/tools/mental-math/components/math/DatePanel.vue'
+import AgePanel from '@/views/tools/mental-math/components/math/AgePanel.vue'
+import ClockPanel from '@/views/tools/mental-math/components/math/ClockPanel.vue'
+import YingKuiPanel from '@/views/tools/mental-math/components/math/YingKuiPanel.vue'
+import ChickenRabbitPanel from '@/views/tools/mental-math/components/math/ChickenRabbitPanel.vue'
+import FunctionGraphPanel from '@/views/tools/mental-math/components/math/FunctionGraphPanel.vue'
+import CompetitionPanel from '@/views/tools/mental-math/components/math/CompetitionPanel.vue'
+import ReversePanel from '@/views/tools/mental-math/components/math/ReversePanel.vue'
+import SectionalPanel from '@/views/tools/mental-math/components/math/SectionalPanel.vue'
+import FormulaRecitePanel from '@/views/tools/mental-math/components/math/FormulaRecitePanel.vue'
 import GraphicReasoningCell from '@/views/tools/graphic-reasoning/components/GraphicReasoningCell.vue'
-import TranslationReasonPanel from '@/views/tools/mental-math/components/TranslationReasonPanel.vue'
-import ComboArrangePanel from '@/views/tools/mental-math/components/ComboArrangePanel.vue'
-import TruthFalsePanel from '@/views/tools/mental-math/components/TruthFalsePanel.vue'
-import EvalReasonPanel from '@/views/tools/mental-math/components/EvalReasonPanel.vue'
-import StrengthenReasonPanel from '@/views/tools/mental-math/components/StrengthenReasonPanel.vue'
-import WeakenReasonPanel from '@/views/tools/mental-math/components/WeakenReasonPanel.vue'
-import DailyConclusionPanel from '@/views/tools/mental-math/components/DailyConclusionPanel.vue'
-import ExplainPhenomPanel from '@/views/tools/mental-math/components/ExplainPhenomPanel.vue'
+import TranslationReasonPanel from '@/views/tools/mental-math/components/logic/TranslationReasonPanel.vue'
+import ComboArrangePanel from '@/views/tools/mental-math/components/logic/ComboArrangePanel.vue'
+import TruthFalsePanel from '@/views/tools/mental-math/components/logic/TruthFalsePanel.vue'
+import EvalReasonPanel from '@/views/tools/mental-math/components/logic/EvalReasonPanel.vue'
+import StrengthenReasonPanel from '@/views/tools/mental-math/components/logic/StrengthenReasonPanel.vue'
+import WeakenReasonPanel from '@/views/tools/mental-math/components/logic/WeakenReasonPanel.vue'
+import DailyConclusionPanel from '@/views/tools/mental-math/components/logic/DailyConclusionPanel.vue'
+import ExplainPhenomPanel from '@/views/tools/mental-math/components/logic/ExplainPhenomPanel.vue'
 import {
   clampGraphicReasoningScore,
   generateGraphicReasoningQuestion,
@@ -97,7 +102,7 @@ import {
   type GraphicReasoningAnswerRecord,
   type GraphicReasoningMode,
   type GraphicReasoningQuestion,
-} from '@/utils/graphicReasoningPractice'
+} from '@/utils/logic/graphicReasoningPractice'
 import {
   clampMentalMathScore,
   generateMentalMathQuestion,
@@ -138,18 +143,18 @@ import {
   type MentalMathAnswerRecord,
   type MentalMathMode,
   type MentalMathQuestion,
-} from '@/utils/mentalMathPractice'
+} from '@/utils/math/mentalMathPractice'
 import {
   playMentalMathCorrectSound,
   playMentalMathStartSound,
   playMentalMathWrongSound,
-} from '@/utils/mentalMathSounds'
+} from '@/utils/math/mentalMathSounds'
 import {
   prepareQbPerfectMidi,
   startQbPerfectMidi,
   stopQbPerfectMidi,
   tryPlayQbPerfectMidiSync,
-} from '@/utils/qb-perfect-sound'
+} from '@/utils/app/qb-perfect-sound'
 import {
   clampTwentyFourPointScore,
   generateTwentyFourPointPuzzle,
@@ -160,7 +165,7 @@ import {
   validateTwentyFourExpression,
   type TwentyFourPointMode,
   type TwentyFourPointQuestion,
-} from '@/utils/twentyFourPointPractice'
+} from '@/utils/math/twentyFourPointPractice'
 import {
   clampSudokuScore,
   formatSudokuGrid,
@@ -172,7 +177,7 @@ import {
   validateSudokuAnswer,
   type SudokuMode,
   type SudokuQuestion,
-} from '@/utils/sudokuPractice'
+} from '@/utils/math/sudokuPractice'
 import {
   CIRCLE_GRAMMAR_MODES,
   clampCircleGrammarScore,
@@ -186,7 +191,7 @@ import {
   type CircleGrammarMark,
   type CircleGrammarMode,
   type CircleGrammarQuestion,
-} from '@/utils/circleGrammarPractice'
+} from '@/utils/chinese/circleGrammarPractice'
 import {
   SHORTEN_SENTENCE_MODES,
   clampShortenSentenceScore,
@@ -197,7 +202,7 @@ import {
   validateShortenSentenceAnswer,
   type ShortenSentenceMode,
   type ShortenSentenceQuestion,
-} from '@/utils/shortenSentencePractice'
+} from '@/utils/chinese/shortenSentencePractice'
 import {
   SCHULTE_MODES,
   SCHULTE_POEM_MODES,
@@ -209,17 +214,17 @@ import {
   isSchulteMode,
   type SchulteMode,
   type SchulteQuestion,
-} from '@/utils/schultePractice'
+} from '@/utils/math/schultePractice'
 import ChinesePracticeSection from '@/views/tools/chinese-practice/ChinesePracticeSection.vue'
-import { clearWenguSessionOnAiLeave } from '@/utils/wenguAuthStore'
-import MentalMathWrongBookPanel from '@/views/tools/mental-math/components/MentalMathWrongBookPanel.vue'
-import FactDeepenMemorizationPanel from '@/views/tools/mental-math/components/FactDeepenMemorizationPanel.vue'
-import SystemMgmtMindmapButton from '@/views/tools/mental-math/components/SystemMgmtMindmapButton.vue'
-import { upsertMentalMathWrong } from '@/utils/mentalMathWrongBook'
-import { resetWrongBookWorkspaceGate, wrongBookWorkspaceActive } from '@/utils/wrongBookWorkspaceGate'
-import { incrementPracticeCompletion } from '@/utils/practiceCompletionStats'
-import { renderDataAnalysisMathHtml } from '@/utils/dataAnalysisMathDisplay'
-import type { FactDeepenKind } from '@/utils/factDeepenMemorization'
+import { clearWenguSessionOnAiLeave } from '@/utils/computer/wenguAuthStore'
+import MentalMathWrongBookPanel from '@/views/tools/mental-math/components/shared/MentalMathWrongBookPanel.vue'
+import FactDeepenMemorizationPanel from '@/views/tools/mental-math/components/shared/FactDeepenMemorizationPanel.vue'
+import SystemMgmtMindmapButton from '@/views/tools/mental-math/components/chinese/SystemMgmtMindmapButton.vue'
+import { upsertMentalMathWrong } from '@/utils/math/mentalMathWrongBook'
+import { resetWrongBookWorkspaceGate, wrongBookWorkspaceActive } from '@/utils/app/wrongBookWorkspaceGate'
+import { incrementPracticeCompletion } from '@/utils/app/practiceCompletionStats'
+import { renderDataAnalysisMathHtml } from '@/utils/data-analysis/dataAnalysisMathDisplay'
+import type { FactDeepenKind } from '@/utils/chinese/factDeepenMemorization'
 
 type Phase = 'select' | 'countdown' | 'playing' | 'finished'
 type CountdownStep = 3 | 2 | 1 | 'GO'
@@ -4637,1402 +4642,4 @@ onBeforeUnmount(() => {
   </section>
 </template>
 
-<style scoped>
-.mental-math-page {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  min-width: 0;
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  padding: 0;
-  gap: 0;
-}
-
-.page-hero {
-  flex-shrink: 0;
-  padding: 12px 12px 10px;
-}
-
-.page-hero__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.page-hero__row .page-title {
-  margin: 0;
-}
-
-.practice-shell {
-  flex: 1;
-  min-height: 420px;
-  display: grid;
-  grid-template-columns: minmax(148px, 188px) minmax(0, 1fr);
-  gap: 0;
-  border: none;
-  border-top: 1px solid var(--app-border-soft);
-  border-radius: 0;
-  overflow: hidden;
-  background: var(--app-surface);
-}
-
-.practice-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 10px 8px;
-  background: var(--app-surface-alt);
-  border-right: 1px solid var(--app-border-soft);
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.practice-sidebar__level1,
-.practice-sidebar__level2 {
-  display: none;
-}
-
-.practice-sidebar__flat {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.practice-sidebar__group {
-  display: none;
-}
-
-.practice-sidebar__item {
-  display: block;
-  width: 100%;
-  padding: 10px 12px;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--app-text-muted);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    background 0.12s ease,
-    color 0.12s ease;
-}
-
-.practice-sidebar__item:hover {
-  background: color-mix(in srgb, var(--el-color-primary-light-9) 70%, transparent);
-  color: var(--el-text-color-primary);
-}
-
-.practice-sidebar__item--active {
-  background: color-mix(in srgb, var(--el-color-primary-light-8) 80%, transparent);
-  color: var(--el-color-primary);
-}
-
-.practice-main {
-  min-width: 0;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: clip;
-  padding: 16px 18px 20px;
-  scrollbar-gutter: stable;
-  -webkit-overflow-scrolling: touch;
-}
-
-.practice-main--log {
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding: 8px 12px 8px;
-}
-
-.practice-main--log :deep(.practice-log) {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.practice-main--log :deep(.mode-section__title) {
-  margin: 0 0 12px;
-  font-size: 1.45rem;
-  text-align: center;
-}
-
-.page-kicker {
-  display: inline-block;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--el-color-primary);
-  margin-bottom: 6px;
-}
-
-.page-title {
-  margin: 0 0 8px;
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.page-subtitle {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--app-text-muted);
-}
-
-.mode-select {
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-}
-
-.mode-card--twentyfour {
-  border-color: rgba(46, 125, 90, 0.35);
-}
-
-.mode-card--twentyfour:hover {
-  border-color: rgba(46, 125, 90, 0.65);
-  background: rgba(46, 125, 90, 0.06);
-}
-
-.mode-card--sudoku {
-  border-color: rgba(72, 108, 160, 0.35);
-}
-
-.mode-card--sudoku:hover {
-  border-color: rgba(72, 108, 160, 0.65);
-  background: rgba(72, 108, 160, 0.06);
-}
-
-.mode-card--fraction {
-  border-color: color-mix(in srgb, var(--el-color-success) 28%, var(--app-border-soft));
-}
-
-.mode-card--fraction:hover {
-  border-color: color-mix(in srgb, var(--el-color-success) 45%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.1);
-}
-
-.mode-card--divisibility {
-  border-color: color-mix(in srgb, #0d9488 28%, var(--app-border-soft));
-}
-
-.mode-card--divisibility:hover {
-  border-color: color-mix(in srgb, #0d9488 50%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(13, 148, 136, 0.12);
-}
-
-.mode-card--number-sequence {
-  border-color: color-mix(in srgb, #db2777 28%, var(--app-border-soft));
-}
-
-.mode-card--number-sequence:hover {
-  border-color: color-mix(in srgb, #db2777 50%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(219, 39, 119, 0.12);
-}
-
-.mode-card--life-sense {
-  border-color: color-mix(in srgb, #3d9b7a 28%, var(--app-border-soft));
-}
-
-.mode-card--life-sense:hover {
-  border-color: color-mix(in srgb, #3d9b7a 50%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(61, 155, 122, 0.12);
-}
-
-.mode-card--what-is-this {
-  border-color: color-mix(in srgb, #2563eb 28%, var(--app-border-soft));
-}
-
-.mode-card--what-is-this:hover {
-  border-color: color-mix(in srgb, #2563eb 50%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.12);
-}
-
-.mode-card--economy-sense {
-  border-color: color-mix(in srgb, #c27803 28%, var(--app-border-soft));
-}
-
-.mode-card--economy-sense:hover {
-  border-color: color-mix(in srgb, #c27803 50%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(194, 120, 3, 0.12);
-}
-
-.mode-card--system-mgmt {
-  border-color: color-mix(in srgb, #6b5b95 28%, var(--app-border-soft));
-}
-
-.mode-card--system-mgmt:hover {
-  border-color: color-mix(in srgb, #6b5b95 50%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(107, 91, 149, 0.12);
-}
-
-.mode-card--wenyan-shici {
-  border-color: color-mix(in srgb, #b45309 28%, var(--app-border-soft));
-}
-
-.mode-card--wenyan-shici:hover {
-  border-color: color-mix(in srgb, #b45309 50%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(180, 83, 9, 0.12);
-}
-
-.mode-card--hanzi-pattern {
-  border-color: color-mix(in srgb, #0f766e 28%, var(--app-border-soft));
-}
-
-.mode-card--hanzi-pattern:hover {
-  border-color: color-mix(in srgb, #0f766e 50%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(15, 118, 110, 0.12);
-}
-
-.mode-card--wenyan-xuci {
-  border-color: color-mix(in srgb, #c2410c 28%, var(--app-border-soft));
-}
-
-.mode-card--wenyan-xuci:hover {
-  border-color: color-mix(in srgb, #c2410c 50%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(194, 65, 12, 0.12);
-}
-
-.mode-card--wenyan-jushi {
-  border-color: color-mix(in srgb, #a16207 28%, var(--app-border-soft));
-}
-
-.mode-card--wenyan-jushi:hover {
-  border-color: color-mix(in srgb, #a16207 50%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(161, 98, 7, 0.12);
-}
-
-.mode-card--grammar-judgment {
-  border-color: color-mix(in srgb, #7c5cbf 28%, var(--app-border-soft));
-}
-
-.mode-card--grammar-judgment:hover {
-  border-color: color-mix(in srgb, #7c5cbf 50%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(124, 92, 191, 0.12);
-}
-
-.mode-card--rhetoric-device {
-  border-color: color-mix(in srgb, #be185d 28%, var(--app-border-soft));
-}
-
-.mode-card--rhetoric-device:hover {
-  border-color: color-mix(in srgb, #be185d 50%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(190, 24, 93, 0.12);
-}
-
-.mode-card--schulte {
-  border-color: color-mix(in srgb, #475569 28%, var(--app-border-soft));
-}
-
-.mode-card--schulte:hover {
-  border-color: color-mix(in srgb, #475569 50%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(71, 85, 105, 0.12);
-}
-
-.mode-section__subtitle {
-  margin: 18px 0 6px;
-  font-size: 1rem;
-  font-weight: 750;
-  color: #0f172a;
-}
-
-.da-topic-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 18px 0 6px;
-}
-
-.da-topic-head .mode-section__subtitle {
-  margin: 0;
-  flex: 1;
-  min-width: 0;
-}
-
-.da-growth-fold__body > .da-topic-head:first-child {
-  margin-top: 0;
-}
-
-.da-growth-fold {
-  margin-top: 14px;
-  border: 1px solid color-mix(in srgb, #0d9488 22%, var(--app-border-soft, #e2e8f0));
-  border-radius: 12px;
-  background: color-mix(in srgb, #0d9488 4%, var(--app-card-bg, #fff));
-  overflow: hidden;
-}
-
-.da-growth-fold__toggle-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-right: 12px;
-}
-
-.da-growth-fold__toggle-row .da-growth-fold__toggle {
-  flex: 1;
-  min-width: 0;
-}
-
-.da-growth-fold__toggle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 12px 14px;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  color: inherit;
-}
-
-.da-growth-fold__toggle:hover {
-  background: color-mix(in srgb, #0d9488 8%, transparent);
-}
-
-.da-growth-fold__title {
-  font-size: 1.05rem;
-  font-weight: 750;
-  color: #0f172a;
-}
-
-.da-growth-fold__meta {
-  flex: 1;
-  font-size: 13px;
-  color: var(--app-text-muted, #64748b);
-}
-
-.da-growth-fold__chevron {
-  font-size: 14px;
-  color: #0d9488;
-  transition: transform 0.18s ease;
-}
-
-.da-growth-fold__chevron.is-open {
-  transform: rotate(180deg);
-}
-
-.da-growth-fold__body {
-  padding: 0 14px 14px;
-  border-top: 1px solid color-mix(in srgb, #0d9488 14%, transparent);
-}
-
-.da-growth-fold__body .mode-section__subtitle:first-child {
-  margin-top: 12px;
-}
-
-/* 答题中：对齐四则运算，隐藏侧栏/页头/其它折叠与错题等干扰 */
-.practice-shell--session-focus {
-  grid-template-columns: 1fr;
-}
-
-.practice-main--session-focus > .mode-section > .mode-section__title,
-.practice-main--session-focus > .mode-section > .mode-section__hint {
-  display: none;
-}
-
-.practice-main--session-focus .da-growth-fold:not(:has([data-session-active])) {
-  display: none;
-}
-
-.practice-main--session-focus .da-growth-fold:has([data-session-active]) {
-  margin-top: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  overflow: visible;
-}
-
-.practice-main--session-focus .da-growth-fold:has([data-session-active]) .da-growth-fold__toggle,
-.practice-main--session-focus .da-growth-fold:has([data-session-active]) .da-growth-fold__toggle-row {
-  display: none;
-}
-
-.practice-main--session-focus .da-growth-fold:has([data-session-active]) .da-growth-fold__body {
-  display: block !important;
-  padding: 0;
-  border-top: 0;
-}
-
-.practice-main--session-focus .da-growth-fold:has([data-session-active]) .da-topic-head,
-.practice-main--session-focus .da-growth-fold:has([data-session-active]) .mode-section__hint,
-.practice-main--session-focus .mm-wrong {
-  display: none;
-}
-
-.practice-main--session-focus .chinese-idiom-panel:not([data-session-active]) {
-  display: none;
-}
-
-.mode-card--circle-grammar {
-  border-color: color-mix(in srgb, #0d9488 28%, var(--app-border-soft));
-}
-
-.mode-card--circle-grammar:hover {
-  border-color: color-mix(in srgb, #0d9488 50%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(13, 148, 136, 0.12);
-}
-
-.mode-card--shorten-sentence {
-  border-color: color-mix(in srgb, #c2410c 28%, var(--app-border-soft));
-}
-
-.mode-card--shorten-sentence:hover {
-  border-color: color-mix(in srgb, #c2410c 50%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(194, 65, 12, 0.12);
-}
-
-.mode-card--graphic {
-  border-color: color-mix(in srgb, var(--el-color-warning) 28%, var(--app-border-soft));
-}
-
-.mode-card--graphic:hover {
-  border-color: color-mix(in srgb, var(--el-color-warning) 45%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.1);
-}
-
-.practice-sidebar__item:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.mode-section__title {
-  margin: 0 0 12px;
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.mode-section__title--sub {
-  margin-top: 22px;
-}
-
-.mode-section__hint {
-  margin: -4px 0 12px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--app-text-muted);
-}
-
-.mode-grid {
-  display: grid;
-  gap: 14px;
-}
-
-.mode-card--power {
-  border-color: color-mix(in srgb, var(--el-color-success) 25%, var(--app-border-soft));
-}
-
-.mode-card--power:hover {
-  border-color: color-mix(in srgb, var(--el-color-success) 45%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.08);
-}
-
-.mode-card--square-cube {
-  border-color: color-mix(in srgb, var(--el-color-primary) 22%, var(--app-border-soft));
-}
-
-.mode-card--square-cube:hover {
-  border-color: color-mix(in srgb, var(--el-color-primary) 42%, var(--app-border-soft));
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.08);
-}
-
-.mode-card {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 18px 20px;
-  border: 1px solid var(--app-border-soft);
-  border-radius: 14px;
-  background: var(--app-surface);
-  cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.mode-card:hover {
-  border-color: var(--el-color-primary-light-5);
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.08);
-}
-
-.mode-card__title {
-  margin: 0 0 8px;
-  font-size: 1.1rem;
-  font-weight: 700;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 0;
-}
-
-.mode-card__desc {
-  margin: 0 0 12px;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--app-text-muted);
-}
-
-.mode-card__cta {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--el-color-primary);
-}
-
-.countdown-panel,
-.play-panel,
-.result-panel {
-  flex: 1;
-  min-height: 0;
-  min-width: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-gutter: stable;
-  -webkit-overflow-scrolling: touch;
-}
-
-.countdown-panel {
-  border: 1px solid var(--app-border-soft);
-  border-radius: 16px;
-  padding: 48px 22px 56px;
-  background: var(--app-surface);
-  text-align: center;
-}
-
-.countdown-mode {
-  margin: 0 0 20px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--app-text-muted);
-}
-
-.countdown-value {
-  margin: 0;
-  font-size: clamp(4rem, 18vw, 6rem);
-  font-weight: 800;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  color: var(--el-color-primary);
-  animation: countdown-pop 0.35s ease-out;
-}
-
-.countdown-value--go {
-  font-size: clamp(3rem, 14vw, 4.5rem);
-  color: var(--el-color-success);
-}
-
-.countdown-hint {
-  margin: 24px 0 0;
-  font-size: 14px;
-  color: var(--app-text-muted);
-}
-
-.session-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.session-actions--inline {
-  margin-top: 0;
-  justify-content: flex-end;
-}
-
-@keyframes countdown-pop {
-  0% {
-    transform: scale(0.6);
-    opacity: 0.4;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-.play-panel {
-  border: 1px solid var(--app-border-soft);
-  border-radius: 16px;
-  padding: 20px 22px 24px;
-  background: var(--app-surface);
-}
-
-.play-top {
-  margin-bottom: 28px;
-}
-
-.play-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px 16px;
-  margin-bottom: 10px;
-  font-size: 14px;
-}
-
-.play-meta__main {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
-  min-width: 0;
-}
-
-.play-mode {
-  font-weight: 600;
-}
-
-.play-score strong {
-  font-size: 1.25em;
-  color: var(--el-color-primary);
-}
-
-.time-bar {
-  height: 10px;
-  border-radius: 999px;
-  background: var(--app-surface-alt);
-  overflow: hidden;
-}
-
-.time-bar__fill {
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--el-color-primary), var(--el-color-primary-light-3));
-  transition: width 0.05s linear;
-}
-
-.time-bar__label {
-  margin-top: 6px;
-  font-size: 12px;
-  color: var(--app-text-muted);
-  text-align: right;
-}
-
-.question-block {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.question-expression {
-  margin: 0;
-  font-size: clamp(1.5rem, 4vw, 2rem);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  white-space: pre-line;
-  line-height: 1.45;
-  transition: color 0.15s ease;
-}
-
-.question-expression--prose {
-  font-size: clamp(1.05rem, 2.8vw, 1.35rem);
-  font-weight: 650;
-  text-align: left;
-  max-width: 36em;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.question-expression--hanzi-pattern {
-  font-size: clamp(1.55rem, 4.2vw, 2.1rem);
-  font-weight: 750;
-  letter-spacing: 0.12em;
-  line-height: 1.65;
-  text-align: center;
-  white-space: pre-line;
-}
-
-.question-expression--sequence {
-  font-size: clamp(1.85rem, 5vw, 2.45rem);
-  font-weight: 750;
-  line-height: 1.55;
-  letter-spacing: 0.02em;
-}
-
-.option-list--sequence .option-btn__val {
-  font-size: 1.35em;
-  font-weight: 700;
-}
-
-.question-expression--sequence :deep(.da-math-frac),
-.option-list--sequence :deep(.da-math-frac),
-.question-expression--special-fraction :deep(.da-math-frac),
-.option-list--special-fraction :deep(.da-math-frac) {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  vertical-align: middle;
-  margin: 0 0.18em;
-  line-height: 1.15;
-}
-
-.question-expression--sequence :deep(.da-math-frac__num),
-.question-expression--sequence :deep(.da-math-frac__den),
-.option-list--sequence :deep(.da-math-frac__num),
-.option-list--sequence :deep(.da-math-frac__den) {
-  font-size: 0.92em;
-  padding: 0 0.28em;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.question-expression--special-fraction {
-  font-size: clamp(1.75rem, 4.8vw, 2.35rem);
-  font-weight: 750;
-  line-height: 1.7;
-  letter-spacing: 0.02em;
-}
-
-.option-list--special-fraction .option-btn__val {
-  font-size: 1.4em;
-  font-weight: 700;
-  line-height: 1.55;
-}
-
-.question-expression--special-fraction :deep(.da-math-frac__num),
-.question-expression--special-fraction :deep(.da-math-frac__den),
-.option-list--special-fraction :deep(.da-math-frac__num),
-.option-list--special-fraction :deep(.da-math-frac__den) {
-  font-size: 1.12em;
-  padding: 0 0.34em;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.question-expression--sequence :deep(.da-math-frac__rule),
-.option-list--sequence :deep(.da-math-frac__rule),
-.question-expression--special-fraction :deep(.da-math-frac__rule),
-.option-list--special-fraction :deep(.da-math-frac__rule) {
-  display: block;
-  align-self: stretch;
-  border-top: 2px solid currentColor;
-  margin: 0.05em 0;
-}
-
-.question-expression--special-fraction :deep(.da-math-frac__rule),
-.option-list--special-fraction :deep(.da-math-frac__rule) {
-  border-top-width: 2.5px;
-  margin: 0.08em 0;
-}
-
-.question-expression--ok {
-  color: var(--el-color-success);
-}
-
-.question-expression--bad {
-  color: var(--el-color-danger);
-}
-
-.feedback {
-  margin: 12px 0 0;
-  font-size: 1.1rem;
-  font-weight: 700;
-}
-
-.feedback--ok {
-  color: var(--el-color-success);
-}
-
-.feedback--bad {
-  color: var(--el-color-danger);
-}
-
-.option-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 10px;
-}
-
-.option-btn {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  padding: 14px 16px;
-  border: 1px solid var(--app-border-soft);
-  border-radius: 12px;
-  background: var(--app-surface-alt);
-  cursor: pointer;
-  font-size: 1.15rem;
-  font-variant-numeric: tabular-nums;
-  transition:
-    border-color 0.12s ease,
-    background 0.12s ease;
-}
-
-.option-btn:hover:not(:disabled) {
-  border-color: var(--el-color-primary-light-5);
-  background: color-mix(in srgb, var(--el-color-primary-light-9) 60%, transparent);
-}
-
-.option-btn:disabled {
-  opacity: 0.65;
-  cursor: default;
-}
-
-.option-btn__key {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  background: var(--app-surface);
-  border: 1px solid var(--app-border-soft);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--app-text-muted);
-}
-
-.hint {
-  margin: 16px 0 0;
-  text-align: center;
-  font-size: 12px;
-  color: var(--app-text-muted);
-}
-
-.hint kbd {
-  padding: 2px 6px;
-  border-radius: 4px;
-  border: 1px solid var(--app-border-soft);
-  background: var(--app-surface-alt);
-  font-size: 11px;
-}
-
-.result-panel {
-  border: 1px solid var(--app-border-soft);
-  border-radius: 16px;
-  padding: 24px 22px;
-  background: var(--app-surface);
-}
-
-.result-panel--perfect {
-  border-color: color-mix(in srgb, var(--el-color-success) 45%, var(--app-border-soft));
-  background: color-mix(in srgb, var(--el-color-success-light-9, #f0fdf4) 55%, var(--app-surface));
-}
-
-.result-title {
-  margin: 0 0 8px;
-  font-size: 1.25rem;
-}
-
-.result-panel--perfect .result-title {
-  color: var(--el-color-success, #16a34a);
-}
-
-.result-perfect {
-  margin: 0 0 8px;
-  font-size: 1rem;
-  color: var(--app-text-muted);
-}
-
-.result-perfect strong {
-  font-size: 1.15em;
-  color: var(--el-color-success, #16a34a);
-}
-
-.result-score {
-  margin: 0 0 6px;
-  font-size: 1.05rem;
-}
-
-.result-score strong {
-  font-size: 1.4em;
-  color: var(--el-color-primary);
-}
-
-.result-stats {
-  margin: 0 0 20px;
-  font-size: 14px;
-  color: var(--app-text-muted);
-}
-
-.result-log h4 {
-  margin: 0 0 10px;
-  font-size: 14px;
-  color: var(--app-text-muted);
-}
-
-.result-log ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  max-height: 280px;
-  overflow-y: auto;
-  border: 1px solid var(--app-border-soft);
-  border-radius: 10px;
-}
-
-.result-log li {
-  padding: 8px 12px;
-  font-size: 13px;
-  line-height: 1.45;
-  border-bottom: 1px solid var(--app-border-soft);
-}
-
-.result-log li:last-child {
-  border-bottom: none;
-}
-
-.log-ok {
-  background: color-mix(in srgb, var(--el-color-success-light-9) 40%, transparent);
-}
-
-.log-bad {
-  background: color-mix(in srgb, var(--el-color-danger-light-9) 35%, transparent);
-}
-
-.log-idx {
-  font-weight: 600;
-  margin-right: 6px;
-}
-
-.log-expr {
-  font-weight: 600;
-  margin-right: 8px;
-}
-
-.log-detail {
-  color: var(--app-text-muted);
-}
-
-.log-explain {
-  margin: 6px 0 0;
-  font-size: 12px;
-  line-height: 1.55;
-  color: var(--app-text-muted);
-  font-weight: 400;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.result-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.graphic-question-block {
-  text-align: center;
-  margin-bottom: 24px;
-  padding: 16px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--app-border-soft);
-  background: var(--app-surface-alt);
-}
-
-.graphic-question-block.question-block--ok {
-  border-color: var(--el-color-success-light-5);
-  background: color-mix(in srgb, var(--el-color-success-light-9) 50%, transparent);
-}
-
-.graphic-question-block.question-block--bad {
-  border-color: var(--el-color-danger-light-5);
-  background: color-mix(in srgb, var(--el-color-danger-light-9) 45%, transparent);
-}
-
-.question-prompt {
-  margin: 0 0 16px;
-  font-size: 13px;
-  color: var(--app-text-muted);
-}
-
-.question-prompt__hint {
-  display: block;
-  margin-top: 6px;
-  font-size: 12px;
-  opacity: 0.85;
-}
-
-.sequence-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-
-.sequence-slot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 88px;
-  height: 88px;
-  border: 1px solid var(--app-border-soft);
-  border-radius: 12px;
-  background: var(--app-surface);
-}
-
-.sequence-slot--question {
-  border-style: dashed;
-  border-color: var(--el-color-primary-light-5);
-}
-
-.question-mark {
-  font-size: 2rem;
-  font-weight: 800;
-  color: var(--el-color-primary);
-}
-
-.option-list--3 {
-  display: grid;
-  gap: 10px;
-}
-
-.option-list--4 {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-}
-
-.option-btn--graphic {
-  justify-content: flex-start;
-}
-
-.page-subtitle--compact {
-  display: none;
-}
-
-@media (max-width: 900px) {
-  .mode-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-}
-
-@media (max-width: 640px), (display-mode: standalone) {
-  .mental-math-page:has(.practice-shell) {
-    height: 100%;
-    max-height: 100%;
-    overflow: hidden;
-  }
-
-  .page-hero {
-    padding: 8px 12px 6px;
-  }
-
-  .page-title {
-    margin: 0 0 4px;
-    font-size: 1.2rem;
-  }
-
-  .page-hero__row .page-title {
-    margin: 0;
-  }
-
-  .page-subtitle--full {
-    display: none;
-  }
-
-  .page-subtitle--compact {
-    display: block;
-    font-size: 13px;
-    line-height: 1.45;
-  }
-
-  .practice-shell {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(0, 1fr);
-    border-top: none;
-    min-height: 0;
-  }
-
-  .practice-sidebar {
-    flex-direction: column;
-    flex-wrap: nowrap;
-    gap: 0;
-    padding: 0;
-    border-right: none;
-    border-bottom: 1px solid var(--app-border-soft);
-    overflow-x: hidden;
-    overflow-y: visible;
-    flex-shrink: 0;
-    position: sticky;
-    top: 0;
-    z-index: 30;
-    background: color-mix(in srgb, var(--app-surface-alt) 92%, white);
-    backdrop-filter: blur(8px);
-  }
-
-  .practice-sidebar__flat {
-    display: none;
-  }
-
-  .practice-sidebar__level1,
-  .practice-sidebar__level2 {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 6px;
-    overflow: visible;
-  }
-
-  .practice-sidebar__level1 {
-    padding: 8px 10px 8px;
-    background: color-mix(in srgb, var(--app-border-soft) 35%, var(--app-surface-alt));
-    border-bottom: 1px solid var(--app-border);
-  }
-
-  .practice-sidebar__level2 {
-    display: flex;
-    align-items: stretch;
-    gap: 4px;
-    margin-top: 0;
-    padding: 8px 6px 10px;
-    background: var(--app-surface);
-  }
-
-  .practice-sidebar__level2-track {
-    flex: 1;
-    min-width: 0;
-    display: grid;
-    gap: 6px;
-  }
-
-  .practice-sidebar__level2-track--swipeable {
-    touch-action: pan-x;
-    cursor: grab;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-
-  .practice-sidebar__level2-track--swipeable:active {
-    cursor: grabbing;
-  }
-
-  .practice-sidebar__l2-nav {
-    flex: 0 0 28px;
-    width: 28px;
-    align-self: stretch;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0;
-    padding: 0;
-    border: 1px solid var(--app-border-soft);
-    border-radius: 999px;
-    background: var(--app-surface-alt);
-    color: var(--el-color-primary);
-    font-size: 22px;
-    font-weight: 700;
-    line-height: 1;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .practice-sidebar__l2-nav:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-    color: var(--app-text-muted);
-  }
-
-  .practice-sidebar__group {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    min-width: 0;
-    box-sizing: border-box;
-    padding: 8px 4px;
-    border: 1px solid transparent;
-    border-radius: 10px;
-    background: transparent;
-    color: var(--app-text-muted);
-    font: inherit;
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1.25;
-    text-align: center;
-    white-space: normal;
-    word-break: break-all;
-    cursor: pointer;
-  }
-
-  .practice-sidebar__group--active {
-    border-color: color-mix(in srgb, var(--el-color-primary) 45%, transparent);
-    background: var(--app-surface);
-    color: var(--el-color-primary);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
-  }
-
-  .practice-sidebar__group:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-
-  .practice-sidebar__item {
-    width: 100%;
-    min-width: 0;
-    box-sizing: border-box;
-    text-align: center;
-    padding: 7px 4px;
-    border-radius: 999px;
-    border: 1px solid var(--app-border-soft);
-    background: var(--app-surface-alt);
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 1.25;
-    white-space: normal;
-    word-break: break-all;
-    touch-action: pan-x;
-  }
-
-  .practice-sidebar__item--active {
-    border-color: color-mix(in srgb, var(--el-color-primary) 40%, transparent);
-    background: color-mix(in srgb, var(--el-color-primary-light-9) 75%, transparent);
-    color: var(--el-color-primary);
-  }
-
-  .practice-main {
-    padding: 12px 12px 24px;
-  }
-
-  .practice-main--log {
-    padding: 4px 8px 6px;
-  }
-
-  /* 语文区：去掉与顶栏重复的「语文练习」标题/说明 */
-  .mode-section--chinese > .mode-section__title,
-  .mode-section--chinese > .mode-section__hint {
-    display: none;
-  }
-
-  /* 语文：顶栏与子菜单贴紧，减少空隙 */
-  .practice-main:has(.mode-section--chinese) {
-    padding-top: 0;
-  }
-
-  /* 诗人速览：外层不滚动，仅正文区内滚动；隐藏外层滚动条 */
-  .practice-main--poet {
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    padding: 0 0 6px;
-    scrollbar-gutter: auto;
-    scrollbar-width: none;
-  }
-
-  .practice-main--poet::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
-  }
-
-  .practice-main--poet .mode-section--chinese {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .practice-main--poet :deep(.chinese-practice-section--poet) {
-    flex: 1;
-    min-height: 0;
-  }
-
-  .mode-select {
-    gap: 18px;
-  }
-
-  .mode-select.practice-main--poet {
-    gap: 0;
-  }
-
-  .mode-section__title {
-    margin: 0 0 8px;
-    font-size: 0.95rem;
-  }
-
-  .mode-section__hint {
-    margin: -2px 0 10px;
-    font-size: 12px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .mode-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .mode-card {
-    padding: 12px 12px 14px;
-    border-radius: 12px;
-  }
-
-  .mode-card__title {
-    margin: 0 0 6px;
-    font-size: 0.95rem;
-  }
-
-  .mode-card__desc {
-    margin: 0 0 8px;
-    font-size: 12px;
-    line-height: 1.4;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .mode-card__cta {
-    font-size: 12px;
-  }
-
-  .countdown-panel,
-  .play-panel,
-  .result-panel {
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-    padding: 14px 12px 20px;
-  }
-
-  .play-top {
-    margin-bottom: 16px;
-  }
-
-  .option-btn {
-    padding: 12px 14px;
-    min-height: 48px;
-    font-size: 1.05rem;
-  }
-
-  .option-btn__key {
-    display: none;
-  }
-
-  .hint {
-    display: none;
-  }
-
-  .option-list--4 {
-    grid-template-columns: 1fr;
-  }
-
-  .sequence-slot {
-    width: 72px;
-    height: 72px;
-  }
-}
-
-@media (max-width: 380px) {
-  .mode-grid {
-    grid-template-columns: 1fr;
-  }
-}
-</style>
+<style scoped src="./mental-math-page.css"></style>

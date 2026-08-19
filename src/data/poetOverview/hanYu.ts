@@ -1,6 +1,6 @@
 /** 唐朝·韩愈：全人生阶段应试背诵整理 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const HAN_YU_PROFILE: PoetOverviewProfile = {
   id: 'han-yu',

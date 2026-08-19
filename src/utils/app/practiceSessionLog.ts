@@ -1,0 +1,1085 @@
+/**
+ * 测验完成日志：每次完整完成一轮练习写入一条，供「导览 → 日志」筛选查看。
+ */
+import { ref } from 'vue'
+import { findPersonalBankSubById } from '@/utils/personal-bank/personalQuestionBank'
+
+const STORAGE_KEY = 'practice-session-log-v1'
+const MAX_ENTRIES = 800
+
+export const practiceSessionLogTick = ref(0)
+
+export type PracticeSessionLogEntry = {
+  id: string
+  /** ISO 完成时间 */
+  finishedAt: string
+  /** 本地日历日 YYYY-MM-DD，便于按日筛选 */
+  dateKey: string
+  modeId: string
+  /** 大类 id，如 arithmetic / chinese / data-analysis */
+  categoryId: string
+  categoryLabel: string
+  /** 展示用：大类 · 小项，如「四则口算 · 简单模式」 */
+  itemLabel: string
+  correctCount?: number
+  totalCount?: number
+  score?: number
+  durationMs?: number
+  /** 本轮是否满分/全对 */
+  perfect?: boolean
+}
+
+export type PracticeSessionLogStats = {
+  correctCount?: number
+  totalCount?: number
+  score?: number
+  durationMs?: number
+  perfect?: boolean
+  /** 覆盖默认归类标签（错题复盘等） */
+  categoryId?: string
+  categoryLabel?: string
+  itemLabel?: string
+}
+
+export function localDateKey(d = new Date()): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** 是否视为满分日志（兼容旧记录：无 perfect 字段时用对题数推断） */
+export function isPracticeLogPerfect(row: PracticeSessionLogEntry): boolean {
+  if (row.perfect === true) return true
+  if (row.perfect === false) return false
+  if (
+    typeof row.correctCount === 'number' &&
+    typeof row.totalCount === 'number' &&
+    row.totalCount > 0 &&
+    row.correctCount === row.totalCount
+  ) {
+    return true
+  }
+  return false
+}
+
+function difficultyLabel(d: string): string {
+  if (d === 'easy') return '简单'
+  if (d === 'medium') return '普通'
+  if (d === 'hard') return '困难'
+  if (d === 'normal') return '普通'
+  return d
+}
+
+/** 与菜单卡片文案一致：简单题 / 普通题 / 困难题 */
+function difficultyTopicLabel(d: string): string {
+  if (d === 'easy') return '简单题'
+  if (d === 'medium' || d === 'normal') return '普通题'
+  if (d === 'hard') return '困难题'
+  return difficultyLabel(d)
+}
+
+function splitDifficulty(rest: string): { mid: string; difficulty: string } {
+  const parts = rest.split('-').filter(Boolean)
+  const last = parts[parts.length - 1] ?? ''
+  if (['easy', 'medium', 'hard', 'normal'].includes(last)) {
+    return { mid: parts.slice(0, -1).join('-'), difficulty: last }
+  }
+  return { mid: rest, difficulty: '' }
+}
+
+const ARITHMETIC_LABELS: Record<string, string> = {
+  easy: '简单模式',
+  'easy-distractor': '简单模式（干扰型）',
+  normal: '普通模式',
+  hard: '高难模式',
+  'addsub-easy': '加减 · 简单题',
+  'addsub-hard': '加减 · 复杂题',
+  'muldiv-easy': '乘除 · 简单题',
+  'muldiv-hard': '乘除 · 复杂题',
+  'cumsum-easy': '累加/减数 · 简单题',
+  'cumsum-hard': '累加/减数 · 复杂题',
+  'threedigit-easy': '三位数加减法 · 简单题',
+  'threedigit-hard': '三位数加减法 · 复杂题',
+  'pct-addsub-easy': '百分比加减运算 · 简单题',
+  'pct-addsub-hard': '百分比加减运算 · 复杂题',
+  'mulcalc-easy': '乘法计算 · 简单题',
+  'mulcalc-hard': '乘法计算 · 复杂题',
+  'mixchain-easy': '累加/减数（乘除）· 简单题',
+  'mixchain-hard': '累加/减数（乘除）· 复杂题',
+}
+
+const KNOWN_ITEM_LABELS: Record<string, { categoryId: string; categoryLabel: string; itemLabel: string }> =
+  {
+    easy: { categoryId: 'arithmetic', categoryLabel: '四则口算', itemLabel: '四则口算 · 简单模式' },
+    'easy-distractor': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 简单模式（干扰型）',
+    },
+    normal: { categoryId: 'arithmetic', categoryLabel: '四则口算', itemLabel: '四则口算 · 普通模式' },
+    hard: { categoryId: 'arithmetic', categoryLabel: '四则口算', itemLabel: '四则口算 · 高难模式' },
+    'addsub-easy': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 加减 · 简单题',
+    },
+    'addsub-hard': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 加减 · 复杂题',
+    },
+    'muldiv-easy': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 乘除 · 简单题',
+    },
+    'muldiv-hard': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 乘除 · 复杂题',
+    },
+    'cumsum-easy': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 累加/减数 · 简单题',
+    },
+    'cumsum-hard': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 累加/减数 · 复杂题',
+    },
+    'threedigit-easy': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 三位数加减法 · 简单题',
+    },
+    'threedigit-hard': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 三位数加减法 · 复杂题',
+    },
+    'pct-addsub-easy': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 百分比加减运算 · 简单题',
+    },
+    'pct-addsub-hard': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 百分比加减运算 · 复杂题',
+    },
+    'mulcalc-easy': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 乘法计算 · 简单题',
+    },
+    'mulcalc-hard': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 乘法计算 · 复杂题',
+    },
+    'mixchain-easy': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 累加/减数（乘除）· 简单题',
+    },
+    'mixchain-hard': {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: '四则口算 · 累加/减数（乘除）· 复杂题',
+    },
+    'power-easy': { categoryId: 'power', categoryLabel: '2 的 n 次幂', itemLabel: '2 的 n 次幂 · 简单题' },
+    'power-hard': { categoryId: 'power', categoryLabel: '2 的 n 次幂', itemLabel: '2 的 n 次幂 · 复杂题' },
+    'square-cube-easy': {
+      categoryId: 'square-cube',
+      categoryLabel: '平方与立方',
+      itemLabel: '平方与立方 · 简单题',
+    },
+    'square-cube-hard': {
+      categoryId: 'square-cube',
+      categoryLabel: '平方与立方',
+      itemLabel: '平方与立方 · 复杂题',
+    },
+    'number-sequence-easy': {
+      categoryId: 'number-sequence',
+      categoryLabel: '数列',
+      itemLabel: '数列 · 简单题',
+    },
+    'number-sequence-hard': {
+      categoryId: 'number-sequence',
+      categoryLabel: '数列',
+      itemLabel: '数列 · 复杂题',
+    },
+    'life-sense-easy': {
+      categoryId: 'life-sense',
+      categoryLabel: '生活常识',
+      itemLabel: '生活常识 · 简单题',
+    },
+    'life-sense-normal': {
+      categoryId: 'life-sense',
+      categoryLabel: '生活常识',
+      itemLabel: '生活常识 · 普通题',
+    },
+    'life-sense-hard': {
+      categoryId: 'life-sense',
+      categoryLabel: '生活常识',
+      itemLabel: '生活常识 · 复杂题',
+    },
+    'life-sense-deepen-easy': {
+      categoryId: 'life-sense',
+      categoryLabel: '生活常识',
+      itemLabel: '生活常识 · 加深识记 · 简单题',
+    },
+    'life-sense-deepen-normal': {
+      categoryId: 'life-sense',
+      categoryLabel: '生活常识',
+      itemLabel: '生活常识 · 加深识记 · 普通题',
+    },
+    'life-sense-deepen-hard': {
+      categoryId: 'life-sense',
+      categoryLabel: '生活常识',
+      itemLabel: '生活常识 · 加深识记 · 复杂题',
+    },
+    'what-is-this-easy': {
+      categoryId: 'what-is-this',
+      categoryLabel: '这是什么',
+      itemLabel: '这是什么 · 简单题',
+    },
+    'what-is-this-normal': {
+      categoryId: 'what-is-this',
+      categoryLabel: '这是什么',
+      itemLabel: '这是什么 · 普通题',
+    },
+    'what-is-this-hard': {
+      categoryId: 'what-is-this',
+      categoryLabel: '这是什么',
+      itemLabel: '这是什么 · 复杂题',
+    },
+    'what-is-this-deepen-easy': {
+      categoryId: 'what-is-this',
+      categoryLabel: '这是什么',
+      itemLabel: '这是什么 · 加深识记 · 简单题',
+    },
+    'what-is-this-deepen-normal': {
+      categoryId: 'what-is-this',
+      categoryLabel: '这是什么',
+      itemLabel: '这是什么 · 加深识记 · 普通题',
+    },
+    'what-is-this-deepen-hard': {
+      categoryId: 'what-is-this',
+      categoryLabel: '这是什么',
+      itemLabel: '这是什么 · 加深识记 · 复杂题',
+    },
+    'economy-sense-normal': {
+      categoryId: 'economy-sense',
+      categoryLabel: '经济学常识',
+      itemLabel: '经济学常识 · 普通题',
+    },
+    'economy-sense-deepen-normal': {
+      categoryId: 'economy-sense',
+      categoryLabel: '经济学常识',
+      itemLabel: '经济学常识 · 加深识记 · 普通题',
+    },
+    'rhetoric-device-normal': {
+      categoryId: 'rhetoric-device',
+      categoryLabel: '修辞手法',
+      itemLabel: '修辞手法 · 普通题',
+    },
+    'rhetoric-device-deepen-normal': {
+      categoryId: 'rhetoric-device',
+      categoryLabel: '修辞手法',
+      itemLabel: '修辞手法 · 加深识记 · 普通题',
+    },
+    'schulte-easy': {
+      categoryId: 'schulte',
+      categoryLabel: '舒尔特',
+      itemLabel: '舒尔特 · 成语/词语 · 简单题',
+    },
+    'schulte-normal': {
+      categoryId: 'schulte',
+      categoryLabel: '舒尔特',
+      itemLabel: '舒尔特 · 成语/词语 · 普通题',
+    },
+    'schulte-hard': {
+      categoryId: 'schulte',
+      categoryLabel: '舒尔特',
+      itemLabel: '舒尔特 · 成语/词语 · 复杂题',
+    },
+    'schulte-poem-easy': {
+      categoryId: 'schulte',
+      categoryLabel: '舒尔特',
+      itemLabel: '舒尔特 · 古诗词 · 简单题',
+    },
+    'schulte-poem-normal': {
+      categoryId: 'schulte',
+      categoryLabel: '舒尔特',
+      itemLabel: '舒尔特 · 古诗词 · 普通题',
+    },
+    'schulte-poem-hard': {
+      categoryId: 'schulte',
+      categoryLabel: '舒尔特',
+      itemLabel: '舒尔特 · 古诗词 · 高难题',
+    },
+    'schulte-life-easy': {
+      categoryId: 'schulte',
+      categoryLabel: '舒尔特',
+      itemLabel: '舒尔特 · 生活常识 · 简单题',
+    },
+    'schulte-life-normal': {
+      categoryId: 'schulte',
+      categoryLabel: '舒尔特',
+      itemLabel: '舒尔特 · 生活常识 · 普通题',
+    },
+    'schulte-life-hard': {
+      categoryId: 'schulte',
+      categoryLabel: '舒尔特',
+      itemLabel: '舒尔特 · 生活常识 · 复杂题',
+    },
+    'system-mgmt-normal': {
+      categoryId: 'system-mgmt',
+      categoryLabel: '体制管理',
+      itemLabel: '体制管理 · 普通题',
+    },
+    'system-mgmt-deepen-normal': {
+      categoryId: 'system-mgmt',
+      categoryLabel: '体制管理',
+      itemLabel: '体制管理 · 加深识记 · 普通题',
+    },
+    'wenyan-shici-normal': {
+      categoryId: 'wenyan-shici',
+      categoryLabel: '文言实词',
+      itemLabel: '文言实词 · 普通题',
+    },
+    'wenyan-shici-deepen-normal': {
+      categoryId: 'wenyan-shici',
+      categoryLabel: '文言实词',
+      itemLabel: '文言实词 · 加深识记 · 普通题',
+    },
+    'hanzi-pattern-normal': {
+      categoryId: 'hanzi-pattern',
+      categoryLabel: '汉字规律',
+      itemLabel: '汉字规律 · 普通题',
+    },
+    'wenyan-xuci-normal': {
+      categoryId: 'wenyan-xuci',
+      categoryLabel: '文言虚词',
+      itemLabel: '文言虚词 · 普通题',
+    },
+    'wenyan-xuci-deepen-normal': {
+      categoryId: 'wenyan-xuci',
+      categoryLabel: '文言虚词',
+      itemLabel: '文言虚词 · 加深识记 · 普通题',
+    },
+    'wenyan-jushi-normal': {
+      categoryId: 'wenyan-jushi',
+      categoryLabel: '文言句式',
+      itemLabel: '文言句式 · 普通题',
+    },
+    'wenyan-jushi-deepen-normal': {
+      categoryId: 'wenyan-jushi',
+      categoryLabel: '文言句式',
+      itemLabel: '文言句式 · 加深识记 · 普通题',
+    },
+    'chinese-idiom': { categoryId: 'chinese', categoryLabel: '语文练习', itemLabel: '语文 · 成语识记' },
+    'chinese-word-memorization': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 词语识记',
+    },
+    'chinese-vocab-related-idiom': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 关联学习 · 成语识记',
+    },
+    'chinese-vocab-related-word': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 关联学习 · 词语识记',
+    },
+    'chinese-char-literacy': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 汉字认读',
+    },
+    'chinese-char-literacy-related': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 关联学习 · 字音字形',
+    },
+    'chinese-poetry': { categoryId: 'chinese', categoryLabel: '语文练习', itemLabel: '语文 · 诗词练习' },
+    'chinese-classical-chinese': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 文言文',
+    },
+    'chinese-rhetoric-usage': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 修辞运用',
+    },
+    'chinese-reading-comprehension': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 阅读理解',
+    },
+    'chinese-history-common-sense': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 历史常识',
+    },
+    'chinese-party-history': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 中共党史',
+    },
+    'chinese-theory-policy': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 理论政策',
+    },
+    'chinese-legal-common-sense': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 法律常识',
+    },
+    'chinese-economy-common-sense': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 经济常识',
+    },
+    'chinese-life-common-sense': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 生活科学',
+    },
+    'chinese-geography-common-sense': {
+      categoryId: 'chinese',
+      categoryLabel: '语文练习',
+      itemLabel: '语文 · 地理常识',
+    },
+  }
+
+const OP_SKILL_NAMES: Record<string, string> = {
+  'div-judge': '整除的判定',
+  'prime-comp': '质数与合数',
+  'gcd-lcm': '公因数与公倍数',
+  'ratio-mult': '由比例判定倍数',
+  'rem-prop': '余数性质',
+  'sub-elim': '代入排除法',
+  'eq-method': '方程法',
+  'spec-val': '特值法',
+  'ratio-method': '比例法',
+  'cross-method': '十字交叉法',
+}
+
+const LOGIC_REASON_NAMES: Record<string, string> = {
+  translation: '翻译推理',
+  'combo-arrange': '组合排列',
+  'truth-false': '真假推理',
+  'eval-reason': '评价推理',
+  strengthen: '加强论证',
+  weaken: '削弱论证',
+  'daily-conclusion': '日常结论',
+  explain: '解释现象',
+}
+
+const DATA_ANALYSIS_NAMES: Record<string, string> = {
+  growth: '增长',
+  'growth-inter-year': '隔年增长',
+  'growth-avg-annual': '年均增长',
+  'growth-mixed': '混合增长',
+  'proportion-basic': '比重基本',
+  'proportion-base': '基期比重',
+  'average-basic': '平均数基本',
+  'average-base': '基期平均数',
+  'multiple-basic': '倍数基本',
+  'multiple-base': '基期倍数',
+  index: '指数',
+  pull: '拉动增长',
+  surplus: '顺差与逆差',
+}
+
+const HIGHFREQ_TOPIC_NAMES: Record<string, string> = {
+  'sum-diff-ratio': '和差倍比',
+  geometry: '几何问题',
+  'right-triangle': '直角三角形',
+  'similar-triangle': '三角形相似',
+  coloring: '染色问题',
+  'ordinary-travel': '普通行程',
+  'meet-pursue': '相遇与追及',
+  'boat-current': '流水行船',
+  'ordinary-work': '普通工程',
+  'cooperative-work': '合作完工',
+  'profit-calc': '利润计算',
+  'profit-rate': '利润率计算',
+  concentration: '浓度问题',
+  'perm-comb-basic': '基本原理及公式',
+  'perm-comb-constraint': '限制条件型',
+  'perm-comb-classic': '排列组合经典模型',
+  probability: '概率问题',
+}
+
+const OTHER_OP_TOPIC_NAMES: Record<string, string> = {
+  'inclusion-exclusion': '容斥问题',
+  sequence: '数列问题',
+  extremum: '最值问题',
+  date: '日期问题',
+  age: '年龄问题',
+  clock: '时钟问题',
+  'ying-kui': '盈亏问题',
+  'chicken-rabbit': '鸡兔同笼问题',
+  'function-graph': '函数图象问题',
+  competition: '比赛问题',
+  reverse: '逆推问题',
+  sectional: '分段问题',
+}
+
+type PrefixRule = {
+  prefix: string
+  categoryId: string
+  categoryLabel: string
+  labelFor: (mid: string, difficulty: string) => string
+}
+
+const PREFIX_RULES: PrefixRule[] = [
+  {
+    prefix: 'op-highfreq-',
+    categoryId: 'op-highfreq',
+    categoryLabel: '高频运算',
+    labelFor: (mid, difficulty) => {
+      const topic = HIGHFREQ_TOPIC_NAMES[mid] ?? mid
+      const d = difficulty ? ` · ${difficultyLabel(difficulty)}` : ''
+      return `高频运算 · ${topic}${d}`
+    },
+  },
+  {
+    prefix: 'op-other-',
+    categoryId: 'op-other',
+    categoryLabel: '其他运算',
+    labelFor: (mid, difficulty) => {
+      const topic = OTHER_OP_TOPIC_NAMES[mid] ?? mid
+      const d = difficulty ? ` · ${difficultyLabel(difficulty)}` : ''
+      return `其他运算 · ${topic}${d}`
+    },
+  },
+  {
+    prefix: 'personal-bank-',
+    categoryId: 'personal-bank',
+    categoryLabel: '个人题库',
+    labelFor: (mid) => {
+      const hit = findPersonalBankSubById(mid)
+      if (!hit) return '个人题库'
+      return `个人题库 · ${hit.category.name} · ${hit.sub.name}`
+    },
+  },
+  {
+    prefix: 'formula-recite-',
+    categoryId: 'formula-recite',
+    categoryLabel: '公式背诵',
+    labelFor: (mid) => {
+      const names: Record<string, string> = {
+        'travel-sol-geo': '行程·溶液·几何',
+        'perm-incl-count': '排列组合·容斥·计数',
+        'calc-seq-clock': '计算·数列·钟表',
+        'da-growth': '资料·增长与比较',
+        'da-share': '资料·比重贡献翻番',
+        'da-indicator': '资料·经贸指标与时期',
+        'da-ratio': '资料·比例相关',
+        'da-growth-calc': '资料·增长相关',
+      }
+      return `公式背诵 · ${names[mid] ?? mid} · 普通`
+    },
+  },
+  {
+    prefix: 'op-skill-',
+    categoryId: 'op-skill',
+    categoryLabel: '运算技巧',
+    labelFor: (mid, difficulty) => {
+      const name = OP_SKILL_NAMES[mid] ?? mid
+      const d = difficulty ? ` · ${difficultyLabel(difficulty)}` : ''
+      return `运算技巧 · ${name}${d}`
+    },
+  },
+  {
+    prefix: 'logic-reason-',
+    categoryId: 'logic-reason',
+    categoryLabel: '逻辑推理',
+    labelFor: (mid, difficulty) => {
+      const name = LOGIC_REASON_NAMES[mid] ?? mid
+      const d = difficulty ? ` · ${difficultyLabel(difficulty)}` : ''
+      return `逻辑推理 · ${name}${d}`
+    },
+  },
+  {
+    prefix: 'data-analysis-',
+    categoryId: 'data-analysis',
+    categoryLabel: '资料分析',
+    labelFor: (mid, difficulty) => {
+      const name = mid ? (DATA_ANALYSIS_NAMES[mid] ?? mid) : '综合'
+      const d = difficulty ? ` · ${difficultyLabel(difficulty)}` : ''
+      return `资料分析 · ${name}${d}`
+    },
+  },
+  {
+    prefix: 'chinese-reading-',
+    categoryId: 'chinese',
+    categoryLabel: '语文练习',
+    labelFor: (mid) => `语文 · 阅读理解${mid && mid !== 'all' ? `（${mid}）` : ''}`,
+  },
+  {
+    prefix: 'chinese-',
+    categoryId: 'chinese',
+    categoryLabel: '语文练习',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty ? ` · ${difficultyLabel(difficulty)}` : ''
+      return `语文 · ${mid || '练习'}${d}`
+    },
+  },
+  {
+    prefix: 'life-sense-',
+    categoryId: 'life-sense',
+    categoryLabel: '生活常识',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      return `生活常识 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
+    prefix: 'what-is-this-',
+    categoryId: 'what-is-this',
+    categoryLabel: '这是什么',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      return `这是什么 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
+    prefix: 'economy-sense-',
+    categoryId: 'economy-sense',
+    categoryLabel: '经济学常识',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      if (String(mid).includes('deepen')) {
+        return `经济学常识 · 加深识记 · ${difficultyLabel(d) || d}题`
+      }
+      return `经济学常识 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
+    prefix: 'rhetoric-device-',
+    categoryId: 'rhetoric-device',
+    categoryLabel: '修辞手法',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      if (String(mid).includes('deepen')) {
+        return `修辞手法 · 加深识记 · ${difficultyLabel(d) || d}题`
+      }
+      return `修辞手法 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
+    prefix: 'schulte-',
+    categoryId: 'schulte',
+    categoryLabel: '舒尔特',
+    labelFor: (mid, difficulty) => {
+      const id = String(mid)
+      if (id.includes('life')) {
+        if (id.includes('hard') || difficulty === 'hard') return '舒尔特 · 生活常识 · 复杂题'
+        if (id.includes('normal') || difficulty === 'normal') return '舒尔特 · 生活常识 · 普通题'
+        return '舒尔特 · 生活常识 · 简单题'
+      }
+      if (id.includes('poem')) {
+        if (id.includes('hard') || difficulty === 'hard') return '舒尔特 · 古诗词 · 高难题'
+        if (id.includes('normal') || difficulty === 'normal') return '舒尔特 · 古诗词 · 普通题'
+        return '舒尔特 · 古诗词 · 简单题'
+      }
+      if (id.includes('hard') || difficulty === 'hard') return '舒尔特 · 成语/词语 · 复杂题'
+      if (id.includes('normal') || difficulty === 'normal') return '舒尔特 · 成语/词语 · 普通题'
+      return '舒尔特 · 成语/词语 · 简单题'
+    },
+  },
+  {
+    prefix: 'system-mgmt-',
+    categoryId: 'system-mgmt',
+    categoryLabel: '体制管理',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      if (String(mid).includes('deepen')) {
+        return `体制管理 · 加深识记 · ${difficultyLabel(d) || d}题`
+      }
+      return `体制管理 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
+    prefix: 'wenyan-shici-',
+    categoryId: 'wenyan-shici',
+    categoryLabel: '文言实词',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      if (String(mid).includes('deepen')) {
+        return `文言实词 · 加深识记 · ${difficultyLabel(d) || d}题`
+      }
+      return `文言实词 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
+    prefix: 'hanzi-pattern-',
+    categoryId: 'hanzi-pattern',
+    categoryLabel: '汉字规律',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      return `汉字规律 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
+    prefix: 'wenyan-xuci-',
+    categoryId: 'wenyan-xuci',
+    categoryLabel: '文言虚词',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      if (String(mid).includes('deepen')) {
+        return `文言虚词 · 加深识记 · ${difficultyLabel(d) || d}题`
+      }
+      return `文言虚词 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
+    prefix: 'wenyan-jushi-',
+    categoryId: 'wenyan-jushi',
+    categoryLabel: '文言句式',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      if (String(mid).includes('deepen')) {
+        return `文言句式 · 加深识记 · ${difficultyLabel(d) || d}题`
+      }
+      return `文言句式 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
+    prefix: 'grammar-judgment-',
+    categoryId: 'grammar-judgment',
+    categoryLabel: '语法判断',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      return `语法判断 · ${difficultyTopicLabel(d) || d}`
+    },
+  },
+  {
+    prefix: 'circle-grammar-',
+    categoryId: 'circle-grammar',
+    categoryLabel: '圈出所有语法',
+    labelFor: (_mid, difficulty) => {
+      const d = difficulty || 'easy'
+      return `圈出所有语法 · ${difficultyTopicLabel(d) || d}`
+    },
+  },
+  {
+    prefix: 'shorten-sentence-',
+    categoryId: 'shorten-sentence',
+    categoryLabel: '缩句练习',
+    labelFor: (_mid, difficulty) => {
+      const d = difficulty || 'easy'
+      return `缩句练习 · ${difficultyTopicLabel(d) || d}`
+    },
+  },
+  {
+    prefix: 'fraction-',
+    categoryId: 'fraction',
+    categoryLabel: '估算分数',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      if (mid === 'special' || String(mid).startsWith('special')) {
+        return `估算分数 · 特殊分数值 · ${difficultyTopicLabel(d) || d}`
+      }
+      return `估算分数 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
+    prefix: 'divisibility-',
+    categoryId: 'divisibility',
+    categoryLabel: '整除及其性质',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      return `整除及其性质 · ${difficultyLabel(d) || d}`
+    },
+  },
+  {
+    prefix: 'number-sequence-',
+    categoryId: 'number-sequence',
+    categoryLabel: '数列',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      return `数列 · ${difficultyLabel(d) || d}`
+    },
+  },
+  {
+    prefix: 'power-',
+    categoryId: 'power',
+    categoryLabel: '2 的 n 次幂',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      return `2 的 n 次幂 · ${difficultyLabel(d) || d}`
+    },
+  },
+  {
+    prefix: 'square-cube-',
+    categoryId: 'square-cube',
+    categoryLabel: '平方与立方',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      return `平方与立方 · ${difficultyLabel(d) || d}`
+    },
+  },
+  {
+    prefix: 'twentyfour-',
+    categoryId: 'twentyfour',
+    categoryLabel: '二十四点',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      return `二十四点 · ${difficultyLabel(d) || d}`
+    },
+  },
+  {
+    prefix: 'sudoku-',
+    categoryId: 'sudoku',
+    categoryLabel: '数独',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      return `数独 · ${difficultyLabel(d) || d}`
+    },
+  },
+  {
+    prefix: 'graphic-',
+    categoryId: 'graphic',
+    categoryLabel: '图形推理',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      return `图形推理 · ${difficultyLabel(d) || d}`
+    },
+  },
+]
+
+export function resolvePracticeLogMeta(modeId: string): {
+  categoryId: string
+  categoryLabel: string
+  itemLabel: string
+} {
+  const id = modeId.trim()
+  if (!id) {
+    return { categoryId: 'other', categoryLabel: '其他', itemLabel: '未知项目' }
+  }
+
+  // 错题复盘：wb-review:mm:… / wb-review:cn-wrong:…（细标题可由写入方覆盖 itemLabel）
+  if (id.startsWith('wb-review:')) {
+    const scope = id.slice('wb-review:'.length)
+    let itemLabel = `错题复盘 · ${scope.replace(/:/g, ' · ').replace(/-/g, ' · ')}`
+    if (scope.startsWith('mm-favorite:')) {
+      itemLabel = `口算收藏复盘 · ${scope.slice('mm-favorite:'.length).replace(/-/g, ' · ')}`
+    } else if (scope.startsWith('mm:')) {
+      itemLabel = `口算错题复盘 · ${scope.slice(3).replace(/-/g, ' · ')}`
+    } else if (scope.startsWith('cn-wrong:')) {
+      itemLabel = `关题错题复盘 · ${scope.slice('cn-wrong:'.length).replace(/-/g, ' · ')}`
+    } else if (scope.startsWith('cn-favorite:')) {
+      itemLabel = `关题收藏复盘 · ${scope.slice('cn-favorite:'.length).replace(/-/g, ' · ')}`
+    }
+    return {
+      categoryId: 'wrong-review',
+      categoryLabel: '错题复盘',
+      itemLabel,
+    }
+  }
+
+  const known = KNOWN_ITEM_LABELS[id]
+  if (known) return known
+
+  if (ARITHMETIC_LABELS[id]) {
+    return {
+      categoryId: 'arithmetic',
+      categoryLabel: '四则口算',
+      itemLabel: `四则口算 · ${ARITHMETIC_LABELS[id]}`,
+    }
+  }
+
+  for (const rule of PREFIX_RULES) {
+    if (!id.startsWith(rule.prefix)) continue
+    const rest = id.slice(rule.prefix.length)
+    const { mid, difficulty } = splitDifficulty(rest)
+    return {
+      categoryId: rule.categoryId,
+      categoryLabel: rule.categoryLabel,
+      itemLabel: rule.labelFor(mid, difficulty),
+    }
+  }
+
+  return {
+    categoryId: 'other',
+    categoryLabel: '其他',
+    itemLabel: id.replace(/-/g, ' · '),
+  }
+}
+
+/** 筛选器用的大类列表（固定顺序） */
+export const PRACTICE_LOG_CATEGORIES: { id: string; label: string }[] = [
+  { id: 'arithmetic', label: '四则口算' },
+  { id: 'power', label: '2 的 n 次幂' },
+  { id: 'square-cube', label: '平方与立方' },
+  { id: 'fraction', label: '估算分数' },
+  { id: 'divisibility', label: '整除及其性质' },
+  { id: 'number-sequence', label: '数列' },
+  { id: 'life-sense', label: '生活常识' },
+  { id: 'what-is-this', label: '这是什么' },
+  { id: 'economy-sense', label: '经济学常识' },
+  { id: 'system-mgmt', label: '体制管理' },
+  { id: 'wenyan-shici', label: '文言实词' },
+  { id: 'hanzi-pattern', label: '汉字规律' },
+  { id: 'wenyan-xuci', label: '文言虚词' },
+  { id: 'wenyan-jushi', label: '文言句式' },
+  { id: 'grammar-judgment', label: '语法判断' },
+  { id: 'rhetoric-device', label: '修辞手法' },
+  { id: 'schulte', label: '舒尔特' },
+  { id: 'circle-grammar', label: '圈出所有语法' },
+  { id: 'shorten-sentence', label: '缩句练习' },
+  { id: 'twentyfour', label: '二十四点' },
+  { id: 'sudoku', label: '数独' },
+  { id: 'graphic', label: '图形推理' },
+  { id: 'logic-reason', label: '逻辑推理' },
+  { id: 'data-analysis', label: '资料分析' },
+  { id: 'op-skill', label: '运算技巧' },
+  { id: 'op-highfreq', label: '高频运算' },
+  { id: 'op-other', label: '其他运算' },
+  { id: 'formula-recite', label: '公式背诵' },
+  { id: 'personal-bank', label: '个人题库' },
+  { id: 'chinese', label: '语文练习' },
+  { id: 'wrong-review', label: '错题复盘' },
+  { id: 'other', label: '其他' },
+]
+
+function readLogs(): PracticeSessionLogEntry[] {
+  try {
+    if (typeof localStorage === 'undefined') return []
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (x): x is PracticeSessionLogEntry =>
+        !!x &&
+        typeof x === 'object' &&
+        typeof (x as PracticeSessionLogEntry).id === 'string' &&
+        typeof (x as PracticeSessionLogEntry).modeId === 'string',
+    )
+  } catch {
+    return []
+  }
+}
+
+function writeLogs(rows: PracticeSessionLogEntry[]) {
+  if (typeof localStorage === 'undefined') return
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(rows.slice(0, MAX_ENTRIES)))
+  practiceSessionLogTick.value += 1
+}
+
+export function listPracticeSessionLogs(): PracticeSessionLogEntry[] {
+  void practiceSessionLogTick.value
+  return readLogs().map(refreshPracticeLogDisplayMeta)
+}
+
+/** 用当前中文规则刷新展示标签（兼容旧日志里的英文 fallback） */
+export function refreshPracticeLogDisplayMeta(row: PracticeSessionLogEntry): PracticeSessionLogEntry {
+  if (row.modeId.startsWith('wb-review:')) return row
+  const meta = resolvePracticeLogMeta(row.modeId)
+  if (meta.categoryId === 'other') return row
+  const labelLooksEnglish =
+    !/[\u4e00-\u9fff]/.test(row.itemLabel) ||
+    /^(circle|shorten|grammar)\b/i.test(row.itemLabel) ||
+    row.categoryId === 'other'
+  if (
+    labelLooksEnglish ||
+    row.modeId.startsWith('circle-grammar-') ||
+    row.modeId.startsWith('shorten-sentence-') ||
+    row.modeId.startsWith('grammar-judgment-')
+  ) {
+    return {
+      ...row,
+      categoryId: meta.categoryId,
+      categoryLabel: meta.categoryLabel,
+      itemLabel: meta.itemLabel,
+    }
+  }
+  return row
+}
+
+export function appendPracticeSessionLog(
+  modeId: string,
+  stats?: PracticeSessionLogStats,
+): PracticeSessionLogEntry | null {
+  const id = modeId.trim()
+  if (!id) return null
+  const now = new Date()
+  const meta = resolvePracticeLogMeta(id)
+  const entry: PracticeSessionLogEntry = {
+    id: `psl-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
+    finishedAt: now.toISOString(),
+    dateKey: localDateKey(now),
+    modeId: id,
+    categoryId: stats?.categoryId ?? meta.categoryId,
+    categoryLabel: stats?.categoryLabel ?? meta.categoryLabel,
+    itemLabel: stats?.itemLabel ?? meta.itemLabel,
+    correctCount: stats?.correctCount,
+    totalCount: stats?.totalCount,
+    score: stats?.score,
+    durationMs: stats?.durationMs,
+    perfect: stats?.perfect,
+  }
+  const rows = readLogs()
+  rows.unshift(entry)
+  writeLogs(rows)
+  return entry
+}
+
+export type PracticeSessionLogFilter = {
+  /** 空 = 全部日期 */
+  dateKey?: string
+  /** 空 = 全部大类 */
+  categoryId?: string
+  /** 空 = 全部小项；按 modeId 精确匹配 */
+  modeId?: string
+}
+
+export function filterPracticeSessionLogs(
+  filter: PracticeSessionLogFilter = {},
+): PracticeSessionLogEntry[] {
+  const all = listPracticeSessionLogs()
+  return all.filter((row) => {
+    if (filter.dateKey && row.dateKey !== filter.dateKey) return false
+    if (filter.categoryId && row.categoryId !== filter.categoryId) return false
+    if (filter.modeId && row.modeId !== filter.modeId) return false
+    return true
+  })
+}
+
+export function clearPracticeSessionLogs() {
+  writeLogs([])
+}
+
+export function formatLogTime(iso: string): string {
+  try {
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return iso
+    const hh = String(d.getHours()).padStart(2, '0')
+    const mm = String(d.getMinutes()).padStart(2, '0')
+    return `${localDateKey(d)} ${hh}:${mm}`
+  } catch {
+    return iso
+  }
+}
+
+export function formatLogDuration(ms?: number): string {
+  if (ms == null || !Number.isFinite(ms) || ms < 0) return ''
+  const sec = Math.round(ms / 1000)
+  const m = Math.floor(sec / 60)
+  const s = sec % 60
+  if (m <= 0) return `${s} 秒`
+  return `${m} 分 ${s} 秒`
+}

@@ -1,6 +1,6 @@
 /** 唐朝·高适：全人生阶段应试背诵整理 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const GAO_SHI_PROFILE: PoetOverviewProfile = {
   id: 'gao-shi',

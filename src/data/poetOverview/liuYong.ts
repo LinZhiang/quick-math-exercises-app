@@ -1,6 +1,6 @@
 /** 宋朝·柳永 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const LIU_YONG_PROFILE: PoetOverviewProfile = {
   id: 'liu-yong',

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { renderMathInRichHtml } from '@/utils/dataAnalysisMathDisplay'
-import { wrapHtmlTablesForScroll } from '@/utils/markdownToHtml'
-import { sanitizeRichHtml } from '@/utils/richTextHtml'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { renderMathInRichHtml } from '@/utils/data-analysis/dataAnalysisMathDisplay'
+import { wrapHtmlTablesForScroll } from '@/utils/markdown/markdownToHtml'
+import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
 import ImageZoomOverlay from '@/components/ImageZoomOverlay.vue'
 
 const props = withDefaults(
@@ -17,6 +17,8 @@ const props = withDefaults(
 )
 
 const previewSrc = ref('')
+const rootRef = ref<HTMLElement | null>(null)
+let overflowObserver: ResizeObserver | null = null
 
 const safeHtml = computed(() => {
   const sanitized = sanitizeRichHtml(props.html ?? '')
@@ -24,17 +26,51 @@ const safeHtml = computed(() => {
   return wrapHtmlTablesForScroll(rendered)
 })
 
+function markWideBlocks() {
+  const root = rootRef.value
+  if (!root) return
+  for (const el of root.querySelectorAll<HTMLElement>('p, pre, li, h2, h3, blockquote')) {
+    if (el.closest('.md-table-scroll')) {
+      el.classList.remove('is-overflow-x')
+      continue
+    }
+    el.classList.toggle('is-overflow-x', el.scrollWidth > el.clientWidth + 2)
+  }
+}
+
 function onClick(ev: MouseEvent) {
   if (!props.zoomImages) return
   const t = ev.target
   if (!(t instanceof HTMLImageElement) || !t.src) return
   previewSrc.value = t.src
 }
+
+onMounted(() => {
+  void nextTick(markWideBlocks)
+  if (typeof ResizeObserver !== 'undefined' && rootRef.value) {
+    overflowObserver = new ResizeObserver(() => markWideBlocks())
+    overflowObserver.observe(rootRef.value)
+  }
+})
+
+watch(safeHtml, async () => {
+  await nextTick()
+  markWideBlocks()
+})
+
+onBeforeUnmount(() => overflowObserver?.disconnect())
 </script>
 
 <template>
   <!-- eslint-disable-next-line vue/no-v-html -->
-  <div class="rich-text-view" :class="{ 'is-zoomable': zoomImages }" v-html="safeHtml" @click="onClick" />
+  <!-- eslint-disable-next-line vue/no-v-html -->
+  <div
+    ref="rootRef"
+    class="rich-text-view"
+    :class="{ 'is-zoomable': zoomImages }"
+    v-html="safeHtml"
+    @click="onClick"
+  />
   <ImageZoomOverlay v-if="previewSrc" :src="previewSrc" @close="previewSrc = ''" />
 </template>
 
@@ -104,6 +140,21 @@ function onClick(ev: MouseEvent) {
   font-weight: 700;
 }
 
+.rich-text-view :deep(.md-table-scroll),
+.rich-text-view :deep(.is-overflow-x) {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.rich-text-view :deep(.da-math-over) {
+  display: inline-block;
+  border-top: 1.6px solid currentColor;
+  line-height: 1.1;
+  padding: 0 1px;
+  margin: 0 1px;
+}
+
 .rich-text-view :deep(h2),
 .rich-text-view :deep(h3) {
   margin: 0.6em 0 0.35em;
@@ -132,6 +183,14 @@ function onClick(ev: MouseEvent) {
   padding: 0 0.25em;
   text-align: center;
   white-space: nowrap;
+}
+
+.rich-text-view :deep(.da-math-over) {
+  display: inline-block;
+  border-top: 1.6px solid currentColor;
+  line-height: 1.1;
+  padding: 0 1px;
+  margin: 0 1px;
 }
 
 .rich-text-view :deep(.da-math-frac__rule) {

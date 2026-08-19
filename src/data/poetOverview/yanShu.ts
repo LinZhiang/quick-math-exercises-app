@@ -1,6 +1,6 @@
 /** 宋朝·晏殊 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const YAN_SHU_PROFILE: PoetOverviewProfile = {
   id: 'yan-shu',

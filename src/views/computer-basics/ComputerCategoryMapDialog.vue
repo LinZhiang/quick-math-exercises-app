@@ -4,7 +4,7 @@ import {
   defaultExpandedCategoryIds,
   type ComputerTreeEntry,
   type ComputerTreeNode,
-} from '@/utils/computerBasics'
+} from '@/utils/computer/computerBasics'
 
 const props = defineProps<{
   modelValue: boolean
@@ -39,6 +39,7 @@ type Rail = {
   opened: boolean
   cx: number
   cy: number
+  x0: number
   labelX: number
   labelY: number
 }
@@ -64,6 +65,8 @@ const panY = ref(0)
 const scale = ref(1)
 const dragging = ref(false)
 const didDrag = ref(false)
+const pointers = new Map<number, { x: number; y: number }>()
+let pinchStart = { dist: 0, scale: 1, cx: 0, cy: 0 }
 
 let dragStart = { x: 0, y: 0, panX: 0, panY: 0 }
 let pendingLock: { id: string; sx: number; sy: number } | null = null
@@ -175,6 +178,7 @@ function layoutMindmap(tree: ComputerTreeNode[], openMap: Record<string, boolean
       opened: node.kids.length > 0,
       cx: node.x1,
       cy: node.y,
+      x0: node.x0,
       labelX: (node.x0 + node.x1) / 2,
       labelY: node.y - 10,
     })
@@ -262,13 +266,42 @@ function collapseAll() {
 
 function onPointerDown(ev: PointerEvent) {
   if (ev.button !== 0 && ev.pointerType === 'mouse') return
+  const el = ev.currentTarget as HTMLElement
+  pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY })
+  try {
+    el.setPointerCapture(ev.pointerId)
+  } catch {
+    /* ignore */
+  }
+  if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()]
+    pinchStart = {
+      dist: pointerDist(a!, b!),
+      scale: scale.value,
+      cx: (a!.x + b!.x) / 2,
+      cy: (a!.y + b!.y) / 2,
+    }
+    dragging.value = false
+    return
+  }
   dragging.value = true
   didDrag.value = false
   dragStart = { x: ev.clientX, y: ev.clientY, panX: panX.value, panY: panY.value }
-  ;(ev.currentTarget as HTMLElement).setPointerCapture(ev.pointerId)
 }
 
 function onPointerMove(ev: PointerEvent) {
+  if (!pointers.has(ev.pointerId)) return
+  pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY })
+  if (pointers.size >= 2) {
+    const el = viewportRef.value
+    if (!el || pinchStart.dist < 8) return
+    const [a, b] = [...pointers.values()]
+    const dist = pointerDist(a!, b!)
+    const rect = el.getBoundingClientRect()
+    zoomAt(pinchStart.cx - rect.left, pinchStart.cy - rect.top, pinchStart.scale * (dist / pinchStart.dist))
+    didDrag.value = true
+    return
+  }
   if (!dragging.value) return
   const dx = ev.clientX - dragStart.x
   const dy = ev.clientY - dragStart.y
@@ -278,7 +311,8 @@ function onPointerMove(ev: PointerEvent) {
 }
 
 function onPointerUp(ev: PointerEvent) {
-  dragging.value = false
+  pointers.delete(ev.pointerId)
+  dragging.value = pointers.size === 1
   try {
     ;(ev.currentTarget as HTMLElement).releasePointerCapture(ev.pointerId)
   } catch {
@@ -291,14 +325,26 @@ function onWheel(ev: WheelEvent) {
   const el = viewportRef.value
   if (!el) return
   const rect = el.getBoundingClientRect()
-  const cx = ev.clientX - rect.left
-  const cy = ev.clientY - rect.top
+  zoomAt(ev.clientX - rect.left, ev.clientY - rect.top, scale.value * (ev.deltaY > 0 ? 0.9 : 1.1))
+}
+
+function zoomAt(cx: number, cy: number, next: number) {
   const prev = scale.value
-  const next = Math.min(2.4, Math.max(0.2, prev * (ev.deltaY > 0 ? 0.9 : 1.1)))
-  if (next === prev) return
-  panX.value = cx - ((cx - panX.value) / prev) * next
-  panY.value = cy - ((cy - panY.value) / prev) * next
-  scale.value = next
+  const clamped = Math.min(2.8, Math.max(0.2, next))
+  if (clamped === prev) return
+  panX.value = cx - ((cx - panX.value) / prev) * clamped
+  panY.value = cy - ((cy - panY.value) / prev) * clamped
+  scale.value = clamped
+}
+
+function bumpZoom(dir: 1 | -1) {
+  const el = viewportRef.value
+  if (!el) return
+  zoomAt(el.clientWidth / 2, el.clientHeight / 2, scale.value * (dir > 0 ? 1.18 : 0.85))
+}
+
+function pointerDist(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return Math.hypot(a.x - b.x, a.y - b.y)
 }
 
 watch(
@@ -324,11 +370,13 @@ function onOpened() {
     align-center
     @opened="onOpened"
   >
-    <p class="cmap-hint">默认两层。拖动画布查看；点圆点或文字可折叠，有下级就能继续展开。滚轮缩放。</p>
+    <p class="cmap-hint">默认两层。拖动画布查看；点右侧节点折叠/展开。双指或按钮缩放。</p>
     <div class="cmap-toolbar">
       <el-button size="small" @click="resetTwoLevels">展开两层</el-button>
       <el-button size="small" @click="collapseAll">只留一层</el-button>
       <el-button size="small" @click="fitToView">适应窗口</el-button>
+      <el-button size="small" @click="bumpZoom(-1)">缩小</el-button>
+      <el-button size="small" @click="bumpZoom(1)">放大</el-button>
     </div>
     <div v-if="!tree.length" class="cmap-empty">暂无分类</div>
     <div
@@ -363,31 +411,51 @@ function onOpened() {
           v-for="rail in layout.rails"
           :key="rail.id"
           class="cmap-node"
-          :class="{ 'is-click': rail.expandable }"
-          @click="toggleRail(rail)"
         >
-          <title>{{ rail.expandable ? `${rail.name}（点击${rail.opened ? '折叠' : '展开'}）` : rail.name }}</title>
-          <circle class="cmap-hit" :cx="rail.cx" :cy="rail.cy" r="16" fill="transparent" />
+          <title>{{ rail.name }}</title>
           <text class="cmap-label" :x="rail.labelX" :y="rail.labelY" text-anchor="middle">
             {{ rail.name }}
           </text>
+          <g
+            v-if="rail.expandable"
+            class="cmap-hit"
+            @pointerdown.stop
+            @click.stop="toggleRail(rail)"
+          >
+            <circle
+              class="cmap-hit__pad"
+              :cx="rail.cx"
+              :cy="rail.cy"
+              r="14"
+              fill="transparent"
+            />
+            <circle
+              class="cmap-circle is-toggle"
+              :cx="rail.cx"
+              :cy="rail.cy"
+              :r="rail.depth === 0 ? 7 : CIRCLE_R"
+              :fill="rail.opened ? '#fff' : rail.color"
+              :stroke="rail.color"
+            />
+            <text
+              v-if="!rail.opened"
+              class="cmap-plus"
+              :x="rail.cx"
+              :y="rail.cy + 4"
+              text-anchor="middle"
+            >
+              +
+            </text>
+          </g>
           <circle
+            v-else
             class="cmap-circle"
             :cx="rail.cx"
             :cy="rail.cy"
-            :r="rail.depth === 0 ? 7 : CIRCLE_R"
-            :fill="rail.leaf ? rail.color : '#fff'"
+            :r="CIRCLE_R"
+            :fill="rail.color"
             :stroke="rail.color"
           />
-          <text
-            v-if="rail.expandable && !rail.opened"
-            class="cmap-plus"
-            :x="rail.cx"
-            :y="rail.cy + 4"
-            text-anchor="middle"
-          >
-            +
-          </text>
         </g>
       </svg>
     </div>
@@ -454,14 +522,14 @@ function onOpened() {
   pointer-events: none;
 }
 
+.cmap-hit {
+  cursor: pointer;
+}
+
 .cmap-plus {
   font-size: 11px;
   font-weight: 800;
-  fill: #334155;
+  fill: #fff;
   pointer-events: none;
-}
-
-.cmap-node.is-click {
-  cursor: pointer;
 }
 </style>

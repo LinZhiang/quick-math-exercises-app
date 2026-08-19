@@ -1,6 +1,6 @@
 /** 唐朝·杨炯：全人生阶段应试背诵整理（初唐四杰） */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const YANG_JIONG_PROFILE: PoetOverviewProfile = {
   id: 'yang-jiong',

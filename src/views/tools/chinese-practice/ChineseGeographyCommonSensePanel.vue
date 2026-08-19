@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { ChineseKeyReviewMeta } from '@/utils/chineseKeyReviewSession'
-import { useChineseKeyReviewQuizUi } from '@/utils/chineseKeyReviewSession'
-import { useChineseGeographyCommonSenseTest } from '@/composables/useChineseGeographyCommonSenseTest'
-import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
+import type { ChineseKeyReviewMeta } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseKeyReviewQuizUi } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseGeographyCommonSenseTest } from '@/composables/chinese/useChineseGeographyCommonSenseTest'
+import { useDeepseekConversation } from '@/composables/app/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
 import {
   isChineseGeographyCommonSenseFavorite,
   toggleChineseGeographyCommonSenseFavorite,
-} from '@/utils/chineseGeographyCommonSenseStorage'
-import { geographyCommonSenseQuestionTypeLabel } from '@/utils/geographyCommonSensePractice'
-import type { GeographyCommonSenseQuestion } from '@/utils/geographyCommonSensePractice'
-import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+} from '@/utils/chinese/chineseGeographyCommonSenseStorage'
+import { geographyCommonSenseQuestionTypeLabel } from '@/utils/chinese/geographyCommonSensePractice'
+import type { GeographyCommonSenseQuestion } from '@/utils/chinese/geographyCommonSensePractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/PracticeCompletionStat.vue'
 
 const GEOGRAPHY_ASSIST_SYSTEM =
   '你是事业编联考 C 类「公共基础知识·地理常识」教练，擅长中国自然地理、人文地理、世界地理、地球与地图等高频易考点。讲解通俗浅显，紧扣高频考点，不要出模型推导或过难计算。用简体中文，回答要具体。'

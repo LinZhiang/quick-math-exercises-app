@@ -1,8 +1,9 @@
+<!-- 根壳：顶栏返回/标题；安装与设置按钮只在首页（chrome=home）出现。 -->
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import { RouterView, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
-import { appChromeTitleOverride } from '@/composables/useAppChrome'
-import { goBackOr, omitQueryKey } from '@/utils/appNavigation'
+import { appChromeTitleOverride } from '@/composables/app/useAppChrome'
+import { goBackOr, omitQueryKey } from '@/utils/app/appNavigation'
 import JsonTransferButtons from '@/components/JsonTransferButtons.vue'
 
 const route = useRoute()
@@ -103,6 +104,7 @@ watch(
           variant="chrome"
         />
         <el-button
+          v-if="isHome"
           size="small"
           :type="route.name === 'install' ? 'primary' : 'default'"
           @click="goChrome('install')"
@@ -110,6 +112,7 @@ watch(
           安装
         </el-button>
         <el-button
+          v-if="isHome"
           size="small"
           :type="route.name === 'settings' ? 'primary' : 'default'"
           @click="goChrome('settings')"

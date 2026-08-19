@@ -1,6 +1,6 @@
 /** 其他·宋濂 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const SONG_LIAN_PROFILE: PoetOverviewProfile = {
   id: 'song-lian',

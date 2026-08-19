@@ -1,6 +1,6 @@
 /** 唐朝·杜甫：全人生阶段应试背诵整理（格式同李白） */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const DU_FU_PROFILE: PoetOverviewProfile = {
   id: 'du-fu',

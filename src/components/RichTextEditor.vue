@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { richHtmlIsEmpty, sanitizeRichHtml } from '@/utils/richTextHtml'
+import { richHtmlIsEmpty, sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
 
 const props = withDefaults(
   defineProps<{

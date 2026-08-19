@@ -1,22 +1,22 @@
-import type { CharLiteracyQuestion } from '@/utils/charLiteracyPractice'
-import type { ClassicalChineseQuestion } from '@/utils/classicalChinesePractice'
-import type { EconomyCommonSenseQuestion } from '@/utils/economyCommonSensePractice'
-import type { GeographyCommonSenseQuestion } from '@/utils/geographyCommonSensePractice'
-import type { HistoryCommonSenseQuestion } from '@/utils/historyCommonSensePractice'
-import type { IdiomRecognitionQuestion } from '@/utils/idiomRecognitionPractice'
-import type { LegalCommonSenseQuestion } from '@/utils/legalCommonSensePractice'
-import type { LifeCommonSenseQuestion } from '@/utils/lifeCommonSensePractice'
-import type { PartyHistoryQuestion } from '@/utils/partyHistoryPractice'
-import type { PoetryRecognitionQuestion } from '@/utils/poetryRecognitionPractice'
-import type { ReadingComprehensionQuestion } from '@/utils/readingComprehensionPractice'
-import type { RhetoricUsageQuestion } from '@/utils/rhetoricUsagePractice'
-import type { TheoryPolicyQuestion } from '@/utils/theoryPolicyPractice'
-import type { WordMemorizationQuestion } from '@/utils/wordMemorizationPractice'
+import type { CharLiteracyQuestion } from '@/utils/chinese/charLiteracyPractice'
+import type { ClassicalChineseQuestion } from '@/utils/chinese/classicalChinesePractice'
+import type { EconomyCommonSenseQuestion } from '@/utils/chinese/economyCommonSensePractice'
+import type { GeographyCommonSenseQuestion } from '@/utils/chinese/geographyCommonSensePractice'
+import type { HistoryCommonSenseQuestion } from '@/utils/chinese/historyCommonSensePractice'
+import type { IdiomRecognitionQuestion } from '@/utils/chinese/idiomRecognitionPractice'
+import type { LegalCommonSenseQuestion } from '@/utils/chinese/legalCommonSensePractice'
+import type { LifeCommonSenseQuestion } from '@/utils/chinese/lifeCommonSensePractice'
+import type { PartyHistoryQuestion } from '@/utils/chinese/partyHistoryPractice'
+import type { PoetryRecognitionQuestion } from '@/utils/chinese/poetryRecognitionPractice'
+import type { ReadingComprehensionQuestion } from '@/utils/chinese/readingComprehensionPractice'
+import type { RhetoricUsageQuestion } from '@/utils/chinese/rhetoricUsagePractice'
+import type { TheoryPolicyQuestion } from '@/utils/chinese/theoryPolicyPractice'
+import type { WordMemorizationQuestion } from '@/utils/chinese/wordMemorizationPractice'
 import type {
   ChineseKeyQuestionSource,
   ChineseReadingKeySource,
 } from '@/constants/chinese-practice-tabs'
-import type { ChineseKeyReviewMeta } from '@/utils/chineseKeyReviewSession'
+import type { ChineseKeyReviewMeta } from '@/utils/chinese/chineseKeyReviewSession'
 
 export type ChinesePaperSource = 'generated' | 'review' | null
 

@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { ChineseKeyReviewMeta } from '@/utils/chineseKeyReviewSession'
-import { useChineseKeyReviewQuizUi } from '@/utils/chineseKeyReviewSession'
-import { useChineseCharLiteracyTest } from '@/composables/useChineseCharLiteracyTest'
-import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
+import type { ChineseKeyReviewMeta } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseKeyReviewQuizUi } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseCharLiteracyTest } from '@/composables/chinese/useChineseCharLiteracyTest'
+import { useDeepseekConversation } from '@/composables/app/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
 import {
   isChineseCharLiteracyFavorite,
   toggleChineseCharLiteracyFavorite,
-} from '@/utils/chineseCharLiteracyStorage'
-import { charLiteracyQuestionTypeLabel } from '@/utils/charLiteracyPractice'
-import type { CharLiteracyQuestion } from '@/utils/charLiteracyPractice'
-import { typoMcqAnswerFeedbackLabel, typoStemPolarity } from '@/utils/chineseVariantQuality'
-import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+} from '@/utils/chinese/chineseCharLiteracyStorage'
+import { charLiteracyQuestionTypeLabel } from '@/utils/chinese/charLiteracyPractice'
+import type { CharLiteracyQuestion } from '@/utils/chinese/charLiteracyPractice'
+import { typoMcqAnswerFeedbackLabel, typoStemPolarity } from '@/utils/chinese/chineseVariantQuality'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/PracticeCompletionStat.vue'
 
 const CHAR_ASSIST_SYSTEM =
   '你是事业编与公务员考试言语理解「字音字形」教练，擅长多音字、习惯性误读、形近字与音近错别字辨析。用简体中文讲解，点明正确读音/字形及易混原因，可给记忆口诀。回答要具体，避免空泛。'

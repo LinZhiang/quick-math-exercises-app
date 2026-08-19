@@ -1,6 +1,6 @@
 /** 唐朝·陈子昂：全人生阶段应试背诵整理 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const CHEN_ZI_ANG_PROFILE: PoetOverviewProfile = {
   id: 'chen-zi-ang',

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { GfxCell, GfxPrimitive } from '@/utils/graphicReasoningPractice'
+import type { GfxCell, GfxPrimitive } from '@/utils/logic/graphicReasoningPractice'
 
 defineProps<{
   cell: GfxCell

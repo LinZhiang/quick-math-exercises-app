@@ -1,6 +1,6 @@
 /** 宋朝·苏轼 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const SU_SHI_PROFILE: PoetOverviewProfile = {
   id: 'su-shi',

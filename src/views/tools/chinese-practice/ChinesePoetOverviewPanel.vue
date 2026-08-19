@@ -32,21 +32,21 @@ import {
   tangPeriodOfPoet,
   type TangPeriodId,
 } from '@/data/poetOverview/tangGuide'
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
-import { useChinesePoetDrillTest } from '@/composables/useChinesePoetDrillTest'
-import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
+import { useChinesePoetDrillTest } from '@/composables/chinese/useChinesePoetDrillTest'
+import { useDeepseekConversation } from '@/composables/app/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
-import { resolvePoetDrillScope } from '@/utils/poetDrillMaterial'
+import { resolvePoetDrillScope } from '@/utils/chinese/poetDrillMaterial'
 import {
   poetDrillQuestionTypeLabel,
   shouldShowPoetDrillTermBeforeSubmit,
   type PoetDrillQuestion,
-} from '@/utils/poetDrillPractice'
-import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+} from '@/utils/chinese/poetDrillPractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/PracticeCompletionStat.vue'
 import ChineseCurrentAffairsPanel from '@/views/tools/chinese-practice/ChineseCurrentAffairsPanel.vue'
 import MemorizationWrongBookPanel from '@/views/tools/chinese-practice/MemorizationWrongBookPanel.vue'
-import type { ChinesePoetDrillResultRow } from '@/composables/useChinesePoetDrillTest'
+import type { ChinesePoetDrillResultRow } from '@/composables/chinese/useChinesePoetDrillTest'
 
 type PoetViewMode = 'card' | 'compact'
 type PoetScreen = 'pick' | 'browse' | 'quiz' | 'current-affairs'

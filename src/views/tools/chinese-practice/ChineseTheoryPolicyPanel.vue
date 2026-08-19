@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { ChineseKeyReviewMeta } from '@/utils/chineseKeyReviewSession'
-import { useChineseKeyReviewQuizUi } from '@/utils/chineseKeyReviewSession'
-import { useChineseTheoryPolicyTest } from '@/composables/useChineseTheoryPolicyTest'
-import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
+import type { ChineseKeyReviewMeta } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseKeyReviewQuizUi } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseTheoryPolicyTest } from '@/composables/chinese/useChineseTheoryPolicyTest'
+import { useDeepseekConversation } from '@/composables/app/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
 import {
   isChineseTheoryPolicyFavorite,
   toggleChineseTheoryPolicyFavorite,
-} from '@/utils/chineseTheoryPolicyStorage'
-import { theoryPolicyQuestionTypeLabel } from '@/utils/theoryPolicyPractice'
-import type { TheoryPolicyQuestion } from '@/utils/theoryPolicyPractice'
-import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+} from '@/utils/chinese/chineseTheoryPolicyStorage'
+import { theoryPolicyQuestionTypeLabel } from '@/utils/chinese/theoryPolicyPractice'
+import type { TheoryPolicyQuestion } from '@/utils/chinese/theoryPolicyPractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/PracticeCompletionStat.vue'
 
 const THEORY_ASSIST_SYSTEM =
   '你是事业编与公务员考试「政治理论·政策法规」教练，擅长习近平新时代中国特色社会主义思想、党的二十大报告、二十届三中全会《决定》及政府工作报告高频考点。用简体中文讲解，表述客观准确，紧扣公开权威表述，回答要具体。'

@@ -1,6 +1,6 @@
 /** 唐朝·王维：全人生阶段应试背诵整理（格式同李白、杜甫、白居易） */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const WANG_WEI_PROFILE: PoetOverviewProfile = {
   id: 'wang-wei',

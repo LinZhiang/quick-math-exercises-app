@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { ChineseKeyReviewMeta } from '@/utils/chineseKeyReviewSession'
-import { useChineseKeyReviewQuizUi } from '@/utils/chineseKeyReviewSession'
-import { useChineseRhetoricUsageTest } from '@/composables/useChineseRhetoricUsageTest'
-import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
+import type { ChineseKeyReviewMeta } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseKeyReviewQuizUi } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseRhetoricUsageTest } from '@/composables/chinese/useChineseRhetoricUsageTest'
+import { useDeepseekConversation } from '@/composables/app/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
 import {
   isChineseRhetoricUsageFavorite,
   toggleChineseRhetoricUsageFavorite,
-} from '@/utils/chineseRhetoricUsageStorage'
-import { rhetoricUsageQuestionTypeLabel } from '@/utils/rhetoricUsagePractice'
-import type { RhetoricUsageQuestion } from '@/utils/rhetoricUsagePractice'
-import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+} from '@/utils/chinese/chineseRhetoricUsageStorage'
+import { rhetoricUsageQuestionTypeLabel } from '@/utils/chinese/rhetoricUsagePractice'
+import type { RhetoricUsageQuestion } from '@/utils/chinese/rhetoricUsagePractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/PracticeCompletionStat.vue'
 
 const RHETORIC_ASSIST_SYSTEM =
   '你是事业编与公务员考试「修辞运用」教练，擅长比喻、比拟、借代、夸张、对偶、排比、设问、反问等辨识与表达效果。用简体中文讲解，结合例句与易混辨析，回答要具体。'

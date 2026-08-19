@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { IDIOMS, WORDS } from './schulte-bank-seeds.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const outFile = path.join(__dirname, '../src/utils/schulteBank.ts')
+const outFile = path.join(__dirname, '../src/utils/math/schulteBank.ts')
 
 function assertBank() {
   if (IDIOMS.length !== 250) throw new Error(`成语应为 250，实际 ${IDIOMS.length}`)
@@ -58,7 +58,7 @@ const src = `/**
  * 快判·舒尔特本地题库（成语 250 + 词语 250 = 500）
  * 由 scripts/generate-schulte-bank.mjs 生成；勿手改整表，改 scripts/schulte-bank-seeds.mjs 后重跑脚本。
  */
-import type { SchulteBankItem } from '@/utils/schulteBankTypes'
+import type { SchulteBankItem } from '@/utils/math/schulteBankTypes'
 
 export const SCHULTE_BANK: SchulteBankItem[] = [
 ${body}

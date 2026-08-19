@@ -1,6 +1,6 @@
 /** 宋朝·李清照 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const LI_QING_ZHAO_PROFILE: PoetOverviewProfile = {
   id: 'li-qing-zhao',

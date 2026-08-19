@@ -1,5 +1,5 @@
 /**
- * Validate src/utils/shortenSentenceBank.ts without TypeScript compilation.
+ * Validate src/utils/chinese/shortenSentenceBank.ts without TypeScript compilation.
  * Usage: node scripts/validate-shorten-bank.mjs
  */
 
@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const bankPath = join(__dirname, '../src/utils/shortenSentenceBank.ts')
+const bankPath = join(__dirname, '../src/utils/chinese/shortenSentenceBank.ts')
 const text = readFileSync(bankPath, 'utf8')
 
 const errors = []

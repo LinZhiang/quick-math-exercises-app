@@ -31,7 +31,7 @@ function writeBank(filePath, typeImport, typeName, exportName, items, header) {
   fs.writeFileSync(
     filePath,
     `${header}
-import type { ${typeName} } from '@/utils/${typeImport}'
+import type { ${typeName} } from '@/utils/chinese/${typeImport}'
 
 export const ${exportName}: ${typeName}[] = [
 ${body},
@@ -426,7 +426,7 @@ for (const [word, rows] of XUCI_DATA) {
 }
 
 writeBank(
-  path.join(__dirname, '../src/utils/wenyanXuciBank.ts'),
+  path.join(__dirname, '../src/utils/chinese/wenyanXuciBank.ts'),
   'wenyanXuciBankTypes',
   'WenyanXuciBankItem',
   'WENYAN_XUCI_BANK',
@@ -765,7 +765,7 @@ if (JUSHI_DATA.length !== 18) throw new Error(`jushi cats: need 18, got ${JUSHI_
 if (jushiItems.length !== 72) throw new Error(`jushi items: need 72, got ${jushiItems.length}`)
 
 writeBank(
-  path.join(__dirname, '../src/utils/wenyanJushiBank.ts'),
+  path.join(__dirname, '../src/utils/chinese/wenyanJushiBank.ts'),
   'wenyanJushiBankTypes',
   'WenyanJushiBankItem',
   'WENYAN_JUSHI_BANK',

@@ -1,6 +1,6 @@
 /** 唐朝·王勃：全人生阶段应试背诵整理 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const WANG_BO_PROFILE: PoetOverviewProfile = {
   id: 'wang-bo',

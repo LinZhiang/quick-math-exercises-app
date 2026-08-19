@@ -1,6 +1,6 @@
 /** 宋朝·曾巩 */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const ZENG_GONG_PROFILE: PoetOverviewProfile = {
   id: 'zeng-gong',

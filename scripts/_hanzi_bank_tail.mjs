@@ -35,7 +35,7 @@ const file = `/**
  * 由 scripts/generate-hanzi-pattern-bank.mjs 生成；勿手改整表，改种子后重跑脚本。
  * stem 仅为四字（全角空格分隔）。
  */
-import type { HanziPatternBankItem } from '@/utils/hanziPatternBankTypes'
+import type { HanziPatternBankItem } from '@/utils/chinese/hanziPatternBankTypes'
 
 export const HANZI_PATTERN_BANK: HanziPatternBankItem[] = [
 ${body},

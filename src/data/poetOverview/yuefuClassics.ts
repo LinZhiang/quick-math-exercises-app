@@ -1,6 +1,6 @@
 /** 其他·乐府名篇（无固定单人归属） */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const YUEFU_CLASSICS_PROFILE: PoetOverviewProfile = {
   id: 'yuefu-classics',

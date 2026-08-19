@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const raw = JSON.parse(
-  fs.readFileSync(path.join(__dirname, '../src/utils/lifeSenseBank.generated.json'), 'utf8'),
+  fs.readFileSync(path.join(__dirname, '../src/utils/chinese/lifeSenseBank.generated.json'), 'utf8'),
 )
 const items = raw.items
 const errors = []

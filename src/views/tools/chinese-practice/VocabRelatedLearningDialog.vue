@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { watch } from 'vue'
-import { useVocabRelatedLearning } from '@/composables/useVocabRelatedLearning'
-import { formatVocabExampleHtml } from '@/utils/vocabRelatedLearning'
+import { useVocabRelatedLearning } from '@/composables/chinese/useVocabRelatedLearning'
+import { formatVocabExampleHtml } from '@/utils/chinese/vocabRelatedLearning'
 
 const emit = defineEmits<{ (e: 'active', v: boolean): void }>()
 

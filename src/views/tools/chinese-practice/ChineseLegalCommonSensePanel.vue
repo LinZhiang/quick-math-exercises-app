@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { ChineseKeyReviewMeta } from '@/utils/chineseKeyReviewSession'
-import { useChineseKeyReviewQuizUi } from '@/utils/chineseKeyReviewSession'
-import { useChineseLegalCommonSenseTest } from '@/composables/useChineseLegalCommonSenseTest'
-import { useDeepseekConversation } from '@/composables/useDeepseekConversation'
+import type { ChineseKeyReviewMeta } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseKeyReviewQuizUi } from '@/utils/chinese/chineseKeyReviewSession'
+import { useChineseLegalCommonSenseTest } from '@/composables/chinese/useChineseLegalCommonSenseTest'
+import { useDeepseekConversation } from '@/composables/app/useDeepseekConversation'
 import DeepseekChatThread from '@/components/DeepseekChatThread.vue'
 import { isAiChatConfigured, requestAssistantMarkdown } from '@/services/deepseek'
 import {
   isChineseLegalCommonSenseFavorite,
   toggleChineseLegalCommonSenseFavorite,
-} from '@/utils/chineseLegalCommonSenseStorage'
-import { legalCommonSenseQuestionTypeLabel } from '@/utils/legalCommonSensePractice'
-import type { LegalCommonSenseQuestion } from '@/utils/legalCommonSensePractice'
-import PracticeCompletionStat from '@/views/tools/mental-math/components/PracticeCompletionStat.vue'
+} from '@/utils/chinese/chineseLegalCommonSenseStorage'
+import { legalCommonSenseQuestionTypeLabel } from '@/utils/chinese/legalCommonSensePractice'
+import type { LegalCommonSenseQuestion } from '@/utils/chinese/legalCommonSensePractice'
+import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/PracticeCompletionStat.vue'
 
 const LEGAL_ASSIST_SYSTEM =
   '你是事业编联考 C 类「公共基础知识·法律常识」教练，擅长宪法、民法、刑法、行政法高频易考点。讲解通俗浅显，紧扣高频考点，不要深挖冷门法条。用简体中文，回答要具体。'

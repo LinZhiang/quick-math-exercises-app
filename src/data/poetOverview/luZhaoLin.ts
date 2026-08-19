@@ -1,6 +1,6 @@
 /** 唐朝·卢照邻：全人生阶段应试背诵整理（初唐四杰） */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const LU_ZHAO_LIN_PROFILE: PoetOverviewProfile = {
   id: 'lu-zhao-lin',

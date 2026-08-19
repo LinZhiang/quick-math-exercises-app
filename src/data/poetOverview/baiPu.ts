@@ -1,6 +1,6 @@
 /** 其他·白朴（元曲四大家，精简） */
 
-import type { PoetOverviewProfile } from '@/utils/poetOverviewTypes'
+import type { PoetOverviewProfile } from '@/utils/chinese/poetOverviewTypes'
 
 export const BAI_PU_PROFILE: PoetOverviewProfile = {
   id: 'bai-pu',

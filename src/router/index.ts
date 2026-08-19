@@ -1,3 +1,7 @@
+/**
+ * 路由：首页四模块 + 知识训练 /train/:section + 题库 + 计算机基础 + 安装/设置。
+ * chrome: 'home' 才显示安装/设置按钮（见 App.vue）。
+ */
 import { createRouter, createWebHistory, type RouteLocationNormalized, type RouteLocationRaw } from 'vue-router'
 import { isTrainHubSectionId } from '@/constants/practice-hub-sections'
 import HomeHub from '@/views/home/HomeHub.vue'
