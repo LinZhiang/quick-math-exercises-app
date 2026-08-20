@@ -190,14 +190,23 @@ function onStart() {
 
 .cb-quiz__head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
 }
 
 .cb-quiz__head h3 {
   margin: 0;
+  min-width: 0;
+  flex: 1 1 auto;
   font-size: 1.05rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.cb-quiz__head .el-button {
+  flex-shrink: 0;
 }
 
 .cb-quiz__hint,
