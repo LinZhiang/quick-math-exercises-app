@@ -1,6 +1,6 @@
 <!--
   计算机基础：左侧树（仅三角折叠）+ 讲义详情。
-  云端只读 Node 构建出的快照；增删改只写 server/data/computer-basics。
+  管理员增删改：本机写 server/data；pages.dev 写 KV 或边缘缓存。检查并更新不重置目录。
 -->
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
@@ -533,7 +533,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <p class="computer-page__lead">
-        分类是树形结构，大类下可叠多层小类。增删改只写本机 Node，点「检查并更新」不会丢掉目录。
+        分类是树形结构，大类下可叠多层小类。管理员登录后可直接新增、改名；「检查并更新」只刷新应用，不会清空目录。
       </p>
     </header>
 

@@ -1,9 +1,15 @@
 /**
  * 计算机基础云端存储（与本机 Node 目录结构对齐）
- * 读写只走 WENGU_KV；没有 KV 时 GET 读 /cb-data 快照（只读），禁止用边缘缓存当库。
+ * 优先 WENGU_KV；未绑定则用边缘缓存兜底，管理员在 pages.dev 上可增删改。
+ * 静态 /cb-data 只用于「目录还不存在」时灌库，不会覆盖用户改过的目录。
  */
 import { json, requireAdmin } from './wenguCloudAuth.js'
-import { getCbStore, hydrateCbStoreFromAssets, rememberCbStoreOrigin } from './cbStore.js'
+import {
+  getCbStore,
+  hydrateCbStoreFromAssets,
+  markCbStoreUserOwned,
+  rememberCbStoreOrigin,
+} from './cbStore.js'
 
 const CATALOG_KEY = 'cb:catalog'
 const MIME_TO_EXT = {
@@ -71,8 +77,7 @@ function noStore() {
   return json(
     {
       ok: false,
-      message:
-        '请在本机用 npm run dev:full 增删改讲义（写入 server/data）。云端未绑定 KV 时不会把改动写进缓存，以免点「检查并更新」后目录被快照盖掉。出门预览请重新部署，或绑定 WENGU_KV 后执行 npm run sync:cf-computer。',
+      message: '云端存储不可用，无法保存目录。请重新部署 Pages Functions 后再试。',
     },
     503,
   )
@@ -135,8 +140,9 @@ async function writeCatalog(env, tree) {
   const base = prev && typeof prev === 'object' ? prev : {}
   await store.put(
     CATALOG_KEY,
-    JSON.stringify({ ...base, tree, updatedAt: new Date().toISOString() }),
+    JSON.stringify({ ...base, tree, updatedAt: new Date().toISOString(), userOwned: true }),
   )
+  await markCbStoreUserOwned(store)
 }
 
 async function putRecord(env, key, value, opts) {
