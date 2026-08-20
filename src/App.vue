@@ -66,6 +66,9 @@ function chromeFallback(): RouteLocationRaw {
     }
     return { name: 'computer' }
   }
+  if (name === 'computer-book' || name === 'computer-log') {
+    return { name: 'computer' }
+  }
   if (name === 'train' || name === 'bank' || name === 'install' || name === 'settings' || name === 'computer') {
     return { name: 'home' }
   }

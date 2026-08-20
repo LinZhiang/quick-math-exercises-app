@@ -96,12 +96,13 @@ export async function requestComputerHandoutQuiz(input: {
   title: string
   material: string
   itemId: string
-  counts: { choice: number; judge: number; calc: number }
+  counts: { choice: number; judge: number; calc: number; short: number }
+  learningPath?: string[]
   avoidStems?: string[]
   provider?: AiProvider
   onProgress?: (message: string) => void
 }): Promise<import('@/utils/computer/computerHandoutQuiz').ComputerQuizQuestion[]> {
-  const { parseComputerQuizAiItem, totalComputerQuizCount } = await import('@/utils/computer/computerHandoutQuiz')
+  const { parseComputerQuizAiItem, totalComputerQuizCount, extractComputerQuizSources } = await import('@/utils/computer/computerHandoutQuiz')
   const total = totalComputerQuizCount(input.counts)
   if (total <= 0) throw new Error('请至少设置 1 道题')
   input.onProgress?.(aiRequestProgressText('计算机基础测验', input.provider))
@@ -109,19 +110,28 @@ export async function requestComputerHandoutQuiz(input: {
   const avoidHint = avoid.length
     ? `不要出与下列题干相近的题：\n- ${avoid.join('\n- ')}`
     : '本轮题干、考点组合不要彼此雷同。'
+  const allowedSources = extractComputerQuizSources(input.material)
+  const allowedSourceIds = allowedSources.map((x) => x.id)
   const system = [
     '你是计算机基础知识命题老师，专出易错、高频考点题。只根据给定讲义出题，用简体中文。',
     '只输出合法 JSON 数组，不要 markdown 围栏，不要其它说明。',
     '少而准：优先考讲义里的重点（定义、划分标准、最主要特点、原理、易混概念），不要考边角例子或无区分度的细节。',
     '解析必须证明 correct，不允许标答与解析打架。',
+    '英文缩写（如 MAR、CPU）在题干和选项里只写缩写本身，不要夹带中文全称或括号解释；全称、含义只写在 explanation。',
   ].join('\n')
   const user = [
     `讲义标题：${input.title}`,
     '讲义正文：',
     input.material.slice(0, 9000),
     '',
-    `请出 ${total} 道题，数量：选择题 ${input.counts.choice}，判断题 ${input.counts.judge}（二选一：正确/错误），简答题 ${input.counts.calc}。`,
-    '字段：kind(choice|judge|calc), term(考点短名), stem, options(选择题必须 4 项), distractors(可选，3 个干扰项), correct(必须是 options 里某一项的原文；判断题写「正确」或「错误」), explanation。',
+    `请出 ${total} 道题，数量：选择题 ${input.counts.choice}，判断题 ${input.counts.judge}（二选一：正确/错误），计算题 ${input.counts.calc}，简答题 ${input.counts.short}。`,
+    '字段：kind(choice|judge|calc|short), term(考点短名), stem, options(选择题必须 4 项), distractors(可选，3 个干扰项), correct, explanation。',
+    allowedSourceIds.length
+      ? '范围测验时每题必须带 sourceId，等于该题所考那篇【讲义ID:xxx｜标题】里的 xxx。'
+      : '',
+    '【计算题 calc】只问一个能唯一算出的结果，例如「某数的原码/反码/补码是多少」「某式等于多少」。correct 只写最终结果短串（如 10001011、-1、64），禁止写整句解析。程序用包含匹配判分。',
+    '【简答题 short】考特点、区别、原理等需要组织语言的内容。correct 写参考要点（可几句）。程序不自动判分，学员对照后自打分。',
+    '选择题 correct 必须是 options 里某一项的原文；判断题 correct 写「正确」或「错误」。',
     '【选题优先·必须遵守】',
     'A. 先从讲义抽出 3～6 个重点：加粗/定义句、「最主要/核心/本质/划分依据/原理/特点」、易混对比、考试常考的专名与标准。',
     'B. 本轮题目必须打在这些重点上；禁止专考边角数字、无区分度的举例、或讲义未强调的常识。',
@@ -132,20 +142,28 @@ export async function requestComputerHandoutQuiz(input: {
     'F. 禁止无讲义依据的胡编、空洞选项（如「以上都对」「计算机很方便」）或与题干完全无关的张冠李戴。',
     'G. 四个选项长度、语气尽量齐整，不要正确项明显最长或最完整。',
     '【硬性规则·违反则该题作废】',
-    '1. correct 必须写正确选项的全文，禁止写 A/B/C/D 或 1/2/3/4。',
+    '1. 选择题 correct 必须写正确选项的全文，禁止写 A/B/C/D 或 1/2/3/4。',
     '2. 选项顺序随意，程序会打乱；不要把干扰项写成 correct。',
     '3. 题干、选项、correct、解析必须是同一道题。禁止题干问甲、答案却是乙。',
     '4. 解析先点明正确答案，再说明其余项为何错（错在「不是本题所问」或「讲义明确否定」）；解析支持另一选项即作废。',
     '5. 考点必须能在讲义中找到原句或等价表述。',
     '6. 判断题要卡在易错点上：把「最主要/划分标准/原理」说成相邻优点或错误依据，句子必须能从讲义直接判对错。',
+    '7. 计算题只出一个结果、correct 只能是该结果短串；禁止把计算题写成简答，也禁止把简答写成计算题。',
+    '9. 题干、选项禁止出现「MAR（存储器地址寄存器）」这类缩写中文提示；必须把全称放到 explanation。',
     avoidHint,
     '仅返回 JSON 数组。',
-  ].join('\n')
+  ].filter(Boolean).join('\n')
   const collect = (parsed: unknown[]) => {
     const out: import('@/utils/computer/computerHandoutQuiz').ComputerQuizQuestion[] = []
     const seen = new Set<string>()
     for (const item of parsed) {
-      const q = parseComputerQuizAiItem(item, { itemId: input.itemId, itemTitle: input.title })
+      const q = parseComputerQuizAiItem(item, {
+        itemId: input.itemId,
+        itemTitle: input.title,
+        learningPath: input.learningPath,
+        allowedSources,
+        allowedSourceIds,
+      })
       if (!q || seen.has(q.fingerprint)) continue
       seen.add(q.fingerprint)
       out.push(q)

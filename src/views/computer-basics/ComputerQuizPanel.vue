@@ -13,9 +13,12 @@ import {
   isComputerQuizFavorite,
   toggleComputerQuizFavorite,
 } from '@/utils/computer/computerHandoutQuizStorage'
+import { sanitizeComputerQuizForDisplay } from '@/utils/computer/computerHandoutQuiz'
 import type { ComputerHandoutItem } from '@/utils/computer/computerBasics'
 import { wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 import RichTextView from '@/components/RichTextView.vue'
+import RichTextEditor from '@/components/RichTextEditor.vue'
+import ComputerAskPanel, { type ComputerAskQuestionContext } from './ComputerAskPanel.vue'
 
 const props = defineProps<{
   item: ComputerHandoutItem
@@ -66,13 +69,52 @@ function onStart() {
   }
   void test.generateAndStart(props.item, quizProvider.value)
 }
+
+const lastResult = computed(() => {
+  if (!test.submitted) return null
+  return test.results.find((row) => row.unitIndex === test.currentIndex + 1) ?? null
+})
+
+const displayQ = computed(() => {
+  const q = test.currentQuestion
+  if (!q) return null
+  return { ...q, ...sanitizeComputerQuizForDisplay(q) }
+})
+
+const canMarkCareless = computed(() => {
+  if (!test.submitted || test.carelessMarked || lastResult.value?.correct) return false
+  if (test.currentQuestion?.kind === 'short' && !test.selfScore) return false
+  return true
+})
+
+const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
+  const q = displayQ.value
+  if (!q) return null
+  return {
+    fingerprint: q.fingerprint,
+    kindLabel: test.computerQuizKindLabel(q.kind),
+    stem: q.stem,
+    options: q.options,
+    chosen: lastResult.value?.chosen ?? '',
+    correctText: q.correctText,
+    explanation: q.explanation,
+    correct: Boolean(lastResult.value?.correct),
+  }
+})
 </script>
 
 <template>
-  <section class="cb-quiz">
+  <div class="cb-quiz-shell">
+  <section class="cb-quiz" :class="{ 'is-running': test.phase === 'running' }">
     <header class="cb-quiz__head">
       <h3>{{ scopeLabel ? `AI 测验 · ${scopeLabel}` : 'AI 测验' }}</h3>
-      <el-button size="small" @click="emit('close')">关闭</el-button>
+      <div class="cb-quiz__head-right">
+        <span
+          v-if="test.phase === 'running' || test.phase === 'summary'"
+          class="cb-quiz__timer"
+        >{{ test.elapsedText }}</span>
+        <el-button size="small" @click="emit('close')">关闭</el-button>
+      </div>
     </header>
 
     <template v-if="test.phase === 'idle'">
@@ -82,6 +124,7 @@ function onStart() {
             ? `按「${scopeLabel}」范围内的讲义出少量重点题：优先考定义、划分标准、最主要特点等，干扰项用讲义里的易混点。`
             : '按当前讲义出少量重点题：优先考定义、划分标准、最主要特点等，干扰项用讲义里的易混点。'
         }}
+        计算题系统按结果判分（写出的内容包含标准答案即可）；简答题对照参考答案后自己打分。
       </p>
       <div class="cb-quiz__switch">
         <span>模型</span>
@@ -93,7 +136,8 @@ function onStart() {
       <div class="cb-quiz__counts">
         <label>选择题 <el-input-number v-model="test.counts.choice" :min="0" :max="8" size="small" /></label>
         <label>判断题 <el-input-number v-model="test.counts.judge" :min="0" :max="6" size="small" /></label>
-        <label>简答题 <el-input-number v-model="test.counts.calc" :min="0" :max="4" size="small" /></label>
+        <label>计算题 <el-input-number v-model="test.counts.calc" :min="0" :max="4" size="small" /></label>
+        <label>简答题 <el-input-number v-model="test.counts.short" :min="0" :max="4" size="small" /></label>
       </div>
       <p v-if="!aiReady" class="cb-quiz__warn">{{ DEEPSEEK_NOT_CONFIGURED_HINT }}</p>
       <el-button type="primary" :disabled="!aiReady" @click="onStart">开始测验</el-button>
@@ -103,32 +147,46 @@ function onStart() {
       <p class="cb-quiz__hint">{{ test.loadingMessage || '正在出题…' }}</p>
     </template>
 
-    <template v-else-if="test.phase === 'running' && test.currentQuestion">
-      <p class="cb-quiz__meta">
-        第 {{ test.currentIndex + 1 }} / {{ test.questionCount }} 题 ·
-        {{ test.computerQuizKindLabel(test.currentQuestion.kind) }}
-      </p>
-      <div class="cb-quiz__stem">
-        <RichTextView :html="test.currentQuestion.stem" />
+    <template v-else-if="test.phase === 'running' && displayQ">
+      <div class="cb-quiz__meta-row">
+        <p class="cb-quiz__meta">
+          第 {{ test.currentIndex + 1 }} / {{ test.questionCount }} 题 ·
+          {{ test.computerQuizKindLabel(displayQ.kind) }}
+        </p>
+        <el-button size="small" plain @click="onFavorite">{{ favorited ? '已收藏' : '收藏' }}</el-button>
       </div>
-      <div v-if="test.currentQuestion.kind === 'calc'" class="cb-quiz__calc">
+      <div class="cb-quiz__stem">
+        <RichTextView :html="displayQ.stem" />
+      </div>
+      <div v-if="displayQ.kind === 'calc'" class="cb-quiz__calc">
         <el-input
           v-model="test.calcInput"
           :disabled="test.submitted"
-          placeholder="填写简要答案"
+          placeholder="写出计算结果，例如原码、数值；多写说明也可以"
           @keydown.enter.prevent="test.submitCurrent()"
+        />
+      </div>
+      <div
+        v-else-if="displayQ.kind === 'short'"
+        class="cb-quiz__short"
+        :class="{ 'is-locked': test.submitted }"
+      >
+        <RichTextEditor
+          v-model="test.shortInput"
+          placeholder="用自己的话作答，可排版、列要点…"
+          min-height="120px"
         />
       </div>
       <div v-else class="cb-quiz__opts">
         <button
-          v-for="(opt, i) in test.currentQuestion.options"
+          v-for="(opt, i) in displayQ.options"
           :key="i"
           type="button"
           class="cb-quiz__opt"
           :class="{
             'is-picked': test.selectedIndex === i,
-            'is-right': test.submitted && i === test.currentQuestion.correctIndex,
-            'is-wrong': test.submitted && test.selectedIndex === i && i !== test.currentQuestion.correctIndex,
+            'is-right': test.submitted && i === displayQ.correctIndex,
+            'is-wrong': test.submitted && test.selectedIndex === i && i !== displayQ.correctIndex,
           }"
           :disabled="test.submitted"
           @click="test.selectOption(i)"
@@ -137,36 +195,82 @@ function onStart() {
         </button>
       </div>
       <div v-if="test.submitted" class="cb-quiz__reveal">
-        <p :class="test.results.at(-1)?.correct ? 'is-ok' : 'is-bad'">
-          {{ test.results.at(-1)?.correct ? '回答正确' : `正确答案：${test.currentQuestion.correctText}` }}
-        </p>
-        <RichTextView v-if="test.currentQuestion.explanation" :html="test.currentQuestion.explanation" />
-        <div class="cb-quiz__tools">
-          <el-button size="small" plain @click="onFavorite">{{ favorited ? '已收藏' : '收藏' }}</el-button>
-          <el-button
-            v-if="!test.results.at(-1)?.correct && !test.carelessMarked"
-            size="small"
-            plain
-            @click="test.markCarelessWrong()"
-          >
+        <template v-if="displayQ.kind === 'short'">
+          <p class="cb-quiz__ref-label">参考答案</p>
+          <div class="cb-quiz__ref">
+            <RichTextView :html="displayQ.correctText" />
+          </div>
+          <RichTextView v-if="displayQ.explanation" :html="displayQ.explanation" />
+          <div class="cb-quiz__self">
+            <p class="cb-quiz__self-label">对照后给自己打分</p>
+            <div class="cb-quiz__self-btns">
+              <el-button
+                :type="test.selfScore === 'full' ? 'success' : 'default'"
+                @click="test.applySelfScore('full')"
+              >
+                全对
+              </el-button>
+              <el-button
+                :type="test.selfScore === 'partial' ? 'warning' : 'default'"
+                @click="test.applySelfScore('partial')"
+              >
+                半对
+              </el-button>
+              <el-button
+                :type="test.selfScore === 'zero' ? 'danger' : 'default'"
+                @click="test.applySelfScore('zero')"
+              >
+                全错
+              </el-button>
+            </div>
+            <p v-if="test.selfScore === 'full'" class="cb-quiz__hint is-ok">已评：全对</p>
+            <p v-else-if="test.selfScore === 'partial'" class="cb-quiz__hint">已评：半对</p>
+            <p v-else-if="test.selfScore === 'zero'" class="cb-quiz__hint is-bad">已评：全错</p>
+          </div>
+        </template>
+        <template v-else>
+          <p :class="lastResult?.correct ? 'is-ok' : 'is-bad'">
+            {{ lastResult?.correct ? '回答正确' : `正确答案：${displayQ.correctText}` }}
+          </p>
+          <RichTextView v-if="displayQ.explanation" :html="displayQ.explanation" />
+        </template>
+      </div>
+      <div class="cb-quiz__actions">
+        <el-button v-if="!test.submitted" type="primary" @click="test.submitCurrent()">
+          {{ displayQ.kind === 'short' ? '查看参考答案' : '提交' }}
+        </el-button>
+        <template v-else>
+          <el-button type="primary" @click="test.nextQuestion()">
+            {{ test.currentIndex >= test.questionCount - 1 ? '查看结果' : '下一题' }}
+          </el-button>
+          <el-button v-if="canMarkCareless" type="warning" @click="test.markCarelessWrong()">
             粗心答错
           </el-button>
           <span v-else-if="test.carelessMarked" class="cb-quiz__hint">已标记粗心，不入错题本</span>
-        </div>
-      </div>
-      <div class="cb-quiz__actions">
-        <el-button v-if="!test.submitted" type="primary" @click="test.submitCurrent()">提交</el-button>
-        <el-button v-else type="primary" @click="test.nextQuestion()">
-          {{ test.currentIndex >= test.questionCount - 1 ? '查看结果' : '下一题' }}
-        </el-button>
+        </template>
       </div>
     </template>
 
     <template v-else-if="test.phase === 'summary'">
-      <p class="cb-quiz__hint">正确 {{ test.correctCount }} / {{ test.results.length }} 题</p>
+      <p class="cb-quiz__hint">
+        正确 {{ test.correctCount }} / {{ test.results.length }} 题 · {{ test.elapsedText }}
+      </p>
       <ul class="cb-quiz__log">
-        <li v-for="row in test.results" :key="row.unitIndex" :class="row.correct ? 'is-ok' : 'is-bad'">
-          {{ row.unitIndex }}. {{ row.question.term }} · {{ row.correct ? '对' : '错' }}
+        <li
+          v-for="row in test.results"
+          :key="row.unitIndex"
+          :class="row.correct ? 'is-ok' : row.selfScore === 'partial' ? 'is-mid' : 'is-bad'"
+        >
+          {{ row.unitIndex }}. {{ row.question.term }} ·
+          {{
+            row.correct
+              ? '对'
+              : row.selfScore === 'partial'
+                ? '半对'
+                : row.careless
+                  ? '错（粗心）'
+                  : '错'
+          }}
         </li>
       </ul>
       <div class="cb-quiz__actions">
@@ -175,17 +279,38 @@ function onStart() {
       </div>
     </template>
   </section>
+  <ComputerAskPanel
+    v-if="test.phase === 'running' && quizAskQuestion"
+    :item="item"
+    :question="quizAskQuestion"
+    :ask-enabled="
+      test.currentQuestion?.kind === 'short' ? Boolean(test.selfScore) : test.submitted
+    "
+  />
+  </div>
 </template>
 
 <style scoped>
+.cb-quiz-shell {
+  position: relative;
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .cb-quiz {
-  flex: 1 1 0;
+  flex: 0 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: auto;
-  padding: 4px 2px 16px;
+  padding: 4px 2px 8px;
   gap: 12px;
+}
+
+.cb-quiz.is-running {
+  padding-bottom: 56px;
 }
 
 .cb-quiz__head {
@@ -205,8 +330,18 @@ function onStart() {
   white-space: normal;
 }
 
-.cb-quiz__head .el-button {
+.cb-quiz__head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
+}
+
+.cb-quiz__timer {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--app-primary);
+  white-space: nowrap;
 }
 
 .cb-quiz__hint,
@@ -217,13 +352,24 @@ function onStart() {
   color: var(--app-text-muted);
 }
 
+.cb-quiz__meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cb-quiz__meta {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .cb-quiz__warn {
   color: var(--app-danger);
 }
 
 .cb-quiz__switch,
 .cb-quiz__counts,
-.cb-quiz__tools,
 .cb-quiz__actions {
   display: flex;
   flex-wrap: wrap;
@@ -242,6 +388,34 @@ function onStart() {
   padding: 10px 12px;
   border-radius: 10px;
   background: var(--app-surface-alt);
+}
+
+.cb-quiz__short.is-locked {
+  pointer-events: none;
+  opacity: 0.88;
+}
+
+.cb-quiz__ref-label,
+.cb-quiz__self-label {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cb-quiz__ref {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #ecfdf5;
+}
+
+.cb-quiz__self {
+  margin-top: 10px;
+}
+
+.cb-quiz__self-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .cb-quiz__opts {
@@ -274,13 +448,19 @@ function onStart() {
   background: #fef2f2;
 }
 
-.cb-quiz__reveal .is-ok {
+.cb-quiz__reveal .is-ok,
+.cb-quiz__hint.is-ok {
   color: #16a34a;
 }
 
 .cb-quiz__reveal .is-bad,
+.cb-quiz__hint.is-bad,
 .cb-quiz__log .is-bad {
   color: var(--app-danger);
+}
+
+.cb-quiz__log .is-mid {
+  color: #d97706;
 }
 
 .cb-quiz__log {

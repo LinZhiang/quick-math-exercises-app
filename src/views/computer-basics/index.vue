@@ -34,8 +34,6 @@ import ComputerBusyHint from './ComputerBusyHint.vue'
 import ComputerCategoryMapDialog from './ComputerCategoryMapDialog.vue'
 import ComputerMoveDialog from './ComputerMoveDialog.vue'
 import ComputerQuizPanel from './ComputerQuizPanel.vue'
-import ComputerQuizBookPanel from './ComputerQuizBookPanel.vue'
-import ComputerStudyLogPanel from './ComputerStudyLogPanel.vue'
 
 const router = useRouter()
 const tree = ref<ComputerTreeNode[]>([])
@@ -44,8 +42,6 @@ const loading = ref(true)
 const error = ref('')
 const expanded = ref<Record<string, boolean>>({})
 const mapOpen = ref(false)
-const bookOpen = ref(false)
-const logOpen = ref(false)
 const adminOpenId = ref('')
 const flashId = ref('')
 const busyText = ref('')
@@ -191,22 +187,6 @@ function insertEntry(
   })
 }
 
-function toggleBook() {
-  bookOpen.value = !bookOpen.value
-  if (bookOpen.value) {
-    logOpen.value = false
-    closeQuiz()
-  }
-}
-
-function toggleLog() {
-  logOpen.value = !logOpen.value
-  if (logOpen.value) {
-    bookOpen.value = false
-    closeQuiz()
-  }
-}
-
 function closeQuiz() {
   quizItem.value = null
   quizScopeLabel.value = ''
@@ -239,8 +219,6 @@ async function startFolderQuiz(nodeId: string, name: string) {
         items,
       })
       quizScopeLabel.value = learningPath.join(' / ') || name
-      bookOpen.value = false
-      logOpen.value = false
       adminOpenId.value = ''
     })
   } catch (e) {
@@ -258,8 +236,6 @@ async function startEntryQuiz(entry: ComputerTreeEntry) {
       const item = await loadComputerBasicsItem(entry.id)
       quizItem.value = item
       quizScopeLabel.value = ''
-      bookOpen.value = false
-      logOpen.value = false
       adminOpenId.value = ''
     })
   } catch (e) {
@@ -537,18 +513,16 @@ onBeforeUnmount(() => {
             <el-button
               size="small"
               :icon="Collection"
-              :type="bookOpen ? 'primary' : 'default'"
               title="AI 题目整理"
-              @click="toggleBook"
+              @click="router.push({ name: 'computer-book' })"
             >
               题目
             </el-button>
             <el-button
               size="small"
               :icon="Notebook"
-              :type="logOpen ? 'primary' : 'default'"
               title="学习日志"
-              @click="toggleLog"
+              @click="router.push({ name: 'computer-log' })"
             >
               日志
             </el-button>
@@ -563,19 +537,7 @@ onBeforeUnmount(() => {
       </p>
     </header>
 
-    <div v-if="bookOpen" class="computer-tree-card">
-      <div class="computer-tree-head">AI 题目整理</div>
-      <div class="computer-book-wrap">
-        <ComputerQuizBookPanel />
-      </div>
-    </div>
-    <div v-else-if="logOpen" class="computer-tree-card">
-      <div class="computer-tree-head">学习日志</div>
-      <div class="computer-book-wrap">
-        <ComputerStudyLogPanel />
-      </div>
-    </div>
-    <div v-else-if="quizItem" class="computer-tree-card">
+    <div v-if="quizItem" class="computer-tree-card">
       <div class="computer-book-wrap">
         <ComputerQuizPanel
           :key="quizItem.id"
@@ -818,7 +780,7 @@ onBeforeUnmount(() => {
 
 .computer-tree-card {
   position: relative;
-  flex: 1 1 0;
+  flex: 0 1 auto;
   min-height: 0;
   max-width: 52rem;
   width: 100%;
@@ -832,8 +794,8 @@ onBeforeUnmount(() => {
 }
 
 .computer-busy-panel {
-  flex: 1 1 0;
-  min-height: 180px;
+  flex: 0 0 auto;
+  min-height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -870,9 +832,9 @@ onBeforeUnmount(() => {
 }
 
 .computer-book-wrap {
-  flex: 1 1 0;
+  flex: 0 1 auto;
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
@@ -893,10 +855,10 @@ onBeforeUnmount(() => {
 }
 
 .computer-tree {
-  flex: 1 1 0;
+  flex: 0 1 auto;
   min-height: 0;
   margin: 0;
-  padding: 6px 8px 16px;
+  padding: 6px 8px 10px;
   list-style: none;
   overflow-x: hidden;
   overflow-y: auto;
