@@ -26,6 +26,7 @@ import { aiRequestProgressText } from '@/utils/app/aiProviderStore'
 import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
 import { isWenguAdmin, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 import ComputerAskPanel from './ComputerAskPanel.vue'
+import ComputerBusyHint from './ComputerBusyHint.vue'
 import ComputerQuizPanel from './ComputerQuizPanel.vue'
 
 type PhotoSlot = { original: string; cropped: string | null }
@@ -356,7 +357,6 @@ watch(
     const seq = ++loadSeq
     loading.value = true
     error.value = ''
-    item.value = null
     try {
       const [next, tree] = await Promise.all([loadComputerBasicsItem(id), loadComputerBasicsTree()])
       if (seq !== loadSeq) return
@@ -364,6 +364,7 @@ watch(
       readyList.value = listReadyComputerEntries(tree)
     } catch (e) {
       if (seq !== loadSeq) return
+      item.value = null
       error.value = e instanceof Error ? e.message : '未找到该讲义'
       ElMessage.warning(error.value)
       goList()
@@ -391,14 +392,7 @@ watch(photoOpen, (open) => {
 </script>
 
 <template>
-  <section v-if="loading" class="computer-missing">
-    <p>正在读取讲义…</p>
-  </section>
-  <section v-else-if="error || !item" class="computer-missing">
-    <p>{{ error || '未找到该讲义。' }}</p>
-    <el-button @click="goList">返回列表</el-button>
-  </section>
-  <section v-else class="computer-detail" :class="{ 'is-full': fullscreen }">
+  <section v-if="item" class="computer-detail" :class="{ 'is-full': fullscreen }">
     <header class="computer-detail__top">
       <div class="computer-detail__titles">
         <p v-if="item.learningPath.length" class="computer-detail__crumb">
@@ -565,7 +559,19 @@ watch(photoOpen, (open) => {
       </template>
       <RichTextView v-else :html="html" />
     </article>
-    <ComputerAskPanel v-if="!fullscreen && !photoOpen && !quizOpen" :item="item" />
+    <ComputerAskPanel v-if="item && !fullscreen && !photoOpen && !quizOpen" :item="item" />
+    <div v-if="loading || saving" class="computer-busy-cover">
+      <ComputerBusyHint :text="saving ? '正在保存讲义…' : '正在打开讲义…'" />
+    </div>
+  </section>
+  <section v-else-if="loading" class="computer-detail computer-detail--boot">
+    <div class="computer-busy-panel">
+      <ComputerBusyHint text="正在打开讲义…" />
+    </div>
+  </section>
+  <section v-else class="computer-missing">
+    <p>{{ error || '未找到该讲义。' }}</p>
+    <el-button @click="goList">返回列表</el-button>
   </section>
 </template>
 
@@ -588,6 +594,29 @@ watch(photoOpen, (open) => {
   z-index: 40;
   background: #eef2f7;
   padding-top: calc(12px + var(--app-safe-top, 0px));
+}
+
+.computer-detail--boot {
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 14px;
+  margin: 4px 0;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 6%);
+}
+
+.computer-busy-panel {
+  width: min(22rem, 100%);
+}
+
+.computer-busy-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(255 255 255 / 82%);
 }
 
 .computer-detail__top {

@@ -20,6 +20,7 @@ import {
   type ComputerTreeNode,
 } from '@/utils/computer/computerBasics'
 import { isWenguAdmin, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
+import ComputerBusyHint from './ComputerBusyHint.vue'
 import ComputerCategoryMapDialog from './ComputerCategoryMapDialog.vue'
 import ComputerQuizBookPanel from './ComputerQuizBookPanel.vue'
 
@@ -33,6 +34,7 @@ const mapOpen = ref(false)
 const bookOpen = ref(false)
 const adminOpenId = ref('')
 const flashId = ref('')
+const busyText = ref('')
 let flashTimer = 0
 
 const isAdmin = computed(() => {
@@ -190,6 +192,15 @@ async function promptName(title: string, initial = '') {
   return String(value ?? '').trim()
 }
 
+async function withBusy<T>(text: string, fn: () => Promise<T>): Promise<T> {
+  busyText.value = text
+  try {
+    return await fn()
+  } finally {
+    busyText.value = ''
+  }
+}
+
 async function reloadKeepExpand(opts?: {
   focusId?: string
   parentId?: string | null
@@ -210,8 +221,10 @@ async function reloadKeepExpand(opts?: {
 async function onAddRoot() {
   try {
     const name = await promptName('新增大类')
-    const node = { children: [], entries: [], ...(await createComputerNode({ name })) }
-    await reloadKeepExpand({ focusId: node.id, node, parentId: null })
+    await withBusy('正在新增大类…', async () => {
+      const node = { children: [], entries: [], ...(await createComputerNode({ name })) }
+      await reloadKeepExpand({ focusId: node.id, node, parentId: null })
+    })
     ElMessage.success('已新增大类')
   } catch (e) {
     if (isPromptCancel(e)) return
@@ -222,8 +235,10 @@ async function onAddRoot() {
 async function onAddChild(parentId: string) {
   try {
     const name = await promptName('新增小类')
-    const node = { children: [], entries: [], ...(await createComputerNode({ name, parentId })) }
-    await reloadKeepExpand({ focusId: node.id, parentId, node })
+    await withBusy('正在新增小类…', async () => {
+      const node = { children: [], entries: [], ...(await createComputerNode({ name, parentId })) }
+      await reloadKeepExpand({ focusId: node.id, parentId, node })
+    })
     ElMessage.success('已新增小类')
   } catch (e) {
     if (isPromptCancel(e)) return
@@ -234,10 +249,13 @@ async function onAddChild(parentId: string) {
 async function onAddItem(parentId: string) {
   try {
     const title = await promptName('新增讲义')
-    const item = await createComputerItem({ parentId, title, content: '' })
-    const entry: ComputerTreeEntry = { id: item.id, title: item.title, ready: true, type: item.type }
-    await reloadKeepExpand({ focusId: item.id, parentId, entry })
-    ElMessage.success('已新增讲义')
+    const item = await withBusy('正在新增讲义…', async () => {
+      const created = await createComputerItem({ parentId, title, content: '' })
+      const entry: ComputerTreeEntry = { id: created.id, title: created.title, ready: true, type: created.type }
+      await reloadKeepExpand({ focusId: created.id, parentId, entry })
+      return created
+    })
+    ElMessage.success('已新增讲义，正在打开…')
     openComputerItem(item.id, true)
   } catch (e) {
     if (isPromptCancel(e)) return
@@ -248,8 +266,10 @@ async function onAddItem(parentId: string) {
 async function onRenameNode(id: string, current: string) {
   try {
     const name = await promptName('编辑分类', current)
-    await renameComputerNode(id, name)
-    await reloadKeepExpand({ focusId: id })
+    await withBusy('正在保存分类…', async () => {
+      await renameComputerNode(id, name)
+      await reloadKeepExpand({ focusId: id })
+    })
     ElMessage.success('已保存')
   } catch (e) {
     if (isPromptCancel(e)) return
@@ -264,8 +284,10 @@ async function onDeleteNode(id: string, name: string) {
       confirmButtonText: '删除',
       cancelButtonText: '取消',
     })
-    await deleteComputerNode(id)
-    await reloadKeepExpand()
+    await withBusy('正在删除分类…', async () => {
+      await deleteComputerNode(id)
+      await reloadKeepExpand()
+    })
     ElMessage.success('已删除')
   } catch (e) {
     if (isPromptCancel(e)) return
@@ -280,8 +302,10 @@ async function onDeleteEntry(entry: ComputerTreeEntry) {
       confirmButtonText: '删除',
       cancelButtonText: '取消',
     })
-    await deleteComputerItem(entry.id)
-    await reloadKeepExpand()
+    await withBusy('正在删除讲义…', async () => {
+      await deleteComputerItem(entry.id)
+      await reloadKeepExpand()
+    })
     ElMessage.success('已删除')
   } catch (e) {
     if (isPromptCancel(e)) return
@@ -294,8 +318,9 @@ function isPromptCancel(e: unknown) {
 }
 
 async function load() {
-  loading.value = true
   error.value = ''
+  if (tree.value.length) busyText.value = '正在刷新目录…'
+  else loading.value = true
   try {
     const next = await loadComputerBasicsTree(true)
     tree.value = next
@@ -304,6 +329,7 @@ async function load() {
     error.value = e instanceof Error ? e.message : '读取目录失败'
   } finally {
     loading.value = false
+    busyText.value = ''
   }
 }
 
@@ -355,7 +381,9 @@ onBeforeUnmount(() => {
         <span>讲义目录</span>
         <span v-if="!loading && !error" class="computer-tree-head__count">{{ entryCount }} 篇</span>
       </div>
-      <p v-if="loading" class="computer-tree__status">正在读取目录…</p>
+      <div v-if="loading && !rows.length" class="computer-busy-panel">
+        <ComputerBusyHint text="正在读取目录…" />
+      </div>
       <p v-else-if="error" class="computer-tree__status computer-tree__status--error">
         {{ error }}
         <el-button size="small" @click="load">重试</el-button>
@@ -466,6 +494,9 @@ onBeforeUnmount(() => {
           </div>
         </li>
       </ul>
+      <div v-if="busyText" class="computer-busy-cover">
+        <ComputerBusyHint :text="busyText" />
+      </div>
     </div>
     <ComputerCategoryMapDialog v-model="mapOpen" :tree="tree" />
   </section>
@@ -527,6 +558,7 @@ onBeforeUnmount(() => {
 }
 
 .computer-tree-card {
+  position: relative;
   flex: 1 1 0;
   min-height: 0;
   max-width: 52rem;
@@ -538,6 +570,24 @@ onBeforeUnmount(() => {
   overflow: hidden;
   background: #fff;
   box-shadow: 0 8px 28px rgb(15 23 42 / 5%);
+}
+
+.computer-busy-panel {
+  flex: 1 1 0;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.computer-busy-cover {
+  position: absolute;
+  inset: 44px 0 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(255 255 255 / 82%);
 }
 
 .computer-tree-head {
