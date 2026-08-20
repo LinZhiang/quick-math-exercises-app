@@ -25,6 +25,7 @@ import {
 import { aiRequestProgressText } from '@/utils/app/aiProviderStore'
 import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
 import { isWenguAdmin, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
+import { logComputerHandoutView } from '@/utils/computer/computerStudyLog'
 import ComputerAskPanel from './ComputerAskPanel.vue'
 import ComputerBusyHint from './ComputerBusyHint.vue'
 import ComputerQuizPanel from './ComputerQuizPanel.vue'
@@ -362,6 +363,11 @@ watch(
       if (seq !== loadSeq) return
       item.value = next
       readyList.value = listReadyComputerEntries(tree)
+      logComputerHandoutView({
+        itemId: next.id,
+        itemTitle: next.title,
+        learningPath: next.learningPath,
+      })
     } catch (e) {
       if (seq !== loadSeq) return
       item.value = null

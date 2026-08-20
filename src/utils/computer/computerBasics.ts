@@ -252,6 +252,79 @@ export async function deleteComputerItem(id: string) {
   clearComputerBasicsCache()
 }
 
+export type ComputerFolderOption = { id: string; label: string }
+
+function collectDescendantIds(node: ComputerTreeNode, out: Set<string> = new Set()): Set<string> {
+  out.add(node.id)
+  for (const child of node.children) collectDescendantIds(child, out)
+  return out
+}
+
+export function listComputerFolderOptions(
+  tree: ComputerTreeNode[],
+  excludeIds: Iterable<string> = [],
+): ComputerFolderOption[] {
+  const skip = new Set(excludeIds)
+  const out: ComputerFolderOption[] = []
+  const walk = (nodes: ComputerTreeNode[], prefix: string[]) => {
+    for (const node of nodes) {
+      const path = [...prefix, node.name]
+      if (!skip.has(node.id)) out.push({ id: node.id, label: path.join(' / ') })
+      walk(node.children, path)
+    }
+  }
+  walk(tree, [])
+  return out
+}
+
+export function computerNodeExcludeSet(tree: ComputerTreeNode[], id: string): Set<string> {
+  const hit = findComputerNode(tree, id)
+  return hit ? collectDescendantIds(hit.node) : new Set([id])
+}
+
+export function findComputerNode(
+  nodes: ComputerTreeNode[],
+  id: string,
+  parent: ComputerTreeNode | null = null,
+): { node: ComputerTreeNode; parent: ComputerTreeNode | null; siblings: ComputerTreeNode[]; index: number } | null {
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i]!
+    if (node.id === id) return { node, parent, siblings: nodes, index: i }
+    const nested = findComputerNode(node.children, id, node)
+    if (nested) return nested
+  }
+  return null
+}
+
+export function findComputerEntry(
+  nodes: ComputerTreeNode[],
+  id: string,
+): { node: ComputerTreeNode; index: number; entry: ComputerTreeEntry } | null {
+  for (const node of nodes) {
+    const index = node.entries.findIndex((e) => e.id === id)
+    if (index >= 0) return { node, index, entry: node.entries[index]! }
+    const nested = findComputerEntry(node.children, id)
+    if (nested) return nested
+  }
+  return null
+}
+
+export async function moveComputerNode(id: string, input: { parentId: string | null; index: number }) {
+  await computerAdminFetch(`/api/computer-basics/nodes/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
+  clearComputerBasicsCache()
+}
+
+export async function moveComputerItem(id: string, input: { parentId: string; index: number }) {
+  await computerAdminFetch(`/api/computer-basics/items/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
+  clearComputerBasicsCache()
+}
+
 export async function loadComputerBasicsTree(force = false): Promise<ComputerTreeNode[]> {
   if (treeCache && !force) return treeCache
   const res = await wenguApiFetch('/api/computer-basics/tree')

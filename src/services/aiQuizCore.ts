@@ -112,7 +112,7 @@ export async function requestComputerHandoutQuiz(input: {
   const system = [
     '你是计算机基础知识命题老师。只根据给定讲义出题，用简体中文。',
     '只输出合法 JSON 数组，不要 markdown 围栏，不要其它说明。',
-    '紧扣讲义考点与易错点；禁止脱离材料胡编。两轮之间也不要重复同一问法。',
+    '少而准：只出讲义里写明的考点，宁缺毋滥。解析必须证明 correct，不允许标答与解析打架。',
   ].join('\n')
   const user = [
     `讲义标题：${input.title}`,
@@ -120,27 +120,50 @@ export async function requestComputerHandoutQuiz(input: {
     input.material.slice(0, 9000),
     '',
     `请出 ${total} 道题，数量：选择题 ${input.counts.choice}，判断题 ${input.counts.judge}（二选一：正确/错误），简答题 ${input.counts.calc}。`,
-    '字段：kind(choice|judge|calc), term(考点短名), stem, options(选择4项/判断2项/简答可空数组), correct(选项原文或正确/错误或简答标准答案), explanation。',
+    '字段：kind(choice|judge|calc), term(考点短名), stem, options(选择题必须 4 项), distractors(可选，3 个干扰项), correct(必须是 options 里某一项的原文；判断题写「正确」或「错误」), explanation。',
+    '【硬性规则·违反则该题作废】',
+    '1. correct 必须写正确选项的全文，禁止写 A/B/C/D 或 1/2/3/4。',
+    '2. 选项顺序随意，程序会打乱；不要把干扰项写成 correct。',
+    '3. 题干、选项、correct、解析必须是同一道题。禁止题干问甲、答案却是乙。',
+    '4. 解析先点明正确答案，再说明其余项为何错；解析支持另一选项即作废。',
+    '5. 考点必须能在讲义中找到原句或等价表述，不要用讲义外的常识硬凑。',
+    '6. 判断题句子必须能从讲义直接判对错，不要模棱两可。',
     avoidHint,
     '仅返回 JSON 数组。',
   ].join('\n')
-  const raw = await deepseekChatRaw(user, {
-    system,
-    temperature: 0.68,
-    maxTokens: 8192,
-    provider: input.provider,
-  })
-  const parsed = parseAiJsonArrayLenient(stripAiJsonFence(raw))
-  const out: import('@/utils/computer/computerHandoutQuiz').ComputerQuizQuestion[] = []
-  const seen = new Set<string>()
-  for (const item of parsed) {
-    const q = parseComputerQuizAiItem(item, { itemId: input.itemId, itemTitle: input.title })
-    if (!q || seen.has(q.fingerprint)) continue
-    seen.add(q.fingerprint)
-    out.push(q)
+  const collect = (parsed: unknown[]) => {
+    const out: import('@/utils/computer/computerHandoutQuiz').ComputerQuizQuestion[] = []
+    const seen = new Set<string>()
+    for (const item of parsed) {
+      const q = parseComputerQuizAiItem(item, { itemId: input.itemId, itemTitle: input.title })
+      if (!q || seen.has(q.fingerprint)) continue
+      seen.add(q.fingerprint)
+      out.push(q)
+    }
+    return out
+  }
+  const ask = async () => {
+    const raw = await deepseekChatRaw(user, {
+      system,
+      temperature: 0.28,
+      maxTokens: 8192,
+      provider: input.provider,
+    })
+    return collect(parseAiJsonArrayLenient(stripAiJsonFence(raw)))
+  }
+  let out = await ask()
+  if (out.length < Math.max(1, Math.ceil(total * 0.6))) {
+    input.onProgress?.('正在去掉不合格题并补出…')
+    const extra = await ask()
+    const seen = new Set(out.map((q) => q.fingerprint))
+    for (const q of extra) {
+      if (seen.has(q.fingerprint)) continue
+      seen.add(q.fingerprint)
+      out.push(q)
+    }
   }
   if (out.length < Math.max(1, Math.ceil(total * 0.6))) {
-    throw new Error(`仅成功生成 ${out.length} 题，请稍后重试`)
+    throw new Error(`仅成功生成 ${out.length} 道合格题，请稍后重试`)
   }
   return out.slice(0, total)
 }

@@ -1,6 +1,6 @@
 /**
  * 计算机基础云端存储（与本机 Node 目录结构对齐）
- * 优先 WENGU_KV；未绑定则用边缘缓存兜底，pages.dev 上也可改讲义。
+ * 读写只走 WENGU_KV；没有 KV 时 GET 读 /cb-data 快照（只读），禁止用边缘缓存当库。
  */
 import { json, requireAdmin } from './wenguCloudAuth.js'
 import { getCbStore, hydrateCbStoreFromAssets, rememberCbStoreOrigin } from './cbStore.js'
@@ -71,7 +71,8 @@ function noStore() {
   return json(
     {
       ok: false,
-      message: '云端暂时无法写入讲义。请稍后重试；若反复失败，在 Cloudflare Pages 绑定 KV：WENGU_KV。',
+      message:
+        '请在本机用 npm run dev:full 增删改讲义（写入 server/data）。云端未绑定 KV 时不会把改动写进缓存，以免点「检查并更新」后目录被快照盖掉。出门预览请重新部署，或绑定 WENGU_KV 后执行 npm run sync:cf-computer。',
     },
     503,
   )
@@ -116,8 +117,7 @@ async function readRawCatalog(env, request) {
   const store = getStore(env)
   if (store) {
     const raw = await store.get(CATALOG_KEY, { type: 'json' })
-    if (raw && typeof raw === 'object') {
-      if (!Array.isArray(raw.tree)) raw.tree = []
+    if (raw && typeof raw === 'object' && Array.isArray(raw.tree)) {
       return raw
     }
   }
@@ -197,10 +197,65 @@ function pathNamesTo(nodes, id, acc = []) {
   return null
 }
 
+function collectNodeIds(node, out = []) {
+  out.push(node.id)
+  for (const child of node.children || []) collectNodeIds(child, out)
+  return out
+}
+
+function clampIndex(index, len) {
+  const n = Number(index)
+  if (!Number.isFinite(n)) return len
+  return Math.max(0, Math.min(Math.round(n), len))
+}
+
+function moveNodeInTree(tree, id, parentId, index) {
+  const hit = findNode(tree, id)
+  if (!hit) return { error: '未找到该分类', status: 404 }
+  const desc = collectNodeIds(hit.node)
+  if (parentId && (parentId === id || desc.includes(parentId))) {
+    return { error: '不能挪到自己或下属分类里', status: 400 }
+  }
+  const fromIdx = hit.siblings.findIndex((n) => n.id === hit.node.id)
+  if (fromIdx < 0) return { error: '目录结构异常', status: 500 }
+  hit.siblings.splice(fromIdx, 1)
+  let dest
+  if (parentId == null || parentId === '') dest = tree
+  else {
+    const p = findNode(tree, parentId)
+    if (!p) {
+      hit.siblings.splice(fromIdx, 0, hit.node)
+      return { error: '未找到目标分类', status: 404 }
+    }
+    dest = p.node.children
+  }
+  dest.splice(clampIndex(index, dest.length), 0, hit.node)
+  return { ok: true, node: hit.node }
+}
+
+function moveEntryInTree(tree, id, parentId, index) {
+  const hit = findEntry(tree, id)
+  if (!hit) return { error: '未找到该讲义', status: 404 }
+  const p = findNode(tree, parentId)
+  if (!p) return { error: '未找到目标分类', status: 404 }
+  const entry = hit.entry
+  hit.node.entries.splice(hit.idx, 1)
+  p.node.entries.splice(clampIndex(index, p.node.entries.length), 0, entry)
+  return { ok: true, entry, parent: p.node }
+}
+
 function collectEntryIds(node, out = []) {
   for (const e of node.entries || []) out.push(e.id)
   for (const child of node.children || []) collectEntryIds(child, out)
   return out
+}
+
+async function rewriteLearningPath(env, request, tree, itemId) {
+  const rec = await readItem(env, itemId, request)
+  if (!rec) return
+  const hit = findEntry(tree, itemId)
+  rec.learningPath = hit ? pathNamesTo(tree, hit.node.id) ?? [hit.node.name] : rec.learningPath
+  await putRecord(env, itemKey(itemId), JSON.stringify({ ...rec, id: itemId }))
 }
 
 async function nextMediaIndex(env, itemId) {
@@ -263,16 +318,7 @@ async function readItem(env, id, request) {
     if (rec && typeof rec === 'object') return rec
   }
   const snap = await readJsonAsset(env, request, `/cb-data/items/${safe}.json`)
-  if (snap && typeof snap === 'object') {
-    if (store) {
-      try {
-        await store.put(itemKey(safe), JSON.stringify({ ...snap, id: safe }))
-      } catch {
-        /* 回写失败仍返回快照 */
-      }
-    }
-    return snap
-  }
+  if (snap && typeof snap === 'object') return snap
   return null
 }
 
@@ -293,14 +339,11 @@ export async function handleComputerBasics(env, request, pathParam) {
     if (method === 'GET' && segs[0] === 'tree' && segs.length === 1) {
       await ensureStore(env, request)
       const raw = await readRawCatalog(env, request)
-      if (Array.isArray(raw.tree) && raw.tree.length) {
-        return json({ ok: true, tree: await applyReadyFlags(env, raw.tree) })
+      const tree = Array.isArray(raw.tree) ? raw.tree : []
+      if (tree.length && getStore(env)) {
+        return json({ ok: true, tree: await applyReadyFlags(env, tree) })
       }
-      const snap = await readJsonAsset(env, request, '/cb-data/catalog.json')
-      if (snap && Array.isArray(snap.tree)) {
-        return json({ ok: true, tree: snap.tree })
-      }
-      return json({ ok: true, tree: [] })
+      return json({ ok: true, tree })
     }
 
     if (method === 'GET' && segs[0] === 'items' && segs.length === 2) {
@@ -415,9 +458,25 @@ async function handleRenameNode(env, request, id) {
   if (gate.error) return gate.error
   if (!(await ensureStore(env, request))) return noStore()
   const body = await request.json().catch(() => ({}))
+  const catalog = await readRawCatalog(env, request)
+  const moving = Object.prototype.hasOwnProperty.call(body, 'parentId') || body.index != null
+  if (moving) {
+    const parentId = body.parentId == null || body.parentId === '' ? null : String(body.parentId)
+    const moved = moveNodeInTree(catalog.tree, String(id), parentId, body.index)
+    if (moved.error) return json({ ok: false, message: moved.error }, moved.status || 400)
+    if (body.name != null) {
+      const name = sanitizeName(body.name)
+      if (!name) return json({ ok: false, message: '名称不能为空（最多 80 字）' }, 400)
+      moved.node.name = name
+    }
+    await writeCatalog(env, catalog.tree)
+    for (const entryId of collectEntryIds(moved.node)) {
+      await rewriteLearningPath(env, request, catalog.tree, entryId)
+    }
+    return json({ ok: true, node: moved.node })
+  }
   const name = sanitizeName(body.name)
   if (!name) return json({ ok: false, message: '名称不能为空（最多 80 字）' }, 400)
-  const catalog = await readRawCatalog(env, request)
   const hit = findNode(catalog.tree, String(id))
   if (!hit) return json({ ok: false, message: '未找到该分类' }, 404)
   hit.node.name = name
@@ -477,6 +536,22 @@ async function handlePatchItem(env, request, idRaw) {
   const current = await readItem(env, id, request)
   if (!current) return json({ ok: false, message: '未找到该讲义' }, 404)
   const body = await request.json().catch(() => ({}))
+  const moving = Object.prototype.hasOwnProperty.call(body, 'parentId') || body.index != null
+  if (moving && body.parentId) {
+    const catalog = await readRawCatalog(env, request)
+    const moved = moveEntryInTree(catalog.tree, id, String(body.parentId), body.index)
+    if (moved.error) return json({ ok: false, message: moved.error }, moved.status || 400)
+    if (body.title != null) {
+      const title = sanitizeName(body.title)
+      if (!title) return json({ ok: false, message: '标题不能为空（最多 80 字）' }, 400)
+      moved.entry.title = title
+    }
+    await writeCatalog(env, catalog.tree)
+    await rewriteLearningPath(env, request, catalog.tree, id)
+    const item = await readItem(env, id, request)
+    if (!item) return json({ ok: false, message: '未找到该讲义' }, 404)
+    return json({ ok: true, item })
+  }
   const title = body.title == null ? current.title : sanitizeName(body.title)
   if (!title) return json({ ok: false, message: '标题不能为空（最多 80 字）' }, 400)
   const content =

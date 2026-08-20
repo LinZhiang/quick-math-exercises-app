@@ -1,20 +1,26 @@
 <!--
   计算机基础：左侧树（仅三角折叠）+ 讲义详情。
-  云端数据见 functions/api/computer-basics；本地缓存 public/cb-data/。
+  云端只读 Node 构建出的快照；增删改只写 server/data/computer-basics。
 -->
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowRight, Collection, Delete, Document, Folder, FolderOpened, MoreFilled, Plus, Share } from '@element-plus/icons-vue'
+import { ArrowRight, Collection, Document, Folder, FolderOpened, MoreFilled, Notebook, Plus, Share } from '@element-plus/icons-vue'
 import {
   createComputerItem,
   createComputerNode,
   defaultExpandedComputerIds,
   deleteComputerItem,
   deleteComputerNode,
+  findComputerEntry,
+  findComputerNode,
   flattenVisibleComputerRows,
+  listComputerFolderOptions,
   loadComputerBasicsTree,
+  computerNodeExcludeSet,
+  moveComputerItem,
+  moveComputerNode,
   renameComputerNode,
   type ComputerTreeEntry,
   type ComputerTreeNode,
@@ -23,6 +29,7 @@ import { isWenguAdmin, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 import ComputerBusyHint from './ComputerBusyHint.vue'
 import ComputerCategoryMapDialog from './ComputerCategoryMapDialog.vue'
 import ComputerQuizBookPanel from './ComputerQuizBookPanel.vue'
+import ComputerStudyLogPanel from './ComputerStudyLogPanel.vue'
 
 const router = useRouter()
 const tree = ref<ComputerTreeNode[]>([])
@@ -32,9 +39,12 @@ const error = ref('')
 const expanded = ref<Record<string, boolean>>({})
 const mapOpen = ref(false)
 const bookOpen = ref(false)
+const logOpen = ref(false)
 const adminOpenId = ref('')
 const flashId = ref('')
 const busyText = ref('')
+const movePickId = ref('')
+const moveTargetId = ref('')
 let flashTimer = 0
 
 const isAdmin = computed(() => {
@@ -130,6 +140,8 @@ function toggle(id: string, expandable: boolean) {
 function toggleAdmin(id: string) {
   const opening = adminOpenId.value !== id
   adminOpenId.value = opening ? id : ''
+  movePickId.value = ''
+  moveTargetId.value = ''
   if (opening) afterLayout(() => scrollRowIntoView(id, 'menu'))
 }
 
@@ -138,6 +150,7 @@ function onTreePointerDown(e: PointerEvent) {
   if (target?.closest('.computer-tree__more')) return
   if (target?.closest('.computer-tree__line.is-admin-open')) return
   adminOpenId.value = ''
+  movePickId.value = ''
 }
 
 function insertNode(
@@ -163,6 +176,16 @@ function insertEntry(
     if (n.id === parentId) return { ...n, entries: [...n.entries, entry] }
     return { ...n, children: insertEntry(n.children, parentId, entry) }
   })
+}
+
+function toggleBook() {
+  bookOpen.value = !bookOpen.value
+  if (bookOpen.value) logOpen.value = false
+}
+
+function toggleLog() {
+  logOpen.value = !logOpen.value
+  if (logOpen.value) bookOpen.value = false
 }
 
 function openEntry(entry: ComputerTreeEntry, edit = false) {
@@ -317,6 +340,90 @@ function isPromptCancel(e: unknown) {
   return e === 'cancel' || e === 'close' || (typeof e === 'string' && e.toLowerCase().includes('cancel'))
 }
 
+function startMove(id: string) {
+  movePickId.value = movePickId.value === id ? '' : id
+  moveTargetId.value = ''
+  afterLayout(() => scrollRowIntoView(id, 'menu'))
+}
+
+function folderOptionsFor(rowId: string, kind: 'branch' | 'entry') {
+  const exclude = kind === 'branch' ? computerNodeExcludeSet(tree.value, rowId) : new Set<string>()
+  return listComputerFolderOptions(tree.value, exclude)
+}
+
+async function onMoveNode(id: string, delta: number) {
+  const pos = findComputerNode(tree.value, id)
+  if (!pos) return
+  const next = pos.index + delta
+  if (next < 0 || next >= pos.siblings.length) {
+    ElMessage.info(delta < 0 ? '已经在最上面' : '已经在最下面')
+    return
+  }
+  const parentId = pos.parent?.id ?? null
+  try {
+    await withBusy('正在调整位置…', async () => {
+      await moveComputerNode(id, { parentId, index: next })
+      if (parentId) expanded.value = { ...expanded.value, [parentId]: true }
+      await reloadKeepExpand({ focusId: id, parentId })
+    })
+    ElMessage.success('已调整顺序')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '移动失败')
+  }
+}
+
+async function onMoveEntry(id: string, delta: number) {
+  const pos = findComputerEntry(tree.value, id)
+  if (!pos) return
+  const next = pos.index + delta
+  if (next < 0 || next >= pos.node.entries.length) {
+    ElMessage.info(delta < 0 ? '已经在最上面' : '已经在最下面')
+    return
+  }
+  try {
+    await withBusy('正在调整位置…', async () => {
+      await moveComputerItem(id, { parentId: pos.node.id, index: next })
+      expanded.value = { ...expanded.value, [pos.node.id]: true }
+      await reloadKeepExpand({ focusId: id, parentId: pos.node.id })
+    })
+    ElMessage.success('已调整顺序')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '移动失败')
+  }
+}
+
+async function confirmMove(rowId: string, kind: 'branch' | 'entry') {
+  const target = moveTargetId.value
+  if (!target) {
+    ElMessage.warning('请先选择要挪到的分类')
+    return
+  }
+  try {
+    await withBusy('正在移动…', async () => {
+      if (kind === 'branch') {
+        const parentId = target === '__root__' ? null : target
+        const destLen =
+          parentId == null
+            ? tree.value.length
+            : (findComputerNode(tree.value, parentId)?.node.children.length ?? 0)
+        await moveComputerNode(rowId, { parentId, index: destLen })
+        if (parentId) expanded.value = { ...expanded.value, [parentId]: true }
+        await reloadKeepExpand({ focusId: rowId, parentId })
+      } else {
+        const dest = findComputerNode(tree.value, target)
+        await moveComputerItem(rowId, { parentId: target, index: dest?.node.entries.length ?? 0 })
+        expanded.value = { ...expanded.value, [target]: true }
+        await reloadKeepExpand({ focusId: rowId, parentId: target })
+      }
+    })
+    movePickId.value = ''
+    moveTargetId.value = ''
+    ElMessage.success('已挪到新位置')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '移动失败')
+  }
+}
+
 async function load() {
   error.value = ''
   if (tree.value.length) busyText.value = '正在刷新目录…'
@@ -348,16 +455,25 @@ onBeforeUnmount(() => {
       <div class="computer-page__title-row">
         <h2 class="computer-page__title">计算机基础</h2>
         <div class="computer-page__head-actions">
-          <el-button-group>
+          <el-button-group class="computer-page__nav-btns">
             <el-button size="small" :icon="Share" title="查看知识分布" @click="mapOpen = true">分布</el-button>
             <el-button
               size="small"
               :icon="Collection"
               :type="bookOpen ? 'primary' : 'default'"
-              :title="bookOpen ? '返回目录' : 'AI 题目整理'"
-              @click="bookOpen = !bookOpen"
+              title="AI 题目整理"
+              @click="toggleBook"
             >
-              {{ bookOpen ? '目录' : '题目' }}
+              题目
+            </el-button>
+            <el-button
+              size="small"
+              :icon="Notebook"
+              :type="logOpen ? 'primary' : 'default'"
+              title="学习日志"
+              @click="toggleLog"
+            >
+              日志
             </el-button>
           </el-button-group>
           <el-tooltip v-if="isAdmin" content="新增大类" placement="top">
@@ -366,7 +482,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <p class="computer-page__lead">
-        分类是树形结构，大类下可叠多层小类。讲义保存在云端，手机登录管理员即可改。
+        分类是树形结构，大类下可叠多层小类。增删改只写本机 Node，点「检查并更新」不会丢掉目录。
       </p>
     </header>
 
@@ -374,6 +490,12 @@ onBeforeUnmount(() => {
       <div class="computer-tree-head">AI 题目整理</div>
       <div class="computer-book-wrap">
         <ComputerQuizBookPanel />
+      </div>
+    </div>
+    <div v-else-if="logOpen" class="computer-tree-card">
+      <div class="computer-tree-head">学习日志</div>
+      <div class="computer-book-wrap">
+        <ComputerStudyLogPanel />
       </div>
     </div>
     <div v-else class="computer-tree-card">
@@ -479,17 +601,38 @@ onBeforeUnmount(() => {
                 <el-icon :size="16"><MoreFilled /></el-icon>
               </button>
             </div>
-            <div v-if="isAdmin" class="computer-tree__admin" :class="{ 'is-open': adminOpenId === row.id }">
+            <div v-if="isAdmin" class="computer-tree__admin" :class="{ 'is-open': adminOpenId === row.id }" @pointerdown.stop>
               <template v-if="row.kind === 'branch'">
                 <button type="button" class="computer-tree__icon" @click.stop="onAddChild(row.id)">小类</button>
                 <button type="button" class="computer-tree__icon" @click.stop="onAddItem(row.id)">讲义</button>
                 <button type="button" class="computer-tree__icon" @click.stop="onRenameNode(row.id, row.name)">改名</button>
+                <button type="button" class="computer-tree__icon" @click.stop="startMove(row.id)">挪到</button>
+                <button type="button" class="computer-tree__icon" @click.stop="onMoveNode(row.id, -1)">上移</button>
+                <button type="button" class="computer-tree__icon" @click.stop="onMoveNode(row.id, 1)">下移</button>
                 <button type="button" class="computer-tree__icon is-danger" @click.stop="onDeleteNode(row.id, row.name)">删除</button>
               </template>
               <template v-else>
                 <button type="button" class="computer-tree__icon" @click.stop="openEntry(row.entry, true)">编辑</button>
+                <button type="button" class="computer-tree__icon" @click.stop="startMove(row.id)">挪到</button>
+                <button type="button" class="computer-tree__icon" @click.stop="onMoveEntry(row.id, -1)">上移</button>
+                <button type="button" class="computer-tree__icon" @click.stop="onMoveEntry(row.id, 1)">下移</button>
                 <button type="button" class="computer-tree__icon is-danger" @click.stop="onDeleteEntry(row.entry)">删除</button>
               </template>
+              <div v-if="movePickId === row.id" class="computer-tree__move" @pointerdown.stop>
+                <el-select v-model="moveTargetId" size="small" filterable placeholder="选择目标分类" :teleported="false">
+                  <el-option v-if="row.kind === 'branch'" label="顶层（作为大类）" value="__root__" />
+                  <el-option
+                    v-for="opt in folderOptionsFor(row.id, row.kind === 'branch' ? 'branch' : 'entry')"
+                    :key="opt.id"
+                    :label="opt.label"
+                    :value="opt.id"
+                  />
+                </el-select>
+                <el-button size="small" type="primary" @click.stop="confirmMove(row.id, row.kind === 'branch' ? 'branch' : 'entry')">
+                  确定
+                </el-button>
+                <el-button size="small" @click.stop="movePickId = ''">取消</el-button>
+              </div>
             </div>
           </div>
         </li>
@@ -519,7 +662,7 @@ onBeforeUnmount(() => {
 
 .computer-page__title-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px 12px;
   margin-bottom: 6px;
@@ -529,18 +672,36 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-end;
   gap: 8px;
 }
 
-.computer-page__head-actions :deep(.el-button-group) {
+.computer-page__nav-btns {
   display: inline-flex;
-  flex-wrap: nowrap;
+  flex-direction: column;
 }
 
-.computer-page__head-actions :deep(.el-button) {
+.computer-page__nav-btns :deep(.el-button) {
   margin: 0;
+  width: 4.75rem;
+}
+
+.computer-page__nav-btns :deep(.el-button + .el-button) {
+  margin-left: 0;
+  margin-top: -1px;
+}
+
+.computer-page__nav-btns :deep(.el-button:first-child) {
+  border-radius: 8px 8px 0 0;
+}
+
+.computer-page__nav-btns :deep(.el-button:last-child) {
+  border-radius: 0 0 8px 8px;
+}
+
+.computer-page__nav-btns :deep(.el-button:not(:first-child):not(:last-child)) {
+  border-radius: 0;
 }
 
 .computer-page__title {
@@ -797,6 +958,19 @@ onBeforeUnmount(() => {
   display: grid;
 }
 
+.computer-tree__move {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.computer-tree__move :deep(.el-select) {
+  flex: 1 1 11rem;
+  min-width: 0;
+}
+
 .computer-tree__name {
   font-weight: 700;
   line-height: 1.35;
@@ -868,6 +1042,7 @@ onBeforeUnmount(() => {
 }
 
 .computer-tree__icon.is-danger {
+  grid-column: 1 / -1;
   color: var(--app-danger);
 }
 
