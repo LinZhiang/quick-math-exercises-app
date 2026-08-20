@@ -13,6 +13,7 @@ const CATALOG_FILE = path.join(ROOT, 'catalog.json')
 const ITEMS_DIR = path.join(ROOT, 'items')
 const MEDIA_DIR = path.join(ROOT, 'media')
 const SEED_FILE = path.join(__dirname, 'seeds', 'computer-overview.json')
+const PUBLIC_MIRROR = path.join(__dirname, '..', 'public', 'cb-data')
 
 const MIME_TO_EXT = {
   jpeg: 'jpg',
@@ -128,6 +129,7 @@ function seedFromFrontendJson() {
     seededAt: new Date().toISOString(),
   }
   fs.writeFileSync(CATALOG_FILE, `${JSON.stringify(catalog, null, 2)}\n`, 'utf8')
+  mirrorToPublic()
   // eslint-disable-next-line no-console
   console.log(
     `[computer-basics] 已从种子入库：${Object.keys(items).length} 条讲义，${imageCount} 张插图 → ${ROOT}`,
@@ -185,6 +187,18 @@ function writeCatalog(tree) {
     `${JSON.stringify({ ...prev, tree, updatedAt: new Date().toISOString() }, null, 2)}\n`,
     'utf8',
   )
+  mirrorToPublic()
+}
+
+/** 构建/pages.dev 只读这份快照；不要反过来覆盖 Node 目录。 */
+function mirrorToPublic() {
+  try {
+    if (!fs.existsSync(CATALOG_FILE)) return
+    fs.mkdirSync(PUBLIC_MIRROR, { recursive: true })
+    fs.cpSync(ROOT, PUBLIC_MIRROR, { recursive: true })
+  } catch (e) {
+    console.warn('[computer-basics] 同步 public/cb-data 失败：', e instanceof Error ? e.message : e)
+  }
 }
 
 function newId(prefix) {
@@ -231,6 +245,61 @@ function collectEntryIds(node, out = []) {
   for (const e of node.entries || []) out.push(e.id)
   for (const child of node.children || []) collectEntryIds(child, out)
   return out
+}
+
+function collectNodeIds(node, out = []) {
+  out.push(node.id)
+  for (const child of node.children || []) collectNodeIds(child, out)
+  return out
+}
+
+function clampIndex(index, len) {
+  const n = Number(index)
+  if (!Number.isFinite(n)) return len
+  return Math.max(0, Math.min(Math.round(n), len))
+}
+
+function moveNodeInTree(tree, id, parentId, index) {
+  const hit = findNode(tree, id)
+  if (!hit) return { error: '未找到该分类', status: 404 }
+  const desc = collectNodeIds(hit.node)
+  if (parentId && (parentId === id || desc.includes(parentId))) {
+    return { error: '不能挪到自己或下属分类里', status: 400 }
+  }
+  const fromIdx = hit.siblings.findIndex((n) => n.id === hit.node.id)
+  if (fromIdx < 0) return { error: '目录结构异常', status: 500 }
+  hit.siblings.splice(fromIdx, 1)
+  let dest
+  if (parentId == null || parentId === '') dest = tree
+  else {
+    const p = findNode(tree, parentId)
+    if (!p) {
+      hit.siblings.splice(fromIdx, 0, hit.node)
+      return { error: '未找到目标分类', status: 404 }
+    }
+    dest = p.node.children
+  }
+  dest.splice(clampIndex(index, dest.length), 0, hit.node)
+  return { ok: true, node: hit.node }
+}
+
+function moveEntryInTree(tree, id, parentId, index) {
+  const hit = findEntry(tree, id)
+  if (!hit) return { error: '未找到该讲义', status: 404 }
+  const p = findNode(tree, parentId)
+  if (!p) return { error: '未找到目标分类', status: 404 }
+  const entry = hit.entry
+  hit.node.entries.splice(hit.idx, 1)
+  p.node.entries.splice(clampIndex(index, p.node.entries.length), 0, entry)
+  return { ok: true, entry, parent: p.node }
+}
+
+function rewriteLearningPath(tree, itemId) {
+  const rec = readComputerBasicsItem(itemId)
+  if (!rec) return
+  const hit = findEntry(tree, itemId)
+  rec.learningPath = hit ? pathNamesTo(tree, hit.node.id) ?? [hit.node.name] : rec.learningPath
+  fs.writeFileSync(itemFile(itemId), `${JSON.stringify({ ...rec, id: itemId }, null, 2)}\n`, 'utf8')
 }
 
 function deleteItemFiles(id) {
@@ -437,12 +506,34 @@ export function attachComputerBasicsRoutes(app) {
 
   app.patch('/api/computer-basics/nodes/:id', requireAdmin, (req, res) => {
     try {
-      const name = sanitizeName(req.body?.name)
+      const catalog = readRawCatalog()
+      const body = req.body || {}
+      const moving = Object.prototype.hasOwnProperty.call(body, 'parentId') || body.index != null
+      if (moving) {
+        const parentId = body.parentId == null || body.parentId === '' ? null : String(body.parentId)
+        const moved = moveNodeInTree(catalog.tree, String(req.params.id), parentId, body.index)
+        if (moved.error) {
+          res.status(moved.status || 400).json({ ok: false, message: moved.error })
+          return
+        }
+        if (body.name != null) {
+          const name = sanitizeName(body.name)
+          if (!name) {
+            res.status(400).json({ ok: false, message: '名称不能为空（最多 80 字）' })
+            return
+          }
+          moved.node.name = name
+        }
+        writeCatalog(catalog.tree)
+        for (const entryId of collectEntryIds(moved.node)) rewriteLearningPath(catalog.tree, entryId)
+        res.json({ ok: true, node: moved.node })
+        return
+      }
+      const name = sanitizeName(body.name)
       if (!name) {
         res.status(400).json({ ok: false, message: '名称不能为空（最多 80 字）' })
         return
       }
-      const catalog = readRawCatalog()
       const hit = findNode(catalog.tree, String(req.params.id))
       if (!hit) {
         res.status(404).json({ ok: false, message: '未找到该分类' })
@@ -522,18 +613,41 @@ export function attachComputerBasicsRoutes(app) {
         res.status(404).json({ ok: false, message: '未找到该讲义' })
         return
       }
-      const title = req.body?.title == null ? current.title : sanitizeName(req.body.title)
+      const body = req.body || {}
+      const moving = Object.prototype.hasOwnProperty.call(body, 'parentId') || body.index != null
+      if (moving && body.parentId) {
+        const catalog = readRawCatalog()
+        const moved = moveEntryInTree(catalog.tree, id, String(body.parentId), body.index)
+        if (moved.error) {
+          res.status(moved.status || 400).json({ ok: false, message: moved.error })
+          return
+        }
+        if (body.title != null) {
+          const title = sanitizeName(body.title)
+          if (!title) {
+            res.status(400).json({ ok: false, message: '标题不能为空（最多 80 字）' })
+            return
+          }
+          moved.entry.title = title
+        }
+        writeCatalog(catalog.tree)
+        rewriteLearningPath(catalog.tree, id)
+        const item = readComputerBasicsItem(id)
+        res.json({ ok: true, item })
+        return
+      }
+      const title = body.title == null ? current.title : sanitizeName(body.title)
       if (!title) {
         res.status(400).json({ ok: false, message: '标题不能为空（最多 80 字）' })
         return
       }
       const content =
-        req.body?.content == null ? current.content : extractDataImages(String(req.body.content), id)
+        body.content == null ? current.content : extractDataImages(String(body.content), id)
       const item = {
         ...current,
         title,
         content,
-        tags: Array.isArray(req.body?.tags) ? req.body.tags.map(String) : current.tags,
+        tags: Array.isArray(body.tags) ? body.tags.map(String) : current.tags,
       }
       fs.writeFileSync(itemFile(id), `${JSON.stringify(item, null, 2)}\n`, 'utf8')
       const catalog = readRawCatalog()

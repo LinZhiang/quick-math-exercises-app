@@ -75,7 +75,7 @@ function onStart() {
     </header>
 
     <template v-if="test.phase === 'idle'">
-      <p class="cb-quiz__hint">根据当前讲义考点出题。两轮尽量不重复。模型可选豆包或 DeepSeek。</p>
+      <p class="cb-quiz__hint">按当前讲义出少量题（默认 2 道选择 + 1 道判断）。标答以讲义为准，选项每次打乱。</p>
       <div class="cb-quiz__switch">
         <span>模型</span>
         <el-radio-group v-model="quizProvider" size="small">
@@ -84,9 +84,9 @@ function onStart() {
         </el-radio-group>
       </div>
       <div class="cb-quiz__counts">
-        <label>选择题 <el-input-number v-model="test.counts.choice" :min="0" :max="20" size="small" /></label>
-        <label>判断题 <el-input-number v-model="test.counts.judge" :min="0" :max="20" size="small" /></label>
-        <label>简答题 <el-input-number v-model="test.counts.calc" :min="0" :max="20" size="small" /></label>
+        <label>选择题 <el-input-number v-model="test.counts.choice" :min="0" :max="8" size="small" /></label>
+        <label>判断题 <el-input-number v-model="test.counts.judge" :min="0" :max="6" size="small" /></label>
+        <label>简答题 <el-input-number v-model="test.counts.calc" :min="0" :max="4" size="small" /></label>
       </div>
       <p v-if="!aiReady" class="cb-quiz__warn">{{ DEEPSEEK_NOT_CONFIGURED_HINT }}</p>
       <el-button type="primary" :disabled="!aiReady" @click="onStart">开始测验</el-button>

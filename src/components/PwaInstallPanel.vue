@@ -4,7 +4,6 @@ import { ElMessage } from 'element-plus'
 import { usePwaInstall } from '@/composables/app/usePwaInstall'
 import DeepseekApiAuthPanel from '@/components/DeepseekApiAuthPanel.vue'
 import JsonTransferButtons from '@/components/JsonTransferButtons.vue'
-import { clearComputerBasicsCache, loadComputerBasicsTree } from '@/utils/computer/computerBasics'
 import { showAppUpdatingMask, hideAppUpdatingMask } from '@/utils/app/appUpdateMask'
 import {
   applyPullToRefreshPreference,
@@ -50,15 +49,9 @@ async function updateAppContent() {
   updatingApp.value = true
   showAppUpdatingMask()
   try {
-    clearComputerBasicsCache()
-    try {
-      await loadComputerBasicsTree(true)
-    } catch {
-      /* 离线时仍继续清缓存刷新前端 */
-    }
     if ('caches' in window) {
       const keys = await caches.keys()
-      await Promise.all(keys.map((k) => caches.delete(k)))
+      await Promise.all(keys.filter((k) => k.startsWith('quick-math')).map((k) => caches.delete(k)))
     }
     const reg = await navigator.serviceWorker?.getRegistration()
     await reg?.update()
@@ -103,7 +96,7 @@ async function updateAppContent() {
     <div class="install-card">
       <p class="install-card__title">更新 App 内容</p>
       <p class="install-card__text">
-        拉取最新页面与计算机基础目录。有网时点一次即可；更新时会短暂提示「正在更新」，请稍候，不是卡住了。
+        只刷新页面和脚本，不会改、也不会清空计算机基础目录。有网时点一次即可；更新时会短暂提示「正在更新」。
       </p>
       <el-button :loading="updatingApp" @click="updateAppContent">检查并更新</el-button>
     </div>

@@ -90,6 +90,7 @@ const TRAIN_EXTRA_KEYS: string[] = [
   'fact-explanation-overrides-v1',
   'fact-deepen-group-stats-v1',
   'mental-math-strategy-guide-notes-v1',
+  'computer-study-log-v1',
   // 生成去重历史
   'chinese-generated-history-idiom-v1',
   'chinese-generated-history-word-memorization-v1',

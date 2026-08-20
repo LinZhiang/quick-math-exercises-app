@@ -18,6 +18,7 @@ import {
 import { createChineseWrongBookGate } from '@/utils/chinese/chineseWrongBookGate'
 import { getAiProvider, setAiProvider, type AiProvider } from '@/utils/app/aiProviderStore'
 import { stripHandoutImagesForAi, type ComputerHandoutItem } from '@/utils/computer/computerBasics'
+import { logComputerQuizSession } from '@/utils/computer/computerStudyLog'
 
 export type ComputerQuizPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -34,6 +35,9 @@ export function useComputerHandoutQuiz() {
     { unitIndex: number; correct: boolean; question: ComputerQuizQuestion; chosen: string }[]
   >([])
   const carelessMarked = ref(false)
+  const quizStartedAt = ref(0)
+  let loggedSession = false
+  let quizItem: ComputerHandoutItem | null = null
   const wrongGate = createChineseWrongBookGate(upsertComputerQuizWrong)
 
   const currentQuestion = computed(() => questions.value[currentIndex.value] ?? null)
@@ -51,6 +55,9 @@ export function useComputerHandoutQuiz() {
     results.value = []
     carelessMarked.value = false
     wrongGate.clearWrongGate()
+    quizStartedAt.value = 0
+    loggedSession = false
+    quizItem = null
   }
 
   async function generateAndStart(item: ComputerHandoutItem, provider: AiProvider) {
@@ -65,6 +72,7 @@ export function useComputerHandoutQuiz() {
     }
     counts.value = nextCounts
     setAiProvider(provider)
+    quizItem = item
     phase.value = 'loading'
     loadingMessage.value = '正在根据讲义出题…'
     try {
@@ -91,6 +99,8 @@ export function useComputerHandoutQuiz() {
       results.value = []
       carelessMarked.value = false
       wrongGate.clearWrongGate()
+      quizStartedAt.value = Date.now()
+      loggedSession = false
       phase.value = 'running'
       ElMessage.success(`已生成 ${generated.length} 道题`)
     } catch (e) {
@@ -143,6 +153,18 @@ export function useComputerHandoutQuiz() {
     }
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
+      if (!loggedSession && results.value.length) {
+        const first = questions.value[0]
+        logComputerQuizSession({
+          itemId: quizItem?.id || first?.itemId || '',
+          itemTitle: quizItem?.title || first?.itemTitle || '计算机基础测验',
+          learningPath: quizItem?.learningPath,
+          correctCount: results.value.filter((r) => r.correct).length,
+          totalCount: results.value.length,
+          durationMs: quizStartedAt.value ? Date.now() - quizStartedAt.value : undefined,
+        })
+        loggedSession = true
+      }
       phase.value = 'summary'
       return
     }
