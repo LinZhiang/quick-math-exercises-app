@@ -17,10 +17,21 @@ import { wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 import type { ComputerHandoutItem } from '@/utils/computer/computerBasics'
 import { stripHandoutImagesForAi } from '@/utils/computer/computerBasics'
 
-const STORAGE_KEY = 'qmea-computer-ask-layout-v2'
+export type ComputerAskQuestionContext = {
+  fingerprint: string
+  kindLabel: string
+  stem: string
+  options: string[]
+  chosen: string
+  correctText: string
+  explanation: string
+  correct: boolean
+}
+
+const STORAGE_KEY = 'qmea-computer-ask-layout-v3'
 const DRAG_THRESHOLD_PX = 8
 const MIN_PANEL_W = 260
-const MIN_PANEL_H = 200
+const MIN_PANEL_H = 140
 const RESIZE_DIRS = ['n', 's'] as const
 
 type ResizeDir = (typeof RESIZE_DIRS)[number]
@@ -35,9 +46,17 @@ type SavedLayout = {
   panelH?: number
 }
 
-const props = defineProps<{
-  item: ComputerHandoutItem
-}>()
+const props = withDefaults(
+  defineProps<{
+    item: ComputerHandoutItem
+    question?: ComputerAskQuestionContext | null
+    askEnabled?: boolean
+  }>(),
+  {
+    question: null,
+    askEnabled: true,
+  },
+)
 
 const { isCompactLayout } = useTouchPrimaryDevice()
 
@@ -60,7 +79,11 @@ const tabDockedRight = computed(() => {
   return size.w > 0 && tabPos.x + tabW >= size.w - 6
 })
 
-const contextKey = computed(() => `computer-handout:${props.item.id}`)
+const contextKey = computed(() =>
+  props.question
+    ? `computer-quiz-q:${props.question.fingerprint}`
+    : `computer-handout:${props.item.id}`,
+)
 const {
   loading,
   error,
@@ -110,7 +133,38 @@ const panelStyle = computed(() =>
     : undefined,
 )
 
+const canAsk = computed(() => props.askEnabled !== false)
+
+function stripAskHtml(s: string) {
+  return String(s || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 const systemPrompt = computed(() => {
+  const q = props.question
+  if (q) {
+    const opts = q.options
+      .map((opt, i) => `${i + 1}. ${stripAskHtml(opt)}`)
+      .filter((line) => line.replace(/^\d+\.\s*/, ''))
+      .join('\n')
+    return [
+      '你是计算机基础知识助教。学员已经答完当前这道测验题，提问必须紧扣这道题。',
+      '用简体中文、Markdown 作答：解释对错原因、易混概念、和正确答案的对应关系。不要另出新题，不要扯到无关章节。',
+      '',
+      `来源：${props.item.title}`,
+      `题型：${q.kindLabel}`,
+      `题干：${stripAskHtml(q.stem)}`,
+      opts ? `选项：\n${opts}` : '',
+      `学员作答：${stripAskHtml(q.chosen) || '（未记录）'}`,
+      `对错：${q.correct ? '正确' : '错误'}`,
+      `正确答案：${stripAskHtml(q.correctText)}`,
+      q.explanation ? `解析：${stripAskHtml(q.explanation)}` : '',
+    ]
+      .filter((line) => line !== '')
+      .join('\n')
+  }
   const material = stripHandoutImagesForAi(props.item.content)
   return [
     '你是计算机基础知识助教。学员提问必须紧扣当前讲义，用简体中文、Markdown 作答。',
@@ -160,8 +214,8 @@ function defaultPanelBox() {
   const compact = isCompactLayout.value
   const width = Math.max(MIN_PANEL_W, w - pad * 2)
   const height = compact
-    ? clamp(Math.round(h * 0.36), MIN_PANEL_H, Math.min(300, h - pad * 2))
-    : clamp(Math.round(h * 0.32), MIN_PANEL_H, Math.min(340, h - pad * 2))
+    ? clamp(156, MIN_PANEL_H, Math.min(180, h - pad * 2))
+    : clamp(168, MIN_PANEL_H, Math.min(200, h - pad * 2))
   return {
     x: pad,
     y: Math.max(pad, h - pad - height),
@@ -309,7 +363,13 @@ function endDrag(ev: PointerEvent) {
   window.removeEventListener('pointerup', endDrag)
   window.removeEventListener('pointercancel', endDrag)
   persist()
-  if (kind === 'tab' && !moved) panelOpen.value = true
+  if (kind === 'tab' && !moved) {
+    if (props.question && !canAsk.value) {
+      ElMessage.info('本题答完后才能针对这道题提问')
+      return
+    }
+    panelOpen.value = true
+  }
 }
 
 function beginDrag(kind: DragKind, ev: PointerEvent) {
@@ -347,6 +407,10 @@ async function ask() {
     ElMessage.warning('请先输入问题')
     return
   }
+  if (props.question && !canAsk.value) {
+    ElMessage.info('本题答完后才能针对这道题提问')
+    return
+  }
   if (!aiReady.value) {
     ElMessage.warning(DEEPSEEK_NOT_CONFIGURED_HINT)
     return
@@ -373,6 +437,21 @@ async function ask() {
     ElMessage.error(e instanceof Error ? e.message : '提问失败')
   }
 }
+
+watch(
+  () => props.question?.fingerprint,
+  () => {
+    panelOpen.value = false
+    panelFullscreen.value = false
+  },
+)
+
+watch(canAsk, (ok) => {
+  if (!ok) {
+    panelOpen.value = false
+    panelFullscreen.value = false
+  }
+})
 
 watch(panelOpen, async (open) => {
   if (!open) {
@@ -419,14 +498,18 @@ onBeforeUnmount(() => {
       ref="tabRef"
       type="button"
       class="computer-ask-tab"
-      :class="{ 'is-docked-right': tabDockedRight, 'is-placed': tabPlaced }"
+      :class="{
+        'is-placed': tabPlaced,
+        'is-docked-right': tabDockedRight,
+        'is-locked': Boolean(question) && !canAsk,
+      }"
       :style="tabStyle"
       :aria-label="`打开 ${providerName} 询问，可拖动`"
       @pointerdown="beginDrag('tab', $event)"
     >
       <span class="computer-ask-tab__ring" aria-hidden="true" />
       <span class="computer-ask-tab__dot" aria-hidden="true" />
-      <span class="computer-ask-tab__text">问 AI</span>
+      <span class="computer-ask-tab__text">{{ question ? '问本题' : '问 AI' }}</span>
       <span v-if="badge" class="computer-ask-tab__badge">{{ badge > 9 ? '9+' : badge }}</span>
     </button>
 
@@ -456,7 +539,9 @@ onBeforeUnmount(() => {
         @pointerdown="beginDrag('panel', $event)"
       >
         <span class="computer-ask__grip" aria-hidden="true" />
-        <span class="computer-ask__title">问 AI · {{ providerName }}</span>
+        <span class="computer-ask__title">{{
+          question ? `问本题 · ${providerName}` : `问 AI · ${providerName}`
+        }}</span>
         <button type="button" class="computer-ask__toggle-act" @click.stop="toggleFullscreen">
           {{ panelFullscreen ? '退出全屏' : '全屏' }}
         </button>
@@ -473,7 +558,11 @@ onBeforeUnmount(() => {
           </el-radio-group>
         </div>
         <p class="computer-ask__hint">
-          请围绕当前讲义提问；对话会保留上下文。需先在首页「设置」登录。
+          {{
+            question
+              ? '本题答完后可提问：为什么对/错、易混点、和解析怎么对应。只围绕当前这道题。'
+              : '请围绕当前讲义提问；对话会保留上下文。需先在首页「设置」登录。'
+          }}
         </p>
         <div class="computer-ask__thread">
           <DeepseekChatThread :turns="displayTurns" />
@@ -488,13 +577,18 @@ onBeforeUnmount(() => {
             :autosize="false"
             :rows="inputRows"
             maxlength="500"
-            :disabled="loading || !aiReady"
-            placeholder="例如：常见易错点、核心概念…"
+            :disabled="loading || !aiReady || (Boolean(question) && !canAsk)"
+            :placeholder="question ? '例如：为什么不选另一项、和××怎么区分…' : '例如：常见易错点、核心概念…'"
             @keydown.ctrl.enter="ask"
           />
           <div class="computer-ask__meta">
             <span>{{ remain }}/{{ MAX_LEN }}</span>
-            <el-button type="primary" :loading="loading" :disabled="!aiReady" @click="ask">
+            <el-button
+              type="primary"
+              :loading="loading"
+              :disabled="!aiReady || (Boolean(question) && !canAsk)"
+              @click="ask"
+            >
               向 {{ providerName }} 提问
             </el-button>
           </div>
@@ -559,6 +653,11 @@ onBeforeUnmount(() => {
   cursor: grabbing;
 }
 
+.computer-ask-tab.is-locked {
+  opacity: 0.62;
+  filter: grayscale(0.25);
+}
+
 .computer-ask-tab__ring {
   position: absolute;
   inset: -5px 0 -5px -5px;
@@ -609,8 +708,9 @@ onBeforeUnmount(() => {
   z-index: 13;
   display: flex;
   flex-direction: column;
-  height: min(36vh, 300px);
-  min-height: 200px;
+  height: auto;
+  min-height: 0;
+  max-height: min(70vh, 520px);
   overflow: hidden;
   border: none;
   border-radius: 12px;
@@ -625,8 +725,15 @@ onBeforeUnmount(() => {
 
 .computer-ask.is-full {
   inset: 0;
+  height: auto;
+  max-height: none;
   border-radius: 0;
   box-shadow: none;
+}
+
+.computer-ask.has-chat:not(.is-full) {
+  height: min(36vh, 300px);
+  min-height: 200px;
 }
 
 .computer-ask.is-full .computer-ask__head {
@@ -657,7 +764,7 @@ onBeforeUnmount(() => {
 }
 
 .computer-ask__composer {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -667,29 +774,21 @@ onBeforeUnmount(() => {
   background: #fff;
 }
 
-.computer-ask.has-chat .computer-ask__composer {
-  flex: 0 0 auto;
-}
-
 .computer-ask__input {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
 .computer-ask__input :deep(.el-textarea) {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
 }
 
 .computer-ask__input :deep(.el-textarea__inner) {
-  flex: 1 1 auto;
-  min-height: 72px !important;
-  height: 100% !important;
+  min-height: 64px !important;
+  height: auto !important;
   resize: none;
 }
 
@@ -803,7 +902,7 @@ onBeforeUnmount(() => {
 }
 
 @media (min-width: 901px) {
-  .computer-ask {
+  .computer-ask.has-chat:not(.is-full) {
     height: min(38vh, 340px);
   }
 }

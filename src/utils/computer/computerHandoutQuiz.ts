@@ -1,4 +1,4 @@
-export type ComputerQuizKind = 'choice' | 'judge' | 'calc'
+export type ComputerQuizKind = 'choice' | 'judge' | 'calc' | 'short'
 
 export type ComputerQuizQuestion = {
   fingerprint: string
@@ -11,34 +11,39 @@ export type ComputerQuizQuestion = {
   explanation: string
   itemId: string
   itemTitle: string
+  learningPath?: string[]
 }
 
 export type ComputerQuizCounts = {
   choice: number
   judge: number
   calc: number
+  short: number
 }
 
 export const DEFAULT_COMPUTER_QUIZ_COUNTS: ComputerQuizCounts = {
   choice: 2,
   judge: 1,
   calc: 0,
+  short: 0,
 }
 
 const QUIZ_COUNT_MAX: ComputerQuizCounts = {
   choice: 8,
   judge: 6,
   calc: 4,
+  short: 4,
 }
 
 export function computerQuizKindLabel(kind: ComputerQuizKind): string {
   if (kind === 'judge') return '判断'
-  if (kind === 'calc') return '简答'
+  if (kind === 'calc') return '计算'
+  if (kind === 'short') return '简答'
   return '选择'
 }
 
 export function totalComputerQuizCount(c: ComputerQuizCounts): number {
-  return Math.max(0, c.choice) + Math.max(0, c.judge) + Math.max(0, c.calc)
+  return Math.max(0, c.choice) + Math.max(0, c.judge) + Math.max(0, c.calc) + Math.max(0, c.short)
 }
 
 export function clampComputerQuizCounts(raw: Partial<ComputerQuizCounts>): ComputerQuizCounts {
@@ -50,8 +55,9 @@ export function clampComputerQuizCounts(raw: Partial<ComputerQuizCounts>): Compu
   const choice = n(raw.choice, DEFAULT_COMPUTER_QUIZ_COUNTS.choice, QUIZ_COUNT_MAX.choice)
   const judge = n(raw.judge, DEFAULT_COMPUTER_QUIZ_COUNTS.judge, QUIZ_COUNT_MAX.judge)
   const calc = n(raw.calc, DEFAULT_COMPUTER_QUIZ_COUNTS.calc, QUIZ_COUNT_MAX.calc)
-  if (choice + judge + calc <= 0) return { ...DEFAULT_COMPUTER_QUIZ_COUNTS }
-  return { choice, judge, calc }
+  const short = n(raw.short, DEFAULT_COMPUTER_QUIZ_COUNTS.short, QUIZ_COUNT_MAX.short)
+  if (choice + judge + calc + short <= 0) return { ...DEFAULT_COMPUTER_QUIZ_COUNTS }
+  return { choice, judge, calc, short }
 }
 
 export function buildComputerQuizFingerprint(input: {
@@ -68,11 +74,115 @@ function asText(v: unknown): string {
   return String(v ?? '').trim()
 }
 
+const ABBREV_GLOSS_PAREN_RE =
+  /\b([A-Za-z][A-Za-z0-9\-\/]{1,16})\s*[（(]([^）)]*[一-龥][^）)]{0,24})[）)]/g
+const ABBREV_GLOSS_SLASH_RE = /\b([A-Za-z][A-Za-z0-9\-]{1,16})\s*[／/]\s*([\u4e00-\u9fff]{2,18})/g
+
+function harvestAbbrevGlosses(s: string): string[] {
+  const out: string[] = []
+  const text = String(s || '')
+  const pushAll = (re: RegExp, compactGloss: boolean) => {
+    re.lastIndex = 0
+    let m: RegExpExecArray | null
+    while ((m = re.exec(text))) {
+      const abbr = (m[1] ?? '').trim()
+      const gloss = compactGloss ? (m[2] ?? '').replace(/\s+/g, '').trim() : (m[2] ?? '').trim()
+      if (abbr && gloss) out.push(`${abbr}：${gloss}`)
+    }
+  }
+  pushAll(ABBREV_GLOSS_PAREN_RE, true)
+  pushAll(ABBREV_GLOSS_SLASH_RE, false)
+  return out
+}
+
+/** 去掉题干/选项里夹带的缩写中文提示，这类信息只应出现在解析。 */
+export function stripComputerQuizHintGloss(s: string): string {
+  ABBREV_GLOSS_PAREN_RE.lastIndex = 0
+  ABBREV_GLOSS_SLASH_RE.lastIndex = 0
+  return String(s || '')
+    .replace(ABBREV_GLOSS_PAREN_RE, '$1')
+    .replace(ABBREV_GLOSS_SLASH_RE, '$1')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\s+([，。；、])/g, '$1')
+    .trim()
+}
+
+function collectAndStripGlosses(parts: string[]): { texts: string[]; glosses: string[] } {
+  const glosses: string[] = []
+  const seen = new Set<string>()
+  const texts = parts.map((raw) => {
+    for (const g of harvestAbbrevGlosses(raw)) {
+      if (seen.has(g)) continue
+      seen.add(g)
+      glosses.push(g)
+    }
+    return stripComputerQuizHintGloss(raw)
+  })
+  return { texts, glosses }
+}
+
+function mergeGlossIntoExplanation(explanation: string, glosses: string[]): string {
+  if (!glosses.length) return explanation
+  const missing = glosses.filter((g) => {
+    const abbr = g.split('：')[0] ?? ''
+    return abbr && !explanation.includes(abbr)
+  })
+  if (!missing.length) return explanation
+  const block = `缩写：${missing.join('；')}`
+  return explanation ? `${explanation}\n${block}` : block
+}
+
+/** 作答过程中只展示缩写；中文全称并入解析。旧题入库后仍按此清洗。 */
+export function sanitizeComputerQuizForDisplay(q: {
+  stem: string
+  term?: string
+  options: string[]
+  correctText: string
+  explanation: string
+}): {
+  stem: string
+  term: string
+  options: string[]
+  correctText: string
+  explanation: string
+} {
+  const harvested = collectAndStripGlosses([
+    q.stem,
+    q.term ?? '',
+    q.correctText,
+    ...(q.options ?? []),
+  ])
+  return {
+    stem: harvested.texts[0] ?? '',
+    term: harvested.texts[1] ?? '',
+    options: (q.options ?? []).map((opt) => stripComputerQuizHintGloss(opt)),
+    correctText: harvested.texts[2] ?? '',
+    explanation: mergeGlossIntoExplanation(q.explanation, harvested.glosses),
+  }
+}
+
+export function extractComputerQuizSources(material: string): { id: string; label: string }[] {
+  const out: { id: string; label: string }[] = []
+  const re = /【讲义ID:([^｜|]+)[｜|]([^】]+)】/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(String(material || '')))) {
+    const id = (m[1] ?? '').trim()
+    const label = (m[2] ?? '').trim()
+    if (id && !out.some((x) => x.id === id)) out.push({ id, label })
+  }
+  return out
+}
+
+export function extractComputerQuizSourceIds(material: string): string[] {
+  return extractComputerQuizSources(material).map((x) => x.id)
+}
+
 function parseKind(v: unknown): ComputerQuizKind | null {
   const t = asText(v).toLowerCase()
   if (t === 'choice' || t === '选择' || t === 'mcq') return 'choice'
   if (t === 'judge' || t === '判断' || t === 'tf' || t === 'truefalse') return 'judge'
-  if (t === 'calc' || t === '简答' || t === '计算' || t === 'short') return 'calc'
+  if (t === 'short' || t === '简答' || t === '简答题' || t === 'essay') return 'short'
+  if (t === 'calc' || t === '计算' || t === '计算题') return 'calc'
   return null
 }
 
@@ -187,40 +297,98 @@ function reconcileByExplanation(options: string[], claimed: number, explanation:
   return claimed
 }
 
+function resolveQuizSourceMeta(
+  o: Record<string, unknown>,
+  meta: {
+    itemId: string
+    itemTitle: string
+    learningPath?: string[]
+    allowedSources?: { id: string; label: string }[]
+    allowedSourceIds?: string[]
+  },
+): { itemId: string; itemTitle: string; learningPath?: string[] } {
+  const claimed = asText(o.sourceId ?? o.handoutId)
+  const sources = meta.allowedSources?.length
+    ? meta.allowedSources
+    : (meta.allowedSourceIds ?? []).map((id) => ({ id, label: '' }))
+  const hit = sources.find((s) => s.id === claimed)
+  if (!hit) {
+    return { itemId: meta.itemId, itemTitle: meta.itemTitle, learningPath: meta.learningPath }
+  }
+  const parts = hit.label.split('/').map((s) => s.trim()).filter(Boolean)
+  const title = asText(o.sourceTitle) || parts.pop() || meta.itemTitle
+  return {
+    itemId: hit.id,
+    itemTitle: title,
+    learningPath: parts.length ? parts : meta.learningPath,
+  }
+}
+
 export function parseComputerQuizAiItem(
   raw: unknown,
-  meta: { itemId: string; itemTitle: string },
+  meta: {
+    itemId: string
+    itemTitle: string
+    learningPath?: string[]
+    allowedSources?: { id: string; label: string }[]
+    allowedSourceIds?: string[]
+  },
 ): ComputerQuizQuestion | null {
   if (!raw || typeof raw !== 'object') return null
   const o = raw as Record<string, unknown>
   const kind = parseKind(o.kind ?? o.type ?? o.questionType)
   if (!kind) return null
-  const stem = asText(o.stem ?? o.question ?? o.title)
-  const explanation = asText(o.explanation ?? o.explain ?? o.parse)
-  const term = asText(o.term ?? o.point ?? o.考点) || stem.slice(0, 24)
+  const harvested = collectAndStripGlosses([
+    asText(o.stem ?? o.question ?? o.title),
+    asText(o.term ?? o.point ?? o.考点),
+    asText(o.correct ?? o.answer ?? o.correctText),
+    ...(Array.isArray(o.options) ? o.options.map(asText) : []),
+    ...(Array.isArray(o.choices) ? o.choices.map(asText) : []),
+    ...(Array.isArray(o.distractors) ? o.distractors.map(asText) : []),
+  ])
+  const stem = harvested.texts[0] ?? ''
+  const termIn = harvested.texts[1] ?? ''
+  const correctHintIn = harvested.texts[2] ?? ''
+  let explanation = mergeGlossIntoExplanation(asText(o.explanation ?? o.explain ?? o.parse), harvested.glosses)
+  const term = termIn || stem.slice(0, 24)
   if (stem.length < 6) return null
+  const source = resolveQuizSourceMeta(o, meta)
+  const learningPath = (source.learningPath ?? []).map((s) => String(s).trim()).filter(Boolean)
 
-  if (kind === 'calc') {
-    const correctText = asText(o.correct ?? o.answer ?? o.correctText)
+  if (kind === 'calc' || kind === 'short') {
+    let nextKind = kind
+    const correctText = correctHintIn
     if (!correctText) return null
+    if (
+      nextKind === 'calc' &&
+      compactText(correctText).length > 48 &&
+      /[\u4e00-\u9fff]{12,}/.test(correctText)
+    ) {
+      nextKind = 'short'
+    }
     return {
-      fingerprint: buildComputerQuizFingerprint({ kind, stem, correctText }),
-      kind,
+      fingerprint: buildComputerQuizFingerprint({ kind: nextKind, stem, correctText }),
+      kind: nextKind,
       term,
       stem,
       options: [],
       correctIndex: 0,
       correctText,
       explanation,
-      itemId: meta.itemId,
-      itemTitle: meta.itemTitle,
+      itemId: source.itemId,
+      itemTitle: source.itemTitle,
+      learningPath,
     }
   }
 
-  const distractorsRaw = Array.isArray(o.distractors) ? o.distractors.map(asText).filter(Boolean) : []
+  const distractorsRaw = Array.isArray(o.distractors)
+    ? o.distractors.map((x) => stripComputerQuizHintGloss(asText(x))).filter(Boolean)
+    : []
   const optsRaw = o.options ?? o.choices
-  let options = Array.isArray(optsRaw) ? optsRaw.map(asText).filter(Boolean) : []
-  const correctHint = asText(o.correct ?? o.answer ?? o.correctText)
+  let options = Array.isArray(optsRaw)
+    ? optsRaw.map((x) => stripComputerQuizHintGloss(asText(x))).filter(Boolean)
+    : []
+  const correctHint = correctHintIn
 
   if (kind === 'judge') {
     if (options.length < 2) options = ['正确', '错误']
@@ -265,14 +433,44 @@ export function parseComputerQuizAiItem(
     correctIndex,
     correctText,
     explanation,
-    itemId: meta.itemId,
-    itemTitle: meta.itemTitle,
+    itemId: source.itemId,
+    itemTitle: source.itemTitle,
+    learningPath,
   }
 }
 
 export function normalizeCalcAnswer(s: string): string {
   return String(s ?? '')
     .replace(/\s+/g, '')
-    .replace(/[。．.]$/g, '')
+    .replace(/[。．.、,，;；:：]/g, '')
+    .replace(/[（）()【】\[\]]/g, '')
     .toLowerCase()
+}
+
+function extractCalcCores(correct: string): string[] {
+  const raw = String(correct ?? '').trim()
+  const compact = normalizeCalcAnswer(raw)
+  const out = new Set<string>()
+  if (compact) out.add(compact)
+  for (const m of raw.match(/[+-]?\d+(?:\.\d+)?/g) ?? []) {
+    const n = normalizeCalcAnswer(m)
+    if (n.length >= 1) out.add(n)
+  }
+  for (const m of raw.match(/[01]{4,}/g) ?? []) out.add(m)
+  for (const m of raw.match(/[0-9a-fA-F]+[hH]/g) ?? []) out.add(m.toLowerCase())
+  return [...out]
+}
+
+/** 计算题：用户输入里包含标准结果即可，允许前后多写说明。 */
+export function calcAnswerMatches(user: string, correct: string): boolean {
+  const u = normalizeCalcAnswer(user)
+  const c = normalizeCalcAnswer(correct)
+  if (!u || !c) return false
+  if (u === c) return true
+  if (u.includes(c)) return true
+  return extractCalcCores(correct).some((core) => {
+    if (!core) return false
+    if (core.length >= 2) return u.includes(core)
+    return u === core
+  })
 }

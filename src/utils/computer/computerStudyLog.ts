@@ -22,6 +22,10 @@ export type ComputerStudyLogEntry = {
   correctCount?: number
   totalCount?: number
   durationMs?: number
+  rangeQuiz?: boolean
+  kindCounts?: { choice: number; judge: number; calc: number; short?: number }
+  wrongCount?: number
+  carelessCount?: number
 }
 
 export type ComputerStudyLogDay = {
@@ -111,6 +115,10 @@ export function logComputerQuizSession(input: {
   correctCount: number
   totalCount: number
   durationMs?: number
+  rangeQuiz?: boolean
+  kindCounts?: { choice: number; judge: number; calc: number; short?: number }
+  wrongCount?: number
+  carelessCount?: number
 }) {
   const itemId = String(input.itemId || '').trim()
   const itemTitle = String(input.itemTitle || '').trim()
@@ -128,6 +136,10 @@ export function logComputerQuizSession(input: {
       correctCount: Math.max(0, Math.round(input.correctCount)),
       totalCount: Math.max(1, Math.round(input.totalCount)),
       durationMs: input.durationMs,
+      rangeQuiz: Boolean(input.rangeQuiz),
+      kindCounts: input.kindCounts,
+      wrongCount: input.wrongCount,
+      carelessCount: input.carelessCount,
     },
     ...readLogs(),
   ])
@@ -177,17 +189,58 @@ export function formatComputerStudyTime(iso: string): string {
   }
 }
 
+export function formatComputerStudyDateTitle(dateKey: string, todayKey: string): string {
+  if (dateKey === todayKey) return '今天'
+  const d = new Date(`${dateKey}T12:00:00`)
+  if (Number.isNaN(d.getTime())) return dateKey
+  const week = '日一二三四五六'[d.getDay()] ?? ''
+  return week ? `${dateKey} 周${week}` : dateKey
+}
+
 export function formatComputerStudyDuration(ms?: number): string {
   return formatLogDuration(ms)
 }
 
+export function computerQuizKindCountsText(row: ComputerStudyLogEntry): string {
+  const c = row.kindCounts
+  if (!c) return ''
+  const parts: string[] = []
+  if (c.choice) parts.push(`选择 ${c.choice}`)
+  if (c.judge) parts.push(`判断 ${c.judge}`)
+  if (c.calc) parts.push(`计算 ${c.calc}`)
+  if (c.short) parts.push(`简答 ${c.short}`)
+  return parts.join(' · ')
+}
+
 export function computerQuizResultText(row: ComputerStudyLogEntry): string {
   const parts: string[] = []
+  if (row.rangeQuiz) parts.push('范围测验')
   if (row.totalCount != null && row.correctCount != null) {
-    parts.push(`答对 ${row.correctCount}/${row.totalCount}`)
+    const pct = row.totalCount > 0 ? Math.round((row.correctCount / row.totalCount) * 100) : 0
+    parts.push(`答对 ${row.correctCount}/${row.totalCount}（${pct}%）`)
     if (row.totalCount > 0 && row.correctCount === row.totalCount) parts.push('全对')
   }
+  if (row.wrongCount) parts.push(`错 ${row.wrongCount}`)
+  if (row.carelessCount) parts.push(`粗心 ${row.carelessCount}`)
+  const kinds = computerQuizKindCountsText(row)
+  if (kinds) parts.push(kinds)
   const dur = formatComputerStudyDuration(row.durationMs)
   if (dur) parts.push(`用时 ${dur}`)
+  return parts.join(' · ')
+}
+
+export function computerStudyDaySummary(day: ComputerStudyLogDay): string {
+  const viewN = day.views.length
+  const quizN = day.quizzes.length
+  const correct = day.quizzes.reduce((n, row) => n + (row.correctCount ?? 0), 0)
+  const total = day.quizzes.reduce((n, row) => n + (row.totalCount ?? 0), 0)
+  const dur = day.quizzes.reduce((n, row) => n + (row.durationMs ?? 0), 0)
+  const parts = [`阅读 ${viewN} 篇`, `测验 ${quizN} 场`]
+  if (total > 0) {
+    const pct = Math.round((correct / total) * 100)
+    parts.push(`共答对 ${correct}/${total}（${pct}%）`)
+  }
+  const durText = formatComputerStudyDuration(dur)
+  if (durText) parts.push(`测验合计 ${durText}`)
   return parts.join(' · ')
 }

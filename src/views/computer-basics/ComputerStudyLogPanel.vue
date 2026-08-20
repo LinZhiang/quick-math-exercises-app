@@ -5,8 +5,10 @@ import { localDateKey } from '@/utils/app/practiceSessionLog'
 import {
   clearComputerStudyLogs,
   computerQuizResultText,
+  computerStudyDaySummary,
   computerStudyLogTick,
   filterComputerStudyLogs,
+  formatComputerStudyDateTitle,
   formatComputerStudyTime,
   groupComputerStudyLogsByDate,
   listComputerStudyLogs,
@@ -84,17 +86,16 @@ async function onClearAll() {
 
     <div v-if="days.length" class="cb-log__days">
       <article v-for="day in days" :key="day.dateKey" class="cb-log__day">
-        <h4 class="cb-log__day-title">{{ day.dateKey === todayKey ? '今天' : day.dateKey }}</h4>
+        <h4 class="cb-log__day-title">{{ formatComputerStudyDateTitle(day.dateKey, todayKey) }}</h4>
+        <p class="cb-log__day-sum">{{ computerStudyDaySummary(day) }}</p>
 
         <section class="cb-log__block">
           <h5>阅读章节</h5>
           <ul v-if="day.views.length">
             <li v-for="row in day.views" :key="row.id">
               <span class="cb-log__name">{{ row.itemTitle }}</span>
-              <span v-if="row.pathLabel && row.pathLabel !== row.itemTitle" class="cb-log__path">{{
-                row.pathLabel
-              }}</span>
-              <span class="cb-log__time">{{ formatComputerStudyTime(row.at) }}</span>
+              <span v-if="row.pathLabel" class="cb-log__path">路径 {{ row.pathLabel }}</span>
+              <span class="cb-log__time">最近打开 {{ formatComputerStudyTime(row.at) }}</span>
             </li>
           </ul>
           <p v-else class="cb-log__empty">这天没有打开讲义</p>
@@ -105,8 +106,9 @@ async function onClearAll() {
           <ul v-if="day.quizzes.length">
             <li v-for="row in day.quizzes" :key="row.id">
               <span class="cb-log__name">{{ row.itemTitle }}</span>
+              <span v-if="row.pathLabel" class="cb-log__path">路径 {{ row.pathLabel }}</span>
               <span class="cb-log__result">{{ computerQuizResultText(row) }}</span>
-              <span class="cb-log__time">{{ formatComputerStudyTime(row.at) }}</span>
+              <span class="cb-log__time">完成于 {{ formatComputerStudyTime(row.at) }}</span>
             </li>
           </ul>
           <p v-else class="cb-log__empty">这天没有完成测验</p>
@@ -122,12 +124,12 @@ async function onClearAll() {
 
 <style scoped>
 .cb-log {
-  flex: 1 1 0;
+  flex: 0 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: auto;
-  padding: 4px 2px 12px;
+  overflow: visible;
+  padding: 4px 2px 4px;
   gap: 10px;
 }
 
@@ -208,9 +210,16 @@ async function onClearAll() {
 }
 
 .cb-log__day-title {
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   font-size: 15px;
   font-weight: 750;
+}
+
+.cb-log__day-sum {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--app-text-muted);
 }
 
 .cb-log__block h5 {
@@ -246,7 +255,12 @@ async function onClearAll() {
 .cb-log__result,
 .cb-log__time {
   font-size: 12px;
+  line-height: 1.45;
   color: var(--app-text-muted);
+}
+
+.cb-log__result {
+  color: var(--app-text);
 }
 
 .cb-log__empty {

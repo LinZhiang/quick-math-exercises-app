@@ -678,11 +678,11 @@ watch(photoOpen, (open) => {
 }
 
 .computer-detail__paper {
-  flex: 1 1 0;
+  flex: 0 1 auto;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 18px 20px 80px;
+  padding: 18px 20px 16px;
   border: 1px solid var(--app-border-soft);
   border-radius: 12px;
   background: #fff;
@@ -700,7 +700,7 @@ watch(photoOpen, (open) => {
 .computer-detail__quiz {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .computer-detail__paper.is-editing > :deep(.el-input) {

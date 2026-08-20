@@ -1,10 +1,10 @@
 import { ElMessage } from 'element-plus'
-import { computed, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref } from 'vue'
 import { isAiChatConfigured, requestComputerHandoutQuiz, DEEPSEEK_NOT_CONFIGURED_HINT } from '@/services/deepseek'
 import {
+  calcAnswerMatches,
   clampComputerQuizCounts,
   computerQuizKindLabel,
-  normalizeCalcAnswer,
   totalComputerQuizCount,
   type ComputerQuizCounts,
   type ComputerQuizQuestion,
@@ -18,7 +18,10 @@ import {
 import { createChineseWrongBookGate } from '@/utils/chinese/chineseWrongBookGate'
 import { getAiProvider, setAiProvider, type AiProvider } from '@/utils/app/aiProviderStore'
 import { stripHandoutImagesForAi, type ComputerHandoutItem } from '@/utils/computer/computerBasics'
+import { formatLogDuration } from '@/utils/app/practiceSessionLog'
 import { logComputerQuizSession } from '@/utils/computer/computerStudyLog'
+
+export type ComputerQuizSelfScore = 'full' | 'partial' | 'zero'
 
 export type ComputerQuizPhase = 'idle' | 'loading' | 'running' | 'summary'
 
@@ -30,12 +33,23 @@ export function useComputerHandoutQuiz() {
   const currentIndex = ref(0)
   const selectedIndex = ref<number | null>(null)
   const calcInput = ref('')
+  const shortInput = ref('')
   const submitted = ref(false)
+  const selfScore = ref<ComputerQuizSelfScore | null>(null)
   const results = ref<
-    { unitIndex: number; correct: boolean; question: ComputerQuizQuestion; chosen: string }[]
+    {
+      unitIndex: number
+      correct: boolean
+      careless?: boolean
+      selfScore?: ComputerQuizSelfScore | null
+      question: ComputerQuizQuestion
+      chosen: string
+    }[]
   >([])
   const carelessMarked = ref(false)
   const quizStartedAt = ref(0)
+  const elapsedMs = ref(0)
+  let elapsedTimer = 0
   let loggedSession = false
   let quizItem: ComputerHandoutItem | null = null
   const wrongGate = createChineseWrongBookGate(upsertComputerQuizWrong)
@@ -43,19 +57,44 @@ export function useComputerHandoutQuiz() {
   const currentQuestion = computed(() => questions.value[currentIndex.value] ?? null)
   const correctCount = computed(() => results.value.filter((r) => r.correct).length)
   const questionCount = computed(() => questions.value.length)
+  const elapsedText = computed(() => {
+    const t = formatLogDuration(elapsedMs.value) || '0 秒'
+    return `已用时 ${t}`
+  })
+
+  function stopElapsedTimer() {
+    if (elapsedTimer) {
+      window.clearInterval(elapsedTimer)
+      elapsedTimer = 0
+    }
+  }
+
+  function tickElapsed() {
+    elapsedMs.value = quizStartedAt.value ? Math.max(0, Date.now() - quizStartedAt.value) : 0
+  }
+
+  function startElapsedTimer() {
+    stopElapsedTimer()
+    tickElapsed()
+    elapsedTimer = window.setInterval(tickElapsed, 250)
+  }
 
   function resetToIdle() {
+    stopElapsedTimer()
     phase.value = 'idle'
     loadingMessage.value = ''
     questions.value = []
     currentIndex.value = 0
     selectedIndex.value = null
     calcInput.value = ''
+    shortInput.value = ''
     submitted.value = false
+    selfScore.value = null
     results.value = []
     carelessMarked.value = false
     wrongGate.clearWrongGate()
     quizStartedAt.value = 0
+    elapsedMs.value = 0
     loggedSession = false
     quizItem = null
   }
@@ -80,6 +119,7 @@ export function useComputerHandoutQuiz() {
         title: item.title,
         material: stripHandoutImagesForAi(item.content),
         itemId: item.id,
+        learningPath: item.learningPath,
         counts: nextCounts,
         avoidStems: listComputerQuizAvoidStems(item.id),
         provider: getAiProvider(),
@@ -95,13 +135,17 @@ export function useComputerHandoutQuiz() {
       currentIndex.value = 0
       selectedIndex.value = null
       calcInput.value = ''
+      shortInput.value = ''
       submitted.value = false
+      selfScore.value = null
       results.value = []
       carelessMarked.value = false
       wrongGate.clearWrongGate()
       quizStartedAt.value = Date.now()
+      elapsedMs.value = 0
       loggedSession = false
       phase.value = 'running'
+      startElapsedTimer()
       ElMessage.success(`已生成 ${generated.length} 道题`)
     } catch (e) {
       phase.value = 'idle'
@@ -122,10 +166,12 @@ export function useComputerHandoutQuiz() {
     if (q.kind === 'calc') {
       chosen = calcInput.value.trim()
       if (!chosen) {
-        ElMessage.warning('请先填写答案')
+        ElMessage.warning('请先填写计算结果')
         return
       }
-      correct = normalizeCalcAnswer(chosen) === normalizeCalcAnswer(q.correctText)
+      correct = calcAnswerMatches(chosen, q.correctText)
+    } else if (q.kind === 'short') {
+      chosen = shortInput.value.trim()
     } else {
       if (selectedIndex.value == null) {
         ElMessage.warning('请先选择一个选项')
@@ -137,15 +183,34 @@ export function useComputerHandoutQuiz() {
     results.value.push({
       unitIndex: currentIndex.value + 1,
       correct,
+      selfScore: q.kind === 'short' ? null : undefined,
       question: q,
       chosen,
     })
     submitted.value = true
+    selfScore.value = null
     carelessMarked.value = false
-    if (!correct) wrongGate.noteWrongAnswer(q)
+    if (q.kind !== 'short' && !correct) wrongGate.noteWrongAnswer(q)
+  }
+
+  function applySelfScore(score: ComputerQuizSelfScore) {
+    const q = currentQuestion.value
+    const row = results.value.find((r) => r.unitIndex === currentIndex.value + 1)
+    if (phase.value !== 'running' || !submitted.value || !q || q.kind !== 'short' || !row) return
+    row.selfScore = score
+    row.correct = score === 'full'
+    selfScore.value = score
+    carelessMarked.value = false
+    if (score === 'full') wrongGate.dropPendingWrong()
+    else wrongGate.noteWrongAnswer(q)
   }
 
   function nextQuestion() {
+    const q = currentQuestion.value
+    if (q?.kind === 'short' && !selfScore.value) {
+      ElMessage.warning('请先对照参考答案给自己打分')
+      return
+    }
     try {
       wrongGate.flushWrongIfNeeded()
     } catch {
@@ -153,15 +218,27 @@ export function useComputerHandoutQuiz() {
     }
     carelessMarked.value = false
     if (currentIndex.value >= questions.value.length - 1) {
+      tickElapsed()
+      stopElapsedTimer()
       if (!loggedSession && results.value.length) {
         const first = questions.value[0]
+        const kindCounts = {
+          choice: questions.value.filter((item) => item.kind === 'choice').length,
+          judge: questions.value.filter((item) => item.kind === 'judge').length,
+          calc: questions.value.filter((item) => item.kind === 'calc').length,
+          short: questions.value.filter((item) => item.kind === 'short').length,
+        }
         logComputerQuizSession({
           itemId: quizItem?.id || first?.itemId || '',
           itemTitle: quizItem?.title || first?.itemTitle || '计算机基础测验',
           learningPath: quizItem?.learningPath,
+          rangeQuiz: Boolean(quizItem?.id.startsWith('range:')),
+          kindCounts,
+          wrongCount: results.value.filter((r) => !r.correct).length,
+          carelessCount: results.value.filter((r) => r.careless).length,
           correctCount: results.value.filter((r) => r.correct).length,
           totalCount: results.value.length,
-          durationMs: quizStartedAt.value ? Date.now() - quizStartedAt.value : undefined,
+          durationMs: elapsedMs.value || undefined,
         })
         loggedSession = true
       }
@@ -171,7 +248,9 @@ export function useComputerHandoutQuiz() {
     currentIndex.value++
     selectedIndex.value = null
     calcInput.value = ''
+    shortInput.value = ''
     submitted.value = false
+    selfScore.value = null
   }
 
   function markCarelessWrong() {
@@ -179,9 +258,12 @@ export function useComputerHandoutQuiz() {
     const row = results.value[results.value.length - 1]
     if (!row || row.correct) return
     if (!wrongGate.markCarelessWrong()) return
+    row.careless = true
     carelessMarked.value = true
     ElMessage.success('已标记为粗心答错，本题不入错题本')
   }
+
+  onBeforeUnmount(() => stopElapsedTimer())
 
   return reactive({
     phase,
@@ -191,16 +273,21 @@ export function useComputerHandoutQuiz() {
     currentIndex,
     selectedIndex,
     calcInput,
+    shortInput,
     submitted,
+    selfScore,
     results,
     currentQuestion,
     correctCount,
     questionCount,
     carelessMarked,
+    elapsedMs,
+    elapsedText,
     computerQuizKindLabel,
     generateAndStart,
     selectOption,
     submitCurrent,
+    applySelfScore,
     nextQuestion,
     markCarelessWrong,
     resetToIdle,

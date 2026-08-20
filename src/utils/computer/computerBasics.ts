@@ -136,7 +136,7 @@ export function buildComputerRangeQuizItem(input: {
   const each = Math.floor(max / n)
   const chunks = items.map((it) => {
     const path = (it.learningPath ?? []).filter(Boolean).join(' / ')
-    const head = `【${path ? `${path} / ` : ''}${it.title}】\n`
+    const head = `【讲义ID:${it.id}｜${path ? `${path} / ` : ''}${it.title}】\n`
     const body = stripHandoutImagesForAi(it.content).replace(/\s+/g, ' ').trim()
     return `${head}${body.slice(0, Math.max(280, each - head.length))}`
   })

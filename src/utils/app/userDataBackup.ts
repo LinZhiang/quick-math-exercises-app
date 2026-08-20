@@ -80,6 +80,9 @@ const WRONG_FAVORITE_KEYS: string[] = [
   'chinese-geography-common-sense-wrong-v1',
   'chinese-geography-common-sense-favorite-v1',
   'chinese-memorization-wrong-v1',
+  'computer-handout-quiz-wrong-v1',
+  'computer-handout-quiz-favorite-v1',
+  'computer-handout-quiz-notes-v1',
 ]
 
 /** 知识训练额外键（不含密钥、界面设置、个人题库） */
@@ -91,6 +94,7 @@ const TRAIN_EXTRA_KEYS: string[] = [
   'fact-deepen-group-stats-v1',
   'mental-math-strategy-guide-notes-v1',
   'computer-study-log-v1',
+  'computer-handout-quiz-avoid-v1',
   // 生成去重历史
   'chinese-generated-history-idiom-v1',
   'chinese-generated-history-word-memorization-v1',

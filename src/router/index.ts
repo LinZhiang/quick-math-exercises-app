@@ -9,6 +9,8 @@ import MentalMathView from '@/views/tools/mental-math/index.vue'
 import PersonalBankView from '@/views/personal-bank/index.vue'
 import ComputerBasicsView from '@/views/computer-basics/index.vue'
 import ComputerHandoutDetail from '@/views/computer-basics/ComputerHandoutDetail.vue'
+import ComputerQuizBookPage from '@/views/computer-basics/ComputerQuizBookPage.vue'
+import ComputerStudyLogPage from '@/views/computer-basics/ComputerStudyLogPage.vue'
 import InstallSettingsPage from '@/views/common/InstallSettingsPage.vue'
 
 function legacyHomeRedirect(to: RouteLocationNormalized): RouteLocationRaw | true {
@@ -91,6 +93,18 @@ const router = createRouter({
         if (!itemId) return { name: 'computer', replace: true }
         return true
       },
+    },
+    {
+      path: '/computer/book',
+      name: 'computer-book',
+      component: ComputerQuizBookPage,
+      meta: { title: 'AI题目整理', chrome: 'app' },
+    },
+    {
+      path: '/computer/log',
+      name: 'computer-log',
+      component: ComputerStudyLogPage,
+      meta: { title: '学习日志', chrome: 'app' },
     },
     { path: '/frontend', redirect: { name: 'home' } },
     { path: '/personal-bank', redirect: { name: 'bank' } },
