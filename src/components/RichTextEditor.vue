@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { richHtmlIsEmpty, sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
+import { compactTrailingEmptyHtml, richHtmlIsEmpty } from '@/utils/markdown/richTextHtml'
 
 const props = withDefaults(
   defineProps<{
@@ -28,21 +28,70 @@ const focused = ref(false)
 const showPlaceholder = computed(() => richHtmlIsEmpty(props.modelValue))
 
 function currentHtml(): string {
-  return sanitizeRichHtml(editorRef.value?.innerHTML ?? '')
+  return compactTrailingEmptyHtml(editorRef.value?.innerHTML ?? '')
+}
+
+function caretNode(): Node | null {
+  return typeof document === 'undefined' ? null : document.getSelection()?.focusNode ?? null
+}
+
+function isEmptyBlock(el: Element): boolean {
+  if (el.querySelector('img, table, video, canvas, iframe')) return false
+  return !(el.textContent || '').replace(/\u00a0/g, ' ').trim()
+}
+
+function compactTrailingEmptyBlocks() {
+  const root = editorRef.value
+  if (!root) return
+  const caret = caretNode()
+  const holdsCaret = (el: Element) => Boolean(caret && (el === caret || el.contains(caret)))
+  const dropTail = (node: ChildNode) => {
+    if (caret && (node === caret || node.contains?.(caret))) return false
+    root.removeChild(node)
+    return true
+  }
+  while (root.lastChild) {
+    const last = root.lastChild
+    if (last.nodeType === Node.TEXT_NODE && !(last.textContent || '').trim()) {
+      if (!dropTail(last)) break
+      continue
+    }
+    if (last.nodeName === 'BR') {
+      if (!dropTail(last)) break
+      continue
+    }
+    break
+  }
+  while (root.children.length >= 2) {
+    const last = root.lastElementChild
+    const prev = last?.previousElementSibling
+    if (!last || !prev || !isEmptyBlock(last) || !isEmptyBlock(prev)) break
+    if (holdsCaret(last)) prev.remove()
+    else last.remove()
+  }
+  if (richHtmlIsEmpty(root.innerHTML) && root.innerHTML !== '') {
+    root.innerHTML = ''
+  }
 }
 
 function emitHtml() {
+  compactTrailingEmptyBlocks()
   emit('update:modelValue', currentHtml())
 }
 
 function applyHtml(html: string) {
   if (!editorRef.value) return
-  const next = sanitizeRichHtml(html ?? '')
+  const next = compactTrailingEmptyHtml(html ?? '')
   if (editorRef.value.innerHTML === next) return
   editorRef.value.innerHTML = next
 }
 
 onMounted(() => {
+  try {
+    document.execCommand('defaultParagraphSeparator', false, 'p')
+  } catch {
+    /* ignore */
+  }
   applyHtml(props.modelValue)
 })
 
@@ -50,7 +99,7 @@ watch(
   () => props.modelValue,
   (v) => {
     if (!editorRef.value) return
-    if (currentHtml() === sanitizeRichHtml(v ?? '')) return
+    if (currentHtml() === compactTrailingEmptyHtml(v ?? '')) return
     applyHtml(v)
   },
 )
@@ -63,6 +112,10 @@ function run(command: string, value?: string) {
 
 function onInput() {
   emitHtml()
+}
+
+function onKeyup(ev: KeyboardEvent) {
+  if (ev.key === 'Backspace' || ev.key === 'Delete') emitHtml()
 }
 
 function onPaste(ev: ClipboardEvent) {
@@ -210,6 +263,7 @@ async function onFileChange(ev: Event) {
           emitHtml()
         "
         @input="onInput"
+        @keyup="onKeyup"
         @paste="onPaste"
       />
     </div>
@@ -309,9 +363,9 @@ async function onFileChange(ev: Event) {
 }
 
 .rte.is-fill .rte__wrap {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .rte__placeholder {
@@ -334,12 +388,10 @@ async function onFileChange(ev: Event) {
 }
 
 .rte.is-fill .rte__editor {
-  height: 100%;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding-bottom: 72px;
-  overscroll-behavior: contain;
+  min-height: 100%;
+  height: auto;
+  overflow: visible;
+  padding-bottom: 12px;
 }
 
 .rte__editor :deep(p) {

@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { renderMathInRichHtml } from '@/utils/data-analysis/dataAnalysisMathDisplay'
 import { wrapHtmlTablesForScroll } from '@/utils/markdown/markdownToHtml'
-import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
+import { compactTrailingEmptyHtml } from '@/utils/markdown/richTextHtml'
 import ImageZoomOverlay from '@/components/ImageZoomOverlay.vue'
 
 const props = withDefaults(
@@ -21,7 +21,7 @@ const rootRef = ref<HTMLElement | null>(null)
 let overflowObserver: ResizeObserver | null = null
 
 const safeHtml = computed(() => {
-  const sanitized = sanitizeRichHtml(props.html ?? '')
+  const sanitized = compactTrailingEmptyHtml(props.html ?? '')
   const rendered = props.math ? renderMathInRichHtml(sanitized) : sanitized
   return wrapHtmlTablesForScroll(rendered)
 })
