@@ -42,7 +42,7 @@ function remove(row: StoredComputerQuizRecord) {
         <el-radio-button value="favorite">收藏 {{ favs.length }}</el-radio-button>
       </el-radio-group>
     </div>
-    <p v-if="!rows.length" class="cb-book__empty">暂无记录。在讲义里点「AI 测验」作答后会出现在这里。</p>
+    <p v-if="!rows.length" class="cb-book__empty">暂无记录。在目录或讲义里点「AI测验」作答后会出现在这里。</p>
     <ul v-else class="cb-book__list">
       <li v-for="row in rows" :key="row.fingerprint">
         <button type="button" class="cb-book__row" @click="toggleOpen(row.fingerprint)">

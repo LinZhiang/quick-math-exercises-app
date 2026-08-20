@@ -19,6 +19,7 @@ import RichTextView from '@/components/RichTextView.vue'
 
 const props = defineProps<{
   item: ComputerHandoutItem
+  scopeLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -70,12 +71,18 @@ function onStart() {
 <template>
   <section class="cb-quiz">
     <header class="cb-quiz__head">
-      <h3>AI 测验</h3>
+      <h3>{{ scopeLabel ? `AI 测验 · ${scopeLabel}` : 'AI 测验' }}</h3>
       <el-button size="small" @click="emit('close')">关闭</el-button>
     </header>
 
     <template v-if="test.phase === 'idle'">
-      <p class="cb-quiz__hint">按当前讲义出少量题（默认 2 道选择 + 1 道判断）。标答以讲义为准，选项每次打乱。</p>
+      <p class="cb-quiz__hint">
+        {{
+          scopeLabel
+            ? `按「${scopeLabel}」范围内的讲义出少量重点题：优先考定义、划分标准、最主要特点等，干扰项用讲义里的易混点。`
+            : '按当前讲义出少量重点题：优先考定义、划分标准、最主要特点等，干扰项用讲义里的易混点。'
+        }}
+      </p>
       <div class="cb-quiz__switch">
         <span>模型</span>
         <el-radio-group v-model="quizProvider" size="small">
