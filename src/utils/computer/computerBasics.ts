@@ -107,6 +107,49 @@ export function listReadyComputerEntries(nodes: ComputerTreeNode[]): ComputerTre
   return out
 }
 
+export function collectReadyEntriesUnder(node: ComputerTreeNode): ComputerTreeEntry[] {
+  return listReadyComputerEntries([node])
+}
+
+export function computerNodePathNames(nodes: ComputerTreeNode[], id: string): string[] {
+  const walk = (list: ComputerTreeNode[], acc: string[]): string[] | null => {
+    for (const node of list) {
+      const next = [...acc, node.name]
+      if (node.id === id) return next
+      const hit = walk(node.children, next)
+      if (hit) return hit
+    }
+    return null
+  }
+  return walk(nodes, []) ?? []
+}
+
+export function buildComputerRangeQuizItem(input: {
+  scopeId: string
+  scopeName: string
+  learningPath: string[]
+  items: ComputerHandoutItem[]
+}): ComputerHandoutItem {
+  const items = input.items.filter((it) => it?.id && it.content)
+  const max = 8800
+  const n = Math.max(1, items.length)
+  const each = Math.floor(max / n)
+  const chunks = items.map((it) => {
+    const path = (it.learningPath ?? []).filter(Boolean).join(' / ')
+    const head = `【${path ? `${path} / ` : ''}${it.title}】\n`
+    const body = stripHandoutImagesForAi(it.content).replace(/\s+/g, ' ').trim()
+    return `${head}${body.slice(0, Math.max(280, each - head.length))}`
+  })
+  return {
+    id: `range:${input.scopeId}`,
+    title: `${input.scopeName}（范围测验）`,
+    type: 'handout',
+    learningPath: input.learningPath,
+    tags: ['范围测验', input.scopeName],
+    content: chunks.join('\n\n'),
+  }
+}
+
 /** 只含大类/小类，不含讲义叶子；默认展开前 maxDepth 层。 */
 export function defaultExpandedCategoryIds(
   nodes: ComputerTreeNode[],

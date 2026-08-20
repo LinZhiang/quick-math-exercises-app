@@ -142,16 +142,23 @@ async function onClearAll() {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 1 1 16rem;
+  min-width: 16rem;
+  max-width: 22rem;
   font-size: 12px;
   color: var(--app-text-muted);
 }
 
 .cb-log__input {
-  min-height: 32px;
-  padding: 4px 8px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 16rem;
+  min-height: 36px;
+  padding: 6px 12px;
   border: 1px solid var(--app-border-soft);
   border-radius: 8px;
   font: inherit;
+  font-size: 15px;
 }
 
 .cb-log__actions {
