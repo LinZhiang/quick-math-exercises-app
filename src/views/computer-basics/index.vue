@@ -27,6 +27,7 @@ import {
   type ComputerHandoutItem,
   type ComputerTreeEntry,
   type ComputerTreeNode,
+  type ComputerTreeRow,
 } from '@/utils/computer/computerBasics'
 import { isWenguAdmin, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 import ComputerBusyHint from './ComputerBusyHint.vue'
@@ -155,9 +156,14 @@ function toggleAdmin(id: string) {
 function onTreePointerDown(e: PointerEvent) {
   const target = e.target as HTMLElement | null
   if (target?.closest('.computer-tree__more')) return
-  if (target?.closest('.computer-tree__quiz')) return
   if (target?.closest('.computer-tree__line.is-admin-open')) return
   adminOpenId.value = ''
+}
+
+function rowHasMore(row: ComputerTreeRow) {
+  if (isAdmin.value) return true
+  if (row.kind === 'branch') return true
+  return row.entry.ready
 }
 
 function insertNode(
@@ -618,7 +624,7 @@ onBeforeUnmount(() => {
             class="computer-tree__line"
             :class="{
               'is-admin': isAdmin,
-              'is-admin-open': isAdmin && adminOpenId === row.id,
+              'is-admin-open': adminOpenId === row.id,
             }"
           >
             <div class="computer-tree__main">
@@ -670,18 +676,7 @@ onBeforeUnmount(() => {
                 <span v-if="!row.entry.ready && !isAdmin" class="computer-tree__soon">即将开放</span>
               </button>
               <button
-                v-if="row.kind === 'branch' || row.entry.ready"
-                type="button"
-                class="computer-tree__quiz"
-                @pointerdown.stop
-                @click.stop="
-                  row.kind === 'branch' ? startFolderQuiz(row.id, row.name) : startEntryQuiz(row.entry)
-                "
-              >
-                AI测验
-              </button>
-              <button
-                v-if="isAdmin"
+                v-if="rowHasMore(row)"
                 type="button"
                 class="computer-tree__more"
                 :class="{ 'is-on': adminOpenId === row.id }"
@@ -693,16 +688,23 @@ onBeforeUnmount(() => {
                 <el-icon :size="16"><MoreFilled /></el-icon>
               </button>
             </div>
-            <div v-if="isAdmin" class="computer-tree__admin" :class="{ 'is-open': adminOpenId === row.id }" @pointerdown.stop>
+            <div
+              v-if="rowHasMore(row)"
+              class="computer-tree__admin"
+              :class="{ 'is-open': adminOpenId === row.id }"
+              @pointerdown.stop
+            >
               <template v-if="row.kind === 'branch'">
                 <button type="button" class="computer-tree__icon" @click.stop="startFolderQuiz(row.id, row.name)">AI测验</button>
-                <button type="button" class="computer-tree__icon" @click.stop="onAddChild(row.id)">小类</button>
-                <button type="button" class="computer-tree__icon" @click.stop="onAddItem(row.id)">新增讲义</button>
-                <button type="button" class="computer-tree__icon" @click.stop="onRenameNode(row.id, row.name)">改名</button>
-                <button type="button" class="computer-tree__icon" @click.stop="startMove(row.id, 'branch', row.name)">移动位置</button>
-                <button type="button" class="computer-tree__icon" @click.stop="onMoveNode(row.id, -1)">上移</button>
-                <button type="button" class="computer-tree__icon" @click.stop="onMoveNode(row.id, 1)">下移</button>
-                <button type="button" class="computer-tree__icon is-danger" @click.stop="onDeleteNode(row.id, row.name)">删除</button>
+                <template v-if="isAdmin">
+                  <button type="button" class="computer-tree__icon" @click.stop="onAddChild(row.id)">小类</button>
+                  <button type="button" class="computer-tree__icon" @click.stop="onAddItem(row.id)">新增讲义</button>
+                  <button type="button" class="computer-tree__icon" @click.stop="onRenameNode(row.id, row.name)">改名</button>
+                  <button type="button" class="computer-tree__icon" @click.stop="startMove(row.id, 'branch', row.name)">移动位置</button>
+                  <button type="button" class="computer-tree__icon" @click.stop="onMoveNode(row.id, -1)">上移</button>
+                  <button type="button" class="computer-tree__icon" @click.stop="onMoveNode(row.id, 1)">下移</button>
+                  <button type="button" class="computer-tree__icon is-danger" @click.stop="onDeleteNode(row.id, row.name)">删除</button>
+                </template>
               </template>
               <template v-else>
                 <button
@@ -713,11 +715,13 @@ onBeforeUnmount(() => {
                 >
                   AI测验
                 </button>
-                <button type="button" class="computer-tree__icon" @click.stop="openEntry(row.entry, true)">编辑</button>
-                <button type="button" class="computer-tree__icon" @click.stop="startMove(row.id, 'entry', row.entry.title)">移动位置</button>
-                <button type="button" class="computer-tree__icon" @click.stop="onMoveEntry(row.id, -1)">上移</button>
-                <button type="button" class="computer-tree__icon" @click.stop="onMoveEntry(row.id, 1)">下移</button>
-                <button type="button" class="computer-tree__icon is-danger" @click.stop="onDeleteEntry(row.entry)">删除</button>
+                <template v-if="isAdmin">
+                  <button type="button" class="computer-tree__icon" @click.stop="openEntry(row.entry, true)">编辑</button>
+                  <button type="button" class="computer-tree__icon" @click.stop="startMove(row.id, 'entry', row.entry.title)">移动位置</button>
+                  <button type="button" class="computer-tree__icon" @click.stop="onMoveEntry(row.id, -1)">上移</button>
+                  <button type="button" class="computer-tree__icon" @click.stop="onMoveEntry(row.id, 1)">下移</button>
+                  <button type="button" class="computer-tree__icon is-danger" @click.stop="onDeleteEntry(row.entry)">删除</button>
+                </template>
               </template>
             </div>
           </div>
@@ -916,7 +920,7 @@ onBeforeUnmount(() => {
 .computer-tree__main {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 2px;
   min-height: 40px;
   padding: 2px 4px 2px calc(6px + var(--tree-depth, 0) * 18px);
@@ -943,7 +947,7 @@ onBeforeUnmount(() => {
   flex: 0 0 22px;
   width: 22px;
   height: 22px;
-  margin: 0;
+  margin: 8px 0 0;
   padding: 0;
   border: none;
   border-radius: 6px;
@@ -994,7 +998,7 @@ onBeforeUnmount(() => {
   appearance: none;
   -webkit-appearance: none;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   flex: 1 1 auto;
   min-width: 0;
@@ -1015,33 +1019,12 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.computer-tree__quiz {
-  appearance: none;
-  flex: 0 0 auto;
-  margin: 0 2px 0 0;
-  padding: 3px 8px;
-  border: none;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--app-primary-soft) 70%, #fff);
-  color: var(--app-primary);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.computer-tree__quiz:hover {
-  background: color-mix(in srgb, var(--app-primary-soft) 92%, #fff);
-}
-
 .computer-tree__more {
   appearance: none;
   flex: 0 0 auto;
   width: 32px;
   height: 32px;
-  margin: 0 2px 0 0;
+  margin: 4px 2px 0 0;
   padding: 0;
   border: none;
   border-radius: 8px;
@@ -1075,9 +1058,10 @@ onBeforeUnmount(() => {
 
 .computer-tree__name {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
   font-weight: 700;
   line-height: 1.35;
 }
@@ -1088,7 +1072,7 @@ onBeforeUnmount(() => {
 
 .computer-tree__kind {
   flex-shrink: 0;
-  margin-top: 0;
+  margin-top: 2px;
   color: #d97706;
 }
 
@@ -1098,9 +1082,10 @@ onBeforeUnmount(() => {
 
 .computer-tree__leaf-title {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
   font-weight: 500;
   line-height: 1.35;
   color: var(--app-text);
@@ -1120,6 +1105,7 @@ onBeforeUnmount(() => {
 
 .computer-tree__soon {
   margin-left: auto;
+  margin-top: 2px;
   flex-shrink: 0;
   font-size: 11px;
   font-weight: 650;
