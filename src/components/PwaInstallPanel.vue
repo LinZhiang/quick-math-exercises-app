@@ -5,6 +5,7 @@ import { usePwaInstall } from '@/composables/app/usePwaInstall'
 import DeepseekApiAuthPanel from '@/components/DeepseekApiAuthPanel.vue'
 import JsonTransferButtons from '@/components/JsonTransferButtons.vue'
 import { clearComputerBasicsCache, loadComputerBasicsTree } from '@/utils/computer/computerBasics'
+import { showAppUpdatingMask, hideAppUpdatingMask } from '@/utils/app/appUpdateMask'
 import {
   applyPullToRefreshPreference,
   appUiSettingsTick,
@@ -47,6 +48,7 @@ async function onInstall() {
 
 async function updateAppContent() {
   updatingApp.value = true
+  showAppUpdatingMask()
   try {
     clearComputerBasicsCache()
     try {
@@ -62,11 +64,11 @@ async function updateAppContent() {
     await reg?.update()
     const waiting = reg?.waiting
     waiting?.postMessage({ type: 'SKIP_WAITING' })
-    ElMessage.success('已检查最新内容，即将刷新')
-    window.setTimeout(() => window.location.reload(), 350)
+    window.setTimeout(() => window.location.reload(), 200)
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '更新失败')
+    hideAppUpdatingMask()
     updatingApp.value = false
+    ElMessage.error(e instanceof Error ? e.message : '更新失败')
   }
 }
 </script>
@@ -101,7 +103,7 @@ async function updateAppContent() {
     <div class="install-card">
       <p class="install-card__title">更新 App 内容</p>
       <p class="install-card__text">
-        拉取最新页面与计算机基础目录。有网时点一次即可，完成后会自动刷新。
+        拉取最新页面与计算机基础目录。有网时点一次即可；更新时会短暂提示「正在更新」，请稍候，不是卡住了。
       </p>
       <el-button :loading="updatingApp" @click="updateAppContent">检查并更新</el-button>
     </div>

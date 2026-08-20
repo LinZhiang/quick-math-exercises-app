@@ -6,6 +6,7 @@ import App from './App.vue'
 import router from './router'
 import './style.css'
 import { applyPullToRefreshPreference } from '@/utils/app/appUiSettings'
+import { hideAppUpdatingMask } from '@/utils/app/appUpdateMask'
 
 /** 防止调试日志意外输出 sk- 密钥 */
 function installSecretLogGuard() {
@@ -33,3 +34,4 @@ if ('serviceWorker' in navigator) {
 }
 
 createApp(App).use(router).use(ElementPlus).mount('#app')
+hideAppUpdatingMask()

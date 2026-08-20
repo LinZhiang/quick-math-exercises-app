@@ -13,9 +13,64 @@
     <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <title>学习App</title>
+    <style>
+      #app-update-mask {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 2147483000;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 24px;
+        background: #e2e8f0;
+        color: #111827;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        text-align: center;
+      }
+      #app-update-mask.is-on {
+        display: flex;
+      }
+      #app-update-mask .spin {
+        width: 28px;
+        height: 28px;
+        border: 3px solid #bfdbfe;
+        border-top-color: #2563eb;
+        border-radius: 50%;
+        animation: app-update-spin 0.7s linear infinite;
+      }
+      #app-update-mask .title {
+        margin: 8px 0 0;
+        font-size: 18px;
+        font-weight: 800;
+      }
+      #app-update-mask .hint {
+        margin: 0;
+        font-size: 14px;
+        color: #4b5563;
+      }
+      @keyframes app-update-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
   </head>
   <body class="app-theme-light app-pull-refresh-off">
+    <div id="app-update-mask" aria-live="polite">
+      <div class="spin" aria-hidden="true"></div>
+      <p class="title">正在更新 App</p>
+      <p class="hint">请稍候，不是卡住了</p>
+    </div>
     <div id="app"></div>
+    <script>
+      try {
+        if (sessionStorage.getItem('qmea-app-updating') === '1') {
+          document.getElementById('app-update-mask').classList.add('is-on')
+        }
+      } catch (e) {}
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
