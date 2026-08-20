@@ -49,8 +49,7 @@ function nonJsonMessage(res: Response, text: string): string {
     }
     if (path.includes('computer-basics') || path.includes('/api/media/computer-basics')) {
       return (
-        '云端还没有计算机基础数据接口（当前返回了网页）。请部署本仓库的 Pages Functions，' +
-        '绑定 KV：WENGU_KV，然后在电脑执行 npm run sync:cf-computer。这与 DEEPSEEK_API_KEY 无关。'
+        '云端还没有计算机基础数据接口（当前返回了网页）。请部署本仓库的 Pages Functions。这与 DEEPSEEK_API_KEY 无关。'
       )
     }
     return `接口返回了网页而不是数据（${path || `HTTP ${res.status}`}）。${offlineHint()}`

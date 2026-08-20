@@ -1,3 +1,6 @@
 name = "quick-math-exercises-app"
 compatibility_date = "2024-11-12"
 pages_build_output_dir = "dist"
+
+# 可选：在 Pages 控制台绑定 KV，变量名必须是 WENGU_KV（讲义改动能长期保存）。
+# 未绑定也能在手机改讲义：Functions 用边缘缓存兜底，首次访问会从 /cb-data 灌库。

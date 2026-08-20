@@ -30,4 +30,4 @@ npm run build
 
 ## 部署
 
-静态前端 + Cloudflare Pages Functions（`functions/`）。计算机基础树可同步到 Pages；环境变量与密钥用仓库内 `scripts/sync-*.mjs` / `push-cf-*.mjs`，不要把 API Key 写进前端代码。
+静态前端 + Cloudflare Pages Functions（`functions/`）。计算机基础讲义在 pages.dev 上登录管理员即可改；环境变量与密钥用仓库内 `scripts/sync-*.mjs` / `push-cf-*.mjs`，不要把 API Key 写进前端代码。

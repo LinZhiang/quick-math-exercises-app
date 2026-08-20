@@ -218,7 +218,7 @@ onMounted(() => {
         </div>
       </div>
       <p class="computer-page__lead">
-        分类是树形结构，大类下可叠多层小类。讲义存在本机 Node，出门用的 pages.dev 需同步到云端。
+        分类是树形结构，大类下可叠多层小类。讲义保存在云端，手机登录管理员即可改。
       </p>
     </header>
 

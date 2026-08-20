@@ -1,8 +1,9 @@
 /**
- * 计算机基础：Cloudflare KV 存储（与本机 Node 目录结构对齐）
- * 绑定：WENGU_KV
+ * 计算机基础云端存储（与本机 Node 目录结构对齐）
+ * 优先 WENGU_KV；未绑定则用边缘缓存兜底，pages.dev 上也可改讲义。
  */
 import { json, requireAdmin } from './wenguCloudAuth.js'
+import { getCbStore, hydrateCbStoreFromAssets, rememberCbStoreOrigin } from './cbStore.js'
 
 const CATALOG_KEY = 'cb:catalog'
 const MIME_TO_EXT = {
@@ -22,8 +23,26 @@ const EXT_TO_MIME = {
   svg: 'image/svg+xml',
 }
 
-function kv(env) {
-  return env.WENGU_KV || null
+function getStore(env) {
+  return getCbStore(env)
+}
+
+async function ensureStore(env, request) {
+  const store = getStore(env)
+  if (!store) return null
+  try {
+    await hydrateCbStoreFromAssets(store, env, request, {
+      catalogKey: CATALOG_KEY,
+      itemKey,
+      mediaKey,
+      fetchAsset,
+      readJsonAsset,
+      guessMime,
+    })
+  } catch {
+    /* 快照灌库失败时仍允许写入，目录会从静态资源回填 */
+  }
+  return store
 }
 
 async function fetchAsset(env, request, pathname) {
@@ -48,12 +67,11 @@ async function readJsonAsset(env, request, pathname) {
   }
 }
 
-function noKv() {
+function noStore() {
   return json(
     {
       ok: false,
-      message:
-        '云端未绑定 KV（WENGU_KV），无法存放计算机基础讲义。请在 Cloudflare Pages → Settings → Functions → KV bindings 绑定 WENGU_KV，部署后再执行 npm run sync:cf-computer。',
+      message: '云端暂时无法写入讲义。请稍后重试；若反复失败，在 Cloudflare Pages 绑定 KV：WENGU_KV。',
     },
     503,
   )
@@ -94,26 +112,41 @@ function b64ToBytes(b64) {
   return out
 }
 
-async function readRawCatalog(env) {
-  const store = kv(env)
-  if (!store) return { tree: [] }
-  const raw = await store.get(CATALOG_KEY, { type: 'json' })
-  if (!raw || typeof raw !== 'object') return { tree: [] }
-  if (!Array.isArray(raw.tree)) raw.tree = []
-  return raw
+async function readRawCatalog(env, request) {
+  const store = getStore(env)
+  if (store) {
+    const raw = await store.get(CATALOG_KEY, { type: 'json' })
+    if (raw && typeof raw === 'object') {
+      if (!Array.isArray(raw.tree)) raw.tree = []
+      return raw
+    }
+  }
+  const snap = request ? await readJsonAsset(env, request, '/cb-data/catalog.json') : null
+  if (snap && typeof snap === 'object' && Array.isArray(snap.tree)) {
+    return { ...snap, tree: snap.tree }
+  }
+  return { tree: [] }
 }
 
 async function writeCatalog(env, tree) {
-  const store = kv(env)
-  const prev = await readRawCatalog(env)
+  const store = getStore(env)
+  if (!store) throw new Error('云端存储不可用')
+  const prev = await store.get(CATALOG_KEY, { type: 'json' })
+  const base = prev && typeof prev === 'object' ? prev : {}
   await store.put(
     CATALOG_KEY,
-    JSON.stringify({ ...prev, tree, updatedAt: new Date().toISOString() }),
+    JSON.stringify({ ...base, tree, updatedAt: new Date().toISOString() }),
   )
 }
 
+async function putRecord(env, key, value, opts) {
+  const store = getStore(env)
+  if (!store) throw new Error('云端存储不可用')
+  await store.put(key, value, opts)
+}
+
 async function itemExists(env, id) {
-  const store = kv(env)
+  const store = getStore(env)
   if (!store) return false
   const hit = await store.get(itemKey(id))
   return Boolean(hit)
@@ -125,7 +158,7 @@ async function applyReadyFlags(env, tree) {
       if (!Array.isArray(node.entries)) node.entries = []
       if (!Array.isArray(node.children)) node.children = []
       for (const entry of node.entries) {
-        entry.ready = await itemExists(env, String(entry.id))
+        if (await itemExists(env, String(entry.id))) entry.ready = true
       }
       await walk(node.children)
     }
@@ -171,7 +204,7 @@ function collectEntryIds(node, out = []) {
 }
 
 async function nextMediaIndex(env, itemId) {
-  const store = kv(env)
+  const store = getStore(env)
   if (!store) return 0
   const listed = await store.list({ prefix: mediaKey(`${itemId}-`) })
   let index = 0
@@ -187,7 +220,9 @@ async function writeMediaFile(env, itemId, index, mime, b64) {
   const ext = MIME_TO_EXT[String(mime || '').toLowerCase()] || 'bin'
   const file = `${itemId}-${index}.${ext}`
   const contentType = EXT_TO_MIME[ext] || 'application/octet-stream'
-  await kv(env).put(mediaKey(file), b64ToBytes(b64), { metadata: { mime: contentType } })
+  const store = getStore(env)
+  if (!store) throw new Error('云端存储不可用')
+  await store.put(mediaKey(file), b64ToBytes(b64), { metadata: { mime: contentType } })
   return `/api/media/computer-basics/${file}`
 }
 
@@ -212,7 +247,8 @@ async function extractDataImages(env, content, itemId) {
 }
 
 async function deleteItemFiles(env, id) {
-  const store = kv(env)
+  const store = getStore(env)
+  if (!store) return
   await store.delete(itemKey(id))
   const listed = await store.list({ prefix: mediaKey(`${id}-`) })
   await Promise.all(listed.keys.map((k) => store.delete(k.name)))
@@ -221,13 +257,23 @@ async function deleteItemFiles(env, id) {
 async function readItem(env, id, request) {
   const safe = safeId(id)
   if (!safe) return null
-  const store = kv(env)
+  const store = getStore(env)
   if (store) {
     const rec = await store.get(itemKey(safe), { type: 'json' })
     if (rec && typeof rec === 'object') return rec
   }
   const snap = await readJsonAsset(env, request, `/cb-data/items/${safe}.json`)
-  return snap && typeof snap === 'object' ? snap : null
+  if (snap && typeof snap === 'object') {
+    if (store) {
+      try {
+        await store.put(itemKey(safe), JSON.stringify({ ...snap, id: safe }))
+      } catch {
+        /* 回写失败仍返回快照 */
+      }
+    }
+    return snap
+  }
+  return null
 }
 
 function pathSegs(pathParam) {
@@ -240,16 +286,15 @@ function pathSegs(pathParam) {
 }
 
 export async function handleComputerBasics(env, request, pathParam) {
+  rememberCbStoreOrigin(request)
   const segs = pathSegs(pathParam)
   const method = request.method.toUpperCase()
   try {
     if (method === 'GET' && segs[0] === 'tree' && segs.length === 1) {
-      const store = kv(env)
-      if (store) {
-        const raw = await readRawCatalog(env)
-        if (Array.isArray(raw.tree) && raw.tree.length) {
-          return json({ ok: true, tree: await applyReadyFlags(env, raw.tree) })
-        }
+      await ensureStore(env, request)
+      const raw = await readRawCatalog(env, request)
+      if (Array.isArray(raw.tree) && raw.tree.length) {
+        return json({ ok: true, tree: await applyReadyFlags(env, raw.tree) })
       }
       const snap = await readJsonAsset(env, request, '/cb-data/catalog.json')
       if (snap && Array.isArray(snap.tree)) {
@@ -289,9 +334,10 @@ export async function handleComputerBasics(env, request, pathParam) {
 }
 
 export async function handleComputerBasicsMedia(env, fileName, request) {
+  rememberCbStoreOrigin(request)
   const name = safeId(fileName)
   if (!name) return new Response('not found', { status: 404 })
-  const store = kv(env)
+  const store = getStore(env)
   if (store) {
     const rec = await store.getWithMetadata(mediaKey(name), { type: 'arrayBuffer' })
     if (rec.value) {
@@ -319,12 +365,12 @@ export async function handleComputerBasicsMedia(env, fileName, request) {
 async function handleImport(env, request) {
   const gate = await requireAdmin(env, request)
   if (gate.error) return gate.error
-  if (!kv(env)) return noKv()
+  const store = await ensureStore(env, request)
+  if (!store) return noStore()
   const body = await request.json().catch(() => ({}))
   const tree = Array.isArray(body.tree) ? body.tree : []
   const items = body.items && typeof body.items === 'object' ? body.items : {}
   const media = body.media && typeof body.media === 'object' ? body.media : {}
-  const store = kv(env)
   for (const [id, item] of Object.entries(items)) {
     const safe = safeId(id)
     if (!safe || !item || typeof item !== 'object') continue
@@ -346,11 +392,11 @@ async function handleImport(env, request) {
 async function handleCreateNode(env, request) {
   const gate = await requireAdmin(env, request)
   if (gate.error) return gate.error
-  if (!kv(env)) return noKv()
+  if (!(await ensureStore(env, request))) return noStore()
   const body = await request.json().catch(() => ({}))
   const name = sanitizeName(body.name)
   if (!name) return json({ ok: false, message: '名称不能为空（最多 80 字）' }, 400)
-  const catalog = await readRawCatalog(env)
+  const catalog = await readRawCatalog(env, request)
   const parentId = body.parentId == null || body.parentId === '' ? null : String(body.parentId)
   const node = { id: newId('n'), name, children: [], entries: [] }
   if (!parentId) {
@@ -367,11 +413,11 @@ async function handleCreateNode(env, request) {
 async function handleRenameNode(env, request, id) {
   const gate = await requireAdmin(env, request)
   if (gate.error) return gate.error
-  if (!kv(env)) return noKv()
+  if (!(await ensureStore(env, request))) return noStore()
   const body = await request.json().catch(() => ({}))
   const name = sanitizeName(body.name)
   if (!name) return json({ ok: false, message: '名称不能为空（最多 80 字）' }, 400)
-  const catalog = await readRawCatalog(env)
+  const catalog = await readRawCatalog(env, request)
   const hit = findNode(catalog.tree, String(id))
   if (!hit) return json({ ok: false, message: '未找到该分类' }, 404)
   hit.node.name = name
@@ -382,8 +428,8 @@ async function handleRenameNode(env, request, id) {
 async function handleDeleteNode(env, id, request) {
   const gate = await requireAdmin(env, request)
   if (gate.error) return gate.error
-  if (!kv(env)) return noKv()
-  const catalog = await readRawCatalog(env)
+  if (!(await ensureStore(env, request))) return noStore()
+  const catalog = await readRawCatalog(env, request)
   const hit = findNode(catalog.tree, String(id))
   if (!hit) return json({ ok: false, message: '未找到该分类' }, 404)
   for (const entryId of collectEntryIds(hit.node)) await deleteItemFiles(env, entryId)
@@ -396,13 +442,13 @@ async function handleDeleteNode(env, id, request) {
 async function handleCreateItem(env, request) {
   const gate = await requireAdmin(env, request)
   if (gate.error) return gate.error
-  if (!kv(env)) return noKv()
+  if (!(await ensureStore(env, request))) return noStore()
   const body = await request.json().catch(() => ({}))
   const title = sanitizeName(body.title)
   const parentId = String(body.parentId ?? '')
   if (!title) return json({ ok: false, message: '标题不能为空（最多 80 字）' }, 400)
   if (!parentId) return json({ ok: false, message: '请选择所属分类' }, 400)
-  const catalog = await readRawCatalog(env)
+  const catalog = await readRawCatalog(env, request)
   const hit = findNode(catalog.tree, parentId)
   if (!hit) return json({ ok: false, message: '未找到所属分类' }, 404)
   const id = newId('q')
@@ -417,7 +463,7 @@ async function handleCreateItem(env, request) {
     tags: Array.isArray(body.tags) ? body.tags.map(String) : ['讲义', hit.node.name],
     content,
   }
-  await kv(env).put(itemKey(id), JSON.stringify(item))
+  await putRecord(env, itemKey(id), JSON.stringify(item))
   hit.node.entries.push({ id, title, ready: true, type })
   await writeCatalog(env, catalog.tree)
   return json({ ok: true, item })
@@ -426,9 +472,9 @@ async function handleCreateItem(env, request) {
 async function handlePatchItem(env, request, idRaw) {
   const gate = await requireAdmin(env, request)
   if (gate.error) return gate.error
-  if (!kv(env)) return noKv()
+  if (!(await ensureStore(env, request))) return noStore()
   const id = String(idRaw)
-  const current = await readItem(env, id)
+  const current = await readItem(env, id, request)
   if (!current) return json({ ok: false, message: '未找到该讲义' }, 404)
   const body = await request.json().catch(() => ({}))
   const title = body.title == null ? current.title : sanitizeName(body.title)
@@ -441,8 +487,8 @@ async function handlePatchItem(env, request, idRaw) {
     content,
     tags: Array.isArray(body.tags) ? body.tags.map(String) : current.tags,
   }
-  await kv(env).put(itemKey(id), JSON.stringify(item))
-  const catalog = await readRawCatalog(env)
+  await putRecord(env, itemKey(id), JSON.stringify(item))
+  const catalog = await readRawCatalog(env, request)
   const hit = findEntry(catalog.tree, id)
   if (hit) {
     hit.entry.title = title
@@ -455,9 +501,9 @@ async function handlePatchItem(env, request, idRaw) {
 async function handleDeleteItem(env, idRaw, request) {
   const gate = await requireAdmin(env, request)
   if (gate.error) return gate.error
-  if (!kv(env)) return noKv()
+  if (!(await ensureStore(env, request))) return noStore()
   const id = String(idRaw)
-  const catalog = await readRawCatalog(env)
+  const catalog = await readRawCatalog(env, request)
   const hit = findEntry(catalog.tree, id)
   if (!hit) {
     await deleteItemFiles(env, id)
