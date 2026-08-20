@@ -3,7 +3,7 @@
   云端数据见 functions/api/computer-basics；本地缓存 public/cb-data/。
 -->
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowRight, Collection, Delete, Document, Folder, FolderOpened, MoreFilled, Plus, Share } from '@element-plus/icons-vue'
@@ -25,12 +25,15 @@ import ComputerQuizBookPanel from './ComputerQuizBookPanel.vue'
 
 const router = useRouter()
 const tree = ref<ComputerTreeNode[]>([])
+const treeEl = ref<HTMLElement | null>(null)
 const loading = ref(true)
 const error = ref('')
 const expanded = ref<Record<string, boolean>>({})
 const mapOpen = ref(false)
 const bookOpen = ref(false)
 const adminOpenId = ref('')
+const flashId = ref('')
+let flashTimer = 0
 
 const isAdmin = computed(() => {
   void wenguAuthTick.value
@@ -45,13 +48,119 @@ const entryCount = computed(() => {
   return walk(tree.value)
 })
 
+function treeHasId(nodes: ComputerTreeNode[], id: string): boolean {
+  for (const node of nodes) {
+    if (node.id === id) return true
+    if (node.entries.some((entry) => entry.id === id)) return true
+    if (treeHasId(node.children, id)) return true
+  }
+  return false
+}
+
+function queryTreeRow(id: string) {
+  const safe = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(id) : id.replace(/["\\]/g, '')
+  return treeEl.value?.querySelector<HTMLElement>(`[data-tree-id="${safe}"]`) ?? null
+}
+
+function afterLayout(fn: () => void) {
+  void nextTick(() => {
+    requestAnimationFrame(() => requestAnimationFrame(fn))
+  })
+}
+
+function scrollRowIntoView(id: string, prefer: 'menu' | 'row' = 'row') {
+  const scroller = treeEl.value
+  const row = queryTreeRow(id)
+  if (!scroller || !row) return
+  const pad = 10
+  const sRect = scroller.getBoundingClientRect()
+  const rRect = row.getBoundingClientRect()
+  const menu = prefer === 'menu' ? row.querySelector<HTMLElement>('.computer-tree__admin.is-open') : null
+  const bottom = menu ? menu.getBoundingClientRect().bottom : rRect.bottom
+  const top = rRect.top
+  const clippedBottom = bottom > sRect.bottom - pad
+  const clippedTop = top < sRect.top + pad
+  if (!clippedBottom && !clippedTop) return
+  let delta = 0
+  if (clippedBottom) delta = bottom - sRect.bottom + pad
+  if (top - delta < sRect.top + pad) {
+    delta = menu ? bottom - sRect.bottom + pad : top - sRect.top - pad
+  }
+  if (Math.abs(delta) > 1) {
+    scroller.scrollTo({ top: scroller.scrollTop + delta, behavior: 'smooth' })
+  }
+}
+
+function revealRow(id: string, prefer: 'menu' | 'row' = 'row') {
+  flashId.value = id
+  window.clearTimeout(flashTimer)
+  flashTimer = window.setTimeout(() => {
+    if (flashId.value === id) flashId.value = ''
+  }, 1600)
+  afterLayout(() => {
+    const row = queryTreeRow(id)
+    if (!row) return
+    if (prefer === 'row') {
+      row.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' })
+      return
+    }
+    scrollRowIntoView(id, prefer)
+  })
+}
+
 function toggle(id: string, expandable: boolean) {
   if (!expandable) return
-  expanded.value = { ...expanded.value, [id]: !expanded.value[id] }
+  const willOpen = !expanded.value[id]
+  expanded.value = { ...expanded.value, [id]: willOpen }
+  if (!willOpen) return
+  afterLayout(() => {
+    const scroller = treeEl.value
+    const row = queryTreeRow(id)
+    if (!scroller || !row) return
+    const sRect = scroller.getBoundingClientRect()
+    const pRect = row.getBoundingClientRect()
+    if (pRect.top > sRect.top + sRect.height * 0.4) {
+      scroller.scrollTo({ top: scroller.scrollTop + (pRect.top - sRect.top - 8), behavior: 'smooth' })
+    }
+  })
 }
 
 function toggleAdmin(id: string) {
-  adminOpenId.value = adminOpenId.value === id ? '' : id
+  const opening = adminOpenId.value !== id
+  adminOpenId.value = opening ? id : ''
+  if (opening) afterLayout(() => scrollRowIntoView(id, 'menu'))
+}
+
+function onTreePointerDown(e: PointerEvent) {
+  const target = e.target as HTMLElement | null
+  if (target?.closest('.computer-tree__more')) return
+  if (target?.closest('.computer-tree__line.is-admin-open')) return
+  adminOpenId.value = ''
+}
+
+function insertNode(
+  nodes: ComputerTreeNode[],
+  parentId: string | null,
+  node: ComputerTreeNode,
+): ComputerTreeNode[] {
+  if (treeHasId(nodes, node.id)) return nodes
+  if (!parentId) return [...nodes, node]
+  return nodes.map((n) => {
+    if (n.id === parentId) return { ...n, children: [...n.children, node] }
+    return { ...n, children: insertNode(n.children, parentId, node) }
+  })
+}
+
+function insertEntry(
+  nodes: ComputerTreeNode[],
+  parentId: string,
+  entry: ComputerTreeEntry,
+): ComputerTreeNode[] {
+  if (treeHasId(nodes, entry.id)) return nodes
+  return nodes.map((n) => {
+    if (n.id === parentId) return { ...n, entries: [...n.entries, entry] }
+    return { ...n, children: insertEntry(n.children, parentId, entry) }
+  })
 }
 
 function openEntry(entry: ComputerTreeEntry, edit = false) {
@@ -81,18 +190,28 @@ async function promptName(title: string, initial = '') {
   return String(value ?? '').trim()
 }
 
-async function reloadKeepExpand() {
+async function reloadKeepExpand(opts?: {
+  focusId?: string
+  parentId?: string | null
+  node?: ComputerTreeNode
+  entry?: ComputerTreeEntry
+}) {
   const keep = { ...expanded.value }
-  const next = await loadComputerBasicsTree(true)
+  if (opts?.parentId) keep[opts.parentId] = true
+  let next = await loadComputerBasicsTree(true)
+  if (opts?.node) next = insertNode(next, opts.parentId ?? null, opts.node)
+  if (opts?.entry && opts.parentId) next = insertEntry(next, opts.parentId, opts.entry)
   tree.value = next
   expanded.value = { ...defaultExpandedComputerIds(next), ...keep }
+  adminOpenId.value = ''
+  if (opts?.focusId) revealRow(opts.focusId, 'row')
 }
 
 async function onAddRoot() {
   try {
     const name = await promptName('新增大类')
-    await createComputerNode({ name })
-    await reloadKeepExpand()
+    const node = { children: [], entries: [], ...(await createComputerNode({ name })) }
+    await reloadKeepExpand({ focusId: node.id, node, parentId: null })
     ElMessage.success('已新增大类')
   } catch (e) {
     if (isPromptCancel(e)) return
@@ -103,9 +222,8 @@ async function onAddRoot() {
 async function onAddChild(parentId: string) {
   try {
     const name = await promptName('新增小类')
-    await createComputerNode({ name, parentId })
-    expanded.value = { ...expanded.value, [parentId]: true }
-    await reloadKeepExpand()
+    const node = { children: [], entries: [], ...(await createComputerNode({ name, parentId })) }
+    await reloadKeepExpand({ focusId: node.id, parentId, node })
     ElMessage.success('已新增小类')
   } catch (e) {
     if (isPromptCancel(e)) return
@@ -116,9 +234,9 @@ async function onAddChild(parentId: string) {
 async function onAddItem(parentId: string) {
   try {
     const title = await promptName('新增讲义')
-    const item = await createComputerItem({ parentId, title, content: `# ${title}\n` })
-    expanded.value = { ...expanded.value, [parentId]: true }
-    await reloadKeepExpand()
+    const item = await createComputerItem({ parentId, title, content: '' })
+    const entry: ComputerTreeEntry = { id: item.id, title: item.title, ready: true, type: item.type }
+    await reloadKeepExpand({ focusId: item.id, parentId, entry })
     ElMessage.success('已新增讲义')
     openComputerItem(item.id, true)
   } catch (e) {
@@ -131,7 +249,7 @@ async function onRenameNode(id: string, current: string) {
   try {
     const name = await promptName('编辑分类', current)
     await renameComputerNode(id, name)
-    await reloadKeepExpand()
+    await reloadKeepExpand({ focusId: id })
     ElMessage.success('已保存')
   } catch (e) {
     if (isPromptCancel(e)) return
@@ -192,6 +310,10 @@ async function load() {
 onMounted(() => {
   void load()
 })
+
+onBeforeUnmount(() => {
+  window.clearTimeout(flashTimer)
+})
 </script>
 
 <template>
@@ -238,7 +360,13 @@ onMounted(() => {
         {{ error }}
         <el-button size="small" @click="load">重试</el-button>
       </p>
-      <ul v-else class="computer-tree" role="tree">
+      <ul
+        v-else
+        ref="treeEl"
+        class="computer-tree"
+        role="tree"
+        @pointerdown="onTreePointerDown"
+      >
         <li
           v-for="row in rows"
           :key="`${row.kind}-${row.id}`"
@@ -248,7 +376,9 @@ onMounted(() => {
             'is-leaf': row.kind === 'entry',
             'is-root': row.kind === 'branch' && row.depth === 0,
             'is-empty': row.kind === 'branch' && !row.expandable,
+            'is-flash': flashId === row.id,
           }"
+          :data-tree-id="row.id"
           :style="{ '--tree-depth': row.depth }"
           role="treeitem"
           :aria-expanded="row.kind === 'branch' ? Boolean(expanded[row.id]) : undefined"
@@ -271,18 +401,29 @@ onMounted(() => {
               >
                 <el-icon :size="12"><ArrowRight /></el-icon>
               </button>
-              <span v-else class="computer-tree__caret-spacer" />
+              <span v-else class="computer-tree__caret-spacer" aria-hidden="true">
+                <el-icon v-if="row.kind === 'branch'" class="computer-tree__caret-ghost" :size="12">
+                  <ArrowRight />
+                </el-icon>
+              </span>
               <div
                 v-if="row.kind === 'branch'"
                 class="computer-tree__toggle"
-                :class="{ 'is-root': row.depth === 0, 'is-open': expanded[row.id] }"
+                :class="{
+                  'is-root': row.depth === 0,
+                  'is-open': expanded[row.id],
+                  'is-clickable': row.expandable,
+                }"
+                @click="toggle(row.id, row.expandable)"
               >
                 <el-icon class="computer-tree__kind" :size="16">
                   <FolderOpened v-if="expanded[row.id]" />
                   <Folder v-else />
                 </el-icon>
                 <span class="computer-tree__name">{{ row.name }}</span>
-                <span v-if="!row.expandable && !isAdmin" class="computer-tree__soon">即将开放</span>
+                <span v-if="!row.expandable" class="computer-tree__soon">{{
+                  isAdmin ? '空' : '即将开放'
+                }}</span>
               </div>
               <button
                 v-else
@@ -301,7 +442,10 @@ onMounted(() => {
                 v-if="isAdmin"
                 type="button"
                 class="computer-tree__more"
+                :class="{ 'is-on': adminOpenId === row.id }"
                 aria-label="显示操作"
+                :aria-expanded="adminOpenId === row.id"
+                @pointerdown.stop
                 @click.stop="toggleAdmin(row.id)"
               >
                 <el-icon :size="16"><MoreFilled /></el-icon>
@@ -443,7 +587,7 @@ onMounted(() => {
   flex: 1 1 0;
   min-height: 0;
   margin: 0;
-  padding: 8px;
+  padding: 6px 8px 16px;
   list-style: none;
   overflow-x: hidden;
   overflow-y: auto;
@@ -451,6 +595,11 @@ onMounted(() => {
 
 .computer-tree__row {
   position: relative;
+  scroll-margin: 12px;
+}
+
+.computer-tree__row.is-flash .computer-tree__main {
+  background: color-mix(in srgb, var(--app-primary-soft) 78%, #fff);
 }
 
 .computer-tree__line {
@@ -462,13 +611,18 @@ onMounted(() => {
 .computer-tree__main {
   position: relative;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 2px;
   min-height: 40px;
-  padding: 4px 4px 4px calc(6px + var(--tree-depth, 0) * 18px);
+  padding: 2px 4px 2px calc(6px + var(--tree-depth, 0) * 18px);
   border-radius: 10px;
   border: none;
   transition: background-color 0.12s ease;
+}
+
+.computer-tree__row.is-empty .computer-tree__main {
+  min-height: 36px;
+  opacity: 0.92;
 }
 
 .computer-tree__row.is-root .computer-tree__main {
@@ -484,15 +638,29 @@ onMounted(() => {
   flex: 0 0 22px;
   width: 22px;
   height: 22px;
-  margin: 6px 0 0;
+  margin: 0;
   padding: 0;
   border: none;
   border-radius: 6px;
   background: transparent;
   color: #94a3b8;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
   cursor: pointer;
+}
+
+.computer-tree__caret-btn :deep(.el-icon) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  line-height: 0;
+}
+
+.computer-tree__caret-btn :deep(svg) {
+  display: block;
 }
 
 .computer-tree__caret-btn {
@@ -501,6 +669,7 @@ onMounted(() => {
 
 .computer-tree__caret-btn.is-open {
   transform: rotate(90deg);
+  transform-origin: center center;
   color: var(--app-primary);
 }
 
@@ -508,8 +677,11 @@ onMounted(() => {
   background: rgb(15 23 42 / 7%);
 }
 
-.computer-tree__caret-spacer {
-  cursor: default;
+.computer-tree__caret-ghost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.28;
 }
 
 .computer-tree__toggle,
@@ -530,6 +702,10 @@ onMounted(() => {
   text-align: left;
 }
 
+.computer-tree__toggle.is-clickable {
+  cursor: pointer;
+}
+
 .computer-tree__leaf {
   cursor: pointer;
 }
@@ -537,23 +713,23 @@ onMounted(() => {
 .computer-tree__more {
   appearance: none;
   flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  margin: 4px 2px 0 0;
+  width: 32px;
+  height: 32px;
+  margin: 0 2px 0 0;
   padding: 0;
   border: none;
   border-radius: 8px;
-  background: transparent;
-  color: color-mix(in srgb, var(--app-text-muted) 42%, transparent);
+  background: rgb(15 23 42 / 4%);
+  color: var(--app-text-muted);
   display: grid;
   place-items: center;
   cursor: pointer;
 }
 
-.computer-tree__line.is-admin-open .computer-tree__more,
-.computer-tree__line:hover .computer-tree__more {
-  color: var(--app-text-muted);
-  background: rgb(15 23 42 / 5%);
+.computer-tree__more.is-on,
+.computer-tree__line.is-admin-open .computer-tree__more {
+  color: var(--app-primary);
+  background: color-mix(in srgb, var(--app-primary-soft) 70%, #fff);
 }
 
 .computer-tree__admin {
@@ -564,25 +740,11 @@ onMounted(() => {
   padding: 8px;
   border-radius: 10px;
   background: color-mix(in srgb, var(--app-primary-soft) 32%, #fff);
+  box-shadow: 0 6px 16px rgb(15 23 42 / 6%);
 }
 
 .computer-tree__admin.is-open {
   display: grid;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .computer-tree__more {
-    opacity: 0;
-  }
-
-  .computer-tree__line:hover .computer-tree__more,
-  .computer-tree__line.is-admin-open .computer-tree__more {
-    opacity: 1;
-  }
-
-  .computer-tree__line.is-admin:hover .computer-tree__admin {
-    display: grid;
-  }
 }
 
 .computer-tree__name {
@@ -596,7 +758,7 @@ onMounted(() => {
 
 .computer-tree__kind {
   flex-shrink: 0;
-  margin-top: 1px;
+  margin-top: 0;
   color: #d97706;
 }
 

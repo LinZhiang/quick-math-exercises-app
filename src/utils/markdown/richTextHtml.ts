@@ -12,6 +12,36 @@ export function sanitizeRichHtml(raw: string): string {
   return String(DOMPurify.sanitize(raw ?? '', SANITIZE_OPTS))
 }
 
+function isEmptyRichElement(el: Element): boolean {
+  if (el.querySelector('img, table, video, canvas, iframe')) return false
+  return !(el.textContent || '').replace(/\u00a0/g, ' ').trim()
+}
+
+/** 去掉文末连续空段，避免 Backspace 后底下还剩一大截空白。 */
+export function compactTrailingEmptyHtml(html: string): string {
+  const sanitized = sanitizeRichHtml(html)
+  if (typeof document === 'undefined') return sanitized
+  const wrap = document.createElement('div')
+  wrap.innerHTML = sanitized
+  while (wrap.lastChild) {
+    const last = wrap.lastChild
+    if (last.nodeType === Node.TEXT_NODE && !(last.textContent || '').trim()) {
+      wrap.removeChild(last)
+      continue
+    }
+    if (last.nodeName === 'BR') {
+      wrap.removeChild(last)
+      continue
+    }
+    if (last.nodeType === Node.ELEMENT_NODE && isEmptyRichElement(last as Element)) {
+      wrap.removeChild(last)
+      continue
+    }
+    break
+  }
+  return wrap.innerHTML.trim()
+}
+
 export function richHtmlIsEmpty(html: string): boolean {
   const sanitized = sanitizeRichHtml(html)
   const text = sanitized

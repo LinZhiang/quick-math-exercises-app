@@ -392,7 +392,7 @@ watch(photoOpen, (open) => {
 
 <template>
   <section v-if="loading" class="computer-missing">
-    <p>正在从 Node 读取讲义…</p>
+    <p>正在读取讲义…</p>
   </section>
   <section v-else-if="error || !item" class="computer-missing">
     <p>{{ error || '未找到该讲义。' }}</p>
@@ -559,7 +559,7 @@ watch(photoOpen, (open) => {
         <RichTextEditor
           v-model="draftContent"
           class="computer-detail__editor"
-          fill
+          min-height="168px"
           placeholder="输入讲义正文…"
         />
       </template>
@@ -657,8 +657,9 @@ watch(photoOpen, (open) => {
 .computer-detail__paper.is-editing {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  padding-bottom: 16px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-bottom: 20px;
 }
 
 .computer-detail__quiz {
@@ -672,7 +673,7 @@ watch(photoOpen, (open) => {
 }
 
 .computer-detail__editor {
-  flex: 1 1 0;
+  flex: 0 0 auto;
   min-height: 0;
   margin-top: 10px;
 }
