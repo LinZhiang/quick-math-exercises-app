@@ -49,7 +49,10 @@ export function useComputerHandoutQuiz() {
   const carelessMarked = ref(false)
   const quizStartedAt = ref(0)
   const elapsedMs = ref(0)
+  const quizTimerPaused = ref(false)
   let elapsedTimer = 0
+  let pauseStartMs: number | null = null
+  let totalPausedMs = 0
   let loggedSession = false
   let quizItem: ComputerHandoutItem | null = null
   const wrongGate = createChineseWrongBookGate(upsertComputerQuizWrong)
@@ -59,7 +62,7 @@ export function useComputerHandoutQuiz() {
   const questionCount = computed(() => questions.value.length)
   const elapsedText = computed(() => {
     const t = formatLogDuration(elapsedMs.value) || '0 秒'
-    return `已用时 ${t}`
+    return quizTimerPaused.value ? `已用时 ${t} · 计时暂停` : `已用时 ${t}`
   })
 
   function stopElapsedTimer() {
@@ -70,7 +73,13 @@ export function useComputerHandoutQuiz() {
   }
 
   function tickElapsed() {
-    elapsedMs.value = quizStartedAt.value ? Math.max(0, Date.now() - quizStartedAt.value) : 0
+    if (!quizStartedAt.value) {
+      elapsedMs.value = 0
+      return
+    }
+    let paused = totalPausedMs
+    if (pauseStartMs != null) paused += Math.max(0, Date.now() - pauseStartMs)
+    elapsedMs.value = Math.max(0, Date.now() - quizStartedAt.value - paused)
   }
 
   function startElapsedTimer() {
@@ -79,8 +88,32 @@ export function useComputerHandoutQuiz() {
     elapsedTimer = window.setInterval(tickElapsed, 250)
   }
 
-  function resetToIdle() {
+  function pauseQuizTimer() {
+    if (phase.value !== 'running' || pauseStartMs != null) return
+    tickElapsed()
+    pauseStartMs = Date.now()
+    quizTimerPaused.value = true
+  }
+
+  function resumeQuizTimer() {
+    if (pauseStartMs == null) return
+    totalPausedMs += Math.max(0, Date.now() - pauseStartMs)
+    pauseStartMs = null
+    quizTimerPaused.value = false
+    tickElapsed()
+  }
+
+  function resetTimerState() {
     stopElapsedTimer()
+    pauseStartMs = null
+    totalPausedMs = 0
+    quizTimerPaused.value = false
+    quizStartedAt.value = 0
+    elapsedMs.value = 0
+  }
+
+  function resetToIdle() {
+    resetTimerState()
     phase.value = 'idle'
     loadingMessage.value = ''
     questions.value = []
@@ -93,8 +126,6 @@ export function useComputerHandoutQuiz() {
     results.value = []
     carelessMarked.value = false
     wrongGate.clearWrongGate()
-    quizStartedAt.value = 0
-    elapsedMs.value = 0
     loggedSession = false
     quizItem = null
   }
@@ -141,6 +172,9 @@ export function useComputerHandoutQuiz() {
       results.value = []
       carelessMarked.value = false
       wrongGate.clearWrongGate()
+      pauseStartMs = null
+      totalPausedMs = 0
+      quizTimerPaused.value = false
       quizStartedAt.value = Date.now()
       elapsedMs.value = 0
       loggedSession = false
@@ -190,6 +224,7 @@ export function useComputerHandoutQuiz() {
     submitted.value = true
     selfScore.value = null
     carelessMarked.value = false
+    pauseQuizTimer()
     if (q.kind !== 'short' && !correct) wrongGate.noteWrongAnswer(q)
   }
 
@@ -251,6 +286,7 @@ export function useComputerHandoutQuiz() {
     shortInput.value = ''
     submitted.value = false
     selfScore.value = null
+    resumeQuizTimer()
   }
 
   function markCarelessWrong() {
@@ -283,6 +319,7 @@ export function useComputerHandoutQuiz() {
     carelessMarked,
     elapsedMs,
     elapsedText,
+    quizTimerPaused,
     computerQuizKindLabel,
     generateAndStart,
     selectOption,

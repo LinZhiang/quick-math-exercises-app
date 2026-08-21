@@ -117,6 +117,7 @@ export async function requestComputerHandoutQuiz(input: {
     '只输出合法 JSON 数组，不要 markdown 围栏，不要其它说明。',
     '少而准：优先考讲义里的重点（定义、划分标准、最主要特点、原理、易混概念），不要考边角例子或无区分度的细节。',
     '解析必须证明 correct，不允许标答与解析打架。',
+    '解析不要只抄讲义原句：先点明正确答案，再用自己的话把原理、易混点、记忆提示说清楚（可举讲义外的浅显例子）；不得编造与讲义矛盾的结论。',
     '英文缩写（如 MAR、CPU）在题干和选项里只写缩写本身，不要夹带中文全称或括号解释；全称、含义只写在 explanation。',
   ].join('\n')
   const user = [
@@ -145,7 +146,7 @@ export async function requestComputerHandoutQuiz(input: {
     '1. 选择题 correct 必须写正确选项的全文，禁止写 A/B/C/D 或 1/2/3/4。',
     '2. 选项顺序随意，程序会打乱；不要把干扰项写成 correct。',
     '3. 题干、选项、correct、解析必须是同一道题。禁止题干问甲、答案却是乙。',
-    '4. 解析先点明正确答案，再说明其余项为何错（错在「不是本题所问」或「讲义明确否定」）；解析支持另一选项即作废。',
+    '4. 解析先点明正确答案，再说明其余项为何错（错在「不是本题所问」或「讲义明确否定」）；可适当展开背景与记忆法，不必逐句照抄讲义。解析支持另一选项即作废。',
     '5. 考点必须能在讲义中找到原句或等价表述。',
     '6. 判断题要卡在易错点上：把「最主要/划分标准/原理」说成相邻优点或错误依据，句子必须能从讲义直接判对错。',
     '7. 计算题只出一个结果、correct 只能是该结果短串；禁止把计算题写成简答，也禁止把简答写成计算题。',
@@ -174,7 +175,7 @@ export async function requestComputerHandoutQuiz(input: {
     const raw = await deepseekChatRaw(user, {
       system,
       temperature: 0.42,
-      maxTokens: 8192,
+      maxTokens: Math.min(16384, 4096 + total * 280),
       provider: input.provider,
     })
     return collect(parseAiJsonArrayLenient(stripAiJsonFence(raw)))

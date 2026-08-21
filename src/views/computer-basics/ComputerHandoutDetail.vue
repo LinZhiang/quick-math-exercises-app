@@ -398,8 +398,12 @@ watch(photoOpen, (open) => {
 </script>
 
 <template>
-  <section v-if="item" class="computer-detail" :class="{ 'is-full': fullscreen }">
-    <header class="computer-detail__top">
+  <section
+    v-if="item"
+    class="computer-detail"
+    :class="{ 'is-full': fullscreen, 'is-quiz': quizOpen && !editing && !photoOpen }"
+  >
+    <header v-if="!(quizOpen && !editing && !photoOpen)" class="computer-detail__top">
       <div class="computer-detail__titles">
         <p v-if="item.learningPath.length" class="computer-detail__crumb">
           {{ item.learningPath.join(' / ') }}
@@ -697,10 +701,15 @@ watch(photoOpen, (open) => {
   padding-bottom: 20px;
 }
 
+.computer-detail.is-quiz {
+  padding-top: 8px;
+}
+
 .computer-detail__quiz {
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .computer-detail__paper.is-editing > :deep(.el-input) {

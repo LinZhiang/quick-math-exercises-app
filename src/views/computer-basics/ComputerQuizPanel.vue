@@ -13,7 +13,7 @@ import {
   isComputerQuizFavorite,
   toggleComputerQuizFavorite,
 } from '@/utils/computer/computerHandoutQuizStorage'
-import { sanitizeComputerQuizForDisplay } from '@/utils/computer/computerHandoutQuiz'
+import { sanitizeComputerQuizForDisplay, COMPUTER_QUIZ_KIND_MAX } from '@/utils/computer/computerHandoutQuiz'
 import type { ComputerHandoutItem } from '@/utils/computer/computerBasics'
 import { wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 import RichTextView from '@/components/RichTextView.vue'
@@ -112,11 +112,13 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
         <span
           v-if="test.phase === 'running' || test.phase === 'summary'"
           class="cb-quiz__timer"
+          :class="{ 'is-paused': test.quizTimerPaused }"
         >{{ test.elapsedText }}</span>
         <el-button size="small" @click="emit('close')">关闭</el-button>
       </div>
     </header>
 
+    <div class="cb-quiz__body">
     <template v-if="test.phase === 'idle'">
       <p class="cb-quiz__hint">
         {{
@@ -134,10 +136,10 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
         </el-radio-group>
       </div>
       <div class="cb-quiz__counts">
-        <label>选择题 <el-input-number v-model="test.counts.choice" :min="0" :max="8" size="small" /></label>
-        <label>判断题 <el-input-number v-model="test.counts.judge" :min="0" :max="6" size="small" /></label>
-        <label>计算题 <el-input-number v-model="test.counts.calc" :min="0" :max="4" size="small" /></label>
-        <label>简答题 <el-input-number v-model="test.counts.short" :min="0" :max="4" size="small" /></label>
+        <label>选择题 <el-input-number v-model="test.counts.choice" :min="0" :max="COMPUTER_QUIZ_KIND_MAX" size="small" /></label>
+        <label>判断题 <el-input-number v-model="test.counts.judge" :min="0" :max="COMPUTER_QUIZ_KIND_MAX" size="small" /></label>
+        <label>计算题 <el-input-number v-model="test.counts.calc" :min="0" :max="COMPUTER_QUIZ_KIND_MAX" size="small" /></label>
+        <label>简答题 <el-input-number v-model="test.counts.short" :min="0" :max="COMPUTER_QUIZ_KIND_MAX" size="small" /></label>
       </div>
       <p v-if="!aiReady" class="cb-quiz__warn">{{ DEEPSEEK_NOT_CONFIGURED_HINT }}</p>
       <el-button type="primary" :disabled="!aiReady" @click="onStart">开始测验</el-button>
@@ -278,6 +280,7 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
         <el-button @click="test.resetToIdle()">返回设置</el-button>
       </div>
     </template>
+    </div>
   </section>
   <ComputerAskPanel
     v-if="test.phase === 'running' && quizAskQuestion"
@@ -293,18 +296,18 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
 <style scoped>
 .cb-quiz-shell {
   position: relative;
-  flex: 0 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
 .cb-quiz {
-  flex: 0 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: auto;
+  overflow: hidden;
   padding: 4px 2px 8px;
   gap: 12px;
 }
@@ -314,10 +317,22 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
 }
 
 .cb-quiz__head {
+  flex-shrink: 0;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+}
+
+.cb-quiz__body {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 2px;
 }
 
 .cb-quiz__head h3 {
@@ -342,6 +357,10 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
   font-weight: 700;
   color: var(--app-primary);
   white-space: nowrap;
+}
+
+.cb-quiz__timer.is-paused {
+  color: var(--el-color-warning);
 }
 
 .cb-quiz__hint,
