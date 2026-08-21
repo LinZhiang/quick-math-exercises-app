@@ -506,31 +506,28 @@ onBeforeUnmount(() => {
   <section class="computer-page" :class="{ 'is-quiz': Boolean(quizItem) }">
     <header v-if="!quizItem" class="computer-page__head">
       <div class="computer-page__title-row">
-        <h2 class="computer-page__title">计算机基础</h2>
-        <div class="computer-page__head-actions">
-          <el-button-group class="computer-page__nav-btns">
-            <el-button size="small" :icon="Share" title="查看知识分布" @click="mapOpen = true">分布</el-button>
-            <el-button
-              size="small"
-              :icon="Collection"
-              title="AI 题目整理"
-              @click="router.push({ name: 'computer-book' })"
-            >
-              题目
-            </el-button>
-            <el-button
-              size="small"
-              :icon="Notebook"
-              title="学习日志"
-              @click="router.push({ name: 'computer-log' })"
-            >
-              日志
-            </el-button>
-          </el-button-group>
-          <el-tooltip v-if="isAdmin" content="新增大类" placement="top">
-            <el-button size="small" type="primary" :icon="Plus" @click="onAddRoot">大类</el-button>
-          </el-tooltip>
-        </div>
+        <el-button-group class="computer-page__nav-btns">
+          <el-button size="small" :icon="Share" title="查看知识分布" @click="mapOpen = true">分布</el-button>
+          <el-button
+            size="small"
+            :icon="Collection"
+            title="AI 题目整理"
+            @click="router.push({ name: 'computer-book' })"
+          >
+            题目
+          </el-button>
+          <el-button
+            size="small"
+            :icon="Notebook"
+            title="学习日志"
+            @click="router.push({ name: 'computer-log' })"
+          >
+            日志
+          </el-button>
+        </el-button-group>
+        <el-tooltip v-if="isAdmin" content="新增大类" placement="top">
+          <el-button size="small" type="primary" :icon="Plus" @click="onAddRoot">大类</el-button>
+        </el-tooltip>
       </div>
       <p class="computer-page__lead">
         分类是树形结构，大类下可叠多层小类。管理员登录后可直接新增、改名；「检查并更新」只刷新应用，不会清空目录。
@@ -729,51 +726,16 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 10px 12px;
-  margin-bottom: 6px;
-}
-
-.computer-page__head-actions {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .computer-page__nav-btns {
-  display: inline-flex;
-  flex-direction: column;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .computer-page__nav-btns :deep(.el-button) {
   margin: 0;
-  width: 4.75rem;
-}
-
-.computer-page__nav-btns :deep(.el-button + .el-button) {
-  margin-left: 0;
-  margin-top: -1px;
-}
-
-.computer-page__nav-btns :deep(.el-button:first-child) {
-  border-radius: 8px 8px 0 0;
-}
-
-.computer-page__nav-btns :deep(.el-button:last-child) {
-  border-radius: 0 0 8px 8px;
-}
-
-.computer-page__nav-btns :deep(.el-button:not(:first-child):not(:last-child)) {
-  border-radius: 0;
-}
-
-.computer-page__title {
-  margin: 0;
-  min-width: 0;
-  font-size: 1.28rem;
-  font-weight: 800;
-  line-height: 1.25;
 }
 
 .computer-page__lead {
