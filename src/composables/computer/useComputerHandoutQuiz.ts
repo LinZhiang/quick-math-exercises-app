@@ -60,10 +60,13 @@ export function useComputerHandoutQuiz() {
   const currentQuestion = computed(() => questions.value[currentIndex.value] ?? null)
   const correctCount = computed(() => results.value.filter((r) => r.correct).length)
   const questionCount = computed(() => questions.value.length)
-  const elapsedText = computed(() => {
+  const elapsedClockText = computed(() => {
     const t = formatLogDuration(elapsedMs.value) || '0 秒'
-    return quizTimerPaused.value ? `已用时 ${t} · 计时暂停` : `已用时 ${t}`
+    return `已用时 ${t}`
   })
+  const elapsedText = computed(() =>
+    quizTimerPaused.value ? `${elapsedClockText.value} · 计时暂停` : elapsedClockText.value,
+  )
 
   function stopElapsedTimer() {
     if (elapsedTimer) {
@@ -318,6 +321,7 @@ export function useComputerHandoutQuiz() {
     questionCount,
     carelessMarked,
     elapsedMs,
+    elapsedClockText,
     elapsedText,
     quizTimerPaused,
     computerQuizKindLabel,

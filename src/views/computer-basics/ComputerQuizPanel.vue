@@ -107,15 +107,18 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
   <div class="cb-quiz-shell">
   <section class="cb-quiz" :class="{ 'is-running': test.phase === 'running' }">
     <header class="cb-quiz__head">
-      <h3>{{ scopeLabel ? `AI 测验 · ${scopeLabel}` : 'AI 测验' }}</h3>
-      <div class="cb-quiz__head-right">
-        <span
-          v-if="test.phase === 'running' || test.phase === 'summary'"
-          class="cb-quiz__timer"
-          :class="{ 'is-paused': test.quizTimerPaused }"
-        >{{ test.elapsedText }}</span>
+      <div class="cb-quiz__head-row">
+        <h3>AI 测验</h3>
         <el-button size="small" @click="emit('close')">关闭</el-button>
       </div>
+      <p v-if="scopeLabel" class="cb-quiz__scope" :title="scopeLabel">{{ scopeLabel }}</p>
+      <p
+        v-if="test.phase === 'running' || test.phase === 'summary'"
+        class="cb-quiz__timer"
+      >
+        {{ test.elapsedClockText }}
+      </p>
+      <p v-if="test.quizTimerPaused" class="cb-quiz__pause">计时暂停</p>
     </header>
 
     <div class="cb-quiz__body">
@@ -319,9 +322,10 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
 .cb-quiz__head {
   flex-shrink: 0;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding-bottom: 4px;
 }
 
 .cb-quiz__body {
@@ -335,31 +339,53 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
   padding-right: 2px;
 }
 
+.cb-quiz__head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cb-quiz__head-row :deep(.el-button) {
+  flex-shrink: 0;
+}
+
 .cb-quiz__head h3 {
   margin: 0;
   min-width: 0;
   flex: 1 1 auto;
-  font-size: 1.05rem;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  white-space: normal;
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.cb-quiz__head-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
+.cb-quiz__scope {
+  margin: 0;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--app-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cb-quiz__timer {
+  margin: 0;
   font-size: 13px;
   font-weight: 700;
+  line-height: 1.4;
   color: var(--app-primary);
-  white-space: nowrap;
 }
 
-.cb-quiz__timer.is-paused {
+.cb-quiz__pause {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
   color: var(--el-color-warning);
 }
 

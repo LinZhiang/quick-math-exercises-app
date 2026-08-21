@@ -5,7 +5,7 @@ withDefaults(
     text: string
     hint?: string
   }>(),
-  { hint: '请稍候，不是卡住了' },
+  { hint: '请稍候，马上就完成' },
 )
 </script>
 
