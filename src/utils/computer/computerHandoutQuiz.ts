@@ -28,11 +28,13 @@ export const DEFAULT_COMPUTER_QUIZ_COUNTS: ComputerQuizCounts = {
   short: 0,
 }
 
+export const COMPUTER_QUIZ_KIND_MAX = 15
+
 const QUIZ_COUNT_MAX: ComputerQuizCounts = {
-  choice: 8,
-  judge: 6,
-  calc: 4,
-  short: 4,
+  choice: COMPUTER_QUIZ_KIND_MAX,
+  judge: COMPUTER_QUIZ_KIND_MAX,
+  calc: COMPUTER_QUIZ_KIND_MAX,
+  short: COMPUTER_QUIZ_KIND_MAX,
 }
 
 export function computerQuizKindLabel(kind: ComputerQuizKind): string {

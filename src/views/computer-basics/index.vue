@@ -503,8 +503,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="computer-page">
-    <header class="computer-page__head">
+  <section class="computer-page" :class="{ 'is-quiz': Boolean(quizItem) }">
+    <header v-if="!quizItem" class="computer-page__head">
       <div class="computer-page__title-row">
         <h2 class="computer-page__title">计算机基础</h2>
         <div class="computer-page__head-actions">
@@ -537,7 +537,7 @@ onBeforeUnmount(() => {
       </p>
     </header>
 
-    <div v-if="quizItem" class="computer-tree-card">
+    <div v-if="quizItem" class="computer-tree-card computer-tree-card--quiz">
       <div class="computer-book-wrap">
         <ComputerQuizPanel
           :key="quizItem.id"
@@ -715,6 +715,10 @@ onBeforeUnmount(() => {
   padding: 16px 16px 12px;
 }
 
+.computer-page.is-quiz {
+  padding-top: 8px;
+}
+
 .computer-page__head {
   flex-shrink: 0;
   margin-bottom: 14px;
@@ -793,6 +797,11 @@ onBeforeUnmount(() => {
   box-shadow: 0 8px 28px rgb(15 23 42 / 5%);
 }
 
+.computer-tree-card--quiz {
+  flex: 1 1 0;
+  max-width: none;
+}
+
 .computer-busy-panel {
   flex: 0 0 auto;
   min-height: 120px;
@@ -832,9 +841,9 @@ onBeforeUnmount(() => {
 }
 
 .computer-book-wrap {
-  flex: 0 1 auto;
+  flex: 1 1 0;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
