@@ -39,8 +39,15 @@ function markWideBlocks() {
 }
 
 function onClick(ev: MouseEvent) {
-  if (!props.zoomImages) return
   const t = ev.target
+  if (t instanceof Element) {
+    const note = t.closest('.cb-handout-note')
+    if (note instanceof HTMLElement) {
+      note.classList.toggle('is-open')
+      return
+    }
+  }
+  if (!props.zoomImages) return
   if (!(t instanceof HTMLImageElement) || !t.src) return
   previewSrc.value = t.src
 }
@@ -166,6 +173,43 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   padding: 4px 10px;
   border-left: 3px solid var(--app-border, #d1d5db);
   color: var(--app-text-muted);
+}
+
+.rich-text-view :deep(.cb-handout-note) {
+  display: block;
+  margin: 12px 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.rich-text-view :deep(.cb-handout-note__tab) {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 5px 14px 5px 12px;
+  border-radius: 4px 18px 18px 4px;
+  background: linear-gradient(90deg, #2563eb 0%, #3b82f6 72%, #93c5fd 100%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.35;
+  box-shadow: 2px 2px 0 rgb(30 64 175 / 28%);
+}
+
+.rich-text-view :deep(.cb-handout-note__body) {
+  display: none;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px dashed #93c5fd;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.rich-text-view :deep(.cb-handout-note.is-open .cb-handout-note__body) {
+  display: block;
 }
 
 .rich-text-view :deep(.da-math-frac) {

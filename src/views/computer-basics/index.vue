@@ -34,6 +34,10 @@ import ComputerBusyHint from './ComputerBusyHint.vue'
 import ComputerCategoryMapDialog from './ComputerCategoryMapDialog.vue'
 import ComputerMoveDialog from './ComputerMoveDialog.vue'
 import ComputerQuizPanel from './ComputerQuizPanel.vue'
+import {
+  computerStudyLogTick,
+  summarizeComputerQuizLogs,
+} from '@/utils/computer/computerStudyLog'
 
 const router = useRouter()
 const tree = ref<ComputerTreeNode[]>([])
@@ -64,6 +68,11 @@ const entryCount = computed(() => {
   const walk = (nodes: typeof tree.value): number =>
     nodes.reduce((n, node) => n + node.entries.length + walk(node.children), 0)
   return walk(tree.value)
+})
+
+const quizStats = computed(() => {
+  void computerStudyLogTick.value
+  return summarizeComputerQuizLogs()
 })
 
 function treeHasId(nodes: ComputerTreeNode[], id: string): boolean {
@@ -532,6 +541,15 @@ onBeforeUnmount(() => {
       <p class="computer-page__lead">
         分类是树形结构，大类下可叠多层小类。管理员登录后可直接新增、改名；「检查并更新」只刷新应用，不会清空目录。
       </p>
+      <p v-if="quizStats.lifetimeTotal" class="computer-page__stats">
+        累计测验 {{ quizStats.lifetimeTotal }} 题，答对 {{ quizStats.lifetimeCorrect }}。
+        <template v-if="quizStats.todayTotal">
+          今天测了
+          {{ quizStats.todayModules.map((m) => m.label).join('、') || '若干模块' }}
+          ，共 {{ quizStats.todayTotal }} 题，答对 {{ quizStats.todayCorrect }}。
+        </template>
+        <template v-else>今天还没有完成测验。</template>
+      </p>
     </header>
 
     <div v-if="quizItem" class="computer-tree-card computer-tree-card--quiz">
@@ -744,6 +762,13 @@ onBeforeUnmount(() => {
   color: var(--app-text-muted);
 }
 
+.computer-page__stats {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--app-text);
+}
+
 .computer-tree-card {
   position: relative;
   flex: 0 1 auto;
@@ -765,8 +790,8 @@ onBeforeUnmount(() => {
 }
 
 .computer-busy-panel {
-  flex: 0 0 auto;
-  min-height: 120px;
+  flex: 1 1 0;
+  min-height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;

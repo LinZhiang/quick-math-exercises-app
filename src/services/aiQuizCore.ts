@@ -197,6 +197,56 @@ export async function requestComputerHandoutQuiz(input: {
   return out.slice(0, total)
 }
 
+export async function requestComputerQuizVariant(input: {
+  original: import('@/utils/computer/computerHandoutQuiz').ComputerQuizQuestion
+  provider?: AiProvider
+}): Promise<import('@/utils/computer/computerHandoutQuiz').ComputerQuizQuestion | null> {
+  const { parseComputerQuizAiItem } = await import('@/utils/computer/computerHandoutQuiz')
+  const original = input.original
+  const system = [
+    '你是计算机基础知识命题老师，专门根据原题生成变式题。',
+    '只输出合法 JSON 对象，不要 markdown 围栏，不要其它说明。',
+    '考查同一知识点，换提问角度或选项表述，不要几乎照抄原题。',
+    '选择题 correct 必须是 options 里某一项的原文；判断题 correct 写「正确」或「错误」。',
+    '计算题 correct 只写最终结果短串；简答题 correct 写参考要点。',
+  ].join('\n')
+  const user = [
+    '请根据下列原题生成 1 道变式题。',
+    '字段：kind(choice|judge|calc|short), term, stem, options, correct, explanation。',
+    `题型必须仍是 ${original.kind}。`,
+    `【原题】\n${JSON.stringify({
+      kind: original.kind,
+      term: original.term,
+      stem: original.stem,
+      options: original.options,
+      correct: original.correctText,
+      explanation: original.explanation,
+    })}`,
+    '仅返回一个 JSON 对象。',
+  ].join('\n')
+  const raw = await deepseekChatRaw(user, {
+    system,
+    temperature: 0.55,
+    maxTokens: 1800,
+    provider: input.provider,
+  })
+  let parsed: unknown = parseAiJsonObjectLenient(raw)
+  if (Array.isArray(parsed)) parsed = parsed[0]
+  const q = parseComputerQuizAiItem(parsed, {
+    itemId: original.itemId,
+    itemTitle: original.itemTitle,
+    learningPath: original.learningPath,
+  })
+  if (!q || q.kind !== original.kind) return null
+  return {
+    ...q,
+    fingerprint: original.fingerprint,
+    itemId: original.itemId,
+    itemTitle: original.itemTitle,
+    learningPath: original.learningPath,
+  }
+}
+
 /** 关键题变式：根据原题 JSON 生成一道新四选一（仅返回 JSON 对象） */
 export async function requestChinesePracticeVariantJson(input: {
   sourceTitle: string

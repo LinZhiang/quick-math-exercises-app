@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Download, EditPen, FullScreen } from '@element-plus/icons-vue'
+import { ArrowUp, Delete, Download, EditPen, FullScreen } from '@element-plus/icons-vue'
 import { useAppChromeTitle } from '@/composables/app/useAppChrome'
 import { goBackOr, omitQueryKey } from '@/utils/app/appNavigation'
 import ImageCropPanel from '@/components/ImageCropPanel.vue'
@@ -23,7 +23,7 @@ import {
   extractComputerHandoutFromPhoto,
 } from '@/utils/computer/computerHandoutPhotoExtract'
 import { aiRequestProgressText } from '@/utils/app/aiProviderStore'
-import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
+import { sanitizeRichHtml, escapeHtmlText } from '@/utils/markdown/richTextHtml'
 import { isWenguAdmin, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 import { logComputerHandoutView } from '@/utils/computer/computerStudyLog'
 import ComputerAskPanel from './ComputerAskPanel.vue'
@@ -52,6 +52,11 @@ const editing = ref(false)
 const draftTitle = ref('')
 const draftContent = ref('')
 const saving = ref(false)
+const headCollapsed = ref(false)
+const editorRef = ref<{ insertHtml: (html: string) => void } | null>(null)
+const noteDraftOpen = ref(false)
+const noteTitle = ref('')
+const noteBody = ref('')
 
 const photoIntent = computed<PhotoIntent | ''>(() => {
   if (String(route.query.edit ?? '') !== '1') return ''
@@ -118,6 +123,9 @@ function applyEditDraft() {
   if (!item.value || !isAdmin.value) return
   draftTitle.value = item.value.title
   draftContent.value = computerContentToHtml(item.value.content)
+  noteDraftOpen.value = false
+  noteTitle.value = ''
+  noteBody.value = ''
   editing.value = true
 }
 
@@ -151,7 +159,33 @@ function leaveEditQuery() {
 }
 
 function cancelEdit() {
+  noteDraftOpen.value = false
   leaveEditQuery()
+}
+
+function noteTabLabel(title: string) {
+  const t = title.trim() || '备注'
+  return t.endsWith('备注信息') ? t : `${t}备注信息`
+}
+
+function insertHandoutNote() {
+  const body = noteBody.value.trim()
+  if (!body) {
+    ElMessage.warning('请填写备注内容')
+    return
+  }
+  const tab = escapeHtmlText(noteTabLabel(noteTitle.value))
+  const bodyHtml = body
+    .split(/\n+/)
+    .map((line) => `<p>${escapeHtmlText(line)}</p>`)
+    .join('')
+  editorRef.value?.insertHtml(
+    `<aside class="cb-handout-note"><span class="cb-handout-note__tab">${tab}</span><div class="cb-handout-note__body">${bodyHtml}</div></aside><p></p>`,
+  )
+  noteTitle.value = ''
+  noteBody.value = ''
+  noteDraftOpen.value = false
+  ElMessage.success('已插入备注')
 }
 
 async function saveEdit() {
@@ -404,7 +438,7 @@ watch(photoOpen, (open) => {
     :class="{ 'is-full': fullscreen, 'is-quiz': quizOpen && !editing && !photoOpen }"
   >
     <header v-if="!(quizOpen && !editing && !photoOpen)" class="computer-detail__top">
-      <div class="computer-detail__titles">
+      <div v-if="!headCollapsed" class="computer-detail__titles">
         <p v-if="item.learningPath.length" class="computer-detail__crumb">
           {{ item.learningPath.join(' / ') }}
         </p>
@@ -412,6 +446,15 @@ watch(photoOpen, (open) => {
       </div>
       <div class="computer-detail__actions">
         <div class="computer-detail__tools">
+          <el-tooltip :content="headCollapsed ? '展开标题' : '收起标题'" placement="top">
+            <el-button
+              size="small"
+              circle
+              :icon="ArrowUp"
+              :class="{ 'is-collapsed': headCollapsed }"
+              @click="headCollapsed = !headCollapsed"
+            />
+          </el-tooltip>
           <el-tooltip :content="fullscreen ? '退出全屏' : '全屏'" placement="top">
             <el-button size="small" circle :icon="FullScreen" @click="fullscreen = !fullscreen" />
           </el-tooltip>
@@ -559,11 +602,27 @@ watch(photoOpen, (open) => {
         <div class="computer-detail__photo-btns">
           <el-button size="small" type="primary" plain @click="openPhoto('recognize')">拍照识别</el-button>
           <el-button size="small" @click="openPhoto('upload')">拍照上传</el-button>
+          <el-button size="small" @click="noteDraftOpen = !noteDraftOpen">
+            {{ noteDraftOpen ? '取消备注' : '插入备注' }}
+          </el-button>
+        </div>
+        <div v-if="noteDraftOpen" class="computer-detail__note-draft">
+          <el-input v-model="noteTitle" maxlength="20" placeholder="备注名称，如「易混点」" />
+          <el-input
+            v-model="noteBody"
+            type="textarea"
+            :rows="4"
+            maxlength="800"
+            show-word-limit
+            placeholder="在这里写备注详细内容，插入后出现在光标处"
+          />
+          <el-button size="small" type="primary" @click="insertHandoutNote">插入到正文</el-button>
         </div>
         <RichTextEditor
+          ref="editorRef"
           v-model="draftContent"
           class="computer-detail__editor"
-          min-height="168px"
+          fill
           placeholder="输入讲义正文…"
         />
       </template>
@@ -616,7 +675,10 @@ watch(photoOpen, (open) => {
 }
 
 .computer-busy-panel {
-  width: min(22rem, 100%);
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .computer-busy-cover {
@@ -665,6 +727,10 @@ watch(photoOpen, (open) => {
   gap: 6px;
 }
 
+.computer-detail__tools :deep(.is-collapsed) {
+  transform: rotate(180deg);
+}
+
 .computer-detail__edit-btns {
   display: flex;
   align-items: center;
@@ -682,7 +748,7 @@ watch(photoOpen, (open) => {
 }
 
 .computer-detail__paper {
-  flex: 0 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
@@ -696,9 +762,8 @@ watch(photoOpen, (open) => {
 .computer-detail__paper.is-editing {
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding-bottom: 20px;
+  overflow: hidden;
+  padding-bottom: 12px;
 }
 
 .computer-detail.is-quiz {
@@ -717,9 +782,11 @@ watch(photoOpen, (open) => {
 }
 
 .computer-detail__editor {
-  flex: 0 0 auto;
+  flex: 1 1 0;
   min-height: 0;
   margin-top: 10px;
+  display: flex;
+  flex-direction: column;
 }
 
 .computer-detail__photo-btns {
@@ -728,6 +795,17 @@ watch(photoOpen, (open) => {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
+}
+
+.computer-detail__note-draft {
+  flex-shrink: 0;
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px dashed var(--app-border-soft);
+  border-radius: 10px;
+  background: #f8fafc;
 }
 
 .computer-photo__lead {

@@ -244,3 +244,52 @@ export function computerStudyDaySummary(day: ComputerStudyLogDay): string {
   if (durText) parts.push(`测验合计 ${durText}`)
   return parts.join(' · ')
 }
+
+export type ComputerQuizModuleStat = {
+  label: string
+  total: number
+  correct: number
+}
+
+export type ComputerQuizStatsSummary = {
+  lifetimeTotal: number
+  lifetimeCorrect: number
+  todayTotal: number
+  todayCorrect: number
+  todayModules: ComputerQuizModuleStat[]
+}
+
+export function summarizeComputerQuizLogs(): ComputerQuizStatsSummary {
+  void computerStudyLogTick.value
+  const quizzes = readLogs().filter((row) => row.kind === 'quiz')
+  const today = localDateKey()
+  const moduleMap = new Map<string, ComputerQuizModuleStat>()
+  let lifetimeTotal = 0
+  let lifetimeCorrect = 0
+  let todayTotal = 0
+  let todayCorrect = 0
+  for (const row of quizzes) {
+    const total = Math.max(0, row.totalCount ?? 0)
+    const correct = Math.max(0, row.correctCount ?? 0)
+    lifetimeTotal += total
+    lifetimeCorrect += correct
+    if (row.dateKey !== today) continue
+    todayTotal += total
+    todayCorrect += correct
+    const label = row.pathLabel || row.itemTitle || '未分类'
+    const hit = moduleMap.get(label)
+    if (hit) {
+      hit.total += total
+      hit.correct += correct
+    } else {
+      moduleMap.set(label, { label, total, correct })
+    }
+  }
+  return {
+    lifetimeTotal,
+    lifetimeCorrect,
+    todayTotal,
+    todayCorrect,
+    todayModules: [...moduleMap.values()],
+  }
+}

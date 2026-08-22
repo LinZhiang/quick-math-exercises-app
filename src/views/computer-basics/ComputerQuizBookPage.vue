@@ -7,7 +7,7 @@ import ComputerQuizBookPanel from './ComputerQuizBookPanel.vue'
     <header class="computer-page__head">
       <h2 class="computer-page__title">AI 题目整理</h2>
       <p class="computer-page__lead">
-        按讲义目录归类，只显示已有错题或收藏的分类。顶栏返回可回到计算机基础。
+        按讲义目录归类，只显示已有错题或收藏的分类。点进分类后查看题目并测验。顶栏返回可回到计算机基础。
       </p>
     </header>
     <div class="computer-tree-card">
