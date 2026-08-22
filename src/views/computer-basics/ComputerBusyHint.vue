@@ -21,10 +21,16 @@ withDefaults(
 
 <style scoped>
 .cb-busy {
+  width: 100%;
+  min-height: 120px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 18px 16px;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+  padding: 24px 16px;
+  box-sizing: border-box;
 }
 
 .cb-busy__spin {
@@ -39,6 +45,7 @@ withDefaults(
 
 .cb-busy__copy {
   min-width: 0;
+  max-width: 22rem;
 }
 
 .cb-busy__text {
@@ -46,12 +53,14 @@ withDefaults(
   font-size: 15px;
   font-weight: 700;
   color: var(--app-text);
+  text-align: center;
 }
 
 .cb-busy__hint {
   margin: 4px 0 0;
   font-size: 12px;
   color: var(--app-text-muted);
+  text-align: center;
 }
 
 @keyframes cb-busy-spin {

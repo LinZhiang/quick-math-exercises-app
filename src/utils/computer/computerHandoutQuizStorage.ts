@@ -9,6 +9,7 @@ export const computerQuizBookTick = ref(0)
 
 export type StoredComputerQuizRecord = ComputerQuizQuestion & {
   wrongCount?: number
+  attemptCount?: number
   updatedAt?: string
   savedAt?: string
 }
@@ -101,4 +102,26 @@ export function appendComputerQuizAvoidStems(itemId: string, stems: string[]) {
   const next = [...(all[itemId] ?? []), ...stems.map((s) => s.replace(/\s+/g, '').slice(0, 60))]
   all[itemId] = [...new Set(next)].slice(-48)
   writeJson(AVOID_KEY, all)
+}
+
+export function bumpComputerQuizAttempt(fingerprint: string) {
+  const fp = String(fingerprint || '').trim()
+  if (!fp) return
+  const now = new Date().toISOString()
+  let changed = false
+  const bump = (rows: StoredComputerQuizRecord[]) => {
+    for (const row of rows) {
+      if (row.fingerprint !== fp) continue
+      row.attemptCount = (row.attemptCount ?? 0) + 1
+      row.updatedAt = now
+      changed = true
+    }
+  }
+  const wrongs = listComputerQuizWrongRecords()
+  const favs = listComputerQuizFavoriteRecords()
+  bump(wrongs)
+  bump(favs)
+  if (!changed) return
+  writeJson(WRONG_KEY, wrongs)
+  writeJson(FAVORITE_KEY, favs)
 }

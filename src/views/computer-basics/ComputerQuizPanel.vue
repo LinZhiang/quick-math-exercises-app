@@ -13,16 +13,19 @@ import {
   isComputerQuizFavorite,
   toggleComputerQuizFavorite,
 } from '@/utils/computer/computerHandoutQuizStorage'
-import { sanitizeComputerQuizForDisplay, COMPUTER_QUIZ_KIND_MAX } from '@/utils/computer/computerHandoutQuiz'
+import { sanitizeComputerQuizForDisplay, COMPUTER_QUIZ_KIND_MAX, type ComputerQuizQuestion } from '@/utils/computer/computerHandoutQuiz'
 import type { ComputerHandoutItem } from '@/utils/computer/computerBasics'
 import { wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 import RichTextView from '@/components/RichTextView.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import ComputerAskPanel, { type ComputerAskQuestionContext } from './ComputerAskPanel.vue'
+import ComputerBusyHint from './ComputerBusyHint.vue'
 
 const props = defineProps<{
   item: ComputerHandoutItem
   scopeLabel?: string
+  preparedQuestions?: ComputerQuizQuestion[]
+  skipWrongBook?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -31,6 +34,8 @@ const emit = defineEmits<{
 
 const test = useComputerHandoutQuiz()
 const favorited = ref(false)
+const useVariant = ref(false)
+const preparedMode = computed(() => (props.preparedQuestions?.length ?? 0) > 0)
 
 const quizProvider = computed({
   get() {
@@ -63,6 +68,19 @@ function onFavorite() {
 }
 
 function onStart() {
+  if (preparedMode.value) {
+    if (useVariant.value && !aiReady.value) {
+      ElMessage.warning(DEEPSEEK_NOT_CONFIGURED_HINT)
+      return
+    }
+    void test.startPrepared(props.item, props.preparedQuestions ?? [], {
+      skipWrongBook: props.skipWrongBook !== false,
+      recordAttempts: true,
+      useVariants: useVariant.value,
+      provider: quizProvider.value,
+    })
+    return
+  }
   if (!aiReady.value) {
     ElMessage.warning(DEEPSEEK_NOT_CONFIGURED_HINT)
     return
@@ -82,6 +100,7 @@ const displayQ = computed(() => {
 })
 
 const canMarkCareless = computed(() => {
+  if (props.skipWrongBook || test.skipWrongBook) return false
   if (!test.submitted || test.carelessMarked || lastResult.value?.correct) return false
   if (test.currentQuestion?.kind === 'short' && !test.selfScore) return false
   return true
@@ -124,32 +143,43 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
     <div class="cb-quiz__body">
     <template v-if="test.phase === 'idle'">
       <p class="cb-quiz__hint">
-        {{
-          scopeLabel
-            ? `按「${scopeLabel}」范围内的讲义出少量重点题：优先考定义、划分标准、最主要特点等，干扰项用讲义里的易混点。`
-            : '按当前讲义出少量重点题：优先考定义、划分标准、最主要特点等，干扰项用讲义里的易混点。'
-        }}
-        计算题系统按结果判分（写出的内容包含标准答案即可）；简答题对照参考答案后自己打分。
+        <template v-if="preparedMode">
+          默认测原题。勾选「变式题测试」后，会按同一考点改写题干或选项。本题测验不进入错题集，但会记下测验次数。
+        </template>
+        <template v-else>
+          {{
+            scopeLabel
+              ? `按「${scopeLabel}」范围内的讲义出少量重点题：优先考定义、划分标准、最主要特点等，干扰项用讲义里的易混点。`
+              : '按当前讲义出少量重点题：优先考定义、划分标准、最主要特点等，干扰项用讲义里的易混点。'
+          }}
+          计算题系统按结果判分（写出的内容包含标准答案即可）；简答题对照参考答案后自己打分。
+        </template>
       </p>
-      <div class="cb-quiz__switch">
+      <label v-if="preparedMode" class="cb-quiz__variant">
+        <input v-model="useVariant" type="checkbox">
+        变式题测试
+      </label>
+      <div v-if="useVariant || !preparedMode" class="cb-quiz__switch">
         <span>模型</span>
         <el-radio-group v-model="quizProvider" size="small">
           <el-radio-button value="deepseek">DeepSeek</el-radio-button>
           <el-radio-button value="doubao">豆包</el-radio-button>
         </el-radio-group>
       </div>
-      <div class="cb-quiz__counts">
+      <div v-if="!preparedMode" class="cb-quiz__counts">
         <label>选择题 <el-input-number v-model="test.counts.choice" :min="0" :max="COMPUTER_QUIZ_KIND_MAX" size="small" /></label>
         <label>判断题 <el-input-number v-model="test.counts.judge" :min="0" :max="COMPUTER_QUIZ_KIND_MAX" size="small" /></label>
         <label>计算题 <el-input-number v-model="test.counts.calc" :min="0" :max="COMPUTER_QUIZ_KIND_MAX" size="small" /></label>
         <label>简答题 <el-input-number v-model="test.counts.short" :min="0" :max="COMPUTER_QUIZ_KIND_MAX" size="small" /></label>
       </div>
-      <p v-if="!aiReady" class="cb-quiz__warn">{{ DEEPSEEK_NOT_CONFIGURED_HINT }}</p>
-      <el-button type="primary" :disabled="!aiReady" @click="onStart">开始测验</el-button>
+      <p v-if="(!preparedMode || useVariant) && !aiReady" class="cb-quiz__warn">{{ DEEPSEEK_NOT_CONFIGURED_HINT }}</p>
+      <el-button type="primary" :disabled="(!preparedMode || useVariant) && !aiReady" @click="onStart">开始测验</el-button>
     </template>
 
     <template v-else-if="test.phase === 'loading'">
-      <p class="cb-quiz__hint">{{ test.loadingMessage || '正在出题…' }}</p>
+      <div class="cb-quiz__busy">
+        <ComputerBusyHint :text="test.loadingMessage || '正在出题…'" />
+      </div>
     </template>
 
     <template v-else-if="test.phase === 'running' && displayQ">
@@ -337,6 +367,23 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
   flex-direction: column;
   gap: 12px;
   padding-right: 2px;
+}
+
+.cb-quiz__busy {
+  flex: 1 1 0;
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cb-quiz__variant {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
 }
 
 .cb-quiz__head-row {

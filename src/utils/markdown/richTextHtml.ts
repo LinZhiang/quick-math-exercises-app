@@ -2,7 +2,20 @@ import DOMPurify from 'dompurify'
 
 const SANITIZE_OPTS: Parameters<typeof DOMPurify.sanitize>[1] = {
   USE_PROFILES: { html: true },
-  ADD_TAGS: ['img', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'colgroup', 'col'],
+  ADD_TAGS: [
+    'img',
+    'table',
+    'thead',
+    'tbody',
+    'tfoot',
+    'tr',
+    'th',
+    'td',
+    'caption',
+    'colgroup',
+    'col',
+    'aside',
+  ],
   ADD_ATTR: ['class', 'style', 'src', 'alt', 'width', 'height', 'target', 'rel', 'colspan', 'rowspan', 'align'],
   ADD_DATA_URI_TAGS: ['img'],
   ALLOW_DATA_ATTR: false,
@@ -13,7 +26,8 @@ export function sanitizeRichHtml(raw: string): string {
 }
 
 function isEmptyRichElement(el: Element): boolean {
-  if (el.querySelector('img, table, video, canvas, iframe')) return false
+  if (el.matches('aside, .cb-handout-note')) return false
+  if (el.querySelector('img, table, video, canvas, iframe, aside, .cb-handout-note')) return false
   return !(el.textContent || '').replace(/\u00a0/g, ' ').trim()
 }
 

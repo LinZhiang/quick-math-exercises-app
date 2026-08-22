@@ -1,6 +1,6 @@
 import { ElMessage } from 'element-plus'
 import { computed, onBeforeUnmount, reactive, ref } from 'vue'
-import { isAiChatConfigured, requestComputerHandoutQuiz, DEEPSEEK_NOT_CONFIGURED_HINT } from '@/services/deepseek'
+import { isAiChatConfigured, requestComputerHandoutQuiz, requestComputerQuizVariant, DEEPSEEK_NOT_CONFIGURED_HINT } from '@/services/deepseek'
 import {
   calcAnswerMatches,
   clampComputerQuizCounts,
@@ -12,6 +12,7 @@ import {
 } from '@/utils/computer/computerHandoutQuiz'
 import {
   appendComputerQuizAvoidStems,
+  bumpComputerQuizAttempt,
   listComputerQuizAvoidStems,
   upsertComputerQuizWrong,
 } from '@/utils/computer/computerHandoutQuizStorage'
@@ -55,6 +56,8 @@ export function useComputerHandoutQuiz() {
   let totalPausedMs = 0
   let loggedSession = false
   let quizItem: ComputerHandoutItem | null = null
+  const skipWrongBook = ref(false)
+  const recordAttempts = ref(false)
   const wrongGate = createChineseWrongBookGate(upsertComputerQuizWrong)
 
   const currentQuestion = computed(() => questions.value[currentIndex.value] ?? null)
@@ -131,6 +134,30 @@ export function useComputerHandoutQuiz() {
     wrongGate.clearWrongGate()
     loggedSession = false
     quizItem = null
+    skipWrongBook.value = false
+    recordAttempts.value = false
+  }
+
+  function beginRunning(item: ComputerHandoutItem, generated: ComputerQuizQuestion[]) {
+    quizItem = item
+    questions.value = generated
+    currentIndex.value = 0
+    selectedIndex.value = null
+    calcInput.value = ''
+    shortInput.value = ''
+    submitted.value = false
+    selfScore.value = null
+    results.value = []
+    carelessMarked.value = false
+    wrongGate.clearWrongGate()
+    pauseStartMs = null
+    totalPausedMs = 0
+    quizTimerPaused.value = false
+    quizStartedAt.value = Date.now()
+    elapsedMs.value = 0
+    loggedSession = false
+    phase.value = 'running'
+    startElapsedTimer()
   }
 
   async function generateAndStart(item: ComputerHandoutItem, provider: AiProvider) {
@@ -145,6 +172,8 @@ export function useComputerHandoutQuiz() {
     }
     counts.value = nextCounts
     setAiProvider(provider)
+    skipWrongBook.value = false
+    recordAttempts.value = false
     quizItem = item
     phase.value = 'loading'
     loadingMessage.value = '正在根据讲义出题…'
@@ -165,28 +194,57 @@ export function useComputerHandoutQuiz() {
         item.id,
         generated.map((q) => q.stem),
       )
-      questions.value = generated
-      currentIndex.value = 0
-      selectedIndex.value = null
-      calcInput.value = ''
-      shortInput.value = ''
-      submitted.value = false
-      selfScore.value = null
-      results.value = []
-      carelessMarked.value = false
-      wrongGate.clearWrongGate()
-      pauseStartMs = null
-      totalPausedMs = 0
-      quizTimerPaused.value = false
-      quizStartedAt.value = Date.now()
-      elapsedMs.value = 0
-      loggedSession = false
-      phase.value = 'running'
-      startElapsedTimer()
+      beginRunning(item, generated)
       ElMessage.success(`已生成 ${generated.length} 道题`)
     } catch (e) {
       phase.value = 'idle'
       ElMessage.error(e instanceof Error ? e.message : '出题失败')
+    }
+  }
+
+  async function startPrepared(
+    item: ComputerHandoutItem,
+    qs: ComputerQuizQuestion[],
+    opts?: { skipWrongBook?: boolean; recordAttempts?: boolean; useVariants?: boolean; provider?: AiProvider },
+  ) {
+    if (!qs.length) {
+      ElMessage.warning('当前没有可测验的题目')
+      return
+    }
+    skipWrongBook.value = Boolean(opts?.skipWrongBook)
+    recordAttempts.value = Boolean(opts?.recordAttempts)
+    quizItem = item
+    phase.value = 'loading'
+    loadingMessage.value = opts?.useVariants ? '正在生成变式题…' : '正在准备题目…'
+    try {
+      let generated = qs.map((q) => ({ ...q }))
+      if (opts?.useVariants) {
+        if (!isAiChatConfigured()) {
+          ElMessage.warning(DEEPSEEK_NOT_CONFIGURED_HINT)
+          phase.value = 'idle'
+          return
+        }
+        if (opts.provider) setAiProvider(opts.provider)
+        const next: ComputerQuizQuestion[] = []
+        for (let i = 0; i < qs.length; i++) {
+          loadingMessage.value = `正在生成变式 ${i + 1}/${qs.length}`
+          try {
+            const variant = await requestComputerQuizVariant({
+              original: qs[i],
+              provider: getAiProvider(),
+            })
+            next.push(variant ?? qs[i])
+          } catch {
+            next.push(qs[i])
+          }
+        }
+        generated = next
+      }
+      beginRunning(item, generated)
+      ElMessage.success(opts?.useVariants ? `已准备 ${generated.length} 道变式题` : `已准备 ${generated.length} 道原题`)
+    } catch (e) {
+      phase.value = 'idle'
+      ElMessage.error(e instanceof Error ? e.message : '准备题目失败')
     }
   }
 
@@ -228,7 +286,8 @@ export function useComputerHandoutQuiz() {
     selfScore.value = null
     carelessMarked.value = false
     pauseQuizTimer()
-    if (q.kind !== 'short' && !correct) wrongGate.noteWrongAnswer(q)
+    if (recordAttempts.value) bumpComputerQuizAttempt(q.fingerprint)
+    if (!skipWrongBook.value && q.kind !== 'short' && !correct) wrongGate.noteWrongAnswer(q)
   }
 
   function applySelfScore(score: ComputerQuizSelfScore) {
@@ -240,7 +299,7 @@ export function useComputerHandoutQuiz() {
     selfScore.value = score
     carelessMarked.value = false
     if (score === 'full') wrongGate.dropPendingWrong()
-    else wrongGate.noteWrongAnswer(q)
+    else if (!skipWrongBook.value) wrongGate.noteWrongAnswer(q)
   }
 
   function nextQuestion() {
@@ -250,7 +309,7 @@ export function useComputerHandoutQuiz() {
       return
     }
     try {
-      wrongGate.flushWrongIfNeeded()
+      if (!skipWrongBook.value) wrongGate.flushWrongIfNeeded()
     } catch {
       ElMessage.error('错题保存失败')
     }
@@ -326,6 +385,8 @@ export function useComputerHandoutQuiz() {
     quizTimerPaused,
     computerQuizKindLabel,
     generateAndStart,
+    startPrepared,
+    skipWrongBook,
     selectOption,
     submitCurrent,
     applySelfScore,

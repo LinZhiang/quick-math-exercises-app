@@ -189,6 +189,16 @@ async function onFileChange(ev: Event) {
   input.value = ''
   if (file) await insertImageFile(file)
 }
+
+function insertHtml(html: string) {
+  const chunk = compactTrailingEmptyHtml(html)
+  if (!chunk) return
+  editorRef.value?.focus()
+  document.execCommand('insertHTML', false, chunk)
+  emitHtml()
+}
+
+defineExpose({ insertHtml })
 </script>
 
 <template>
@@ -363,9 +373,11 @@ async function onFileChange(ev: Event) {
 }
 
 .rte.is-fill .rte__wrap {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
-  overflow: visible;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .rte__placeholder {
@@ -388,9 +400,11 @@ async function onFileChange(ev: Event) {
 }
 
 .rte.is-fill .rte__editor {
-  min-height: 100%;
+  flex: 1 1 0;
   height: auto;
-  overflow: visible;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding-bottom: 12px;
 }
 
@@ -426,6 +440,30 @@ async function onFileChange(ev: Event) {
 .rte__editor :deep(th) {
   background: #f8fafc;
   font-weight: 700;
+}
+
+.rte__editor :deep(.cb-handout-note) {
+  display: block;
+  margin: 10px 0;
+}
+
+.rte__editor :deep(.cb-handout-note__tab) {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px 4px 10px;
+  border-radius: 4px 16px 16px 4px;
+  background: #3b82f6;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.rte__editor :deep(.cb-handout-note__body) {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 1px dashed #93c5fd;
+  border-radius: 8px;
+  background: #eff6ff;
 }
 
 .rte__file {

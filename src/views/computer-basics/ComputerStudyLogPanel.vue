@@ -12,6 +12,7 @@ import {
   formatComputerStudyTime,
   groupComputerStudyLogsByDate,
   listComputerStudyLogs,
+  summarizeComputerQuizLogs,
 } from '@/utils/computer/computerStudyLog'
 
 const filterDate = ref(localDateKey())
@@ -21,6 +22,8 @@ const allLogs = computed(() => {
   void computerStudyLogTick.value
   return listComputerStudyLogs()
 })
+
+const quizStats = computed(() => summarizeComputerQuizLogs())
 
 const days = computed(() =>
   groupComputerStudyLogsByDate(
@@ -83,6 +86,21 @@ async function onClearAll() {
       <template v-if="filterDate === todayKey"> · 正在看今天</template>
       <template v-else-if="filterDate"> · {{ filterDate }}</template>
     </p>
+    <div v-if="quizStats.lifetimeTotal" class="cb-log__stats">
+      <p>
+        累计测验 {{ quizStats.lifetimeTotal }} 题，答对 {{ quizStats.lifetimeCorrect }}
+        （{{
+          quizStats.lifetimeTotal
+            ? Math.round((quizStats.lifetimeCorrect / quizStats.lifetimeTotal) * 100)
+            : 0
+        }}%）
+      </p>
+      <p v-if="quizStats.todayTotal">
+        今天模块：{{ quizStats.todayModules.map((m) => m.label).join('、') }}。
+        今天测 {{ quizStats.todayTotal }} 题，答对 {{ quizStats.todayCorrect }}。
+      </p>
+      <p v-else>今天还没有完成测验。</p>
+    </div>
 
     <div v-if="days.length" class="cb-log__days">
       <article v-for="day in days" :key="day.dateKey" class="cb-log__day">
@@ -201,6 +219,20 @@ async function onClearAll() {
   margin: 0;
   font-size: 12px;
   color: var(--app-text-muted);
+}
+
+.cb-log__stats {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--app-primary-soft) 40%, #fff);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.cb-log__stats p {
+  margin: 0;
 }
 
 .cb-log__days {

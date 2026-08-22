@@ -10,6 +10,7 @@ import PersonalBankView from '@/views/personal-bank/index.vue'
 import ComputerBasicsView from '@/views/computer-basics/index.vue'
 import ComputerHandoutDetail from '@/views/computer-basics/ComputerHandoutDetail.vue'
 import ComputerQuizBookPage from '@/views/computer-basics/ComputerQuizBookPage.vue'
+import ComputerQuizBookNodePage from '@/views/computer-basics/ComputerQuizBookNodePage.vue'
 import ComputerStudyLogPage from '@/views/computer-basics/ComputerStudyLogPage.vue'
 import InstallSettingsPage from '@/views/common/InstallSettingsPage.vue'
 
@@ -98,6 +99,12 @@ const router = createRouter({
       path: '/computer/book',
       name: 'computer-book',
       component: ComputerQuizBookPage,
+      meta: { title: 'AI题目整理', chrome: 'app' },
+    },
+    {
+      path: '/computer/book/node',
+      name: 'computer-book-node',
+      component: ComputerQuizBookNodePage,
       meta: { title: 'AI题目整理', chrome: 'app' },
     },
     {

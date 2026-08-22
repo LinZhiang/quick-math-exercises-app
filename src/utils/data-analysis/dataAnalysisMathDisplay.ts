@@ -99,6 +99,8 @@ function readAtomRight(s: string, afterSlash: number): number {
   }
   if (/[A-Za-z_\u4e00-\u9fff]/.test(s[i]!)) {
     while (i < s.length && /[A-Za-z0-9_\u4e00-\u9fff]/.test(s[i]!)) i++
+    if (s.slice(i, i + 2) === '++') i += 2
+    else if (s[i] === '#') i++
     if (s[i] === '!') i++
     return i
   }
@@ -154,10 +156,13 @@ const CN_MATH_FRAC_LABELS = new Set([
 function isMathyFractionPart(part: string): boolean {
   const t = stripOuterParens(part).trim()
   if (!t) return false
+  // C++、C#、IPv6 这类标识不是分数
+  if (/[A-Za-z]\+\+|[A-Za-z]#/.test(t)) return false
   // 两字母以上的纯拉丁缩写（GB、ISO、TCP）不是分数分子/分母
   if (/^[A-Za-z.]{2,}$/.test(t)) return false
   // 数字、百分号、常见运算符号，或带数字的字母变量 → 数学量
-  if (/[0-9_%％+\-−–—×÷·=<>≤≥≈^√π∞]/.test(t)) return true
+  if (/[0-9_%％×÷·=<>≤≥≈^√π∞]/.test(t)) return true
+  if (/[+\-−–—]/.test(t) && /[0-9]/.test(t)) return true
   if (/^[A-Za-z]$/.test(t)) return true
   // 资料分析等攻略中的中文量名（如 部分/整体）
   if (CN_MATH_FRAC_LABELS.has(t)) return true
@@ -176,6 +181,12 @@ function shouldConvertSlashFraction(
   rightEnd: number,
 ): boolean {
   if (!isMathyFractionPart(num) || !isMathyFractionPart(den)) return false
+  const numBare = stripOuterParens(num).trim()
+  const denBare = stripOuterParens(den).trim()
+  // I/O、C/C、A/B 选项编号：两侧都是短拉丁字母、没有数字，按并列/下划线处理，不当成分式
+  if (/^[A-Za-z]{1,3}$/.test(numBare) && /^[A-Za-z]{1,6}$/.test(denBare) && !/[0-9]/.test(numBare + denBare)) {
+    return false
+  }
 
   const bareNum = stripOuterParens(num).trim()
   const bareDen = stripOuterParens(den).trim()
