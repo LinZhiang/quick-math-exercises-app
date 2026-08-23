@@ -4,6 +4,7 @@ import { renderMathInRichHtml } from '@/utils/data-analysis/dataAnalysisMathDisp
 import { wrapHtmlTablesForScroll } from '@/utils/markdown/markdownToHtml'
 import { compactTrailingEmptyHtml } from '@/utils/markdown/richTextHtml'
 import ImageZoomOverlay from '@/components/ImageZoomOverlay.vue'
+import HandoutNoteDialog from '@/components/HandoutNoteDialog.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -18,6 +19,9 @@ const props = withDefaults(
 
 const previewSrc = ref('')
 const rootRef = ref<HTMLElement | null>(null)
+const noteOpen = ref(false)
+const noteTitle = ref('')
+const noteBodyHtml = ref('')
 let overflowObserver: ResizeObserver | null = null
 
 const safeHtml = computed(() => {
@@ -43,7 +47,11 @@ function onClick(ev: MouseEvent) {
   if (t instanceof Element) {
     const note = t.closest('.cb-handout-note')
     if (note instanceof HTMLElement) {
-      note.classList.toggle('is-open')
+      const tab = note.querySelector('.cb-handout-note__tab')
+      const body = note.querySelector('.cb-handout-note__body')
+      noteTitle.value = (tab?.textContent || '备注').trim()
+      noteBodyHtml.value = body instanceof HTMLElement ? body.innerHTML : ''
+      noteOpen.value = true
       return
     }
   }
@@ -79,6 +87,7 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
     @click="onClick"
   />
   <ImageZoomOverlay v-if="previewSrc" :src="previewSrc" @close="previewSrc = ''" />
+  <HandoutNoteDialog v-model="noteOpen" :title="noteTitle" :body-html="noteBodyHtml" />
 </template>
 
 <style scoped>
@@ -163,9 +172,24 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
 }
 
 .rich-text-view :deep(h2),
+.rich-text-view :deep(h3),
+.rich-text-view :deep(h4) {
+  margin: 0.7em 0 0.35em;
+  line-height: 1.35;
+  font-weight: 800;
+}
+
+.rich-text-view :deep(h2) {
+  font-size: 1.28em;
+}
+
 .rich-text-view :deep(h3) {
-  margin: 0.6em 0 0.35em;
-  font-size: 1.05em;
+  font-size: 1.14em;
+}
+
+.rich-text-view :deep(h4) {
+  font-size: 1.02em;
+  font-weight: 750;
 }
 
 .rich-text-view :deep(blockquote) {
@@ -176,8 +200,9 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
 }
 
 .rich-text-view :deep(.cb-handout-note) {
-  display: block;
-  margin: 12px 0;
+  display: inline-flex;
+  vertical-align: middle;
+  margin: 0 0.2em;
   cursor: pointer;
   user-select: none;
 }
@@ -186,30 +211,18 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   display: inline-flex;
   align-items: center;
   max-width: 100%;
-  padding: 5px 14px 5px 12px;
-  border-radius: 4px 18px 18px 4px;
+  padding: 2px 10px 2px 8px;
+  border-radius: 4px 14px 14px 4px;
   background: linear-gradient(90deg, #2563eb 0%, #3b82f6 72%, #93c5fd 100%);
   color: #fff;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 750;
-  line-height: 1.35;
-  box-shadow: 2px 2px 0 rgb(30 64 175 / 28%);
+  line-height: 1.4;
+  box-shadow: 1px 1px 0 rgb(30 64 175 / 22%);
 }
 
 .rich-text-view :deep(.cb-handout-note__body) {
-  display: none;
-  margin-top: 8px;
-  padding: 10px 12px;
-  border: 1px dashed #93c5fd;
-  border-radius: 10px;
-  background: #eff6ff;
-  color: #1e3a8a;
-  font-size: 14px;
-  line-height: 1.7;
-}
-
-.rich-text-view :deep(.cb-handout-note.is-open .cb-handout-note__body) {
-  display: block;
+  display: none !important;
 }
 
 .rich-text-view :deep(.da-math-frac) {

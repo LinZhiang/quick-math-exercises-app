@@ -16,7 +16,21 @@ const SANITIZE_OPTS: Parameters<typeof DOMPurify.sanitize>[1] = {
     'col',
     'aside',
   ],
-  ADD_ATTR: ['class', 'style', 'src', 'alt', 'width', 'height', 'target', 'rel', 'colspan', 'rowspan', 'align'],
+  ADD_ATTR: [
+    'class',
+    'style',
+    'src',
+    'alt',
+    'width',
+    'height',
+    'target',
+    'rel',
+    'colspan',
+    'rowspan',
+    'align',
+    'contenteditable',
+    'hidden',
+  ],
   ADD_DATA_URI_TAGS: ['img'],
   ALLOW_DATA_ATTR: false,
 }
@@ -97,4 +111,17 @@ export function richHtmlPlainText(html: string, maxLen = 80): string {
     .trim()
   if (text.length <= maxLen) return text
   return `${text.slice(0, maxLen)}…`
+}
+
+export function richHtmlToPlainMultiline(html: string): string {
+  if (typeof document === 'undefined') return richHtmlPlainText(html, 8000)
+  const wrap = document.createElement('div')
+  wrap.innerHTML = sanitizeRichHtml(html)
+  return (wrap.innerText || wrap.textContent || '').replace(/\u00a0/g, ' ').trim()
+}
+
+export function buildHandoutNoteHtml(title: string, bodyPlain = ''): string {
+  const tab = escapeHtmlText((title.trim() || '备注').slice(0, 24))
+  const body = plainTextToRichHtml(bodyPlain)
+  return `<aside class="cb-handout-note" contenteditable="false"><span class="cb-handout-note__tab">${tab}</span><div class="cb-handout-note__body">${body}</div></aside>`
 }
