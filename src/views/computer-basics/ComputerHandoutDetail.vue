@@ -53,6 +53,7 @@ const draftTitle = ref('')
 const draftContent = ref('')
 const saving = ref(false)
 const headCollapsed = ref(false)
+const editorRef = ref<{ insertNoteTag: () => Promise<void> | void } | null>(null)
 
 const photoIntent = computed<PhotoIntent | ''>(() => {
   if (String(route.query.edit ?? '') !== '1') return ''
@@ -569,8 +570,10 @@ watch(photoOpen, (open) => {
         <div class="computer-detail__photo-btns">
           <el-button size="small" type="primary" plain @click="openPhoto('recognize')">拍照识别</el-button>
           <el-button size="small" @click="openPhoto('upload')">拍照上传</el-button>
+          <el-button size="small" @click="editorRef?.insertNoteTag()">备注</el-button>
         </div>
         <RichTextEditor
+          ref="editorRef"
           v-model="draftContent"
           class="computer-detail__editor"
           fill
@@ -744,9 +747,10 @@ watch(photoOpen, (open) => {
 .computer-detail__photo-btns {
   flex-shrink: 0;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   margin-top: 10px;
+  overflow-x: auto;
 }
 
 .computer-photo__lead {

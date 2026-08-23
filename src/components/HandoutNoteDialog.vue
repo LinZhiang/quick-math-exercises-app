@@ -66,7 +66,7 @@ async function onRemove() {
         v-model="draftBody"
         class="note-dialog__body"
         type="textarea"
-        :rows="8"
+        :rows="10"
         maxlength="1500"
         show-word-limit
         placeholder="备注内容，可稍后填写"
@@ -93,8 +93,14 @@ async function onRemove() {
   margin-top: 10px;
 }
 
+.note-dialog__body :deep(.el-textarea__inner) {
+  height: 240px !important;
+  resize: none;
+}
+
 .note-dialog__view {
-  min-height: 4rem;
+  height: 240px;
+  overflow-y: auto;
   font-size: 14px;
   line-height: 1.7;
 }
