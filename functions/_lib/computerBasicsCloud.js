@@ -1,7 +1,7 @@
 /**
  * 计算机基础云端存储（与本机 Node 目录结构对齐）
- * 优先 WENGU_KV；未绑定则用边缘缓存兜底，管理员在 pages.dev 上可增删改。
- * 静态 /cb-data 只用于「目录还不存在」时灌库，不会覆盖用户改过的目录。
+ * 读写只走 WENGU_KV；没有 KV 时 GET 读 /cb-data 快照（只读）。
+ * 禁止用边缘 Cache API 当库，否则用户新加的目录会被静态快照盖掉。
  */
 import { json, requireAdmin } from './wenguCloudAuth.js'
 import {
@@ -9,6 +9,7 @@ import {
   hydrateCbStoreFromAssets,
   markCbStoreUserOwned,
   rememberCbStoreOrigin,
+  CB_USER_OWNED_KEY,
 } from './cbStore.js'
 
 const CATALOG_KEY = 'cb:catalog'
@@ -77,7 +78,8 @@ function noStore() {
   return json(
     {
       ok: false,
-      message: '云端存储不可用，无法保存目录。请重新部署 Pages Functions 后再试。',
+      message:
+        '请在本机用 npm run dev:full 增删改讲义（写入 server/data）。云端未绑定 KV 时不会把改动写进缓存，以免目录被构建快照盖掉。出门要看到新目录，请重新部署，或绑定 WENGU_KV 后执行 npm run sync:cf-computer。',
     },
     503,
   )
@@ -124,6 +126,17 @@ async function readRawCatalog(env, request) {
     const raw = await store.get(CATALOG_KEY, { type: 'json' })
     if (raw && typeof raw === 'object' && Array.isArray(raw.tree)) {
       return raw
+    }
+    let owned = false
+    try {
+      owned = Boolean(await store.get(CB_USER_OWNED_KEY))
+    } catch {
+      /* ignore */
+    }
+    if (owned || raw?.userOwned) {
+      const err = new Error('USER_CATALOG_UNAVAILABLE')
+      err.code = 'USER_CATALOG_UNAVAILABLE'
+      throw err
     }
   }
   const snap = request ? await readJsonAsset(env, request, '/cb-data/catalog.json') : null
@@ -378,6 +391,15 @@ export async function handleComputerBasics(env, request, pathParam) {
 
     return json({ ok: false, message: '未找到该接口' }, 404)
   } catch (e) {
+    if (e?.code === 'USER_CATALOG_UNAVAILABLE') {
+      return json(
+        {
+          ok: false,
+          message: '用户目录暂时读不到，已拒绝用旧快照覆盖。请稍后重试，以免新加的分类消失。',
+        },
+        503,
+      )
+    }
     return json({ ok: false, message: e instanceof Error ? e.message : '计算机基础接口失败' }, 500)
   }
 }

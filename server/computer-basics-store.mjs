@@ -56,7 +56,9 @@ function nextMediaIndex(itemId) {
 function writeMediaFile(itemId, index, mime, b64) {
   const ext = extFromMime(mime)
   const file = `${itemId}-${index}.${ext}`
-  fs.writeFileSync(path.join(MEDIA_DIR, file), Buffer.from(b64, 'base64'))
+  const abs = path.join(MEDIA_DIR, file)
+  fs.writeFileSync(abs, Buffer.from(b64, 'base64'))
+  mirrorPublicFile(abs, `media/${file}`)
   return `/api/media/computer-basics/${file}`
 }
 
@@ -83,6 +85,13 @@ function extractDataImages(content, itemId) {
 
 function itemFile(id) {
   return path.join(ITEMS_DIR, `${id}.json`)
+}
+
+function writeItemRecord(id, rec) {
+  ensureDirs()
+  const file = itemFile(id)
+  atomicWriteFile(file, `${JSON.stringify({ ...rec, id }, null, 2)}\n`)
+  mirrorPublicFile(file, `items/${id}.json`)
 }
 
 function applyReadyFlags(tree) {
@@ -141,6 +150,7 @@ let seeded = false
 export function ensureComputerBasicsStore() {
   if (seeded && fs.existsSync(CATALOG_FILE)) return
   ensureDirs()
+  // 只在本机目录还不存在时灌种子；绝不要用 public/cb-data 覆盖 server/data
   if (!fs.existsSync(CATALOG_FILE)) seedFromFrontendJson()
   seeded = true
 }
@@ -180,14 +190,39 @@ function readRawCatalog() {
   return raw
 }
 
+function atomicWriteFile(file, text) {
+  const tmp = `${file}.${process.pid}.tmp`
+  fs.writeFileSync(tmp, text, 'utf8')
+  try {
+    fs.renameSync(tmp, file)
+  } catch {
+    fs.copyFileSync(tmp, file)
+    fs.unlinkSync(tmp)
+  }
+}
+
 function writeCatalog(tree) {
   const prev = fs.existsSync(CATALOG_FILE) ? JSON.parse(fs.readFileSync(CATALOG_FILE, 'utf8')) : {}
-  fs.writeFileSync(
+  atomicWriteFile(
     CATALOG_FILE,
-    `${JSON.stringify({ ...prev, tree, updatedAt: new Date().toISOString() }, null, 2)}\n`,
-    'utf8',
+    `${JSON.stringify(
+      { ...prev, tree, updatedAt: new Date().toISOString(), userOwned: true },
+      null,
+      2,
+    )}\n`,
   )
-  mirrorToPublic()
+  mirrorPublicFile(CATALOG_FILE, 'catalog.json')
+}
+
+function mirrorPublicFile(absSrc, rel) {
+  try {
+    if (!fs.existsSync(absSrc)) return
+    const dest = path.join(PUBLIC_MIRROR, rel)
+    fs.mkdirSync(path.dirname(dest), { recursive: true })
+    fs.copyFileSync(absSrc, dest)
+  } catch (e) {
+    console.warn('[computer-basics] 同步 public/cb-data 失败：', e instanceof Error ? e.message : e)
+  }
 }
 
 /** 构建/pages.dev 只读这份快照；不要反过来覆盖 Node 目录。 */
@@ -299,15 +334,28 @@ function rewriteLearningPath(tree, itemId) {
   if (!rec) return
   const hit = findEntry(tree, itemId)
   rec.learningPath = hit ? pathNamesTo(tree, hit.node.id) ?? [hit.node.name] : rec.learningPath
-  fs.writeFileSync(itemFile(itemId), `${JSON.stringify({ ...rec, id: itemId }, null, 2)}\n`, 'utf8')
+  writeItemRecord(itemId, rec)
+}
+
+function deletePublicFile(rel) {
+  try {
+    const dest = path.join(PUBLIC_MIRROR, rel)
+    if (fs.existsSync(dest)) fs.unlinkSync(dest)
+  } catch {
+    /* ignore */
+  }
 }
 
 function deleteItemFiles(id) {
   const file = itemFile(id)
   if (fs.existsSync(file)) fs.unlinkSync(file)
+  deletePublicFile(`items/${id}.json`)
   if (!fs.existsSync(MEDIA_DIR)) return
   for (const name of fs.readdirSync(MEDIA_DIR)) {
-    if (name.startsWith(`${id}-`)) fs.unlinkSync(path.join(MEDIA_DIR, name))
+    if (name.startsWith(`${id}-`)) {
+      fs.unlinkSync(path.join(MEDIA_DIR, name))
+      deletePublicFile(`media/${name}`)
+    }
   }
 }
 
@@ -339,6 +387,44 @@ function bankNodeId(typeId) {
 
 function bankItemId(questionId) {
   return BANK_ITEM_IDS[questionId] || `q-${questionId}`
+}
+
+function collectTreeIds(nodes, out = new Set()) {
+  for (const n of nodes || []) {
+    if (n?.id) out.add(n.id)
+    for (const e of n.entries || []) {
+      if (e?.id) out.add(e.id)
+    }
+    collectTreeIds(n.children, out)
+  }
+  return out
+}
+
+/** 题库包整树导入时，保留用户后来加的分类/讲义，避免又被种子目录盖掉。 */
+function graftUserCatalog(packTree, prevTree) {
+  if (!Array.isArray(prevTree) || !prevTree.length) return packTree
+  const packIds = collectTreeIds(packTree)
+  const walk = (nodes, parentId) => {
+    for (const n of nodes || []) {
+      if (!packIds.has(n.id)) {
+        if (!parentId) packTree.push(n)
+        else {
+          const p = findNode(packTree, parentId)
+          if (p) p.node.children.push(n)
+          else packTree.push(n)
+        }
+        continue
+      }
+      const extraEntries = (n.entries || []).filter((e) => e?.id && !packIds.has(e.id))
+      if (extraEntries.length) {
+        const p = findNode(packTree, n.id)
+        if (p) p.node.entries.push(...extraEntries)
+      }
+      walk(n.children, n.id)
+    }
+  }
+  walk(prevTree, null)
+  return packTree
 }
 
 /**
@@ -377,7 +463,16 @@ export function importComputerBasicsFromBankPack(packPath, { skipExisting = true
     }
   }
 
-  const tree = childTypes.map(buildNode)
+  let prevTree = []
+  if (fs.existsSync(CATALOG_FILE)) {
+    try {
+      const prev = JSON.parse(fs.readFileSync(CATALOG_FILE, 'utf8'))
+      if (Array.isArray(prev.tree)) prevTree = prev.tree
+    } catch {
+      /* 旧目录读失败时仍导入题库包，不要整库停掉 */
+    }
+  }
+  const tree = graftUserCatalog(childTypes.map(buildNode), prevTree)
   ensureDirs()
 
   const byId = new Map(types.map((t) => [t.id, t]))
@@ -422,11 +517,12 @@ export function importComputerBasicsFromBankPack(packPath, { skipExisting = true
       tags: ['讲义', String(byId.get(q.learningTypeId)?.name || '')].filter(Boolean),
       content,
     }
-    fs.writeFileSync(file, `${JSON.stringify(item, null, 2)}\n`, 'utf8')
+    writeItemRecord(id, item)
     wrote += 1
   }
 
   writeCatalog(tree)
+  mirrorToPublic()
   seeded = true
   // eslint-disable-next-line no-console
   console.log(
@@ -438,6 +534,7 @@ export function importComputerBasicsFromBankPack(packPath, { skipExisting = true
 export function attachComputerBasicsRoutes(app) {
   app.get('/api/computer-basics/tree', (_req, res) => {
     try {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
       res.json({ ok: true, ...readComputerBasicsCatalog() })
     } catch (e) {
       res.status(500).json({
@@ -595,8 +692,7 @@ export function attachComputerBasicsRoutes(app) {
         tags: Array.isArray(req.body?.tags) ? req.body.tags.map(String) : ['讲义', hit.node.name],
         content,
       }
-      ensureDirs()
-      fs.writeFileSync(itemFile(id), `${JSON.stringify(item, null, 2)}\n`, 'utf8')
+      writeItemRecord(id, item)
       hit.node.entries.push({ id, title, ready: true, type })
       writeCatalog(catalog.tree)
       res.json({ ok: true, item })
@@ -649,7 +745,7 @@ export function attachComputerBasicsRoutes(app) {
         content,
         tags: Array.isArray(body.tags) ? body.tags.map(String) : current.tags,
       }
-      fs.writeFileSync(itemFile(id), `${JSON.stringify(item, null, 2)}\n`, 'utf8')
+      writeItemRecord(id, item)
       const catalog = readRawCatalog()
       const hit = findEntry(catalog.tree, id)
       if (hit) {

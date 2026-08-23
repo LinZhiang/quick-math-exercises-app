@@ -171,31 +171,6 @@ function rowHasMore(row: ComputerTreeRow) {
   return row.entry.ready
 }
 
-function insertNode(
-  nodes: ComputerTreeNode[],
-  parentId: string | null,
-  node: ComputerTreeNode,
-): ComputerTreeNode[] {
-  if (treeHasId(nodes, node.id)) return nodes
-  if (!parentId) return [...nodes, node]
-  return nodes.map((n) => {
-    if (n.id === parentId) return { ...n, children: [...n.children, node] }
-    return { ...n, children: insertNode(n.children, parentId, node) }
-  })
-}
-
-function insertEntry(
-  nodes: ComputerTreeNode[],
-  parentId: string,
-  entry: ComputerTreeEntry,
-): ComputerTreeNode[] {
-  if (treeHasId(nodes, entry.id)) return nodes
-  return nodes.map((n) => {
-    if (n.id === parentId) return { ...n, entries: [...n.entries, entry] }
-    return { ...n, children: insertEntry(n.children, parentId, entry) }
-  })
-}
-
 function closeQuiz() {
   quizItem.value = null
   quizScopeLabel.value = ''
@@ -296,9 +271,17 @@ async function reloadKeepExpand(opts?: {
 }) {
   const keep = { ...expanded.value }
   if (opts?.parentId) keep[opts.parentId] = true
-  let next = await loadComputerBasicsTree(true)
-  if (opts?.node) next = insertNode(next, opts.parentId ?? null, opts.node)
-  if (opts?.entry && opts.parentId) next = insertEntry(next, opts.parentId, opts.entry)
+  const next = await loadComputerBasicsTree(true)
+  if (opts?.node && !treeHasId(next, opts.node.id)) {
+    throw new Error(
+      '分类接口写成功了，但读目录时这条不见了。请用本机 npm run dev:full 增删改，云端未绑定 KV 时不会把新目录写进会过期的缓存。',
+    )
+  }
+  if (opts?.entry && !treeHasId(next, opts.entry.id)) {
+    throw new Error(
+      '讲义接口写成功了，但读目录时这条不见了。请用本机 npm run dev:full 增删改，云端未绑定 KV 时不会把新目录写进会过期的缓存。',
+    )
+  }
   tree.value = next
   expanded.value = { ...defaultExpandedComputerIds(next), ...keep }
   adminOpenId.value = ''
