@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
-import { compactTrailingEmptyHtml, richHtmlIsEmpty } from '@/utils/markdown/richTextHtml'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import HandoutNoteDialog from '@/components/HandoutNoteDialog.vue'
+import {
+  buildHandoutNoteHtml,
+  compactTrailingEmptyHtml,
+  plainTextToRichHtml,
+  richHtmlIsEmpty,
+} from '@/utils/markdown/richTextHtml'
 
 const props = withDefaults(
   defineProps<{
@@ -10,11 +16,14 @@ const props = withDefaults(
     minHeight?: string
     /** 撑满父级高度，正文在编辑区内滚动 */
     fill?: boolean
+    /** 在光标处插入讲义备注标签 */
+    notes?: boolean
   }>(),
   {
     placeholder: '请输入…',
     minHeight: '132px',
     fill: false,
+    notes: false,
   },
 )
 
@@ -26,6 +35,19 @@ const editorRef = ref<HTMLDivElement | null>(null)
 const fileRef = ref<HTMLInputElement | null>(null)
 const focused = ref(false)
 const showPlaceholder = computed(() => richHtmlIsEmpty(props.modelValue))
+const headingTag = ref('p')
+const noteOpen = ref(false)
+const noteEditable = ref(false)
+const noteTitle = ref('')
+const noteBodyHtml = ref('')
+const editingNote = ref<HTMLElement | null>(null)
+
+const UNDO_MAX = 60
+let undoStack: string[] = []
+let redoStack: string[] = []
+let applyingHistory = false
+let snapshotTimer = 0
+let savedRange: Range | null = null
 
 function currentHtml(): string {
   return compactTrailingEmptyHtml(editorRef.value?.innerHTML ?? '')
@@ -35,8 +57,88 @@ function caretNode(): Node | null {
   return typeof document === 'undefined' ? null : document.getSelection()?.focusNode ?? null
 }
 
+function decorateNotes() {
+  const root = editorRef.value
+  if (!root) return
+  for (const note of root.querySelectorAll<HTMLElement>('.cb-handout-note')) {
+    note.setAttribute('contenteditable', 'false')
+    const body = note.querySelector('.cb-handout-note__body')
+    if (body instanceof HTMLElement) body.hidden = true
+  }
+}
+
+function saveSelection() {
+  const sel = document.getSelection()
+  if (!sel || sel.rangeCount === 0 || !editorRef.value) return
+  const range = sel.getRangeAt(0)
+  if (!editorRef.value.contains(range.commonAncestorContainer)) return
+  savedRange = range.cloneRange()
+}
+
+function restoreSelection() {
+  if (!savedRange || !editorRef.value) {
+    editorRef.value?.focus()
+    return
+  }
+  editorRef.value.focus()
+  const sel = document.getSelection()
+  sel?.removeAllRanges()
+  sel?.addRange(savedRange)
+}
+
+function pushUndo(html: string) {
+  if (applyingHistory) return
+  if (undoStack[undoStack.length - 1] === html) return
+  undoStack.push(html)
+  if (undoStack.length > UNDO_MAX) undoStack.shift()
+  redoStack = []
+}
+
+function scheduleSnapshot() {
+  if (applyingHistory) return
+  window.clearTimeout(snapshotTimer)
+  snapshotTimer = window.setTimeout(() => {
+    pushUndo(editorRef.value?.innerHTML ?? '')
+  }, 280)
+}
+
+function applyHistory(html: string) {
+  applyingHistory = true
+  applyHtml(html)
+  emit('update:modelValue', currentHtml())
+  applyingHistory = false
+}
+
+function undo() {
+  window.clearTimeout(snapshotTimer)
+  pushUndo(editorRef.value?.innerHTML ?? '')
+  if (undoStack.length < 2) return
+  const current = undoStack.pop()
+  if (current == null) return
+  redoStack.push(current)
+  applyHistory(undoStack[undoStack.length - 1] ?? '')
+}
+
+function redo() {
+  window.clearTimeout(snapshotTimer)
+  const next = redoStack.pop()
+  if (next == null) return
+  undoStack.push(next)
+  applyHistory(next)
+}
+
+function syncHeadingTag() {
+  const sel = document.getSelection()
+  const node = sel?.anchorNode
+  const el = node instanceof Element ? node : node?.parentElement
+  const block = el?.closest?.('h1,h2,h3,h4,p,div,li')
+  const tag = block?.tagName.toLowerCase() ?? 'p'
+  headingTag.value = tag === 'h2' || tag === 'h3' || tag === 'h4' ? tag : 'p'
+}
+
 function isEmptyBlock(el: Element): boolean {
-  if (el.querySelector('img, table, video, canvas, iframe')) return false
+  if (el.matches('aside, .cb-handout-note')) return false
+  if (el.querySelector('img, table, video, canvas, iframe, aside, .cb-handout-note')) return false
   return !(el.textContent || '').replace(/\u00a0/g, ' ').trim()
 }
 
@@ -82,8 +184,12 @@ function emitHtml() {
 function applyHtml(html: string) {
   if (!editorRef.value) return
   const next = compactTrailingEmptyHtml(html ?? '')
-  if (editorRef.value.innerHTML === next) return
+  if (editorRef.value.innerHTML === next) {
+    decorateNotes()
+    return
+  }
   editorRef.value.innerHTML = next
+  decorateNotes()
 }
 
 onMounted(() => {
@@ -93,28 +199,62 @@ onMounted(() => {
     /* ignore */
   }
   applyHtml(props.modelValue)
+  undoStack = [editorRef.value?.innerHTML ?? '']
+  redoStack = []
 })
 
 watch(
   () => props.modelValue,
   (v) => {
-    if (!editorRef.value) return
+    if (applyingHistory || !editorRef.value) return
     if (currentHtml() === compactTrailingEmptyHtml(v ?? '')) return
     applyHtml(v)
+    pushUndo(editorRef.value.innerHTML)
   },
 )
 
 function run(command: string, value?: string) {
-  editorRef.value?.focus()
+  restoreSelection()
+  pushUndo(editorRef.value?.innerHTML ?? '')
   document.execCommand(command, false, value)
+  decorateNotes()
   emitHtml()
+  pushUndo(editorRef.value?.innerHTML ?? '')
+}
+
+function setHeading(tag: string) {
+  headingTag.value = tag
+  restoreSelection()
+  pushUndo(editorRef.value?.innerHTML ?? '')
+  const ok = document.execCommand('formatBlock', false, tag)
+  if (!ok) document.execCommand('formatBlock', false, `<${tag}>`)
+  decorateNotes()
+  emitHtml()
+  pushUndo(editorRef.value?.innerHTML ?? '')
 }
 
 function onInput() {
+  decorateNotes()
   emitHtml()
+  scheduleSnapshot()
+}
+
+function onKeydown(ev: KeyboardEvent) {
+  const mod = ev.ctrlKey || ev.metaKey
+  if (mod && ev.key.toLowerCase() === 'z' && !ev.shiftKey) {
+    ev.preventDefault()
+    undo()
+    return
+  }
+  if (mod && (ev.key.toLowerCase() === 'y' || (ev.key.toLowerCase() === 'z' && ev.shiftKey))) {
+    ev.preventDefault()
+    redo()
+  }
 }
 
 function onKeyup(ev: KeyboardEvent) {
+  saveSelection()
+  syncHeadingTag()
   if (ev.key === 'Backspace' || ev.key === 'Delete') emitHtml()
 }
 
@@ -137,10 +277,12 @@ async function insertImageFile(file: File) {
     return
   }
   const dataUrl = await compressImageFile(file)
-  editorRef.value?.focus()
+  restoreSelection()
+  pushUndo(editorRef.value?.innerHTML ?? '')
   document.execCommand('insertImage', false, dataUrl)
   await nextTick()
   emitHtml()
+  pushUndo(editorRef.value?.innerHTML ?? '')
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -180,7 +322,13 @@ function compressImageFile(file: File): Promise<string> {
 }
 
 function onPickImage() {
+  saveSelection()
   fileRef.value?.click()
+}
+
+function onHeadingChange(ev: Event) {
+  const tag = (ev.target as HTMLSelectElement).value || 'p'
+  setHeading(tag)
 }
 
 async function onFileChange(ev: Event) {
@@ -193,17 +341,143 @@ async function onFileChange(ev: Event) {
 function insertHtml(html: string) {
   const chunk = compactTrailingEmptyHtml(html)
   if (!chunk) return
-  editorRef.value?.focus()
+  restoreSelection()
+  pushUndo(editorRef.value?.innerHTML ?? '')
   document.execCommand('insertHTML', false, chunk)
+  decorateNotes()
   emitHtml()
+  pushUndo(editorRef.value?.innerHTML ?? '')
 }
+
+function noteParts(note: HTMLElement) {
+  const tab = note.querySelector('.cb-handout-note__tab')
+  const body = note.querySelector('.cb-handout-note__body')
+  return {
+    title: (tab?.textContent || '备注').trim(),
+    bodyHtml: body instanceof HTMLElement ? body.innerHTML : '',
+  }
+}
+
+function openNote(note: HTMLElement) {
+  editingNote.value = note
+  const parts = noteParts(note)
+  noteTitle.value = parts.title
+  noteBodyHtml.value = parts.bodyHtml
+  noteEditable.value = true
+  noteOpen.value = true
+}
+
+function onEditorMouseDown(ev: MouseEvent) {
+  const t = ev.target
+  if (!(t instanceof Element)) return
+  const note = t.closest('.cb-handout-note')
+  if (note instanceof HTMLElement && editorRef.value?.contains(note)) {
+    ev.preventDefault()
+    openNote(note)
+  }
+}
+
+function onEditorMouseUp() {
+  saveSelection()
+  syncHeadingTag()
+}
+
+async function insertNoteTag() {
+  saveSelection()
+  let name = '备注'
+  try {
+    const { value } = await ElMessageBox.prompt('只需要一个标签，点进去再写内容。', '插入备注', {
+      inputValue: '备注',
+      inputPlaceholder: '如：易混点',
+      confirmButtonText: '插入',
+      cancelButtonText: '取消',
+      inputValidator: (v) => (String(v ?? '').trim() ? true : '请填写标签'),
+    })
+    name = String(value || '备注').trim() || '备注'
+  } catch {
+    return
+  }
+  insertHtml(`${buildHandoutNoteHtml(name)}&nbsp;`)
+}
+
+function onSaveNote(payload: { title: string; bodyPlain: string }) {
+  const note = editingNote.value
+  if (!note || !editorRef.value?.contains(note)) return
+  pushUndo(editorRef.value.innerHTML)
+  const tab = note.querySelector('.cb-handout-note__tab')
+  const body = note.querySelector('.cb-handout-note__body')
+  if (tab) tab.textContent = payload.title
+  if (body instanceof HTMLElement) {
+    body.innerHTML = plainTextToRichHtml(payload.bodyPlain)
+    body.hidden = true
+  }
+  decorateNotes()
+  emitHtml()
+  pushUndo(editorRef.value.innerHTML)
+  ElMessage.success('备注已保存')
+}
+
+function onRemoveNote() {
+  const note = editingNote.value
+  if (!note || !editorRef.value?.contains(note)) return
+  pushUndo(editorRef.value.innerHTML)
+  note.remove()
+  emitHtml()
+  pushUndo(editorRef.value.innerHTML)
+  ElMessage.success('已删除备注')
+}
+
+onBeforeUnmount(() => {
+  window.clearTimeout(snapshotTimer)
+})
 
 defineExpose({ insertHtml })
 </script>
 
 <template>
   <div class="rte" :class="{ 'is-focused': focused, 'is-fill': fill }">
-    <div class="rte__bar" role="toolbar" aria-label="富文本工具栏">
+    <div class="rte__bar" role="toolbar" aria-label="富文本工具栏" @mousedown="saveSelection">
+      <div class="rte__group">
+        <button type="button" title="撤回" aria-label="撤回" @mousedown.prevent="undo">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <path
+              d="M3.2 7.2H9a3.4 3.4 0 1 1 0 6.8H7.2"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.4"
+              stroke-linecap="round"
+            />
+            <path d="M3.2 7.2 5.6 4.8M3.2 7.2 5.6 9.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+          </svg>
+        </button>
+        <button type="button" title="重做" aria-label="重做" @mousedown.prevent="redo">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <path
+              d="M12.8 7.2H7a3.4 3.4 0 1 0 0 6.8h1.8"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.4"
+              stroke-linecap="round"
+            />
+            <path d="M12.8 7.2 10.4 4.8M12.8 7.2 10.4 9.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+      <div class="rte__group">
+        <select
+          class="rte__heading"
+          :value="headingTag"
+          title="标题"
+          aria-label="标题级别"
+          @mousedown="saveSelection"
+          @change="onHeadingChange"
+        >
+          <option value="p">正文</option>
+          <option value="h2">一级标题</option>
+          <option value="h3">二级标题</option>
+          <option value="h4">三级标题</option>
+        </select>
+      </div>
       <div class="rte__group">
         <button type="button" title="粗体" aria-label="粗体" @mousedown.prevent="run('bold')">
           <span class="rte__ico rte__ico--b">B</span>
@@ -256,6 +530,16 @@ defineExpose({ insertHtml })
             />
           </svg>
         </button>
+        <button
+          v-if="notes"
+          type="button"
+          class="rte__wide"
+          title="在光标处插入备注标签"
+          aria-label="插入备注"
+          @mousedown.prevent="insertNoteTag"
+        >
+          备注
+        </button>
       </div>
     </div>
     <div class="rte__wrap">
@@ -273,11 +557,22 @@ defineExpose({ insertHtml })
           emitHtml()
         "
         @input="onInput"
+        @keydown="onKeydown"
         @keyup="onKeyup"
+        @mousedown="onEditorMouseDown"
+        @mouseup="onEditorMouseUp"
         @paste="onPaste"
       />
     </div>
     <input ref="fileRef" type="file" accept="image/*" class="rte__file" @change="onFileChange">
+    <HandoutNoteDialog
+      v-model="noteOpen"
+      :title="noteTitle"
+      :body-html="noteBodyHtml"
+      :editable="noteEditable"
+      @save="onSaveNote"
+      @remove="onRemoveNote"
+    />
   </div>
 </template>
 
@@ -345,6 +640,33 @@ defineExpose({ insertHtml })
 .rte__bar button:hover {
   background: #fff;
   color: #0f172a;
+}
+
+.rte__bar button.rte__wide {
+  width: auto;
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.rte__heading {
+  height: 30px;
+  min-width: 5.6rem;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #475569;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rte__heading:hover,
+.rte__heading:focus {
+  background: #fff;
+  outline: none;
 }
 
 .rte__ico {
@@ -442,28 +764,48 @@ defineExpose({ insertHtml })
   font-weight: 700;
 }
 
+.rte__editor :deep(h2),
+.rte__editor :deep(h3),
+.rte__editor :deep(h4) {
+  margin: 0.55em 0 0.35em;
+  line-height: 1.35;
+  font-weight: 800;
+}
+
+.rte__editor :deep(h2) {
+  font-size: 1.28em;
+}
+
+.rte__editor :deep(h3) {
+  font-size: 1.14em;
+}
+
+.rte__editor :deep(h4) {
+  font-size: 1.02em;
+  font-weight: 750;
+}
+
 .rte__editor :deep(.cb-handout-note) {
-  display: block;
-  margin: 10px 0;
+  display: inline-flex;
+  vertical-align: middle;
+  margin: 0 0.2em;
+  cursor: pointer;
 }
 
 .rte__editor :deep(.cb-handout-note__tab) {
   display: inline-flex;
   align-items: center;
-  padding: 4px 12px 4px 10px;
-  border-radius: 4px 16px 16px 4px;
+  padding: 2px 10px 2px 8px;
+  border-radius: 4px 14px 14px 4px;
   background: #3b82f6;
   color: #fff;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 750;
+  line-height: 1.4;
 }
 
 .rte__editor :deep(.cb-handout-note__body) {
-  margin-top: 6px;
-  padding: 8px 10px;
-  border: 1px dashed #93c5fd;
-  border-radius: 8px;
-  background: #eff6ff;
+  display: none !important;
 }
 
 .rte__file {

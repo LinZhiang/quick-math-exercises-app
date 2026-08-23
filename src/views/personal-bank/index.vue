@@ -2,6 +2,7 @@
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowRight, Folder, MoreFilled } from '@element-plus/icons-vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import RichTextView from '@/components/RichTextView.vue'
 import ImageCropPanel from '@/components/ImageCropPanel.vue'
@@ -471,7 +472,28 @@ function openSub(cat: PersonalBankCategory, subId: string) {
   ) {
     return
   }
+  quizActive.value = false
+  formOpen.value = false
+  photoOpen.value = false
+  resetPhotoQueue()
+  photoTarget.value = 'full'
+  detailId.value = null
   pushBank({ categoryId: cat.id, subId })
+}
+
+function categoryQuestionCount(cat: PersonalBankCategory) {
+  return cat.subs.reduce((n, s) => n + s.questions.length, 0)
+}
+
+function onCategoryCommand(cmd: string, cat: PersonalBankCategory) {
+  if (cmd === 'rename') void onRenameCategory(cat)
+  else if (cmd === 'add-sub') void onCreateSub(cat)
+  else if (cmd === 'delete') void onDeleteCategory(cat)
+}
+
+function onSubCommand(cmd: string, cat: PersonalBankCategory, subId: string, subName: string) {
+  if (cmd === 'rename') void onRenameSub(cat, subId, subName)
+  else if (cmd === 'delete') void onDeleteSub(cat, subId, subName)
 }
 
 function padOptions(list?: string[]): string[] {
@@ -892,37 +914,52 @@ async function confirmMoveQuestion() {
       <p v-if="!categories.length" class="personal-bank-empty">
         还没有大类。先新建大类，再在大类里新建小类；大小类都有之后，才能点进小类放题目。
       </p>
-      <ul v-else class="personal-bank-cats">
-        <li v-for="cat in categories" :key="cat.id" class="personal-bank-cat">
-          <div class="personal-bank-cat__head">
-            <h2 class="personal-bank-cat__name">{{ cat.name }}</h2>
-            <div class="personal-bank-cat__actions">
-              <el-button size="small" @click="onRenameCategory(cat)">修改</el-button>
-              <el-button size="small" @click="onCreateSub(cat)">新建小类</el-button>
-              <el-button size="small" type="danger" plain @click="onDeleteCategory(cat)">
-                删除
-              </el-button>
+      <div v-else class="pb-menu">
+        <section v-for="cat in categories" :key="cat.id" class="pb-menu-group">
+          <header class="pb-menu-group__head">
+            <span class="pb-menu-group__icon" aria-hidden="true">
+              <el-icon :size="16"><Folder /></el-icon>
+            </span>
+            <div class="pb-menu-group__titles">
+              <h2>{{ cat.name }}</h2>
+              <p>{{ cat.subs.length }} 个小类 · {{ categoryQuestionCount(cat) }} 题</p>
             </div>
-          </div>
-          <p v-if="!cat.subs.length" class="personal-bank-cat__hint">
-            请先新建小类，才能把题目放进去。
-          </p>
-          <ul v-else class="personal-bank-subs">
-            <li v-for="sub in cat.subs" :key="sub.id" class="personal-bank-sub">
-              <button type="button" class="personal-bank-sub__open" @click="openSub(cat, sub.id)">
-                {{ sub.name }}
-                <span class="personal-bank-sub__meta">{{ sub.questions.length }} 题</span>
+            <el-dropdown trigger="click" @command="(cmd) => onCategoryCommand(String(cmd), cat)">
+              <button type="button" class="pb-menu-more" aria-label="大类操作" @click.stop>
+                <el-icon :size="16"><MoreFilled /></el-icon>
               </button>
-              <div class="personal-bank-sub__actions">
-                <el-button size="small" @click="onRenameSub(cat, sub.id, sub.name)">修改</el-button>
-                <el-button size="small" type="danger" plain @click="onDeleteSub(cat, sub.id, sub.name)">
-                  删除
-                </el-button>
-              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="rename">修改名称</el-dropdown-item>
+                  <el-dropdown-item command="add-sub">新建小类</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>删除大类</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </header>
+          <p v-if="!cat.subs.length" class="pb-menu-empty">还没有小类，点右上角新建。</p>
+          <ul v-else class="pb-menu-list">
+            <li v-for="sub in cat.subs" :key="sub.id">
+              <button type="button" class="pb-menu-item" @click="openSub(cat, sub.id)">
+                <span class="pb-menu-item__name">{{ sub.name }}</span>
+                <span class="pb-menu-item__count">{{ sub.questions.length }}</span>
+                <el-icon class="pb-menu-item__go" :size="14"><ArrowRight /></el-icon>
+              </button>
+              <el-dropdown trigger="click" @command="(cmd) => onSubCommand(String(cmd), cat, sub.id, sub.name)">
+                <button type="button" class="pb-menu-more pb-menu-more--row" aria-label="小类操作" @click.stop>
+                  <el-icon :size="14"><MoreFilled /></el-icon>
+                </button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="rename">修改</el-dropdown-item>
+                    <el-dropdown-item command="delete">删除</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </li>
           </ul>
-        </li>
-      </ul>
+        </section>
+      </div>
     </div>
 
     <div v-else-if="quizActive && activeSub" class="personal-bank-body">
@@ -1483,109 +1520,162 @@ async function confirmMoveQuestion() {
   color: var(--app-text-muted);
 }
 
-.personal-bank-cats,
-.personal-bank-subs,
-.personal-bank-qs {
+.pb-menu {
+  display: grid;
+  gap: 14px;
+}
+
+.pb-menu-group {
+  overflow: hidden;
+  border: 1px solid #e8eef5;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgb(15 23 42 / 6%);
+}
+
+.pb-menu-group__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px 12px 14px;
+  background: linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
+  border-bottom: 1px solid #e8eef5;
+}
+
+.pb-menu-group__icon {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.pb-menu-group__titles {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pb-menu-group__titles h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.pb-menu-group__titles p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.pb-menu-more {
+  appearance: none;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
   margin: 0;
   padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.pb-menu-more:hover {
+  background: #fff;
+  color: #0f172a;
+}
+
+.pb-menu-more--row {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+}
+
+.pb-menu-empty {
+  margin: 0;
+  padding: 14px 16px 16px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.pb-menu-list {
+  margin: 0;
+  padding: 4px 0;
   list-style: none;
 }
 
-.personal-bank-cat {
-  margin-bottom: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--app-border, #d0d5dd);
-  border-radius: 12px;
-  background: var(--app-card-bg, #fff);
-}
-
-.personal-bank-cat__head {
+.pb-menu-list li {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
+  gap: 2px;
+  padding-right: 6px;
 }
 
-.personal-bank-cat__name {
-  margin: 0;
-  flex: 1 1 8rem;
-  min-width: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-}
-
-.personal-bank-cat__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-left: auto;
-}
-
-.personal-bank-cat__hint {
-  margin: 10px 0 0;
-  font-size: 13px;
-  color: var(--app-text-muted);
-}
-
-.personal-bank-subs {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.personal-bank-sub {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--app-border, #d0d5dd) 85%, transparent);
-  background: color-mix(in srgb, var(--app-surface-alt, #f8fafc) 80%, transparent);
-}
-
-.personal-bank-sub__open {
+.pb-menu-item {
   appearance: none;
-  -webkit-appearance: none;
-  flex: 1 1 10rem;
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 8px;
-  text-align: left;
-  padding: 4px 0;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  margin: 0;
+  padding: 8px 8px 8px 16px;
   border: none;
   background: transparent;
-  box-shadow: none;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
   color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.personal-bank-sub__open:hover {
-  color: var(--el-color-primary);
+.pb-menu-item:hover {
+  background: #f8fafc;
 }
 
-.personal-bank-sub__meta {
+.pb-menu-item__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pb-menu-item__count {
+  flex-shrink: 0;
+  min-width: 1.6rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
   font-size: 12px;
-  font-weight: 600;
-  color: var(--app-text-muted);
+  font-weight: 750;
+  text-align: center;
 }
 
-.personal-bank-sub__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-left: auto;
+.pb-menu-item__go {
+  flex-shrink: 0;
+  color: #94a3b8;
 }
 
 .personal-bank-qs {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .personal-bank-q {
