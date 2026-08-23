@@ -13,16 +13,6 @@ const props = withDefaults(
   { editable: false },
 )
 
-const props = withDefaults(
-  defineProps<{
-    modelValue: boolean
-    title: string
-    bodyHtml: string
-    editable?: boolean
-  }>(),
-  { editable: false },
-)
-
 const emit = defineEmits<{
   'update:modelValue': [boolean]
   save: [payload: { title: string; bodyPlain: string }]
@@ -51,7 +41,7 @@ function onSave() {
     ElMessage.warning('请填写备注标签')
     return
   }
-  emit('save', { title: title.slice(0, 24), bodyPlain: draftBody.value })
+  emit('save', { title: title.slice(0, 24), bodyPlain: draftBody.value.slice(0, 1500) })
   close()
 }
 
@@ -77,7 +67,7 @@ async function onRemove() {
         class="note-dialog__body"
         type="textarea"
         :rows="8"
-        maxlength="2000"
+        maxlength="1500"
         show-word-limit
         placeholder="备注内容，可稍后填写"
       />
