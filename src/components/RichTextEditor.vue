@@ -371,7 +371,7 @@ function onEditorMouseDown(ev: MouseEvent) {
   const t = ev.target
   if (!(t instanceof Element)) return
   const note = t.closest('.cb-handout-note')
-  if (note instanceof HTMLElement && editorRef.value?.contains(note)) {
+  if (note instanceof HTMLElement && props.notes && editorRef.value?.contains(note)) {
     ev.preventDefault()
     openNote(note)
   }
@@ -431,7 +431,7 @@ onBeforeUnmount(() => {
   window.clearTimeout(snapshotTimer)
 })
 
-defineExpose({ insertHtml })
+defineExpose({ insertHtml, insertNoteTag })
 </script>
 
 <template>
@@ -467,15 +467,15 @@ defineExpose({ insertHtml })
         <select
           class="rte__heading"
           :value="headingTag"
-          title="标题"
+          title="标题级别"
           aria-label="标题级别"
           @mousedown="saveSelection"
           @change="onHeadingChange"
         >
           <option value="p">正文</option>
-          <option value="h2">一级标题</option>
-          <option value="h3">二级标题</option>
-          <option value="h4">三级标题</option>
+          <option value="h2">一</option>
+          <option value="h3">二</option>
+          <option value="h4">三</option>
         </select>
       </div>
       <div class="rte__group">
@@ -530,16 +530,6 @@ defineExpose({ insertHtml })
             />
           </svg>
         </button>
-        <button
-          v-if="notes"
-          type="button"
-          class="rte__wide"
-          title="在光标处插入备注标签"
-          aria-label="插入备注"
-          @mousedown.prevent="insertNoteTag"
-        >
-          备注
-        </button>
       </div>
     </div>
     <div class="rte__wrap">
@@ -554,6 +544,7 @@ defineExpose({ insertHtml })
         @focus="focused = true"
         @blur="
           focused = false;
+          saveSelection();
           emitHtml()
         "
         @input="onInput"
@@ -566,6 +557,7 @@ defineExpose({ insertHtml })
     </div>
     <input ref="fileRef" type="file" accept="image/*" class="rte__file" @change="onFileChange">
     <HandoutNoteDialog
+      v-if="notes"
       v-model="noteOpen"
       :title="noteTitle"
       :body-html="noteBodyHtml"
@@ -602,19 +594,27 @@ defineExpose({ insertHtml })
 .rte__bar {
   flex-shrink: 0;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: 4px;
+  padding: 4px 6px;
   border-bottom: 1px solid #eef2f6;
   background: #f8fafc;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.rte__bar::-webkit-scrollbar {
+  display: none;
 }
 
 .rte__group {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding-right: 8px;
+  flex-shrink: 0;
+  gap: 1px;
+  padding-right: 5px;
   border-right: 1px solid #e5e7eb;
 }
 
@@ -624,14 +624,14 @@ defineExpose({ insertHtml })
 }
 
 .rte__bar button {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: #475569;
   cursor: pointer;
@@ -642,19 +642,13 @@ defineExpose({ insertHtml })
   color: #0f172a;
 }
 
-.rte__bar button.rte__wide {
-  width: auto;
-  padding: 0 9px;
-  font-size: 12px;
-  font-weight: 750;
-}
-
 .rte__heading {
-  height: 30px;
-  min-width: 5.6rem;
-  padding: 0 6px;
+  height: 26px;
+  width: 3.4rem;
+  min-width: 3.4rem;
+  padding: 0 2px 0 4px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: #475569;
   font: inherit;

@@ -75,7 +75,7 @@ const panelPlaced = ref(false)
 const dragging = ref(false)
 const tabDockedRight = computed(() => {
   const size = dockSize()
-  const tabW = tabRef.value?.offsetWidth ?? 96
+  const tabW = tabRef.value?.offsetWidth ?? 72
   return size.w > 0 && tabPos.x + tabW >= size.w - 6
 })
 
@@ -200,7 +200,7 @@ function clamp(n: number, min: number, max: number) {
 
 function defaultTabPos() {
   const { w, h } = dockSize()
-  const tabW = tabRef.value?.offsetWidth ?? 96
+  const tabW = tabRef.value?.offsetWidth ?? 72
   const tabH = tabRef.value?.offsetHeight ?? 44
   return {
     x: Math.max(0, w - tabW),
@@ -226,7 +226,7 @@ function defaultPanelBox() {
 
 function clampTab() {
   const { w, h } = dockSize()
-  const tabW = tabRef.value?.offsetWidth ?? 96
+  const tabW = tabRef.value?.offsetWidth ?? 72
   const tabH = tabRef.value?.offsetHeight ?? 44
   if (w <= 0 || h <= 0) return
   tabPos.x = clamp(tabPos.x, 0, Math.max(0, w - tabW))
@@ -623,18 +623,18 @@ onBeforeUnmount(() => {
   z-index: 12;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   margin: 0;
-  padding: 11px 16px 11px 14px;
+  padding: 6px 10px 6px 9px;
   border: none;
   border-radius: 999px;
   color: #fff;
   background: linear-gradient(135deg, #7dd3fc 0%, #3b82f6 48%, #1d4ed8 100%);
-  box-shadow: 0 10px 24px rgb(37 99 235 / 42%);
+  box-shadow: 0 6px 14px rgb(37 99 235 / 32%);
   font: inherit;
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -646,7 +646,14 @@ onBeforeUnmount(() => {
 }
 
 .computer-ask-tab.is-docked-right {
-  border-radius: 999px 0 0 999px;
+  padding: 8px 7px 8px 9px;
+  border-radius: 12px 0 0 12px;
+  box-shadow: -4px 4px 12px rgb(37 99 235 / 22%);
+}
+
+.computer-ask-tab.is-docked-right .computer-ask-tab__ring,
+.computer-ask-tab.is-docked-right .computer-ask-tab__dot {
+  display: none;
 }
 
 .computer-ask-tab:active {
@@ -660,19 +667,19 @@ onBeforeUnmount(() => {
 
 .computer-ask-tab__ring {
   position: absolute;
-  inset: -5px 0 -5px -5px;
+  inset: -3px 0 -3px -3px;
   border-radius: inherit;
-  border: 2px solid rgb(125 211 252 / 0.85);
+  border: 1.5px solid rgb(125 211 252 / 0.7);
   pointer-events: none;
   animation: computer-ask-pulse 1.7s ease-out infinite;
 }
 
 .computer-ask-tab__dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 0 0 4px rgb(255 255 255 / 22%);
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 18%);
 }
 
 .computer-ask-tab__text {
@@ -680,13 +687,13 @@ onBeforeUnmount(() => {
 }
 
 .computer-ask-tab__badge {
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
   border-radius: 999px;
   background: #ef4444;
-  font-size: 11px;
-  line-height: 18px;
+  font-size: 10px;
+  line-height: 16px;
 }
 
 @keyframes computer-ask-pulse {
