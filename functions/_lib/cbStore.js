@@ -1,135 +1,18 @@
 /**
- * 计算机基础云端持久化：优先 Cloudflare KV（WENGU_KV）。
- * 未绑定时用边缘 Cache API 兜底，pages.dev 上管理员才能新增/改目录。
- *
- * 「检查并更新」清的是手机浏览器里的 PWA 缓存，不会清这块存储。
- * 灌快照只发生在目录键还不存在时；用户改过的目录（userOwned）绝不用 /cb-data 覆盖。
+ * 计算机基础云端持久化：只用 Cloudflare KV（WENGU_KV）。
+ * 不要用 Cache API 当数据库——会过期，灌 /cb-data 快照会把用户新加的目录盖掉。
+ * 未绑定 KV 时，讲义只读构建快照；增删改请用本机 Node（npm run dev:full）。
  */
-const INDEX_KEY = 'cb:__index__'
 const USER_OWNED_KEY = 'cb:user-owned'
-let storeOrigin = 'https://qmea-cb.internal'
 
-export function rememberCbStoreOrigin(request) {
-  try {
-    if (request?.url) storeOrigin = new URL(request.url).origin
-  } catch {
-    /* keep */
-  }
+export { USER_OWNED_KEY as CB_USER_OWNED_KEY }
+
+export function rememberCbStoreOrigin() {
+  /* 不再按 origin 拆缓存键，也不再用边缘 Cache 当库 */
 }
 
 export function getCbStore(env) {
-  if (env?.WENGU_KV) return env.WENGU_KV
-  try {
-    if (typeof caches !== 'undefined' && caches.default) return new CacheCbStore()
-  } catch {
-    /* ignore */
-  }
-  return null
-}
-
-class CacheCbStore {
-  constructor() {
-    this.cache = caches.default
-    this.indexMemo = null
-  }
-
-  req(key) {
-    return new Request(`${storeOrigin}/__cb-store/${encodeURIComponent(key)}`, { method: 'GET' })
-  }
-
-  async get(key, opts = {}) {
-    try {
-      const res = await this.cache.match(this.req(key))
-      if (!res) return null
-      const type = opts.type || 'text'
-      if (type === 'json') {
-        try {
-          return await res.clone().json()
-        } catch {
-          return null
-        }
-      }
-      if (type === 'arrayBuffer') return res.arrayBuffer()
-      return res.text()
-    } catch {
-      return null
-    }
-  }
-
-  async getWithMetadata(key, opts = {}) {
-    try {
-      const res = await this.cache.match(this.req(key))
-      if (!res) return { value: null, metadata: null }
-      const mime = res.headers.get('x-cb-mime') || res.headers.get('content-type') || ''
-      const type = opts.type || 'text'
-      const value = type === 'arrayBuffer' ? await res.arrayBuffer() : await res.text()
-      return { value, metadata: { mime } }
-    } catch {
-      return { value: null, metadata: null }
-    }
-  }
-
-  async put(key, value, opts = {}) {
-    const mime =
-      opts.metadata?.mime ||
-      (typeof value === 'string' ? 'application/json; charset=utf-8' : 'application/octet-stream')
-    const body = value instanceof Uint8Array ? value : value
-    const res = new Response(body, {
-      headers: {
-        'content-type': mime,
-        'x-cb-mime': mime,
-        'cache-control': 'max-age=31536000, immutable',
-      },
-    })
-    await this.cache.put(this.req(key), res)
-    if (key !== INDEX_KEY) await this.touchIndex(key, mime)
-  }
-
-  async delete(key) {
-    await this.cache.delete(this.req(key))
-    if (key === INDEX_KEY) {
-      this.indexMemo = { keys: {} }
-      return
-    }
-    const index = await this.readIndex()
-    if (index.keys[key]) {
-      delete index.keys[key]
-      await this.writeIndex(index)
-    }
-  }
-
-  async list(opts = {}) {
-    const prefix = String(opts.prefix || '')
-    const index = await this.readIndex()
-    const keys = Object.keys(index.keys)
-      .filter((name) => !prefix || name.startsWith(prefix))
-      .map((name) => ({ name }))
-    return { keys }
-  }
-
-  async readIndex() {
-    if (this.indexMemo) return this.indexMemo
-    const raw = await this.get(INDEX_KEY, { type: 'json' })
-    this.indexMemo = raw && typeof raw === 'object' && raw.keys ? raw : { keys: {} }
-    return this.indexMemo
-  }
-
-  async writeIndex(index) {
-    this.indexMemo = index
-    const res = new Response(JSON.stringify(index), {
-      headers: {
-        'content-type': 'application/json; charset=utf-8',
-        'cache-control': 'max-age=31536000, immutable',
-      },
-    })
-    await this.cache.put(this.req(INDEX_KEY), res)
-  }
-
-  async touchIndex(key, mime) {
-    const index = await this.readIndex()
-    index.keys[key] = { mime: mime || '' }
-    await this.writeIndex(index)
-  }
+  return env?.WENGU_KV || null
 }
 
 function catalogLooksSaved(raw) {
@@ -146,8 +29,8 @@ export async function hydrateCbStoreFromAssets(store, env, request, helpers) {
   }
 
   const existing = await store.get(helpers.catalogKey, { type: 'json' })
-  if (catalogLooksSaved(existing)) return
   if (existing && existing.userOwned) return
+  if (catalogLooksSaved(existing)) return
 
   try {
     if (typeof store.list === 'function') {
@@ -156,7 +39,7 @@ export async function hydrateCbStoreFromAssets(store, env, request, helpers) {
       if (names.includes(helpers.catalogKey)) return
     }
   } catch {
-    /* 无 list 的存储（纯 KV 以外）忽略 */
+    /* 无 list 的存储忽略 */
   }
 
   const snap = await helpers.readJsonAsset(env, request, '/cb-data/catalog.json')
@@ -196,6 +79,6 @@ export async function markCbStoreUserOwned(store) {
   try {
     await store.put(USER_OWNED_KEY, '1')
   } catch {
-    /* KV / Cache 写入失败时仍以 catalog.userOwned 为准 */
+    /* KV 写入失败时仍以 catalog.userOwned 为准 */
   }
 }
