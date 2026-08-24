@@ -1,6 +1,6 @@
 <!--
-  计算机基础：左侧树（仅三角折叠）+ 讲义详情。
-  管理员增删改：本机写 server/data；pages.dev 写 KV 或边缘缓存。检查并更新不重置目录。
+  前端学习：左侧树（仅三角折叠）+ 讲义详情。
+  管理员增删改：本机写 server/data/frontend-learning；pages.dev 写 KV。检查并更新不重置目录。
 -->
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
@@ -8,39 +8,39 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowRight, Collection, Document, Folder, FolderOpened, MoreFilled, Notebook, Plus, Share } from '@element-plus/icons-vue'
 import {
-  buildComputerRangeQuizItem,
+  buildFrontendRangeQuizItem,
   collectReadyEntriesUnder,
-  computerNodePathNames,
-  createComputerItem,
-  createComputerNode,
-  defaultExpandedComputerIds,
-  deleteComputerItem,
-  deleteComputerNode,
-  findComputerEntry,
-  findComputerNode,
-  flattenVisibleComputerRows,
-  loadComputerBasicsItem,
-  loadComputerBasicsTree,
-  moveComputerItem,
-  moveComputerNode,
-  renameComputerNode,
-  type ComputerHandoutItem,
-  type ComputerTreeEntry,
-  type ComputerTreeNode,
-  type ComputerTreeRow,
-} from '@/utils/computer/computerBasics'
+  frontendNodePathNames,
+  createFrontendItem,
+  createFrontendNode,
+  defaultExpandedFrontendIds,
+  deleteFrontendItem,
+  deleteFrontendNode,
+  findFrontendEntry,
+  findFrontendNode,
+  flattenVisibleFrontendRows,
+  loadFrontendLearningItem,
+  loadFrontendLearningTree,
+  moveFrontendItem,
+  moveFrontendNode,
+  renameFrontendNode,
+  type FrontendHandoutItem,
+  type FrontendTreeEntry,
+  type FrontendTreeNode,
+  type FrontendTreeRow,
+} from '@/utils/frontend/frontendLearning'
 import { isWenguAdmin, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
-import ComputerBusyHint from './ComputerBusyHint.vue'
-import ComputerCategoryMapDialog from './ComputerCategoryMapDialog.vue'
-import ComputerMoveDialog from './ComputerMoveDialog.vue'
-import ComputerQuizPanel from './ComputerQuizPanel.vue'
+import FrontendBusyHint from './FrontendBusyHint.vue'
+import FrontendCategoryMapDialog from './FrontendCategoryMapDialog.vue'
+import FrontendMoveDialog from './FrontendMoveDialog.vue'
+import FrontendQuizPanel from './FrontendQuizPanel.vue'
 import {
-  computerStudyLogTick,
-  summarizeComputerQuizLogs,
-} from '@/utils/computer/computerStudyLog'
+  frontendStudyLogTick,
+  summarizeFrontendQuizLogs,
+} from '@/utils/frontend/frontendStudyLog'
 
 const router = useRouter()
-const tree = ref<ComputerTreeNode[]>([])
+const tree = ref<FrontendTreeNode[]>([])
 const treeEl = ref<HTMLElement | null>(null)
 const loading = ref(true)
 const error = ref('')
@@ -53,7 +53,7 @@ const movePickId = ref('')
 const moveKind = ref<'branch' | 'entry'>('branch')
 const moveName = ref('')
 const moveOpen = ref(false)
-const quizItem = ref<ComputerHandoutItem | null>(null)
+const quizItem = ref<FrontendHandoutItem | null>(null)
 const quizScopeLabel = ref('')
 let flashTimer = 0
 
@@ -62,7 +62,7 @@ const isAdmin = computed(() => {
   return isWenguAdmin()
 })
 
-const rows = computed(() => flattenVisibleComputerRows(tree.value, expanded.value))
+const rows = computed(() => flattenVisibleFrontendRows(tree.value, expanded.value))
 
 const entryCount = computed(() => {
   const walk = (nodes: typeof tree.value): number =>
@@ -71,11 +71,11 @@ const entryCount = computed(() => {
 })
 
 const quizStats = computed(() => {
-  void computerStudyLogTick.value
-  return summarizeComputerQuizLogs()
+  void frontendStudyLogTick.value
+  return summarizeFrontendQuizLogs()
 })
 
-function treeHasId(nodes: ComputerTreeNode[], id: string): boolean {
+function treeHasId(nodes: FrontendTreeNode[], id: string): boolean {
   for (const node of nodes) {
     if (node.id === id) return true
     if (node.entries.some((entry) => entry.id === id)) return true
@@ -165,7 +165,7 @@ function onTreePointerDown(e: PointerEvent) {
   adminOpenId.value = ''
 }
 
-function rowHasMore(row: ComputerTreeRow) {
+function rowHasMore(row: FrontendTreeRow) {
   if (isAdmin.value) return true
   if (row.kind === 'branch') return true
   return row.entry.ready
@@ -177,7 +177,7 @@ function closeQuiz() {
 }
 
 async function startFolderQuiz(nodeId: string, name: string) {
-  const pos = findComputerNode(tree.value, nodeId)
+  const pos = findFrontendNode(tree.value, nodeId)
   if (!pos) return
   const entries = collectReadyEntriesUnder(pos.node)
   if (!entries.length) {
@@ -186,17 +186,17 @@ async function startFolderQuiz(nodeId: string, name: string) {
   }
   try {
     await withBusy('正在读取范围内讲义…', async () => {
-      const items: ComputerHandoutItem[] = []
+      const items: FrontendHandoutItem[] = []
       for (const entry of entries) {
         try {
-          items.push(await loadComputerBasicsItem(entry.id))
+          items.push(await loadFrontendLearningItem(entry.id))
         } catch {
           /* 缺篇跳过 */
         }
       }
       if (!items.length) throw new Error('范围内讲义读取失败')
-      const learningPath = computerNodePathNames(tree.value, nodeId)
-      quizItem.value = buildComputerRangeQuizItem({
+      const learningPath = frontendNodePathNames(tree.value, nodeId)
+      quizItem.value = buildFrontendRangeQuizItem({
         scopeId: nodeId,
         scopeName: name,
         learningPath,
@@ -210,14 +210,14 @@ async function startFolderQuiz(nodeId: string, name: string) {
   }
 }
 
-async function startEntryQuiz(entry: ComputerTreeEntry) {
+async function startEntryQuiz(entry: FrontendTreeEntry) {
   if (!entry.ready) {
     ElMessage.info('该小节即将开放')
     return
   }
   try {
     await withBusy('正在打开测验…', async () => {
-      const item = await loadComputerBasicsItem(entry.id)
+      const item = await loadFrontendLearningItem(entry.id)
       quizItem.value = item
       quizScopeLabel.value = ''
       adminOpenId.value = ''
@@ -227,16 +227,16 @@ async function startEntryQuiz(entry: ComputerTreeEntry) {
   }
 }
 
-function openEntry(entry: ComputerTreeEntry, edit = false) {
+function openEntry(entry: FrontendTreeEntry, edit = false) {
   if (!entry.ready) {
     ElMessage.info('该小节即将开放')
     return
   }
-  openComputerItem(entry.id, edit)
+  openFrontendItem(entry.id, edit)
 }
 
-function openComputerItem(itemId: string, edit = false) {
-  const loc = { name: 'computer-item' as const, params: { itemId } }
+function openFrontendItem(itemId: string, edit = false) {
+  const loc = { name: 'frontend-item' as const, params: { itemId } }
   void router.push(loc).then(() => {
     if (!edit) return
     void router.push({ ...loc, query: { edit: '1' } })
@@ -266,12 +266,12 @@ async function withBusy<T>(text: string, fn: () => Promise<T>): Promise<T> {
 async function reloadKeepExpand(opts?: {
   focusId?: string
   parentId?: string | null
-  node?: ComputerTreeNode
-  entry?: ComputerTreeEntry
+  node?: FrontendTreeNode
+  entry?: FrontendTreeEntry
 }) {
   const keep = { ...expanded.value }
   if (opts?.parentId) keep[opts.parentId] = true
-  const next = await loadComputerBasicsTree(true)
+  const next = await loadFrontendLearningTree(true)
   if (opts?.node && !treeHasId(next, opts.node.id)) {
     throw new Error(
       '分类接口写成功了，但读目录时这条不见了。请用本机 npm run dev:full 增删改，云端未绑定 KV 时不会把新目录写进会过期的缓存。',
@@ -283,7 +283,7 @@ async function reloadKeepExpand(opts?: {
     )
   }
   tree.value = next
-  expanded.value = { ...defaultExpandedComputerIds(next), ...keep }
+  expanded.value = { ...defaultExpandedFrontendIds(next), ...keep }
   adminOpenId.value = ''
   if (opts?.focusId) revealRow(opts.focusId, 'row')
 }
@@ -292,7 +292,7 @@ async function onAddRoot() {
   try {
     const name = await promptName('新增大类')
     await withBusy('正在新增大类…', async () => {
-      const created = await createComputerNode({ name })
+      const created = await createFrontendNode({ name })
       const node = { ...created, children: created.children ?? [], entries: created.entries ?? [] }
       await reloadKeepExpand({ focusId: node.id, node, parentId: null })
     })
@@ -307,7 +307,7 @@ async function onAddChild(parentId: string) {
   try {
     const name = await promptName('新增小类')
     await withBusy('正在新增小类…', async () => {
-      const created = await createComputerNode({ name, parentId })
+      const created = await createFrontendNode({ name, parentId })
       const node = { ...created, children: created.children ?? [], entries: created.entries ?? [] }
       await reloadKeepExpand({ focusId: node.id, parentId, node })
     })
@@ -322,13 +322,13 @@ async function onAddItem(parentId: string) {
   try {
     const title = await promptName('新增讲义')
     const item = await withBusy('正在新增讲义…', async () => {
-      const created = await createComputerItem({ parentId, title, content: '' })
-      const entry: ComputerTreeEntry = { id: created.id, title: created.title, ready: true, type: created.type }
+      const created = await createFrontendItem({ parentId, title, content: '' })
+      const entry: FrontendTreeEntry = { id: created.id, title: created.title, ready: true, type: created.type }
       await reloadKeepExpand({ focusId: created.id, parentId, entry })
       return created
     })
     ElMessage.success('已新增讲义，正在打开…')
-    openComputerItem(item.id, true)
+    openFrontendItem(item.id, true)
   } catch (e) {
     if (isPromptCancel(e)) return
     ElMessage.error(e instanceof Error ? e.message : '新增失败')
@@ -339,7 +339,7 @@ async function onRenameNode(id: string, current: string) {
   try {
     const name = await promptName('编辑分类', current)
     await withBusy('正在保存分类…', async () => {
-      await renameComputerNode(id, name)
+      await renameFrontendNode(id, name)
       await reloadKeepExpand({ focusId: id })
     })
     ElMessage.success('已保存')
@@ -357,7 +357,7 @@ async function onDeleteNode(id: string, name: string) {
       cancelButtonText: '取消',
     })
     await withBusy('正在删除分类…', async () => {
-      await deleteComputerNode(id)
+      await deleteFrontendNode(id)
       await reloadKeepExpand()
     })
     ElMessage.success('已删除')
@@ -367,7 +367,7 @@ async function onDeleteNode(id: string, name: string) {
   }
 }
 
-async function onDeleteEntry(entry: ComputerTreeEntry) {
+async function onDeleteEntry(entry: FrontendTreeEntry) {
   try {
     await ElMessageBox.confirm(`确定删除「${entry.title}」？`, '删除讲义', {
       type: 'warning',
@@ -375,7 +375,7 @@ async function onDeleteEntry(entry: ComputerTreeEntry) {
       cancelButtonText: '取消',
     })
     await withBusy('正在删除讲义…', async () => {
-      await deleteComputerItem(entry.id)
+      await deleteFrontendItem(entry.id)
       await reloadKeepExpand()
     })
     ElMessage.success('已删除')
@@ -398,7 +398,7 @@ function startMove(id: string, kind: 'branch' | 'entry', name: string) {
 }
 
 async function onMoveNode(id: string, delta: number) {
-  const pos = findComputerNode(tree.value, id)
+  const pos = findFrontendNode(tree.value, id)
   if (!pos) return
   const next = pos.index + delta
   if (next < 0 || next >= pos.siblings.length) {
@@ -408,7 +408,7 @@ async function onMoveNode(id: string, delta: number) {
   const parentId = pos.parent?.id ?? null
   try {
     await withBusy('正在调整位置…', async () => {
-      await moveComputerNode(id, { parentId, index: next })
+      await moveFrontendNode(id, { parentId, index: next })
       if (parentId) expanded.value = { ...expanded.value, [parentId]: true }
       await reloadKeepExpand({ focusId: id, parentId })
     })
@@ -419,7 +419,7 @@ async function onMoveNode(id: string, delta: number) {
 }
 
 async function onMoveEntry(id: string, delta: number) {
-  const pos = findComputerEntry(tree.value, id)
+  const pos = findFrontendEntry(tree.value, id)
   if (!pos) return
   const next = pos.index + delta
   if (next < 0 || next >= pos.node.entries.length) {
@@ -428,7 +428,7 @@ async function onMoveEntry(id: string, delta: number) {
   }
   try {
     await withBusy('正在调整位置…', async () => {
-      await moveComputerItem(id, { parentId: pos.node.id, index: next })
+      await moveFrontendItem(id, { parentId: pos.node.id, index: next })
       expanded.value = { ...expanded.value, [pos.node.id]: true }
       await reloadKeepExpand({ focusId: id, parentId: pos.node.id })
     })
@@ -453,13 +453,13 @@ async function confirmMove(target: string) {
         const destLen =
           parentId == null
             ? tree.value.length
-            : (findComputerNode(tree.value, parentId)?.node.children.length ?? 0)
-        await moveComputerNode(rowId, { parentId, index: destLen })
+            : (findFrontendNode(tree.value, parentId)?.node.children.length ?? 0)
+        await moveFrontendNode(rowId, { parentId, index: destLen })
         if (parentId) expanded.value = { ...expanded.value, [parentId]: true }
         await reloadKeepExpand({ focusId: rowId, parentId })
       } else {
-        const dest = findComputerNode(tree.value, target)
-        await moveComputerItem(rowId, { parentId: target, index: dest?.node.entries.length ?? 0 })
+        const dest = findFrontendNode(tree.value, target)
+        await moveFrontendItem(rowId, { parentId: target, index: dest?.node.entries.length ?? 0 })
         expanded.value = { ...expanded.value, [target]: true }
         await reloadKeepExpand({ focusId: rowId, parentId: target })
       }
@@ -476,9 +476,9 @@ async function load() {
   if (tree.value.length) busyText.value = '正在刷新目录…'
   else loading.value = true
   try {
-    const next = await loadComputerBasicsTree(true)
+    const next = await loadFrontendLearningTree(true)
     tree.value = next
-    expanded.value = defaultExpandedComputerIds(next)
+    expanded.value = defaultExpandedFrontendIds(next)
   } catch (e) {
     error.value = e instanceof Error ? e.message : '读取目录失败'
   } finally {
@@ -506,7 +506,7 @@ onBeforeUnmount(() => {
             size="small"
             :icon="Collection"
             title="AI 题目整理"
-            @click="router.push({ name: 'computer-book' })"
+            @click="router.push({ name: 'frontend-book' })"
           >
             题目
           </el-button>
@@ -514,7 +514,7 @@ onBeforeUnmount(() => {
             size="small"
             :icon="Notebook"
             title="学习日志"
-            @click="router.push({ name: 'computer-log' })"
+            @click="router.push({ name: 'frontend-log' })"
           >
             日志
           </el-button>
@@ -539,7 +539,7 @@ onBeforeUnmount(() => {
 
     <div v-if="quizItem" class="computer-tree-card computer-tree-card--quiz">
       <div class="computer-book-wrap">
-        <ComputerQuizPanel
+        <FrontendQuizPanel
           :key="quizItem.id"
           :item="quizItem"
           :scope-label="quizScopeLabel || undefined"
@@ -553,7 +553,7 @@ onBeforeUnmount(() => {
         <span v-if="!loading && !error" class="computer-tree-head__count">{{ entryCount }} 篇</span>
       </div>
       <div v-if="loading && !rows.length" class="computer-busy-panel">
-        <ComputerBusyHint text="正在读取目录…" />
+        <FrontendBusyHint text="正在读取目录…" />
       </div>
       <p v-else-if="error" class="computer-tree__status computer-tree__status--error">
         {{ error }}
@@ -690,10 +690,10 @@ onBeforeUnmount(() => {
         </li>
       </ul>
       <div v-if="busyText" class="computer-busy-cover">
-        <ComputerBusyHint :text="busyText" />
+        <FrontendBusyHint :text="busyText" />
       </div>
     </div>
-    <ComputerMoveDialog
+    <FrontendMoveDialog
       v-model="moveOpen"
       :tree="tree"
       :moving-id="movePickId"
@@ -701,7 +701,7 @@ onBeforeUnmount(() => {
       :moving-name="moveName"
       @confirm="confirmMove"
     />
-    <ComputerCategoryMapDialog v-model="mapOpen" :tree="tree" />
+    <FrontendCategoryMapDialog v-model="mapOpen" :tree="tree" />
   </section>
 </template>
 

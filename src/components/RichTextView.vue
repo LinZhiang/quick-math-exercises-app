@@ -104,6 +104,14 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   margin: 0 0 0.6em;
 }
 
+.rich-text-view :deep(:not(pre) > code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
+  font-size: 0.92em;
+  padding: 0.08em 0.28em;
+  border-radius: 4px;
+  background: #f1f5f9;
+}
+
 .rich-text-view :deep(p:last-child) {
   margin-bottom: 0;
 }

@@ -1,5 +1,5 @@
 /**
- * 路由：首页四模块 + 知识训练 /train/:section + 题库 + 计算机基础 + 安装/设置。
+ * 路由：首页模块 + 知识训练 /train/:section + 数据结构与算法 + 题库 + 计算机基础 + 前端学习 + 安装/设置。
  * chrome: 'home' 才显示安装/设置按钮（见 App.vue）。
  */
 import { createRouter, createWebHistory, type RouteLocationNormalized, type RouteLocationRaw } from 'vue-router'
@@ -7,11 +7,20 @@ import { isTrainHubSectionId } from '@/constants/practice-hub-sections'
 import HomeHub from '@/views/home/HomeHub.vue'
 import MentalMathView from '@/views/tools/mental-math/index.vue'
 import PersonalBankView from '@/views/personal-bank/index.vue'
+import DsaIndex from '@/views/dsa/index.vue'
+import DsaSubPage from '@/views/dsa/DsaSubPage.vue'
+import DsaProblemPage from '@/views/dsa/DsaProblemPage.vue'
+import DsaStudyLogPage from '@/views/dsa/DsaStudyLogPage.vue'
 import ComputerBasicsView from '@/views/computer-basics/index.vue'
 import ComputerHandoutDetail from '@/views/computer-basics/ComputerHandoutDetail.vue'
 import ComputerQuizBookPage from '@/views/computer-basics/ComputerQuizBookPage.vue'
 import ComputerQuizBookNodePage from '@/views/computer-basics/ComputerQuizBookNodePage.vue'
 import ComputerStudyLogPage from '@/views/computer-basics/ComputerStudyLogPage.vue'
+import FrontendLearningView from '@/views/frontend-learning/index.vue'
+import FrontendHandoutDetail from '@/views/frontend-learning/FrontendHandoutDetail.vue'
+import FrontendQuizBookPage from '@/views/frontend-learning/FrontendQuizBookPage.vue'
+import FrontendQuizBookNodePage from '@/views/frontend-learning/FrontendQuizBookNodePage.vue'
+import FrontendStudyLogPage from '@/views/frontend-learning/FrontendStudyLogPage.vue'
 import InstallSettingsPage from '@/views/common/InstallSettingsPage.vue'
 
 function legacyHomeRedirect(to: RouteLocationNormalized): RouteLocationRaw | true {
@@ -53,6 +62,30 @@ const router = createRouter({
         }
         return true
       },
+    },
+    {
+      path: '/dsa',
+      name: 'dsa',
+      component: DsaIndex,
+      meta: { title: '数据结构与算法', chrome: 'app' },
+    },
+    {
+      path: '/dsa/log',
+      name: 'dsa-log',
+      component: DsaStudyLogPage,
+      meta: { title: '刷题日志', chrome: 'app' },
+    },
+    {
+      path: '/dsa/:categoryId/:subId',
+      name: 'dsa-sub',
+      component: DsaSubPage,
+      meta: { title: '数据结构与算法', chrome: 'app' },
+    },
+    {
+      path: '/dsa/:categoryId/:subId/:problemId',
+      name: 'dsa-problem',
+      component: DsaProblemPage,
+      meta: { title: '数据结构与算法', chrome: 'app' },
     },
     {
       path: '/bank',
@@ -113,7 +146,41 @@ const router = createRouter({
       component: ComputerStudyLogPage,
       meta: { title: '学习日志', chrome: 'app' },
     },
-    { path: '/frontend', redirect: { name: 'home' } },
+    {
+      path: '/frontend',
+      name: 'frontend',
+      component: FrontendLearningView,
+      meta: { title: '前端学习', chrome: 'app' },
+    },
+    {
+      path: '/frontend/item/:itemId',
+      name: 'frontend-item',
+      component: FrontendHandoutDetail,
+      meta: { title: '前端学习', chrome: 'app' },
+      beforeEnter: (to) => {
+        const itemId = String(to.params.itemId ?? '').trim()
+        if (!itemId) return { name: 'frontend', replace: true }
+        return true
+      },
+    },
+    {
+      path: '/frontend/book',
+      name: 'frontend-book',
+      component: FrontendQuizBookPage,
+      meta: { title: 'AI题目整理', chrome: 'app' },
+    },
+    {
+      path: '/frontend/book/node',
+      name: 'frontend-book-node',
+      component: FrontendQuizBookNodePage,
+      meta: { title: 'AI题目整理', chrome: 'app' },
+    },
+    {
+      path: '/frontend/log',
+      name: 'frontend-log',
+      component: FrontendStudyLogPage,
+      meta: { title: '学习日志', chrome: 'app' },
+    },
     { path: '/personal-bank', redirect: { name: 'bank' } },
     { path: '/graphic', redirect: { name: 'train', params: { section: 'graphic' } } },
   ],

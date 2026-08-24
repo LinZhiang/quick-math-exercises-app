@@ -9,6 +9,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { attachAuthRoutes, isAuthConfigured, noStoreCacheMiddleware, requireAuth } from './auth-core.mjs'
 import { attachComputerBasicsRoutes } from './computer-basics-store.mjs'
+import { attachFrontendLearningRoutes } from './frontend-learning-store.mjs'
 import {
   appendAiRequestLog,
   readRecentAiRequestLogs,
@@ -95,6 +96,7 @@ export function createAiProxyApp() {
 
   attachAuthRoutes(app)
   attachComputerBasicsRoutes(app)
+  attachFrontendLearningRoutes(app)
 
   app.get('/health', (_req, res) => {
     res.json({

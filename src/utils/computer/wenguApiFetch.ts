@@ -52,6 +52,11 @@ function nonJsonMessage(res: Response, text: string): string {
         '云端还没有计算机基础数据接口（当前返回了网页）。请部署本仓库的 Pages Functions。这与 DEEPSEEK_API_KEY 无关。'
       )
     }
+    if (path.includes('frontend-learning') || path.includes('/api/media/frontend-learning')) {
+      return (
+        '云端还没有前端学习数据接口（当前返回了网页）。请部署本仓库的 Pages Functions。这与 DEEPSEEK_API_KEY 无关。'
+      )
+    }
     return `接口返回了网页而不是数据（${path || `HTTP ${res.status}`}）。${offlineHint()}`
   }
   return `服务器返回了非 JSON（HTTP ${res.status}）。${offlineHint()}`
