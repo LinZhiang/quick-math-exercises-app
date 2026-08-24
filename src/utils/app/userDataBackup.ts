@@ -83,6 +83,9 @@ const WRONG_FAVORITE_KEYS: string[] = [
   'computer-handout-quiz-wrong-v1',
   'computer-handout-quiz-favorite-v1',
   'computer-handout-quiz-notes-v1',
+  'frontend-handout-quiz-wrong-v1',
+  'frontend-handout-quiz-favorite-v1',
+  'frontend-handout-quiz-notes-v1',
 ]
 
 /** 知识训练额外键（不含密钥、界面设置、个人题库） */
@@ -94,7 +97,11 @@ const TRAIN_EXTRA_KEYS: string[] = [
   'fact-deepen-group-stats-v1',
   'mental-math-strategy-guide-notes-v1',
   'computer-study-log-v1',
+  'frontend-study-log-v1',
+  'dsa-study-log-v1',
+  'dsa-problem-stats-v1',
   'computer-handout-quiz-avoid-v1',
+  'frontend-handout-quiz-avoid-v1',
   // 生成去重历史
   'chinese-generated-history-idiom-v1',
   'chinese-generated-history-word-memorization-v1',

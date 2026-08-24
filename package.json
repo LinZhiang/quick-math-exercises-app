@@ -15,6 +15,7 @@
     "sync:env": "node scripts/sync-server-env.mjs",
     "sync:cf-secrets": "node scripts/push-cf-secrets.mjs",
     "sync:cf-computer": "node scripts/push-cf-computer.mjs",
+    "sync:cf-frontend": "node scripts/push-cf-frontend.mjs",
     "serve:install": "node scripts/family-start.mjs",
     "serve:public": "node scripts/family-public.mjs",
     "setup:cloud": "node scripts/tunnel-help.mjs",

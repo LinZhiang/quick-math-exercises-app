@@ -1,0 +1,38 @@
+{
+  "tree": [
+    {
+      "id": "fl-dsa",
+      "name": "数据结构与算法",
+      "children": [
+        {
+          "id": "fl-time-complexity",
+          "name": "时间复杂度",
+          "children": [],
+          "entries": [
+            {
+              "id": "fl-iteration-recursion",
+              "title": "迭代与递归",
+              "type": "handout"
+            },
+            {
+              "id": "fl-recursion-pitfalls",
+              "title": "迭代与递归易错分析",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-fibonacci-recursion",
+              "title": "斐波那契递归",
+              "type": "handout",
+              "ready": true
+            }
+          ]
+        }
+      ],
+      "entries": []
+    }
+  ],
+  "seededAt": "2026-08-24T08:27:36.338Z",
+  "updatedAt": "2026-08-24T08:56:39.466Z",
+  "userOwned": true
+}

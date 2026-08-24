@@ -49,4 +49,11 @@ if (fs.existsSync(path.join(srcData, 'catalog.json'))) {
   console.log('[cf-build] 已同步计算机基础快照到 public/cb-data')
 }
 
+const srcFl = path.join(root, 'server', 'data', 'frontend-learning')
+const publicFl = path.join(root, 'public', 'fl-data')
+if (fs.existsSync(path.join(srcFl, 'catalog.json'))) {
+  fs.cpSync(srcFl, publicFl, { recursive: true })
+  console.log('[cf-build] 已同步前端学习快照到 public/fl-data')
+}
+
 run('npx', isCf ? ['vite', 'build', '--logLevel', 'warn'] : ['vite', 'build'])

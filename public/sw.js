@@ -1,4 +1,4 @@
-const CACHE = 'quick-math-v6'
+const CACHE = 'quick-math-v7'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -43,7 +43,8 @@ function shouldBypassCache(url) {
     p.startsWith('/admin/') ||
     p === '/health' ||
     p.startsWith('/status/') ||
-    p.startsWith('/cb-data/')
+    p.startsWith('/cb-data/') ||
+    p.startsWith('/fl-data/')
   )
 }
 

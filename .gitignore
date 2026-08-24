@@ -8,4 +8,7 @@ server/.env
 server/logs
 server/certs
 server/data
-server/seeds
+server/seeds/*
+!server/seeds/frontend-learning-seed.json
+!server/seeds/frontend-learning-media/
+!server/seeds/frontend-learning-media/**

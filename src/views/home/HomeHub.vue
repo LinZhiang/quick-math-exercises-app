@@ -1,4 +1,4 @@
-<!-- 首页四张卡片：知识训练、题库整理、计算机基础、前端学习（未开放）。 -->
+<!-- 首页模块：知识训练、题库整理、计算机基础、前端学习、数据结构与算法。 -->
 <script setup lang="ts">
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -36,8 +36,16 @@ const modules: {
   {
     id: 'frontend',
     title: '前端学习',
-    desc: '即将开放',
-    ready: false,
+    desc: '讲义树形分类；目录与正文保存在 Node，不写死在前端',
+    ready: true,
+    to: { name: 'frontend' },
+  },
+  {
+    id: 'dsa',
+    title: '数据结构与算法',
+    desc: '编程练习：先看题，再补全 JavaScript 并测试执行结果',
+    ready: true,
+    to: { name: 'dsa' },
   },
 ]
 

@@ -72,7 +72,38 @@ function chromeFallback(): RouteLocationRaw {
   if (name === 'computer-book' || name === 'computer-log') {
     return { name: 'computer' }
   }
-  if (name === 'train' || name === 'bank' || name === 'install' || name === 'settings' || name === 'computer') {
+  if (name === 'frontend-item') {
+    const photo = String(route.query.photo ?? '')
+    if (photo === 'recognize' || photo === 'upload') {
+      return {
+        name: 'frontend-item',
+        params: route.params,
+        query: omitQueryKey(route.query, 'photo'),
+      }
+    }
+    if (route.query.edit === '1') {
+      return { name: 'frontend-item', params: route.params }
+    }
+    return { name: 'frontend' }
+  }
+  if (name === 'frontend-book-node') {
+    return { name: 'frontend-book' }
+  }
+  if (name === 'frontend-book' || name === 'frontend-log') {
+    return { name: 'frontend' }
+  }
+  if (name === 'dsa-problem') {
+    return {
+      name: 'dsa-sub',
+      params: {
+        categoryId: String(route.params.categoryId ?? ''),
+        subId: String(route.params.subId ?? ''),
+      },
+    }
+  }
+  if (name === 'dsa-log') return { name: 'dsa' }
+  if (name === 'dsa-sub') return { name: 'dsa' }
+  if (name === 'train' || name === 'bank' || name === 'install' || name === 'settings' || name === 'computer' || name === 'frontend' || name === 'dsa') {
     return { name: 'home' }
   }
   return { name: 'home' }
