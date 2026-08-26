@@ -91,6 +91,18 @@ defineProps<{ complexity: DsaComplexity }>()
   font-weight: 650;
 }
 
+.dsa-cx__expr :deep(.dsa-cx-fn) {
+  font-family: Cambria, "Times New Roman", serif;
+  font-style: normal;
+  font-weight: 650;
+}
+
+.dsa-cx__expr :deep(.dsa-cx-oh) {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 700;
+}
+
 .dsa-cx__expr :deep(sup),
 .dsa-cx__expr :deep(sub) {
   font-size: 0.72em;
