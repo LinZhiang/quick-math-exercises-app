@@ -12,7 +12,8 @@
             {
               "id": "fl-iteration-recursion",
               "title": "迭代与递归",
-              "type": "handout"
+              "type": "handout",
+              "ready": true
             },
             {
               "id": "fl-recursion-pitfalls",
@@ -33,6 +34,6 @@
     }
   ],
   "seededAt": "2026-08-24T08:27:36.338Z",
-  "updatedAt": "2026-08-24T08:56:39.466Z",
+  "updatedAt": "2026-08-26T11:03:36.394Z",
   "userOwned": true
 }

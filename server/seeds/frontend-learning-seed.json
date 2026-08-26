@@ -12,17 +12,20 @@
             {
               "id": "fl-iteration-recursion",
               "title": "迭代与递归",
-              "type": "handout"
+              "type": "handout",
+              "ready": true
             },
             {
               "id": "fl-recursion-pitfalls",
               "title": "迭代与递归易错分析",
-              "type": "handout"
+              "type": "handout",
+              "ready": true
             },
             {
               "id": "fl-fibonacci-recursion",
               "title": "斐波那契递归",
-              "type": "handout"
+              "type": "handout",
+              "ready": true
             }
           ]
         }

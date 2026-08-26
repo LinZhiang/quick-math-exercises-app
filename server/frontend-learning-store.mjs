@@ -217,10 +217,11 @@ function atomicWriteFile(file, text) {
 
 function writeCatalog(tree) {
   const prev = fs.existsSync(CATALOG_FILE) ? JSON.parse(fs.readFileSync(CATALOG_FILE, 'utf8')) : {}
+  const nextTree = applyReadyFlags(Array.isArray(tree) ? tree : [])
   atomicWriteFile(
     CATALOG_FILE,
     `${JSON.stringify(
-      { ...prev, tree, updatedAt: new Date().toISOString(), userOwned: true },
+      { ...prev, tree: nextTree, updatedAt: new Date().toISOString(), userOwned: true },
       null,
       2,
     )}\n`,

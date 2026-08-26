@@ -171,13 +171,19 @@ async function itemExists(env, id) {
   return Boolean(hit)
 }
 
-async function applyReadyFlags(env, tree) {
+async function itemHasBody(env, id, request) {
+  if (await itemExists(env, id)) return true
+  const snap = await readJsonAsset(env, request, `/fl-data/items/${id}.json`)
+  return Boolean(snap && typeof snap === 'object')
+}
+
+async function applyReadyFlags(env, tree, request) {
   const walk = async (nodes) => {
     for (const node of nodes) {
       if (!Array.isArray(node.entries)) node.entries = []
       if (!Array.isArray(node.children)) node.children = []
       for (const entry of node.entries) {
-        if (await itemExists(env, String(entry.id))) entry.ready = true
+        entry.ready = await itemHasBody(env, String(entry.id), request)
       }
       await walk(node.children)
     }
@@ -359,10 +365,7 @@ export async function handleFrontendLearning(env, request, pathParam) {
       await ensureStore(env, request)
       const raw = await readRawCatalog(env, request)
       const tree = Array.isArray(raw.tree) ? raw.tree : []
-      if (tree.length && getStore(env)) {
-        return json({ ok: true, tree: await applyReadyFlags(env, tree) })
-      }
-      return json({ ok: true, tree })
+      return json({ ok: true, tree: await applyReadyFlags(env, tree, request) })
     }
 
     if (method === 'GET' && segs[0] === 'items' && segs.length === 2) {
