@@ -1,6 +1,786 @@
 {
   "tree": [
     {
+      "id": "fl-frontend-basics",
+      "name": "JS前端基础",
+      "children": [
+        {
+          "id": "fl-js-data-types",
+          "name": "数据类型",
+          "children": [],
+          "entries": [
+            {
+              "id": "fl-js-types-overview",
+              "title": "概述",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-types-null-undefined-boolean",
+              "title": "null, undefined 和布尔值",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-types-number",
+              "title": "数值",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-types-string",
+              "title": "字符串",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-types-object",
+              "title": "对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-types-function",
+              "title": "函数",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-types-array",
+              "title": "数组",
+              "type": "handout",
+              "ready": true
+            }
+          ]
+        },
+        {
+          "id": "fl-js-operators",
+          "name": "运算符",
+          "children": [],
+          "entries": [
+            {
+              "id": "fl-js-operators-arithmetic",
+              "title": "算术运算符",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-operators-comparison",
+              "title": "比较运算符",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-operators-boolean",
+              "title": "布尔运算符",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-operators-bit",
+              "title": "二进制位运算符",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-operators-priority",
+              "title": "其他运算符，运算顺序",
+              "type": "handout",
+              "ready": true
+            }
+          ]
+        },
+        {
+          "id": "fl-js-features",
+          "name": "语法专题",
+          "children": [],
+          "entries": [
+            {
+              "id": "fl-js-features-conversion",
+              "title": "数据类型的转换",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-features-error",
+              "title": "错误处理机制",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-features-style",
+              "title": "编程风格",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-features-console",
+              "title": "console 对象与控制台",
+              "type": "handout",
+              "ready": true
+            }
+          ]
+        },
+        {
+          "id": "fl-js-stdlib",
+          "name": "标准库",
+          "children": [],
+          "entries": [
+            {
+              "id": "fl-js-stdlib-object",
+              "title": "Object 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-stdlib-attributes",
+              "title": "属性描述对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-stdlib-array",
+              "title": "Array 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-stdlib-wrapper",
+              "title": "包装对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-stdlib-boolean",
+              "title": "Boolean 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-stdlib-number",
+              "title": "Number 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-stdlib-string",
+              "title": "String 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-stdlib-math",
+              "title": "Math 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-stdlib-date",
+              "title": "Date 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-stdlib-regexp",
+              "title": "RegExp 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-stdlib-json",
+              "title": "JSON 对象",
+              "type": "handout",
+              "ready": true
+            }
+          ]
+        },
+        {
+          "id": "fl-js-oop",
+          "name": "面向对象编程",
+          "children": [],
+          "entries": [
+            {
+              "id": "fl-js-oop-new",
+              "title": "实例对象与 new 命令",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-oop-this",
+              "title": "this 关键字",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-oop-prototype",
+              "title": "对象的继承",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-oop-object",
+              "title": "Object 对象的相关方法",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-oop-strict",
+              "title": "严格模式",
+              "type": "handout",
+              "ready": true
+            }
+          ]
+        },
+        {
+          "id": "fl-js-async",
+          "name": "异步操作",
+          "children": [],
+          "entries": [
+            {
+              "id": "fl-js-async-general",
+              "title": "概述",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-async-timer",
+              "title": "定时器",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-async-promise",
+              "title": "Promise 对象",
+              "type": "handout",
+              "ready": true
+            }
+          ]
+        },
+        {
+          "id": "fl-js-dom",
+          "name": "DOM",
+          "children": [],
+          "entries": [
+            {
+              "id": "fl-js-dom-general",
+              "title": "概述",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-dom-node",
+              "title": "Node 接口",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-dom-nodelist",
+              "title": "NodeList 接口，HTMLCollection 接口",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-dom-parentnode",
+              "title": "ParentNode 接口，ChildNode 接口",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-dom-document",
+              "title": "Document 节点",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-dom-element",
+              "title": "Element 节点",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-dom-attributes",
+              "title": "属性的操作",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-dom-text",
+              "title": "Text 节点和 DocumentFragment 节点",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-dom-css",
+              "title": "CSS 操作",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-dom-mutationobserver",
+              "title": "Mutation Observer API",
+              "type": "handout",
+              "ready": true
+            }
+          ]
+        },
+        {
+          "id": "fl-js-events",
+          "name": "事件",
+          "children": [],
+          "entries": [
+            {
+              "id": "fl-js-events-eventtarget",
+              "title": "EventTarget 接口",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-events-model",
+              "title": "事件模型",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-events-event",
+              "title": "Event 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-events-mouse",
+              "title": "鼠标事件",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-events-keyboard",
+              "title": "键盘事件",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-events-progress",
+              "title": "进度事件",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-events-form",
+              "title": "表单事件",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-events-touch",
+              "title": "触摸事件",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-events-drag",
+              "title": "拖拉事件",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-events-common",
+              "title": "其他常见事件",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-events-globaleventhandlers",
+              "title": "GlobalEventHandlers 接口",
+              "type": "handout",
+              "ready": true
+            }
+          ]
+        },
+        {
+          "id": "fl-js-bom",
+          "name": "浏览器模型",
+          "children": [],
+          "entries": [
+            {
+              "id": "fl-js-bom-engine",
+              "title": "浏览器模型概述",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-bom-window",
+              "title": "window 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-bom-navigator",
+              "title": "Navigator 对象，Screen 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-bom-cookie",
+              "title": "Cookie",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-bom-xmlhttprequest",
+              "title": "XMLHttpRequest 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-bom-same-origin",
+              "title": "同源限制",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-bom-cors",
+              "title": "CORS 通信",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-bom-storage",
+              "title": "Storage 接口",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-bom-history",
+              "title": "History 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-bom-location",
+              "title": "Location 对象，URL 对象，URLSearchParams 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-bom-arraybuffer",
+              "title": "ArrayBuffer 对象，Blob 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-bom-file",
+              "title": "File 对象，FileList 对象，FileReader 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-bom-form",
+              "title": "表单，FormData 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-bom-indexeddb",
+              "title": "IndexedDB API",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-bom-webworker",
+              "title": "Web Worker",
+              "type": "handout",
+              "ready": true
+            }
+          ]
+        },
+        {
+          "id": "fl-js-elements",
+          "name": "附录：网页元素接口",
+          "children": [],
+          "entries": [
+            {
+              "id": "fl-js-elements-a",
+              "title": "<a>",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-elements-img",
+              "title": "<img>",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-elements-form",
+              "title": "<form>",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-elements-input",
+              "title": "<input>",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-elements-button",
+              "title": "<button>",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-elements-option",
+              "title": "<option>",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-js-elements-video",
+              "title": "<video>，<audio>",
+              "type": "handout",
+              "ready": true
+            }
+          ]
+        }
+      ],
+      "entries": []
+    },
+    {
+      "id": "fl-es6",
+      "name": "ES6 前端",
+      "entries": [],
+      "children": [
+        {
+          "id": "fl-es6-intro",
+          "name": "入门与变量",
+          "children": [],
+          "entries": [
+            {
+              "id": "fl-es6-intro-overview",
+              "title": "ECMAScript 6 简介",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-let-const",
+              "title": "let 和 const 命令",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-destructuring",
+              "title": "变量的解构赋值",
+              "type": "handout",
+              "ready": true
+            }
+          ]
+        },
+        {
+          "id": "fl-es6-syntax",
+          "name": "语法扩展",
+          "children": [],
+          "entries": [
+            {
+              "id": "fl-es6-string",
+              "title": "字符串的扩展",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-string-methods",
+              "title": "字符串的新增方法",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-regex",
+              "title": "正则的扩展",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-number",
+              "title": "数值的扩展",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-function",
+              "title": "函数的扩展",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-array",
+              "title": "数组的扩展",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-object",
+              "title": "对象的扩展",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-object-methods",
+              "title": "对象的新增方法",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-operator",
+              "title": "运算符的扩展",
+              "type": "handout",
+              "ready": true
+            }
+          ]
+        },
+        {
+          "id": "fl-es6-primitives",
+          "name": "新类型与元编程",
+          "children": [],
+          "entries": [
+            {
+              "id": "fl-es6-symbol",
+              "title": "Symbol",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-set-map",
+              "title": "Set 和 Map 数据结构",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-proxy",
+              "title": "Proxy",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-reflect",
+              "title": "Reflect",
+              "type": "handout",
+              "ready": true
+            }
+          ]
+        },
+        {
+          "id": "fl-es6-async",
+          "name": "异步与迭代",
+          "children": [],
+          "entries": [
+            {
+              "id": "fl-es6-promise",
+              "title": "Promise 对象",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-iterator",
+              "title": "Iterator 和 for...of 循环",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-generator",
+              "title": "Generator 函数的语法",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-generator-async",
+              "title": "Generator 函数的异步应用",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-async-fn",
+              "title": "async 函数",
+              "type": "handout",
+              "ready": true
+            }
+          ]
+        },
+        {
+          "id": "fl-es6-class-module",
+          "name": "Class 与 Module",
+          "children": [],
+          "entries": [
+            {
+              "id": "fl-es6-class",
+              "title": "Class 的基本语法",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-class-extends",
+              "title": "Class 的继承",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-module",
+              "title": "Module 的语法",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-module-loader",
+              "title": "Module 的加载实现",
+              "type": "handout",
+              "ready": true
+            }
+          ]
+        },
+        {
+          "id": "fl-es6-advanced",
+          "name": "进阶专题",
+          "children": [],
+          "entries": [
+            {
+              "id": "fl-es6-style",
+              "title": "编程风格",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-spec",
+              "title": "读懂规格",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-async-iterator",
+              "title": "异步遍历器",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-arraybuffer",
+              "title": "ArrayBuffer",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-proposals",
+              "title": "最新提案",
+              "type": "handout",
+              "ready": true
+            },
+            {
+              "id": "fl-es6-decorator",
+              "title": "Decorator",
+              "type": "handout",
+              "ready": true
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "fl-dsa",
       "name": "数据结构与算法",
       "children": [
@@ -33,7 +813,7 @@
       "entries": []
     }
   ],
-  "seededAt": "2026-08-24T08:27:36.338Z",
-  "updatedAt": "2026-08-26T11:03:36.394Z",
+  "seededAt": "2026-09-03T10:17:22.353Z",
+  "updatedAt": "2026-09-03T11:22:19.019Z",
   "userOwned": true
 }

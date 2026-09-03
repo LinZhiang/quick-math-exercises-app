@@ -1,4 +1,5 @@
 import { markdownToDisplaySafeHtml } from '@/utils/markdown/markdownToHtml'
+import { highlightHandoutCodeHtml } from '@/utils/markdown/highlightHandoutCode'
 import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
 import { readWenguJsonResponse, wenguApiFetch } from '@/utils/computer/wenguApiFetch'
 import { resolveWenguApiUrl } from '@/utils/computer/wenguApiOrigin'
@@ -194,14 +195,15 @@ export function stripHandoutImagesForAi(md: string): string {
 
 export function isFrontendHtmlContent(raw: string): boolean {
   const t = (raw ?? '').trim()
-  return /<[a-z][\s\S]*>/i.test(t)
+  // 富文本编辑器保存的 HTML 以标签开头；Markdown 讲义即使夹杂 <sup> 仍从 # / 正文起笔
+  return /^</.test(t)
 }
 
 export function frontendContentToHtml(raw: string): string {
   const t = (raw ?? '').trim()
   if (!t) return ''
-  if (isFrontendHtmlContent(t)) return sanitizeRichHtml(t)
-  return markdownToDisplaySafeHtml(t)
+  const html = isFrontendHtmlContent(t) ? sanitizeRichHtml(t) : markdownToDisplaySafeHtml(t)
+  return highlightHandoutCodeHtml(html)
 }
 
 let treeCache: FrontendTreeNode[] | null = null
@@ -368,9 +370,9 @@ export async function moveFrontendItem(id: string, input: { parentId: string; in
   clearFrontendLearningCache()
 }
 
-export async function loadFrontendLearningTree(force = false): Promise<FrontendTreeNode[]> {
+export async function loadFrontendLearningTree(force = true): Promise<FrontendTreeNode[]> {
   if (treeCache && !force) return treeCache
-  const res = await wenguApiFetch('/api/frontend-learning/tree')
+  const res = await wenguApiFetch(`/api/frontend-learning/tree?t=${Date.now()}`)
   const data = await readWenguJsonResponse<{ ok?: boolean; tree?: FrontendTreeNode[]; message?: string }>(
     res,
   )
@@ -386,7 +388,7 @@ export async function loadFrontendLearningItem(id: string, force = false): Promi
   if (!key) throw new Error('缺少讲义编号')
   const cached = itemCache.get(key)
   if (cached && !force) return cached
-  const res = await wenguApiFetch(`/api/frontend-learning/items/${encodeURIComponent(key)}`)
+  const res = await wenguApiFetch(`/api/frontend-learning/items/${encodeURIComponent(key)}?t=${Date.now()}`)
   const data = await readWenguJsonResponse<{ ok?: boolean; item?: FrontendHandoutItem; message?: string }>(
     res,
   )
