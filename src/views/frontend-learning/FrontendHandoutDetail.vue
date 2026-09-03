@@ -92,6 +92,9 @@ useAppChromeTitle(
 )
 
 const html = computed(() => (item.value ? frontendContentToHtml(item.value.content) : ''))
+const docsTone = computed(() =>
+  (item.value?.learningPath ?? []).some((p) => p.includes('前端基础') || p.includes('ES6')),
+)
 
 function goList() {
   goBackOr(router, { name: 'frontend' })
@@ -361,7 +364,7 @@ watch(
     loading.value = true
     error.value = ''
     try {
-      const [next, tree] = await Promise.all([loadFrontendLearningItem(id), loadFrontendLearningTree()])
+      const [next, tree] = await Promise.all([loadFrontendLearningItem(id, true), loadFrontendLearningTree(true)])
       if (seq !== loadSeq) return
       item.value = next
       readyList.value = listReadyFrontendEntries(tree)
@@ -581,7 +584,7 @@ watch(photoOpen, (open) => {
           placeholder="输入讲义正文…"
         />
       </template>
-      <RichTextView v-else :html="html" />
+      <RichTextView v-else :tone="docsTone ? 'docs' : 'default'" :html="html" />
     </article>
     <FrontendAskPanel v-if="item && !fullscreen && !photoOpen && !quizOpen" :item="item" />
     <div v-if="loading || saving" class="computer-busy-cover">

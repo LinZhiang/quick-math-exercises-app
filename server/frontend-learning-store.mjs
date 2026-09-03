@@ -229,6 +229,191 @@ function writeCatalog(tree) {
   mirrorPublicFile(CATALOG_FILE, 'catalog.json')
 }
 
+/**
+ * 把一批讲义写进 Node 目录（先落 item 文件，再改 catalog）。
+ * 写入后立刻按磁盘校验 ready，避免「目录改了、正文没落地、界面仍显示即将开放」。
+ */
+export function upsertFrontendLearningFolder({ parentId, folder, items }) {
+  ensureFrontendLearningStore()
+  ensureDirs()
+  const pid = String(parentId || '')
+  const folderId = String(folder?.id || '')
+  const folderName = String(folder?.name || '').trim()
+  const list = Array.isArray(items) ? items : []
+  if (!pid) throw new Error('缺少父分类')
+  if (!folderId || !folderName) throw new Error('缺少分类 id/名称')
+  if (!list.length) throw new Error('没有要写入的讲义')
+
+  const catalog = readRawCatalog()
+  const parent = findNode(catalog.tree, pid)
+  if (!parent) throw new Error(`找不到父分类 ${pid}，拒绝写入`)
+
+  for (const raw of list) {
+    const id = String(raw.id || '')
+    if (!/^[a-zA-Z0-9._-]+$/.test(id)) throw new Error(`非法讲义 id：${id}`)
+    const content = extractDataImages(String(raw.content ?? ''), id)
+    writeItemRecord(id, {
+      id,
+      title: String(raw.title || id),
+      type: String(raw.type || 'handout'),
+      learningPath: Array.isArray(raw.learningPath) ? raw.learningPath.map(String) : [],
+      tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
+      content,
+    })
+    if (!fs.existsSync(itemFile(id))) {
+      throw new Error(`讲义未落到 Node 目录：${itemFile(id)}`)
+    }
+  }
+
+  const nextFolder = {
+    id: folderId,
+    name: folderName,
+    children: Array.isArray(folder.children) ? folder.children : [],
+    entries: list.map((raw) => ({
+      id: String(raw.id),
+      title: String(raw.title || raw.id),
+      type: String(raw.type || 'handout'),
+      ready: true,
+    })),
+  }
+  if (!Array.isArray(parent.node.children)) parent.node.children = []
+  const idx = parent.node.children.findIndex((n) => n.id === folderId)
+  if (idx >= 0) parent.node.children[idx] = nextFolder
+  else parent.node.children.push(nextFolder)
+
+  writeCatalog(catalog.tree)
+
+  const verified = readFrontendLearningCatalog()
+  const hit = findNode(verified.tree, folderId)
+  if (!hit) throw new Error('写入后目录里找不到新分类（catalog 未生效）')
+  const missing = hit.node.entries.filter((e) => !e.ready)
+  if (missing.length) {
+    throw new Error(`写入后仍未就绪：${missing.map((e) => e.id).join('、')}`)
+  }
+  return { folder: hit.node, itemCount: list.length }
+}
+
+/**
+ * 写入一整棵分支（大类 + 若干小类 + 讲义）。parentId 为空表示挂到根目录。
+ * 先落全部 item 文件，再改 catalog，并校验每篇 ready。
+ */
+export function upsertFrontendLearningBranch({ id, name, parentId = null, afterId = null, children }) {
+  ensureFrontendLearningStore()
+  ensureDirs()
+  const branchId = String(id || '')
+  const branchName = String(name || '').trim()
+  const groups = Array.isArray(children) ? children : []
+  if (!branchId || !branchName) throw new Error('缺少大类 id/名称')
+  if (!groups.length) throw new Error('没有要写入的小类')
+
+  const catalog = readRawCatalog()
+  let siblings = catalog.tree
+  if (parentId) {
+    const parent = findNode(catalog.tree, String(parentId))
+    if (!parent) throw new Error(`找不到父分类 ${parentId}，拒绝写入`)
+    if (!Array.isArray(parent.node.children)) parent.node.children = []
+    siblings = parent.node.children
+  }
+
+  const written = []
+  for (const group of groups) {
+    const list = Array.isArray(group.items) ? group.items : []
+    if (!list.length) throw new Error(`小类 ${group.name || group.id} 没有讲义`)
+    for (const raw of list) {
+      const itemId = String(raw.id || '')
+      if (!/^[a-zA-Z0-9._-]+$/.test(itemId)) throw new Error(`非法讲义 id：${itemId}`)
+      const content = extractDataImages(String(raw.content ?? ''), itemId)
+      writeItemRecord(itemId, {
+        id: itemId,
+        title: String(raw.title || itemId),
+        type: String(raw.type || 'handout'),
+        learningPath: Array.isArray(raw.learningPath) ? raw.learningPath.map(String) : [],
+        tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
+        content,
+      })
+      if (!fs.existsSync(itemFile(itemId))) {
+        throw new Error(`讲义未落到 Node 目录：${itemFile(itemId)}`)
+      }
+      written.push(itemId)
+    }
+  }
+
+  const nextNode = {
+    id: branchId,
+    name: branchName,
+    entries: [],
+    children: groups.map((group) => ({
+      id: String(group.id),
+      name: String(group.name),
+      children: [],
+      entries: (group.items || []).map((raw) => ({
+        id: String(raw.id),
+        title: String(raw.title || raw.id),
+        type: String(raw.type || 'handout'),
+        ready: true,
+      })),
+    })),
+  }
+
+  const existing = siblings.findIndex((n) => n.id === branchId)
+  if (existing >= 0) {
+    siblings[existing] = nextNode
+  } else {
+    const after = afterId ? siblings.findIndex((n) => n.id === String(afterId)) : -1
+    if (after >= 0) siblings.splice(after + 1, 0, nextNode)
+    else siblings.push(nextNode)
+  }
+
+  writeCatalog(catalog.tree)
+
+  const verified = readFrontendLearningCatalog()
+  const hit = findNode(verified.tree, branchId)
+  if (!hit) throw new Error('写入后目录里找不到新大类（catalog 未生效）')
+  const missing = []
+  for (const child of hit.node.children) {
+    for (const entry of child.entries || []) {
+      if (!entry.ready) missing.push(entry.id)
+    }
+  }
+  if (missing.length) throw new Error(`写入后仍未就绪：${missing.join('、')}`)
+  return { branch: hit.node, itemCount: written.length }
+}
+
+const CHAPTER_PREFIX_RE = /^\d+(?:\.\d+)*\.?\s+/
+
+/** 目录和讲义标题去掉「2.1」「3.」这类序号，并同步正文一级标题、learningPath。 */
+export function stripFrontendLearningChapterPrefixes() {
+  ensureFrontendLearningStore()
+  const catalog = readRawCatalog()
+  const strip = (s) => {
+    const next = String(s || '').replace(CHAPTER_PREFIX_RE, '').trim()
+    return next || String(s || '')
+  }
+  const walk = (nodes, path) => {
+    for (const node of nodes) {
+      node.name = strip(node.name)
+      const nextPath = [...path, node.name]
+      for (const entry of node.entries || []) {
+        entry.title = strip(entry.title)
+        const item = readFrontendLearningItem(entry.id)
+        if (!item) continue
+        item.title = entry.title
+        item.learningPath = nextPath
+        let content = String(item.content || '')
+        if (/^#\s/m.test(content.trim())) {
+          content = content.replace(/^# .+$/m, `# ${entry.title}`)
+        }
+        item.content = content
+        writeItemRecord(entry.id, item)
+      }
+      walk(node.children || [], nextPath)
+    }
+  }
+  walk(catalog.tree, [])
+  writeCatalog(catalog.tree)
+  return readFrontendLearningCatalog()
+}
+
 function mirrorPublicFile(absSrc, rel) {
   try {
     if (!fs.existsSync(absSrc)) return
@@ -561,6 +746,7 @@ export function attachFrontendLearningRoutes(app) {
 
   app.get('/api/frontend-learning/items/:id', (req, res) => {
     try {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
       const item = readFrontendLearningItem(req.params.id)
       if (!item) {
         res.status(404).json({ ok: false, message: '未找到该讲义' })

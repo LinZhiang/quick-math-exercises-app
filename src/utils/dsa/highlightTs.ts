@@ -60,6 +60,8 @@ const KEYWORDS = new Set([
   'delete',
 ])
 
+const LITERALS = new Set(['true', 'false', 'null', 'undefined'])
+
 const TYPE_WORDS = new Set([
   'number',
   'string',
@@ -202,7 +204,8 @@ function scan(src: string, start: number, mode: ScanMode = {}): { html: string; 
       while (k < n && (src[k] === ' ' || src[k] === '\t')) k += 1
       const next = src[k]
       let cls = 'id'
-      if (KEYWORDS.has(word)) cls = 'kw'
+      if (LITERALS.has(word)) cls = 'lit'
+      else if (KEYWORDS.has(word)) cls = 'kw'
       else if (lastWasFunction || next === '(') cls = 'fn'
       else if (lastWasColon || TYPE_WORDS.has(word)) cls = 'ty'
       out.push(span(cls, word))

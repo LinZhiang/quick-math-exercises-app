@@ -13,8 +13,10 @@ const props = withDefaults(
     math?: boolean
     /** 点击正文插图放大，支持拖动与双指缩放 */
     zoomImages?: boolean
+    /** docs：前端基础讲义（粉标行内代码 + 深色高亮代码块） */
+    tone?: 'default' | 'docs'
   }>(),
-  { math: true, zoomImages: true },
+  { math: true, zoomImages: true, tone: 'default' },
 )
 
 const previewSrc = ref('')
@@ -82,7 +84,7 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   <div
     ref="rootRef"
     class="rich-text-view"
-    :class="{ 'is-zoomable': zoomImages }"
+    :class="{ 'is-zoomable': zoomImages, 'rich-text-view--docs': tone === 'docs' }"
     v-html="safeHtml"
     @click="onClick"
   />
@@ -110,6 +112,128 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   padding: 0.08em 0.28em;
   border-radius: 4px;
   background: #f1f5f9;
+}
+
+.rich-text-view--docs {
+  font-size: 16px;
+  line-height: 1.9;
+  color: #334155;
+}
+
+.rich-text-view--docs :deep(h1) {
+  margin: 0 0 0.85em;
+  font-size: 1.72em;
+  font-weight: 800;
+  line-height: 1.3;
+  color: #1e2937;
+}
+
+.rich-text-view--docs :deep(h2) {
+  margin: 1.35em 0 0.7em;
+  font-size: 1.42em;
+  font-weight: 800;
+  color: #1e2937;
+}
+
+.rich-text-view--docs :deep(h3) {
+  margin: 1.15em 0 0.5em;
+  font-size: 1.12em;
+  font-weight: 750;
+  color: #334155;
+}
+
+.rich-text-view--docs :deep(p) {
+  margin: 0 0 0.95em;
+}
+
+.rich-text-view--docs :deep(ul),
+.rich-text-view--docs :deep(ol) {
+  margin: 0.35em 0 1em;
+  padding-left: 1.55em;
+}
+
+.rich-text-view--docs :deep(li) {
+  margin: 0.2em 0;
+}
+
+.rich-text-view--docs :deep(li::marker) {
+  color: #94a3b8;
+}
+
+.rich-text-view--docs :deep(:not(pre) > code) {
+  padding: 0.12em 0.42em;
+  border-radius: 4px;
+  background: #fdecee;
+  color: #c43b66;
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+.rich-text-view--docs :deep(.md-table-scroll:has(> pre)) {
+  margin: 0.85em 0 1.25em;
+  border-radius: 12px;
+  background: #1e1e1e;
+  overflow-x: auto;
+}
+
+.rich-text-view--docs :deep(pre) {
+  margin: 0.85em 0 1.25em;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: #1e1e1e;
+  color: #e5e7eb;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.rich-text-view--docs :deep(.md-table-scroll > pre) {
+  margin: 0;
+}
+
+.rich-text-view--docs :deep(pre code) {
+  font: inherit;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.rich-text-view--docs :deep(.tok-kw) {
+  color: #f472b6;
+  font-weight: 650;
+}
+
+.rich-text-view--docs :deep(.tok-fn) {
+  color: #fbbf24;
+}
+
+.rich-text-view--docs :deep(.tok-ty) {
+  color: #7dd3fc;
+}
+
+.rich-text-view--docs :deep(.tok-str),
+.rich-text-view--docs :deep(.tok-tmpl) {
+  color: #86efac;
+}
+
+.rich-text-view--docs :deep(.tok-cmt) {
+  color: #a3e635;
+  font-style: italic;
+}
+
+.rich-text-view--docs :deep(.tok-num),
+.rich-text-view--docs :deep(.tok-lit) {
+  color: #c4b5fd;
+}
+
+.rich-text-view--docs :deep(.tok-op) {
+  color: #e5e7eb;
+}
+
+.rich-text-view--docs :deep(.tok-id) {
+  color: #e5e7eb;
 }
 
 .rich-text-view :deep(p:last-child) {

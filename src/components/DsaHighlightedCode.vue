@@ -182,7 +182,8 @@ defineExpose({
   font-style: italic;
 }
 
-.dsa-hl :deep(.tok-num) {
+.dsa-hl :deep(.tok-num),
+.dsa-hl :deep(.tok-lit) {
   color: #d4a574;
 }
 
