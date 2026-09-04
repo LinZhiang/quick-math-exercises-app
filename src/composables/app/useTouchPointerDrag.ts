@@ -16,16 +16,24 @@ function detectCompactLayout(): boolean {
   return detectTouchPrimary() || window.innerWidth <= MOBILE_WIDTH_PX
 }
 
+function detectWideLayout(): boolean {
+  if (typeof window === 'undefined') return false
+  return window.innerWidth > MOBILE_WIDTH_PX
+}
+
 /**
  * isTouchPrimary：触摸为主设备；isCompactLayout：使用手机点击布局（含窄屏）
+ * isWideLayout：只看窗口宽度，触摸屏笔记本在电脑端仍走宽屏排版
  */
 export function useTouchPrimaryDevice() {
   const isTouchPrimary = ref(detectTouchPrimary())
   const isCompactLayout = ref(detectCompactLayout())
+  const isWideLayout = ref(detectWideLayout())
 
   const sync = () => {
     isTouchPrimary.value = detectTouchPrimary()
     isCompactLayout.value = detectCompactLayout()
+    isWideLayout.value = detectWideLayout()
   }
 
   let cleanup: (() => void) | null = null
@@ -50,5 +58,5 @@ export function useTouchPrimaryDevice() {
     cleanup?.()
   })
 
-  return { isTouchPrimary, isCompactLayout }
+  return { isTouchPrimary, isCompactLayout, isWideLayout }
 }

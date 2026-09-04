@@ -3,6 +3,7 @@
  * 页面请继续从 `@/services/deepseek` 引入；不要直接依赖本文件里的未导出细节。
  */
 import { parseAiJsonArrayLenient, parseAiJsonObjectLenient, stripAiJsonFence } from '@/utils/app/aiJsonParse'
+import { filterHandoutQuizFactConflicts } from '@/utils/quiz/handoutQuizConsistency'
 import { CHINESE_MCQ_CORRECTNESS_RULES } from '@/utils/chinese/chineseMcqAiFields'
 import { hasStoredDeepSeekApiKey } from '@/utils/app/deepseekApiKeyStore'
 import {
@@ -213,7 +214,6 @@ export async function requestFrontendHandoutQuiz(input: {
     extractFrontendQuizSources,
     frontendHandoutLooksLikeProgramming,
   } = await import('@/utils/frontend/frontendHandoutQuiz')
-  const { filterHandoutQuizFactConflicts } = await import('@/utils/quiz/handoutQuizConsistency')
   const total = totalFrontendQuizCount(input.counts)
   if (total <= 0) throw new Error('请至少设置 1 道题')
   input.onProgress?.(aiRequestProgressText('前端学习测验', input.provider))

@@ -28,14 +28,18 @@ export type ComputerAskQuestionContext = {
   correct: boolean
 }
 
-const STORAGE_KEY = 'qmea-computer-ask-layout-v4'
+const STORAGE_KEY = 'qmea-computer-ask-layout-v5'
 const DRAG_THRESHOLD_PX = 8
 const MIN_PANEL_W = 260
 const MIN_PANEL_H = 280
+const WIDE_PANEL_W = 420
+const WIDE_PANEL_MIN_W = 320
+const WIDE_PANEL_MAX_W = 560
 const TAB_EDGE = 10
-const RESIZE_DIRS = ['n', 's'] as const
+const COMPACT_RESIZE_DIRS = ['n', 's'] as const
+const WIDE_RESIZE_DIRS = ['n', 's', 'e', 'w'] as const
 
-type ResizeDir = (typeof RESIZE_DIRS)[number]
+type ResizeDir = (typeof WIDE_RESIZE_DIRS)[number]
 type DragKind = 'tab' | 'panel' | ResizeDir
 
 type SavedLayout = {
@@ -59,7 +63,7 @@ const props = withDefaults(
   },
 )
 
-const { isCompactLayout } = useTouchPrimaryDevice()
+const { isWideLayout } = useTouchPrimaryDevice()
 
 const keywordInput = ref('')
 const panelOpen = ref(false)
@@ -107,9 +111,11 @@ const providerName = computed(() => {
 
 const badge = computed(() => displayTurns.value.length)
 const inputRows = computed(() => {
-  if (panelFullscreen.value) return isCompactLayout.value ? 10 : 12
-  return isCompactLayout.value ? 3 : 4
+  if (panelFullscreen.value) return isWideLayout.value ? 12 : 10
+  return isWideLayout.value ? 4 : 3
 })
+
+const resizeDirs = computed(() => (isWideLayout.value ? WIDE_RESIZE_DIRS : COMPACT_RESIZE_DIRS))
 
 const aiProvider = computed({
   get() {
@@ -215,13 +221,16 @@ function defaultTabPos() {
 function defaultPanelBox() {
   const { w, h } = dockSize()
   const pad = 8
-  const compact = isCompactLayout.value
-  const width = Math.max(MIN_PANEL_W, w - pad * 2)
+  const wide = isWideLayout.value
+  const maxW = Math.max(MIN_PANEL_W, w - pad * 2)
+  const width = wide
+    ? clamp(WIDE_PANEL_W, Math.min(WIDE_PANEL_MIN_W, maxW), Math.min(WIDE_PANEL_MAX_W, maxW))
+    : maxW
   const maxH = Math.max(MIN_PANEL_H, h - pad * 2)
-  const want = compact ? Math.round(h * 0.62) : Math.min(420, Math.round(h * 0.5))
+  const want = wide ? Math.min(560, Math.round(h * 0.62)) : Math.round(h * 0.62)
   const height = clamp(want, Math.min(MIN_PANEL_H, maxH), maxH)
   return {
-    x: pad,
+    x: wide ? Math.max(pad, w - pad - width) : pad,
     y: Math.max(pad, h - pad - height),
     w: width,
     h: height,
@@ -248,9 +257,24 @@ function clampPanel() {
     return
   }
   const pad = 8
+  const wide = isWideLayout.value
   const maxH = Math.max(160, h - pad)
   const minH = Math.min(MIN_PANEL_H, maxH)
-  panelBox.w = Math.max(MIN_PANEL_W, w - pad * 2)
+  const maxW = Math.max(MIN_PANEL_W, w - pad * 2)
+  if (wide) {
+    const minW = Math.min(WIDE_PANEL_MIN_W, maxW)
+    const capW = Math.min(WIDE_PANEL_MAX_W, maxW)
+    if (panelBox.w >= maxW - 4) {
+      panelBox.w = clamp(WIDE_PANEL_W, minW, capW)
+      panelBox.x = Math.max(pad, w - pad - panelBox.w)
+    }
+    panelBox.w = clamp(panelBox.w, minW, capW)
+    panelBox.h = clamp(panelBox.h, minH, maxH)
+    panelBox.x = clamp(panelBox.x, pad, Math.max(pad, w - pad - panelBox.w))
+    panelBox.y = clamp(panelBox.y, pad, Math.max(pad, h - pad - panelBox.h))
+    return
+  }
+  panelBox.w = maxW
   panelBox.h = clamp(panelBox.h, minH, maxH)
   panelBox.x = pad
   panelBox.y = clamp(panelBox.y, pad, Math.max(pad, h - pad - panelBox.h))
@@ -300,8 +324,12 @@ function placeTab(fromSaved: boolean) {
 }
 
 function placePanel(fromSaved: boolean) {
+  const { w } = dockSize()
+  const savedLooksLikeSheet =
+    typeof saved.panelW === 'number' && (saved.panelW >= w - 24 || saved.panelW > WIDE_PANEL_MAX_W + 24)
   if (
     fromSaved &&
+    !(isWideLayout.value && savedLooksLikeSheet) &&
     typeof saved.panelX === 'number' &&
     typeof saved.panelY === 'number' &&
     typeof saved.panelW === 'number' &&
@@ -337,11 +365,14 @@ function onPointerMove(ev: PointerEvent) {
   }
   if (drag.kind === 'panel') {
     panelBox.y = orig.y + dy
+    if (isWideLayout.value) panelBox.x = orig.x + dx
     clampPanel()
     return
   }
   let { x, y, w, h } = orig
   const dir = drag.kind
+  if (dir.includes('e')) w = orig.w + dx
+  if (dir.includes('w')) w = orig.w - dx
   if (dir.includes('s')) h = orig.h + dy
   if (dir.includes('n')) {
     h = orig.h - dy
@@ -470,6 +501,16 @@ watch(panelOpen, async (open) => {
   placePanel(panelPlaced.value || (typeof saved.panelW === 'number' && saved.panelW > 0))
 })
 
+watch(isWideLayout, async () => {
+  await nextTick()
+  if (panelOpen.value) {
+    if (!panelFullscreen.value) Object.assign(panelBox, defaultPanelBox())
+    clampPanel()
+  } else {
+    clampTab()
+  }
+})
+
 onMounted(async () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -498,7 +539,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="dockRef" class="computer-ask-dock" :class="{ 'is-dragging': dragging }">
+  <div ref="dockRef" class="computer-ask-dock" :class="{ 'is-dragging': dragging, 'is-wide': isWideLayout }">
     <button
       v-if="!panelOpen"
       ref="tabRef"
@@ -532,7 +573,7 @@ onBeforeUnmount(() => {
     >
       <template v-if="!panelFullscreen">
         <div
-          v-for="dir in RESIZE_DIRS"
+          v-for="dir in resizeDirs"
           :key="dir"
           class="computer-ask__resize"
           :class="`is-${dir}`"
@@ -722,7 +763,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   height: auto;
-  min-height: 280px;
+  min-height: min(280px, 100%);
   max-height: min(78vh, 640px);
   overflow: hidden;
   border: none;
@@ -747,7 +788,7 @@ onBeforeUnmount(() => {
 
 .computer-ask.has-chat:not(.is-full) {
   height: min(62vh, 520px);
-  min-height: 280px;
+  min-height: min(280px, 100%);
 }
 
 .computer-ask.is-full .computer-ask__head {
@@ -775,6 +816,22 @@ onBeforeUnmount(() => {
 
 .computer-ask__resize.is-s {
   bottom: 0;
+}
+
+.computer-ask__resize.is-e,
+.computer-ask__resize.is-w {
+  top: 18px;
+  bottom: 18px;
+  width: 10px;
+  cursor: ew-resize;
+}
+
+.computer-ask__resize.is-e {
+  right: 0;
+}
+
+.computer-ask__resize.is-w {
+  left: 0;
 }
 
 .computer-ask__composer {
@@ -948,8 +1005,35 @@ onBeforeUnmount(() => {
 }
 
 @media (min-width: 901px) {
-  .computer-ask.has-chat:not(.is-full) {
-    height: min(58vh, 480px);
+  .computer-ask:not(.is-full):not(.is-placed) {
+    left: auto;
+    right: 8px;
+    width: min(420px, calc(100% - 16px));
+    height: min(62vh, 560px);
+    min-height: 320px;
+    max-height: min(78vh, 720px);
+  }
+
+  .computer-ask.has-chat:not(.is-full):not(.is-placed) {
+    height: min(68vh, 620px);
+  }
+
+  .computer-ask:not(.is-full) {
+    box-shadow: 0 16px 40px rgb(15 23 42 / 16%);
+  }
+
+  .computer-ask-tab {
+    bottom: 20px;
+    padding: 8px 14px 8px 12px;
+    font-size: 13px;
+  }
+
+  .computer-ask__input :deep(.el-textarea__inner) {
+    min-height: 88px !important;
+  }
+
+  .computer-ask__meta {
+    flex-wrap: nowrap;
   }
 }
 </style>

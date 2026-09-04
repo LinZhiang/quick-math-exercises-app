@@ -232,4 +232,17 @@ watch(
   min-height: 0;
   min-width: 0;
 }
+
+@media (min-width: 901px) {
+  .app-chrome {
+    padding: 10px 24px;
+    gap: 12px;
+    grid-template-columns: minmax(6rem, auto) minmax(0, 1fr) minmax(6rem, auto);
+  }
+
+  .app-chrome__title {
+    max-width: min(70vw, 42rem);
+    font-size: 1.2rem;
+  }
+}
 </style>

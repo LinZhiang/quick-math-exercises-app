@@ -360,6 +360,7 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
 
 .cb-quiz__body {
   flex: 1 1 0;
+  min-width: 0;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
@@ -477,6 +478,8 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
 }
 
 .cb-quiz__stem {
+  min-width: 0;
+  max-width: 100%;
   padding: 10px 12px;
   border-radius: 10px;
   background: var(--app-surface-alt);
@@ -540,6 +543,11 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
   background: #fef2f2;
 }
 
+.cb-quiz__reveal {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .cb-quiz__reveal .is-ok,
 .cb-quiz__hint.is-ok {
   color: #16a34a;
@@ -559,5 +567,51 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
   margin: 0;
   padding-left: 1.1em;
   font-size: 13px;
+}
+
+@media (min-width: 901px) {
+  .cb-quiz {
+    max-width: 52rem;
+    width: 100%;
+    margin: 0 auto;
+    padding: 10px 12px 16px;
+    gap: 14px;
+  }
+
+  .cb-quiz.is-running {
+    padding-bottom: 20px;
+  }
+
+  .cb-quiz__head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 12px;
+  }
+
+  .cb-quiz__head-row {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .cb-quiz__timer {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .cb-quiz__scope,
+  .cb-quiz__pause {
+    grid-column: 1 / -1;
+  }
+
+  .cb-quiz__counts {
+    gap: 14px 22px;
+  }
+
+  .cb-quiz__stem,
+  .cb-quiz__opt,
+  .cb-quiz__ref {
+    padding: 14px 16px;
+  }
 }
 </style>

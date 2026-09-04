@@ -922,8 +922,13 @@ defineExpose({ insertHtml, insertNoteTag })
   margin: 0.7em 0;
   border-radius: 12px;
   background: #1e1e1e;
-  overflow-x: auto;
+  width: 100%;
   max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .rte__editor :deep(pre) {
@@ -938,9 +943,13 @@ defineExpose({ insertHtml, insertNoteTag })
   white-space: pre;
   word-break: normal;
   overflow-wrap: normal;
+  word-wrap: normal;
+  hyphens: none;
   width: max-content;
   min-width: 100%;
+  max-width: none;
   box-sizing: border-box;
+  overflow-x: visible;
   cursor: pointer;
 }
 
@@ -948,12 +957,16 @@ defineExpose({ insertHtml, insertNoteTag })
   margin: 0;
 }
 
-.rte__editor :deep(pre code) {
+.rte__editor :deep(pre code),
+.rte__editor :deep(pre *) {
   font: inherit;
   padding: 0;
   background: transparent;
   color: inherit;
   white-space: inherit;
+  word-break: normal;
+  overflow-wrap: normal;
+  word-wrap: normal;
 }
 
 .rte__editor :deep(.tok-kw) {

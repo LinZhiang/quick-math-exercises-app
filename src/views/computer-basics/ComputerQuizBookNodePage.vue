@@ -551,4 +551,21 @@ onMounted(async () => {
   flex-wrap: wrap;
   gap: 8px;
 }
+
+@media (min-width: 901px) {
+  .computer-page {
+    padding: 22px 32px 20px;
+  }
+
+  .computer-page__head,
+  .computer-tree-card {
+    width: 100%;
+    max-width: 64rem;
+    margin-inline: auto;
+  }
+
+  .computer-tree-card.is-quiz {
+    max-width: 72rem;
+  }
+}
 </style>

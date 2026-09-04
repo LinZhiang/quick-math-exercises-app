@@ -100,6 +100,7 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   overflow-wrap: anywhere;
   overflow-x: visible;
   min-width: 0;
+  max-width: 100%;
 }
 
 .rich-text-view :deep(p) {
@@ -170,17 +171,36 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
 }
 
 .rich-text-view :deep(pre),
-.rich-text-view :deep(pre code) {
+.rich-text-view :deep(pre code),
+.rich-text-view :deep(pre *) {
   word-break: normal;
   overflow-wrap: normal;
+  word-wrap: normal;
+  hyphens: none;
+}
+
+.rich-text-view :deep(pre) {
   white-space: pre;
+}
+
+.rich-text-view :deep(pre code) {
+  white-space: inherit;
+  display: block;
+  width: max-content;
+  min-width: 100%;
 }
 
 .rich-text-view--docs :deep(.md-table-scroll:has(> pre)) {
   margin: 0.85em 0 1.25em;
   border-radius: 12px;
   background: #1e1e1e;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .rich-text-view--docs :deep(pre) {
@@ -194,7 +214,9 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   line-height: 1.7;
   width: max-content;
   min-width: 100%;
+  max-width: none;
   box-sizing: border-box;
+  overflow-x: visible;
 }
 
 .rich-text-view--docs :deep(.md-table-scroll > pre) {
@@ -298,9 +320,12 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
 
 .rich-text-view :deep(.md-table-scroll),
 .rich-text-view :deep(.is-overflow-x) {
+  width: 100%;
   max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
   overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .rich-text-view :deep(.da-math-over) {
@@ -458,5 +483,17 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   font-weight: 750;
   line-height: 0;
   vertical-align: super;
+}
+
+@media (min-width: 901px) {
+  .rich-text-view--docs {
+    font-size: 17px;
+    line-height: 1.92;
+  }
+
+  .rich-text-view--docs :deep(pre) {
+    font-size: 13.5px;
+    padding: 18px 22px;
+  }
 }
 </style>

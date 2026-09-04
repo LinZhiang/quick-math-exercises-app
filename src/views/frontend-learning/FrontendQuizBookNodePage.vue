@@ -504,6 +504,8 @@ onMounted(async () => {
   display: grid;
   gap: 8px;
   font-size: 13px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .cb-book__from {
@@ -568,5 +570,22 @@ onMounted(async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+@media (min-width: 901px) {
+  .computer-page {
+    padding: 22px 32px 20px;
+  }
+
+  .computer-page__head,
+  .computer-tree-card {
+    width: 100%;
+    max-width: 64rem;
+    margin-inline: auto;
+  }
+
+  .computer-tree-card.is-quiz {
+    max-width: 72rem;
+  }
 }
 </style>
