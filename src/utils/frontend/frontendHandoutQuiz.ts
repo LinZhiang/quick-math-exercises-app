@@ -1,3 +1,7 @@
+import { markdownToDisplaySafeHtml } from '@/utils/markdown/markdownToHtml'
+import { highlightHandoutCodeHtml } from '@/utils/markdown/highlightHandoutCode'
+import { judgeExplanationConflictsCorrect } from '@/utils/quiz/handoutQuizConsistency'
+
 export type FrontendQuizKind = 'choice' | 'judge' | 'calc' | 'short'
 
 export type FrontendQuizQuestion = {
@@ -22,16 +26,19 @@ export type FrontendQuizCounts = {
 }
 
 export const DEFAULT_FRONTEND_QUIZ_COUNTS: FrontendQuizCounts = {
-  choice: 2,
+  choice: 10,
   judge: 1,
   calc: 0,
   short: 0,
 }
 
+/** 判断/计算/简答单类上限 */
 export const FRONTEND_QUIZ_KIND_MAX = 15
+/** 选择题上限 */
+export const FRONTEND_QUIZ_CHOICE_MAX = 25
 
 const QUIZ_COUNT_MAX: FrontendQuizCounts = {
-  choice: FRONTEND_QUIZ_KIND_MAX,
+  choice: FRONTEND_QUIZ_CHOICE_MAX,
   judge: FRONTEND_QUIZ_KIND_MAX,
   calc: FRONTEND_QUIZ_KIND_MAX,
   short: FRONTEND_QUIZ_KIND_MAX,
@@ -123,6 +130,58 @@ function collectAndStripGlosses(parts: string[]): { texts: string[]; glosses: st
   return { texts, glosses }
 }
 
+/** 讲义是否以编程操作为主（相对纯名词定义），用于决定要不要出看代码题。 */
+export function frontendHandoutLooksLikeProgramming(material: string): boolean {
+  const s = String(material || '')
+  if (/```(?:js|javascript|ts|typescript|jsx|tsx)?\b/i.test(s)) return true
+  const codeLines = (s.match(/^\s{0,3}(?:const|let|var|function|if|for|return|class|console)\b/gm) || []).length
+  const tokens =
+    /(?:function\s+\w+|const\s+\w+\s*=|=>\s*\{|console\.(?:log|dir)|if\s*\(|for\s*\(|\.prototype\.|class\s+\w+)/.test(s)
+  return tokens && codeLines >= 3
+}
+
+function promoteBareJsFences(text: string): string {
+  const s = String(text ?? '')
+  if (!s.trim() || /```/.test(s)) return s
+  const isJsish = (ln: string) => {
+    const t = ln.trim()
+    if (!t) return false
+    return /^(?:const|let|var|function|if|for|while|return|class|console|import|export|else|try|catch|switch|case)\b/.test(
+      t,
+    ) || /[{};]$/.test(t) || /=>/.test(t) || /^\s*[})\];]/.test(ln)
+  }
+  const lines = s.split('\n')
+  const out: string[] = []
+  let buf: string[] = []
+  const flush = () => {
+    if (buf.length >= 2) out.push('```js', ...buf, '```')
+    else out.push(...buf)
+    buf = []
+  }
+  for (const ln of lines) {
+    if (isJsish(ln) || (buf.length > 0 && !ln.trim())) buf.push(ln)
+    else {
+      flush()
+      out.push(ln)
+    }
+  }
+  flush()
+  return out.join('\n')
+}
+
+/** 测验题干/选项/解析：Markdown + 讲义同款 JS 代码块。 */
+export function formatFrontendQuizRichHtml(text: string): string {
+  const t = String(text ?? '').trim()
+  if (!t) return ''
+  if (/^</.test(t) || /<(p|pre|code|div|br|span)\b/i.test(t)) {
+    return highlightHandoutCodeHtml(t)
+  }
+  const withCode = promoteBareJsFences(t)
+    .replace(/\b(Number\.(?:MIN|MAX)_(?:SAFE_)?VALUE)\b/g, '`$1`')
+    .replace(/\b0[xX]\s*[\/／]\s*0[xX]\b/g, '`0x`/`0X`')
+  return highlightHandoutCodeHtml(markdownToDisplaySafeHtml(withCode))
+}
+
 function mergeGlossIntoExplanation(explanation: string, glosses: string[]): string {
   if (!glosses.length) return explanation
   const missing = glosses.filter((g) => {
@@ -155,11 +214,11 @@ export function sanitizeFrontendQuizForDisplay(q: {
     ...(q.options ?? []),
   ])
   return {
-    stem: harvested.texts[0] ?? '',
+    stem: formatFrontendQuizRichHtml(harvested.texts[0] ?? ''),
     term: harvested.texts[1] ?? '',
-    options: (q.options ?? []).map((opt) => stripFrontendQuizHintGloss(opt)),
-    correctText: harvested.texts[2] ?? '',
-    explanation: mergeGlossIntoExplanation(q.explanation, harvested.glosses),
+    options: (q.options ?? []).map((opt) => formatFrontendQuizRichHtml(stripFrontendQuizHintGloss(opt))),
+    correctText: formatFrontendQuizRichHtml(harvested.texts[2] ?? ''),
+    explanation: formatFrontendQuizRichHtml(mergeGlossIntoExplanation(q.explanation, harvested.glosses)),
   }
 }
 
@@ -418,6 +477,7 @@ export function parseFrontendQuizAiItem(
 
   const correctText = options[correctIndex] ?? ''
   if (!correctText) return null
+  if (kind === 'judge' && judgeExplanationConflictsCorrect(correctText, explanation)) return null
   if (kind === 'choice' && stemAnswerQuantityClash(stem, correctText)) return null
   if (kind === 'choice') {
     const rest = options.filter((_, i) => i !== correctIndex)

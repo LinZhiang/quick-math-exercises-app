@@ -6,6 +6,7 @@ import { requireAdmin } from './auth-core.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { tidyJsFencesInMarkdown } from './tidy-js-code.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(__dirname, 'data', 'frontend-learning')
@@ -412,6 +413,29 @@ export function stripFrontendLearningChapterPrefixes() {
   walk(catalog.tree, [])
   writeCatalog(catalog.tree)
   return readFrontendLearningCatalog()
+}
+
+/** 把已入库讲义里的 JS/TS 代码围栏整理后写回 Node（缩进、空行、if-return 结构）。 */
+export function rewriteFrontendLearningJsCodeFences() {
+  ensureFrontendLearningStore()
+  ensureDirs()
+  let scanned = 0
+  let changed = 0
+  if (!fs.existsSync(ITEMS_DIR)) return { scanned, changed }
+  for (const name of fs.readdirSync(ITEMS_DIR)) {
+    if (!name.endsWith('.json')) continue
+    const id = name.slice(0, -5)
+    const item = readFrontendLearningItem(id)
+    if (!item) continue
+    scanned += 1
+    const content = String(item.content ?? '')
+    if (!content.trim() || /^</.test(content.trim())) continue
+    const next = tidyJsFencesInMarkdown(content)
+    if (next === content) continue
+    writeItemRecord(id, { ...item, content: next })
+    changed += 1
+  }
+  return { scanned, changed }
 }
 
 function mirrorPublicFile(absSrc, rel) {

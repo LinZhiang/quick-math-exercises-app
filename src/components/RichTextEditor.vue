@@ -8,6 +8,7 @@ import {
   plainTextToRichHtml,
   richHtmlIsEmpty,
 } from '@/utils/markdown/richTextHtml'
+import { buildJsCodeBlockHtml, jsSourceFromPre } from '@/utils/markdown/highlightHandoutCode'
 
 const props = withDefaults(
   defineProps<{
@@ -41,6 +42,9 @@ const noteEditable = ref(false)
 const noteTitle = ref('')
 const noteBodyHtml = ref('')
 const editingNote = ref<HTMLElement | null>(null)
+const jsOpen = ref(false)
+const jsDraft = ref('')
+const editingPre = ref<HTMLElement | null>(null)
 
 const UNDO_MAX = 60
 let undoStack: string[] = []
@@ -65,6 +69,24 @@ function decorateNotes() {
     const body = note.querySelector('.cb-handout-note__body')
     if (body instanceof HTMLElement) body.hidden = true
   }
+  decorateCodeBlocks()
+}
+
+function decorateCodeBlocks() {
+  const root = editorRef.value
+  if (!root) return
+  for (const pre of root.querySelectorAll('pre')) {
+    if (!(pre instanceof HTMLElement)) continue
+    pre.setAttribute('contenteditable', 'false')
+    pre.classList.add('rte-js-pre')
+  }
+}
+
+function closestJsPre(node: Node | null): HTMLElement | null {
+  const el = node instanceof Element ? node : node?.parentElement
+  const pre = el?.closest?.('pre')
+  if (!(pre instanceof HTMLElement) || !editorRef.value?.contains(pre)) return null
+  return pre
 }
 
 function saveSelection() {
@@ -374,6 +396,12 @@ function onEditorMouseDown(ev: MouseEvent) {
   if (note instanceof HTMLElement && props.notes && editorRef.value?.contains(note)) {
     ev.preventDefault()
     openNote(note)
+    return
+  }
+  const pre = t.closest('pre')
+  if (pre instanceof HTMLElement && editorRef.value?.contains(pre)) {
+    ev.preventDefault()
+    openJsDialog(pre)
   }
 }
 
@@ -398,6 +426,63 @@ async function insertNoteTag() {
     return
   }
   insertHtml(`${buildHandoutNoteHtml(name)}&nbsp;`)
+}
+
+function openJsDialog(pre: HTMLElement | null) {
+  editingPre.value = pre
+  jsDraft.value = pre ? jsSourceFromPre(pre) : ''
+  jsOpen.value = true
+}
+
+function openJsFromToolbar() {
+  saveSelection()
+  openJsDialog(closestJsPre(caretNode()) ?? closestJsPre(savedRange?.commonAncestorContainer ?? null))
+}
+
+function onSaveJs() {
+  if (!jsDraft.value.trim()) {
+    ElMessage.warning('请输入 JS 代码')
+    return
+  }
+  const html = buildJsCodeBlockHtml(jsDraft.value)
+  const root = editorRef.value
+  const current = editingPre.value
+  if (current && root?.contains(current)) {
+    pushUndo(root.innerHTML)
+    const wrap = current.closest('.md-table-scroll')
+    const target =
+      wrap instanceof HTMLElement && wrap.querySelectorAll('pre').length === 1 ? wrap : current
+    const tmp = document.createElement('div')
+    tmp.innerHTML = html
+    const next = tmp.firstElementChild
+    if (next) target.replaceWith(next)
+    decorateNotes()
+    emitHtml()
+    pushUndo(root.innerHTML)
+  } else {
+    insertHtml(`${html}<p></p>`)
+  }
+  jsOpen.value = false
+  ElMessage.success(current ? '代码已更新' : '已插入 JS 代码')
+}
+
+function onRemoveJs() {
+  const root = editorRef.value
+  const current = editingPre.value
+  if (!current || !root?.contains(current)) {
+    jsOpen.value = false
+    return
+  }
+  pushUndo(root.innerHTML)
+  const wrap = current.closest('.md-table-scroll')
+  const target =
+    wrap instanceof HTMLElement && wrap.querySelectorAll('pre').length === 1 ? wrap : current
+  target.remove()
+  decorateNotes()
+  emitHtml()
+  pushUndo(root.innerHTML)
+  jsOpen.value = false
+  ElMessage.success('已删除代码块')
 }
 
 function onSaveNote(payload: { title: string; bodyPlain: string }) {
@@ -519,6 +604,9 @@ defineExpose({ insertHtml, insertNoteTag })
             <path d="M2.8 12.2 6.4 8.4l2.2 2.2 2.1-2.6 2.5 4.2H2.8z" fill="currentColor" />
           </svg>
         </button>
+        <button type="button" title="JS 代码" aria-label="JS 代码" @mousedown.prevent="openJsFromToolbar">
+          <span class="rte__ico rte__ico--js">{ }</span>
+        </button>
         <button type="button" title="清除格式" aria-label="清除格式" @mousedown.prevent="run('removeFormat')">
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
             <path
@@ -565,6 +653,26 @@ defineExpose({ insertHtml, insertNoteTag })
       @save="onSaveNote"
       @remove="onRemoveNote"
     />
+    <el-dialog
+      v-model="jsOpen"
+      :title="editingPre ? '修改 JS 代码' : '插入 JS 代码'"
+      width="min(36rem, 94vw)"
+      append-to-body
+      destroy-on-close
+    >
+      <el-input
+        v-model="jsDraft"
+        type="textarea"
+        :rows="12"
+        placeholder="function fib(num) {&#10;  if (num === 0) return 0;&#10;}"
+        class="rte-js-input"
+      />
+      <template #footer>
+        <el-button v-if="editingPre" type="danger" plain @click="onRemoveJs">删除</el-button>
+        <el-button @click="jsOpen = false">取消</el-button>
+        <el-button type="primary" @click="onSaveJs">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -684,6 +792,14 @@ defineExpose({ insertHtml, insertNoteTag })
   text-underline-offset: 2px;
 }
 
+.rte__ico--js {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 800;
+  font-style: normal;
+  letter-spacing: -0.06em;
+}
+
 .rte__wrap {
   position: relative;
 }
@@ -719,7 +835,7 @@ defineExpose({ insertHtml, insertNoteTag })
   flex: 1 1 0;
   height: auto;
   min-height: 0;
-  overflow-x: hidden;
+  overflow-x: auto;
   overflow-y: auto;
   padding-bottom: 12px;
 }
@@ -800,6 +916,84 @@ defineExpose({ insertHtml, insertNoteTag })
 
 .rte__editor :deep(.cb-handout-note__body) {
   display: none !important;
+}
+
+.rte__editor :deep(.md-table-scroll:has(> pre)) {
+  margin: 0.7em 0;
+  border-radius: 12px;
+  background: #1e1e1e;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.rte__editor :deep(pre) {
+  margin: 0.7em 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #1e1e1e;
+  color: #e5e7eb;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+  width: max-content;
+  min-width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.rte__editor :deep(.md-table-scroll > pre) {
+  margin: 0;
+}
+
+.rte__editor :deep(pre code) {
+  font: inherit;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  white-space: inherit;
+}
+
+.rte__editor :deep(.tok-kw) {
+  color: #f472b6;
+  font-weight: 650;
+}
+
+.rte__editor :deep(.tok-fn) {
+  color: #fbbf24;
+}
+
+.rte__editor :deep(.tok-ty) {
+  color: #7dd3fc;
+}
+
+.rte__editor :deep(.tok-str),
+.rte__editor :deep(.tok-tmpl) {
+  color: #86efac;
+}
+
+.rte__editor :deep(.tok-cmt) {
+  color: #a3e635;
+  font-style: italic;
+}
+
+.rte__editor :deep(.tok-num),
+.rte__editor :deep(.tok-lit) {
+  color: #c4b5fd;
+}
+
+.rte__editor :deep(.tok-op),
+.rte__editor :deep(.tok-id) {
+  color: #e5e7eb;
+}
+
+.rte-js-input :deep(.el-textarea__inner) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre;
 }
 
 .rte__file {

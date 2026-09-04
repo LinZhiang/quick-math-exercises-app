@@ -3,6 +3,8 @@
  * 不要用 Cache API 当数据库——会过期，灌 /fl-data 快照会把用户新加的目录盖掉。
  * 未绑定 KV 时，讲义只读构建快照；增删改请用本机 Node（npm run dev:full）。
  */
+import { getWenguKv } from './kvBinding.js'
+
 const USER_OWNED_KEY = 'fl:user-owned'
 
 export { USER_OWNED_KEY as FL_USER_OWNED_KEY }
@@ -12,7 +14,7 @@ export function rememberFlStoreOrigin() {
 }
 
 export function getFlStore(env) {
-  return env?.WENGU_KV || null
+  return getWenguKv(env)
 }
 
 function catalogLooksSaved(raw) {

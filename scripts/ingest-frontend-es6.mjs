@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { upsertFrontendLearningBranch } from '../server/frontend-learning-store.mjs'
+import { tidyJsFencesInMarkdown } from '../server/tidy-js-code.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const srcDir = 'G:\\考编\\es6-tutorial-master\\es6-tutorial-master\\docs'
@@ -85,6 +86,7 @@ function tidyMarkdown(raw, title) {
   s = s.replace(/```javascript/g, '```js')
   s = s.replace(/[ \t]+\n/g, '\n')
   s = s.replace(/\n{3,}/g, '\n\n')
+  s = tidyJsFencesInMarkdown(s)
   return `${s.trim()}\n`
 }
 

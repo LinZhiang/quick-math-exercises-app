@@ -2,5 +2,10 @@ name = "quick-math-exercises-app"
 compatibility_date = "2024-11-12"
 pages_build_output_dir = "dist"
 
-# 可选：在 Pages 控制台绑定 KV，变量名必须是 WENGU_KV（讲义改动能长期保存）。
-# 未绑定也能在手机改讲义：Functions 用边缘缓存兜底，首次访问会从 /cb-data 灌库。
+# 讲义增删改依赖这个 KV。用 npm run setup:cf-storage 自动创建并写入 id。
+# 未绑定则 pages.dev 只能看构建快照，手机上保存会失败。
+[[kv_namespaces]]
+binding = "WENGU_KV"
+id = "aa9e58d1741941a6b454712fa513342c"
+preview_id = "b20befdbb1414030972e382a5393076f"
+

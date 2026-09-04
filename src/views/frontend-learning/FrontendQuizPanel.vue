@@ -13,7 +13,7 @@ import {
   isFrontendQuizFavorite,
   toggleFrontendQuizFavorite,
 } from '@/utils/frontend/frontendHandoutQuizStorage'
-import { sanitizeFrontendQuizForDisplay, FRONTEND_QUIZ_KIND_MAX, type FrontendQuizQuestion } from '@/utils/frontend/frontendHandoutQuiz'
+import { sanitizeFrontendQuizForDisplay, FRONTEND_QUIZ_KIND_MAX, FRONTEND_QUIZ_CHOICE_MAX, type FrontendQuizQuestion } from '@/utils/frontend/frontendHandoutQuiz'
 import type { FrontendHandoutItem } from '@/utils/frontend/frontendLearning'
 import { wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 import RichTextView from '@/components/RichTextView.vue'
@@ -149,8 +149,8 @@ const quizAskQuestion = computed((): FrontendAskQuestionContext | null => {
         <template v-else>
           {{
             scopeLabel
-              ? `按「${scopeLabel}」范围内的讲义出少量重点题：优先考定义、划分标准、最主要特点等，干扰项用讲义里的易混点。`
-              : '按当前讲义出少量重点题：优先考定义、划分标准、最主要特点等，干扰项用讲义里的易混点。'
+              ? `按「${scopeLabel}」范围内的讲义出重点题：优先考加粗、定义、易混点和日常会用到的内容；讲义若有编程操作，会适当出看代码写结果、填空、判断代码在做什么的题。`
+              : '按当前讲义出重点题：优先考加粗、定义、易混点和日常会用到的内容；讲义若有编程操作，会适当出看代码写结果、填空、判断代码在做什么的题。'
           }}
           计算题系统按结果判分（写出的内容包含标准答案即可）；简答题对照参考答案后自己打分。
         </template>
@@ -167,7 +167,7 @@ const quizAskQuestion = computed((): FrontendAskQuestionContext | null => {
         </el-radio-group>
       </div>
       <div v-if="!preparedMode" class="cb-quiz__counts">
-        <label>选择题 <el-input-number v-model="test.counts.choice" :min="0" :max="FRONTEND_QUIZ_KIND_MAX" size="small" /></label>
+        <label>选择题 <el-input-number v-model="test.counts.choice" :min="0" :max="FRONTEND_QUIZ_CHOICE_MAX" size="small" /></label>
         <label>判断题 <el-input-number v-model="test.counts.judge" :min="0" :max="FRONTEND_QUIZ_KIND_MAX" size="small" /></label>
         <label>计算题 <el-input-number v-model="test.counts.calc" :min="0" :max="FRONTEND_QUIZ_KIND_MAX" size="small" /></label>
         <label>简答题 <el-input-number v-model="test.counts.short" :min="0" :max="FRONTEND_QUIZ_KIND_MAX" size="small" /></label>
@@ -191,7 +191,7 @@ const quizAskQuestion = computed((): FrontendAskQuestionContext | null => {
         <el-button size="small" plain @click="onFavorite">{{ favorited ? '已收藏' : '收藏' }}</el-button>
       </div>
       <div class="cb-quiz__stem">
-        <RichTextView :html="displayQ.stem" />
+        <RichTextView :html="displayQ.stem" tone="docs" :math="false" :zoom-images="false" />
       </div>
       <div v-if="displayQ.kind === 'calc'" class="cb-quiz__calc">
         <el-input
@@ -226,16 +226,16 @@ const quizAskQuestion = computed((): FrontendAskQuestionContext | null => {
           :disabled="test.submitted"
           @click="test.selectOption(i)"
         >
-          {{ opt }}
+          <RichTextView :html="opt" tone="docs" :math="false" :zoom-images="false" />
         </button>
       </div>
       <div v-if="test.submitted" class="cb-quiz__reveal">
         <template v-if="displayQ.kind === 'short'">
           <p class="cb-quiz__ref-label">参考答案</p>
           <div class="cb-quiz__ref">
-            <RichTextView :html="displayQ.correctText" />
+            <RichTextView :html="displayQ.correctText" tone="docs" :math="false" :zoom-images="false" />
           </div>
-          <RichTextView v-if="displayQ.explanation" :html="displayQ.explanation" />
+          <RichTextView v-if="displayQ.explanation" :html="displayQ.explanation" tone="docs" :math="false" :zoom-images="false" />
           <div class="cb-quiz__self">
             <p class="cb-quiz__self-label">对照后给自己打分</p>
             <div class="cb-quiz__self-btns">
@@ -264,10 +264,12 @@ const quizAskQuestion = computed((): FrontendAskQuestionContext | null => {
           </div>
         </template>
         <template v-else>
-          <p :class="lastResult?.correct ? 'is-ok' : 'is-bad'">
-            {{ lastResult?.correct ? '回答正确' : `正确答案：${displayQ.correctText}` }}
-          </p>
-          <RichTextView v-if="displayQ.explanation" :html="displayQ.explanation" />
+          <p v-if="lastResult?.correct" class="is-ok">回答正确</p>
+          <div v-else class="cb-quiz__answer is-bad">
+            <span>正确答案：</span>
+            <RichTextView :html="displayQ.correctText" tone="docs" :math="false" :zoom-images="false" />
+          </div>
+          <RichTextView v-if="displayQ.explanation" :html="displayQ.explanation" tone="docs" :math="false" :zoom-images="false" />
         </template>
       </div>
       <div class="cb-quiz__actions">
@@ -346,7 +348,7 @@ const quizAskQuestion = computed((): FrontendAskQuestionContext | null => {
 }
 
 .cb-quiz.is-running {
-  padding-bottom: 56px;
+  padding-bottom: 72px;
 }
 
 .cb-quiz__head {
@@ -513,6 +515,21 @@ const quizAskQuestion = computed((): FrontendAskQuestionContext | null => {
 .cb-quiz__opts {
   display: grid;
   gap: 8px;
+}
+
+.cb-quiz__opt :deep(p) {
+  margin: 0;
+}
+
+.cb-quiz__answer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px 6px;
+}
+
+.cb-quiz__answer :deep(p) {
+  margin: 0;
 }
 
 .cb-quiz__opt {

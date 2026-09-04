@@ -1,6 +1,6 @@
 import { ElMessage } from 'element-plus'
 import { computed, onBeforeUnmount, reactive, ref } from 'vue'
-import { isAiChatConfigured, requestComputerHandoutQuiz, requestComputerQuizVariant, DEEPSEEK_NOT_CONFIGURED_HINT } from '@/services/deepseek'
+import { isAiChatConfigured, requestFrontendHandoutQuiz, requestFrontendQuizVariant, DEEPSEEK_NOT_CONFIGURED_HINT } from '@/services/deepseek'
 import {
   calcAnswerMatches,
   clampFrontendQuizCounts,
@@ -178,7 +178,7 @@ export function useFrontendHandoutQuiz() {
     phase.value = 'loading'
     loadingMessage.value = '正在根据讲义出题…'
     try {
-      const generated = await requestComputerHandoutQuiz({
+      const generated = await requestFrontendHandoutQuiz({
         title: item.title,
         material: stripHandoutImagesForAi(item.content),
         itemId: item.id,
@@ -229,7 +229,7 @@ export function useFrontendHandoutQuiz() {
         for (let i = 0; i < qs.length; i++) {
           loadingMessage.value = `正在生成变式 ${i + 1}/${qs.length}`
           try {
-            const variant = await requestComputerQuizVariant({
+            const variant = await requestFrontendQuizVariant({
               original: qs[i],
               provider: getAiProvider(),
             })
