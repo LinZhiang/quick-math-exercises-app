@@ -1087,4 +1087,38 @@ onBeforeUnmount(() => {
 .computer-tree__icon.is-danger:hover {
   background: #fee2e2;
 }
+
+@media (min-width: 901px) {
+  .computer-page {
+    padding: 22px 32px 20px;
+  }
+
+  .computer-page__head,
+  .computer-tree-card {
+    width: 100%;
+    max-width: 64rem;
+    margin-inline: auto;
+  }
+
+  .computer-tree-card--quiz {
+    max-width: 72rem;
+  }
+
+  .computer-tree {
+    padding: 8px 12px 14px;
+  }
+}
+
+@media (min-width: 901px) and (hover: hover) and (pointer: fine) {
+  .computer-tree__more {
+    opacity: 0;
+    transition: opacity 0.12s ease;
+  }
+
+  .computer-tree__row:hover .computer-tree__more,
+  .computer-tree__more.is-on,
+  .computer-tree__line.is-admin-open .computer-tree__more {
+    opacity: 1;
+  }
+}
 </style>

@@ -134,7 +134,8 @@ function collectAndStripGlosses(parts: string[]): { texts: string[]; glosses: st
 export function frontendHandoutLooksLikeProgramming(material: string): boolean {
   const s = String(material || '')
   if (/```(?:js|javascript|ts|typescript|jsx|tsx)?\b/i.test(s)) return true
-  const codeLines = (s.match(/^\s{0,3}(?:const|let|var|function|if|for|return|class|console)\b/gm) || []).length
+  if (/<pre[^>]*\b(hl-code|language-js|language-javascript|language-ts)/i.test(s)) return true
+  const codeLines = (s.match(/^\s{0,3}(?:const|let|var|function|class|console)\b/gm) || []).length
   const tokens =
     /(?:function\s+\w+|const\s+\w+\s*=|=>\s*\{|console\.(?:log|dir)|if\s*\(|for\s*\(|\.prototype\.|class\s+\w+)/.test(s)
   return tokens && codeLines >= 3
@@ -146,9 +147,16 @@ function promoteBareJsFences(text: string): string {
   const isJsish = (ln: string) => {
     const t = ln.trim()
     if (!t) return false
-    return /^(?:const|let|var|function|if|for|while|return|class|console|import|export|else|try|catch|switch|case)\b/.test(
-      t,
-    ) || /[{};]$/.test(t) || /=>/.test(t) || /^\s*[})\];]/.test(ln)
+    // 「if语句」这类中文行不要当成代码
+    if (/[\u4e00-\u9fff]/.test(t) && !/[;{}()=]/.test(t) && !/=>/.test(t)) return false
+    return (
+      /^(?:const|let|var|function|class|console|import|export)\b/.test(t) ||
+      /^(?:if|for|while|switch)\s*\(/.test(t) ||
+      (/^(?:return|else|try|catch|case)\b/.test(t) && /[;{}()=]/.test(t)) ||
+      /[{};]$/.test(t) ||
+      /=>/.test(t) ||
+      /^\s*[})\];]/.test(ln)
+    )
   }
   const lines = s.split('\n')
   const out: string[] = []
@@ -177,8 +185,8 @@ export function formatFrontendQuizRichHtml(text: string): string {
     return highlightHandoutCodeHtml(t)
   }
   const withCode = promoteBareJsFences(t)
-    .replace(/\b(Number\.(?:MIN|MAX)_(?:SAFE_)?VALUE)\b/g, '`$1`')
-    .replace(/\b0[xX]\s*[\/／]\s*0[xX]\b/g, '`0x`/`0X`')
+    .replace(/(?<![`\w])(Number\.(?:MIN|MAX)_(?:SAFE_)?VALUE)(?![`\w])/g, '`$1`')
+    .replace(/(?<![`\w])0[xX]\s*[\/／]\s*0[xX](?![`\w])/g, '`0x`/`0X`')
   return highlightHandoutCodeHtml(markdownToDisplaySafeHtml(withCode))
 }
 

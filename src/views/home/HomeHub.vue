@@ -153,6 +153,37 @@ function openModule(mod: (typeof modules)[number]) {
   color: var(--app-primary);
 }
 
+@media (min-width: 640px) {
+  .home-hub__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
+
+@media (min-width: 1100px) {
+  .home-hub {
+    max-width: 76rem;
+    width: 100%;
+    margin: 0 auto;
+    padding: 32px 36px 40px;
+    gap: 22px;
+  }
+
+  .home-hub__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .home-hub__card {
+    min-height: 8.5rem;
+    padding: 20px 18px 16px;
+  }
+
+  .home-hub__card-title {
+    font-size: 1.22rem;
+  }
+}
+
 @media (max-width: 520px) {
   .home-hub {
     padding: 14px 12px 20px;

@@ -1,13 +1,15 @@
 /** 讲义测验：判断题极性、本轮事实不得自相矛盾。 */
 
 function compactText(s: string): string {
-  return String(s ?? '').replace(/\s+/g, '')
+  return String(s ?? '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, '')
 }
 
 export function isJudgeAnswerTrue(correct: string): boolean | null {
   const t = compactText(correct)
-  if (/^(正确|对|true|t|√|是)$/i.test(t) || (t.includes('正确') && !t.includes('错误'))) return true
-  if (/^(错误|错|false|f|×|否)$/i.test(t) || t.includes('错误')) return false
+  if (/^(正确|对|true|t|√|是)$/i.test(t)) return true
+  if (/^(错误|错|false|f|×|否)$/i.test(t)) return false
   return null
 }
 
@@ -31,40 +33,44 @@ function pushFact(out: FactPolarity[], key: string, polarity: string) {
   if (!out.some((x) => x[0] === key && x[1] === polarity)) out.push([key, polarity])
 }
 
+const TRUTHY = /true|truthy|真值|(?<!不)会执行/
+const FALSY = /false|falsy|假值|不会执行|条件为假/
+
+function claimPolarity(src: string, subject: RegExp): 'truthy' | 'falsy' | null {
+  const re = new RegExp(subject.source, subject.flags.includes('g') ? subject.flags : `${subject.flags}g`)
+  let hit: RegExpExecArray | null
+  let truthy = false
+  let falsy = false
+  while ((hit = re.exec(src))) {
+    const around = src.slice(Math.max(0, hit.index - 4), hit.index + hit[0].length + 22)
+    if (FALSY.test(around)) falsy = true
+    if (TRUTHY.test(around)) truthy = true
+  }
+  if (truthy && !falsy) return 'truthy'
+  if (falsy && !truthy) return 'falsy'
+  return null
+}
+
 /** 从标答+解析抽取可对撞的事实（不读题干，避免把错误陈述当结论）。 */
 export function extractHandoutQuizFactPolarities(correctText: string, explanation: string): FactPolarity[] {
   const src = compactText(`${correctText}\n${explanation}`)
   if (!src) return []
   const out: FactPolarity[] = []
 
-  if (/空字符串|""|''|if\(""\)|if\(''\)/.test(src)) {
-    if (/不会执行|条件为假|转[为成]false|假值|falsy|六个.{0,8}false/.test(src)) {
-      pushFact(out, 'empty-string', 'falsy')
-    } else if (/会执行|转[为成]true|真值|truthy/.test(src) && !/不会执行|并非true|不是true/.test(src)) {
-      pushFact(out, 'empty-string', 'truthy')
-    }
-  }
-  if (/空数组|\[\]/.test(src)) {
-    if (/转[为成]false|假值|falsy|不会执行/.test(src) && !/空数组.{0,12}true|\[].{0,12}true/.test(src)) {
-      pushFact(out, 'empty-array', 'falsy')
-    } else if (/转[为成]true|真值|truthy/.test(src)) {
-      pushFact(out, 'empty-array', 'truthy')
-    }
-  }
-  if (/空对象|\{\}/.test(src)) {
-    if (/转[为成]false|假值|falsy/.test(src) && !/空对象.{0,12}true|\{\}.{0,12}true/.test(src)) {
-      pushFact(out, 'empty-object', 'falsy')
-    } else if (/转[为成]true|真值|truthy/.test(src)) {
-      pushFact(out, 'empty-object', 'truthy')
-    }
-  }
+  const emptyStr = claimPolarity(src, /空字符串|if\(""\)|if\(''\)/g)
+  if (emptyStr) pushFact(out, 'empty-string', emptyStr)
+  const emptyArr = claimPolarity(src, /空数组|\[\]/g)
+  if (emptyArr) pushFact(out, 'empty-array', emptyArr)
+  const emptyObj = claimPolarity(src, /空对象|\{\}/g)
+  if (emptyObj) pushFact(out, 'empty-object', emptyObj)
+
   if (/MIN_VALUE/.test(src)) {
     if (/最接近0|最接近零|最小正|最接近于0/.test(src)) pushFact(out, 'min-value', 'tiny-positive')
     if (/最小负|-MAX_VALUE|负向溢出/.test(src) && !/不是最小负|并非最小负|不是负/.test(src)) {
       pushFact(out, 'min-value', 'most-negative')
     }
   }
-  if (/parseInt/.test(src) && (/前导0|以0开头|0x|八进制/.test(src))) {
+  if (/parseInt/.test(src) && /前导0|以0开头|0x|八进制/.test(src)) {
     if (/按十进制|结果是11|不是八进制/.test(src)) pushFact(out, 'parseint-leading-zero', 'decimal')
     if (/按八进制|结果是9/.test(src) && !/不适用于parseInt|不是八进制/.test(src)) {
       pushFact(out, 'parseint-leading-zero', 'octal')

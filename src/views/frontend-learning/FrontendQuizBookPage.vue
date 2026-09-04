@@ -56,4 +56,17 @@ import FrontendQuizBookPanel from './FrontendQuizBookPanel.vue'
   background: #fff;
   box-shadow: 0 8px 28px rgb(15 23 42 / 5%);
 }
+
+@media (min-width: 901px) {
+  .computer-page {
+    padding: 22px 32px 20px;
+  }
+
+  .computer-page__head,
+  .computer-tree-card {
+    width: 100%;
+    max-width: 64rem;
+    margin-inline: auto;
+  }
+}
 </style>

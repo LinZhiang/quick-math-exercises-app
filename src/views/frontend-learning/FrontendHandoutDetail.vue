@@ -707,6 +707,7 @@ watch(photoOpen, (open) => {
 
 .computer-detail__paper {
   flex: 1 1 0;
+  min-width: 0;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
@@ -848,5 +849,57 @@ watch(photoOpen, (open) => {
   height: 0;
   opacity: 0;
   pointer-events: none;
+}
+
+@media (min-width: 901px) {
+  .computer-detail {
+    padding: 18px 32px 20px;
+    gap: 12px;
+  }
+
+  .computer-detail__top,
+  .computer-detail__pager {
+    width: 100%;
+    max-width: 56rem;
+    margin-inline: auto;
+  }
+
+  .computer-detail__paper {
+    width: 100%;
+    max-width: 56rem;
+    margin-inline: auto;
+    padding: 28px 40px 36px;
+  }
+
+  .computer-detail__quiz {
+    max-width: 64rem;
+    padding: 16px 20px 18px;
+  }
+
+  .computer-detail__top {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .computer-detail__actions {
+    flex: 0 1 auto;
+    min-width: auto;
+  }
+
+  .computer-detail__titles {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .computer-detail__title {
+    font-size: 1.42rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .computer-detail.is-full .computer-detail__paper {
+    max-width: 64rem;
+  }
 }
 </style>
