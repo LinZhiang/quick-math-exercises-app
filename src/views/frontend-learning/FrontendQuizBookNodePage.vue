@@ -300,18 +300,21 @@ onMounted(async () => {
             </button>
             <div v-if="openFp === row.fingerprint" class="cb-book__detail">
               <p class="cb-book__from">{{ rowPath(row) }}</p>
-              <RichTextView :html="displayOf(row).stem" />
+              <RichTextView :html="displayOf(row).stem" tone="docs" :math="false" :zoom-images="false" />
               <ul v-if="row.options.length" class="cb-book__opts">
                 <li
                   v-for="(opt, i) in displayOf(row).options"
                   :key="i"
                   :class="{ 'is-ans': i === row.correctIndex }"
                 >
-                  {{ opt }}
+                  <RichTextView :html="opt" tone="docs" :math="false" :zoom-images="false" />
                 </li>
               </ul>
-              <p>答案：{{ displayOf(row).correctText }}</p>
-              <RichTextView v-if="displayOf(row).explanation" :html="displayOf(row).explanation" />
+              <div class="cb-book__answer">
+                <span>答案：</span>
+                <RichTextView :html="displayOf(row).correctText" tone="docs" :math="false" :zoom-images="false" />
+              </div>
+              <RichTextView v-if="displayOf(row).explanation" :html="displayOf(row).explanation" tone="docs" :math="false" :zoom-images="false" />
               <div class="cb-book__note">
                 <div class="cb-book__note-head">
                   <strong>备注</strong>
@@ -513,9 +516,24 @@ onMounted(async () => {
   padding-left: 1.2em;
 }
 
+.cb-book__opts :deep(p) {
+  margin: 0;
+}
+
 .cb-book__opts .is-ans {
   font-weight: 700;
   color: #16a34a;
+}
+
+.cb-book__answer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px 6px;
+}
+
+.cb-book__answer :deep(p) {
+  margin: 0;
 }
 
 .cb-book__note {

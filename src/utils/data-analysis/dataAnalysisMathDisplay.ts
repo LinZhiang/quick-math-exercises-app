@@ -153,11 +153,19 @@ const CN_MATH_FRAC_LABELS = new Set([
   '每天长草效率',
 ])
 
+function isCodeyFractionPart(t: string): boolean {
+  // 0x / 0X、0b、0o 进制字面量；MIN_VALUE 这类标识符
+  if (/^0[xXbBoO][0-9A-Fa-f]*$/.test(t)) return true
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(t) && /_/.test(t)) return true
+  return false
+}
+
 function isMathyFractionPart(part: string): boolean {
   const t = stripOuterParens(part).trim()
   if (!t) return false
   // C++、C#、IPv6 这类标识不是分数
   if (/[A-Za-z]\+\+|[A-Za-z]#/.test(t)) return false
+  if (isCodeyFractionPart(t)) return false
   // 两字母以上的纯拉丁缩写（GB、ISO、TCP）不是分数分子/分母
   if (/^[A-Za-z.]{2,}$/.test(t)) return false
   // 数字、百分号、常见运算符号，或带数字的字母变量 → 数学量
@@ -190,6 +198,7 @@ function shouldConvertSlashFraction(
 
   const bareNum = stripOuterParens(num).trim()
   const bareDen = stripOuterParens(den).trim()
+  if (isCodeyFractionPart(bareNum) || isCodeyFractionPart(bareDen)) return false
   // GB/T、ISO/IEC 等标准号或缩写，不是数学分式
   if (/^[A-Za-z.]{2,}$/.test(bareNum) || /^[A-Za-z.]{2,}$/.test(bareDen)) return false
   if (/^[IO]$/i.test(bareNum) && /^[IO]$/i.test(bareDen)) return false
@@ -384,14 +393,15 @@ function extractScriptedSymbols(s: string, slots: ScriptSlot[]): string {
   }
 
   // 同时有下标与上标：A_{n}^{m}、A_n^{m}、A_{n}^m、A_n^m
+  // 跳过 MIN_VALUE 这类标识符（下划线两侧都是标识符字符）
   cur = cur.replace(
-    /([A-Za-zπΠ])(?:_\{([^{}]+)\}|_([A-Za-z0-9]))(?:\^\{([^{}]+)\}|\^([A-Za-z0-9]))/g,
+    /(?<![A-Za-z0-9])([A-Za-zπΠ])(?:_\{([^{}]+)\}|_([A-Za-z0-9])(?![A-Za-z0-9]))(?:\^\{([^{}]+)\}|\^([A-Za-z0-9]))/g,
     (_m, base: string, subB?: string, sub1?: string, supB?: string, sup1?: string) =>
       push(base, subB ?? sub1, supB ?? sup1),
   )
-  // 仅下标：a_{1}、S_n、V_1；连续下划线（填空）不转
+  // 仅下标：a_{1}、S_n、V_1；连续下划线（填空）与标识符 MIN_VALUE 不转
   cur = cur.replace(
-    /([A-Za-zπΠ])(?:_\{([^{}]+)\}|_([A-Za-z0-9])(?![_^]))(?!\^)/g,
+    /(?<![A-Za-z0-9])([A-Za-zπΠ])(?:_\{([^{}]+)\}|_([A-Za-z0-9])(?![A-Za-z0-9_]))(?!\^)/g,
     (_m, base: string, subB?: string, sub1?: string) => push(base, subB ?? sub1, undefined),
   )
   return cur

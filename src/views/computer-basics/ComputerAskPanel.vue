@@ -28,10 +28,11 @@ export type ComputerAskQuestionContext = {
   correct: boolean
 }
 
-const STORAGE_KEY = 'qmea-computer-ask-layout-v3'
+const STORAGE_KEY = 'qmea-computer-ask-layout-v4'
 const DRAG_THRESHOLD_PX = 8
 const MIN_PANEL_W = 260
-const MIN_PANEL_H = 140
+const MIN_PANEL_H = 280
+const TAB_EDGE = 10
 const RESIZE_DIRS = ['n', 's'] as const
 
 type ResizeDir = (typeof RESIZE_DIRS)[number]
@@ -105,7 +106,10 @@ const providerName = computed(() => {
 })
 
 const badge = computed(() => displayTurns.value.length)
-const inputRows = computed(() => (isCompactLayout.value ? 2 : 3))
+const inputRows = computed(() => {
+  if (panelFullscreen.value) return isCompactLayout.value ? 10 : 12
+  return isCompactLayout.value ? 3 : 4
+})
 
 const aiProvider = computed({
   get() {
@@ -203,8 +207,8 @@ function defaultTabPos() {
   const tabW = tabRef.value?.offsetWidth ?? 72
   const tabH = tabRef.value?.offsetHeight ?? 44
   return {
-    x: Math.max(0, w - tabW),
-    y: Math.max(0, h - tabH - 40),
+    x: Math.max(0, w - tabW - TAB_EDGE),
+    y: Math.max(0, h - tabH - 16),
   }
 }
 
@@ -213,9 +217,9 @@ function defaultPanelBox() {
   const pad = 8
   const compact = isCompactLayout.value
   const width = Math.max(MIN_PANEL_W, w - pad * 2)
-  const height = compact
-    ? clamp(156, MIN_PANEL_H, Math.min(180, h - pad * 2))
-    : clamp(168, MIN_PANEL_H, Math.min(200, h - pad * 2))
+  const maxH = Math.max(MIN_PANEL_H, h - pad * 2)
+  const want = compact ? Math.round(h * 0.62) : Math.min(420, Math.round(h * 0.5))
+  const height = clamp(want, Math.min(MIN_PANEL_H, maxH), maxH)
   return {
     x: pad,
     y: Math.max(pad, h - pad - height),
@@ -229,8 +233,8 @@ function clampTab() {
   const tabW = tabRef.value?.offsetWidth ?? 72
   const tabH = tabRef.value?.offsetHeight ?? 44
   if (w <= 0 || h <= 0) return
-  tabPos.x = clamp(tabPos.x, 0, Math.max(0, w - tabW))
-  tabPos.y = clamp(tabPos.y, 0, Math.max(0, h - tabH))
+  tabPos.x = clamp(tabPos.x, TAB_EDGE, Math.max(TAB_EDGE, w - tabW - TAB_EDGE))
+  tabPos.y = clamp(tabPos.y, TAB_EDGE, Math.max(TAB_EDGE, h - tabH - TAB_EDGE))
 }
 
 function clampPanel() {
@@ -244,8 +248,10 @@ function clampPanel() {
     return
   }
   const pad = 8
+  const maxH = Math.max(160, h - pad)
+  const minH = Math.min(MIN_PANEL_H, maxH)
   panelBox.w = Math.max(MIN_PANEL_W, w - pad * 2)
-  panelBox.h = clamp(panelBox.h, MIN_PANEL_H, Math.max(MIN_PANEL_H, h - pad))
+  panelBox.h = clamp(panelBox.h, minH, maxH)
   panelBox.x = pad
   panelBox.y = clamp(panelBox.y, pad, Math.max(pad, h - pad - panelBox.h))
 }
@@ -343,7 +349,7 @@ function onPointerMove(ev: PointerEvent) {
   }
   const size = dockSize()
   w = clamp(w, MIN_PANEL_W, Math.max(MIN_PANEL_W, size.w))
-  h = clamp(h, MIN_PANEL_H, Math.max(MIN_PANEL_H, size.h))
+  h = clamp(h, Math.min(MIN_PANEL_H, Math.max(160, size.h)), Math.max(160, size.h))
   if (dir.includes('w')) x = orig.x + orig.w - w
   if (dir.includes('n')) y = orig.y + orig.h - h
   panelBox.x = x
@@ -619,7 +625,7 @@ onBeforeUnmount(() => {
 .computer-ask-tab {
   position: absolute;
   right: 0;
-  bottom: 40px;
+  bottom: 16px;
   z-index: 12;
   display: flex;
   align-items: center;
@@ -716,8 +722,8 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   height: auto;
-  min-height: 0;
-  max-height: min(70vh, 520px);
+  min-height: 280px;
+  max-height: min(78vh, 640px);
   overflow: hidden;
   border: none;
   border-radius: 12px;
@@ -732,15 +738,16 @@ onBeforeUnmount(() => {
 
 .computer-ask.is-full {
   inset: 0;
-  height: auto;
+  height: 100% !important;
+  min-height: 0;
   max-height: none;
   border-radius: 0;
   box-shadow: none;
 }
 
 .computer-ask.has-chat:not(.is-full) {
-  height: min(36vh, 300px);
-  min-height: 200px;
+  height: min(62vh, 520px);
+  min-height: 280px;
 }
 
 .computer-ask.is-full .computer-ask__head {
@@ -781,6 +788,20 @@ onBeforeUnmount(() => {
   background: #fff;
 }
 
+.computer-ask.is-full .computer-ask__composer {
+  flex: 1 1 auto;
+  min-height: 160px;
+}
+
+.computer-ask.is-full.has-chat .computer-ask__composer {
+  flex: 0 1 42%;
+  min-height: 160px;
+}
+
+.computer-ask.is-full.has-chat .computer-ask__thread {
+  flex: 1 1 58%;
+}
+
 .computer-ask__input {
   flex: 0 0 auto;
   min-height: 0;
@@ -788,15 +809,29 @@ onBeforeUnmount(() => {
   flex-direction: column;
 }
 
+.computer-ask.is-full .computer-ask__input {
+  flex: 1 1 auto;
+}
+
 .computer-ask__input :deep(.el-textarea) {
   flex: 0 0 auto;
   min-height: 0;
 }
 
+.computer-ask.is-full .computer-ask__input :deep(.el-textarea) {
+  flex: 1 1 auto;
+  height: 100%;
+}
+
 .computer-ask__input :deep(.el-textarea__inner) {
-  min-height: 64px !important;
+  min-height: 72px !important;
   height: auto !important;
   resize: none;
+}
+
+.computer-ask.is-full .computer-ask__input :deep(.el-textarea__inner) {
+  min-height: 160px !important;
+  height: 100% !important;
 }
 
 .computer-ask__head {
@@ -882,6 +917,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex: 0 0 auto;
   font-size: 12px;
   color: var(--app-text-muted);
 }
@@ -890,6 +926,7 @@ onBeforeUnmount(() => {
 .computer-ask__login,
 .computer-ask__error {
   margin: 0;
+  flex: 0 1 auto;
   font-size: 12px;
   line-height: 1.5;
   color: var(--app-text-muted);
@@ -903,14 +940,16 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
+  flex: 0 0 auto;
   font-size: 12px;
   color: var(--app-text-muted);
 }
 
 @media (min-width: 901px) {
   .computer-ask.has-chat:not(.is-full) {
-    height: min(38vh, 340px);
+    height: min(58vh, 480px);
   }
 }
 </style>

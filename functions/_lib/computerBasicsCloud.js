@@ -4,6 +4,7 @@
  * 禁止用边缘 Cache API 当库，否则用户新加的目录会被静态快照盖掉。
  */
 import { json, requireAdmin } from './wenguCloudAuth.js'
+import { kvMissingMessage } from './kvBinding.js'
 import {
   getCbStore,
   hydrateCbStoreFromAssets,
@@ -78,8 +79,7 @@ function noStore() {
   return json(
     {
       ok: false,
-      message:
-        '请在本机用 npm run dev:full 增删改讲义（写入 server/data）。云端未绑定 KV 时不会把改动写进缓存，以免目录被构建快照盖掉。出门要看到新目录，请重新部署，或绑定 WENGU_KV 后执行 npm run sync:cf-computer。',
+      message: kvMissingMessage(),
     },
     503,
   )

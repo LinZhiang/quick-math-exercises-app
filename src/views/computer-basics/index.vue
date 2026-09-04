@@ -274,12 +274,12 @@ async function reloadKeepExpand(opts?: {
   const next = await loadComputerBasicsTree(true)
   if (opts?.node && !treeHasId(next, opts.node.id)) {
     throw new Error(
-      '分类接口写成功了，但读目录时这条不见了。请用本机 npm run dev:full 增删改，云端未绑定 KV 时不会把新目录写进会过期的缓存。',
+      '分类接口写成功了，但读目录时这条不见了。云端讲义库还没接上，请在电脑执行 npm run setup:cf-storage 后重新部署。',
     )
   }
   if (opts?.entry && !treeHasId(next, opts.entry.id)) {
     throw new Error(
-      '讲义接口写成功了，但读目录时这条不见了。请用本机 npm run dev:full 增删改，云端未绑定 KV 时不会把新目录写进会过期的缓存。',
+      '讲义接口写成功了，但读目录时这条不见了。云端讲义库还没接上，请在电脑执行 npm run setup:cf-storage 后重新部署。',
     )
   }
   tree.value = next

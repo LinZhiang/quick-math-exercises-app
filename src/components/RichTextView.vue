@@ -169,6 +169,13 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   font-weight: 600;
 }
 
+.rich-text-view :deep(pre),
+.rich-text-view :deep(pre code) {
+  word-break: normal;
+  overflow-wrap: normal;
+  white-space: pre;
+}
+
 .rich-text-view--docs :deep(.md-table-scroll:has(> pre)) {
   margin: 0.85em 0 1.25em;
   border-radius: 12px;
@@ -185,8 +192,9 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
   font-size: 14px;
   line-height: 1.7;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  width: max-content;
+  min-width: 100%;
+  box-sizing: border-box;
 }
 
 .rich-text-view--docs :deep(.md-table-scroll > pre) {

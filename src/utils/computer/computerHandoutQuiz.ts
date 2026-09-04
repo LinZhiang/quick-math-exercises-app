@@ -1,3 +1,5 @@
+import { judgeExplanationConflictsCorrect } from '@/utils/quiz/handoutQuizConsistency'
+
 export type ComputerQuizKind = 'choice' | 'judge' | 'calc' | 'short'
 
 export type ComputerQuizQuestion = {
@@ -418,6 +420,7 @@ export function parseComputerQuizAiItem(
 
   const correctText = options[correctIndex] ?? ''
   if (!correctText) return null
+  if (kind === 'judge' && judgeExplanationConflictsCorrect(correctText, explanation)) return null
   if (kind === 'choice' && stemAnswerQuantityClash(stem, correctText)) return null
   if (kind === 'choice') {
     const rest = options.filter((_, i) => i !== correctIndex)
