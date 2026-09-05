@@ -238,7 +238,7 @@ export async function requestFrontendHandoutQuiz(input: {
     '解析不要只抄讲义原句：先点明正确答案，再用自己的话把原理、易混点、记忆提示说清楚；不得编造与讲义矛盾的结论。',
     '英文缩写在题干和选项里只写缩写本身；全称、含义只写在 explanation。',
     '禁止使用 falsy、truthy 这类英文行话；写成「假值」「真值」，或直接写空字符串、0、NaN、null、undefined、false。',
-    '标识符、代码、进制前缀必须用 Markdown：代码块用 ```js ，行内如 `Number.MIN_VALUE`、`0x`/`0X`、`if("")`。禁止把斜杠/反斜杠写成 LaTeX 分式。',
+    '标识符、代码、进制前缀必须用 Markdown：完整代码用 ```js 代码块（语言名独占一行）；短关键字/表达式用行内反引号，如 `Number.MIN_VALUE`、`0x`/`0X`、`if("")`。禁止把斜杠/反斜杠写成 LaTeX 分式。',
   ].join('\n')
   const user = [
     `讲义标题：${input.title}`,
@@ -262,8 +262,12 @@ export async function requestFrontendHandoutQuiz(input: {
       ? [
           '【编程题·本讲义含代码/操作】',
           'H. 本轮至少一半题目必须是编程题：看代码写运行结果、填空、判断这段代码在做什么；其余用概念题把重点（如闭包）考到。',
-          'I. 代码必须写在 Markdown ```js 代码块里，或行内反引号；单一表达式也要用 ```js 代码块。',
+          'I. 完整程序必须用 Markdown 代码块，且围栏独占一行：先换行写 ```js ，下一行才是代码，最后单独一行 ```。禁止写成「阅读代码： ``` js」。短关键字只用行内反引号。',
           'J. 编程题必须改写讲义示例（换变量名、换数字、换运算符或表达式结构），禁止原样照抄讲义代码。改写后的运行结果必须自己算对。',
+          'K. 代码必须是完整可运行片段：用到的变量都要在片段里声明或赋值。禁止只写 console.log(e.message) 却不写 e 怎么来的。',
+          'L. 问运行结果/控制台输出时，correct 必须等于这段代码真正跑出来的值；字符串结果必须在代码字面量里出现过。',
+          'M. new Error() 无参时 message 是空字符串 ""，禁止把 Error / undefined 当成正确答案。',
+          'N. 解析不得写「严格来说选项都不对」「选项里没有空字符串」这类承认题目不严谨的话。',
         ].join('\n')
       : '本讲义若几乎没有代码、主要是概念定义，则以概念题为主，不要硬凑无材料的程序题。',
     '【干扰项·必须有迷惑性】',
@@ -281,12 +285,16 @@ export async function requestFrontendHandoutQuiz(input: {
     '7. 计算题只出一个结果、correct 只能是该结果短串。',
     '8. 禁止 falsy / truthy。',
     '9. 题干、选项禁止夹带缩写中文提示；全称放到 explanation。',
+    '10. 代码题必须自洽：片段完整、变量有来源、问输出则标答必须是真实运行结果。',
+    '11. 代码围栏必须换行写对，程序会丢掉转义失败或不严谨的题并重出。',
     avoidHint,
     '仅返回 JSON 数组。',
   ].filter(Boolean).join('\n')
-  const collect = (parsed: unknown[]) => {
+  const collect = (
+    parsed: unknown[],
+    seen: Set<string>,
+  ): import('@/utils/frontend/frontendHandoutQuiz').FrontendQuizQuestion[] => {
     const rawOut: import('@/utils/frontend/frontendHandoutQuiz').FrontendQuizQuestion[] = []
-    const seen = new Set<string>()
     for (const item of parsed) {
       const q = parseFrontendQuizAiItem(item, {
         itemId: input.itemId,
@@ -304,21 +312,31 @@ export async function requestFrontendHandoutQuiz(input: {
       explanation: q.explanation,
     }))
   }
-  const ask = async () => {
-    const raw = await deepseekChatRaw(user, {
+  const ask = async (need: number, extraAvoid: string[]) => {
+    const avoidAll = [...avoid, ...extraAvoid].filter(Boolean).slice(-50)
+    const roundHint = extraAvoid.length
+      ? `已丢掉不合格题。请再出 ${need} 道全新合格题补齐，不要重复下列题干：\n- ${avoidAll.join('\n- ')}`
+      : avoidHint
+    const roundUser = user
+      .replace(`请出 ${total} 道题`, `请出 ${need} 道题`)
+      .replace(avoidHint, roundHint)
+    const raw = await deepseekChatRaw(roundUser, {
       system,
-      temperature: 0.46,
-      maxTokens: Math.min(16384, 4096 + total * 320),
+      temperature: extraAvoid.length ? 0.55 : 0.46,
+      maxTokens: Math.min(16384, 4096 + need * 320),
       provider: input.provider,
     })
-    return collect(parseAiJsonArrayLenient(stripAiJsonFence(raw)))
+    return collect(parseAiJsonArrayLenient(stripAiJsonFence(raw)), new Set())
   }
-  let out = await ask()
-  if (out.length < Math.max(1, Math.ceil(total * 0.6))) {
-    input.onProgress?.('正在去掉不合格题并补出…')
-    const extra = await ask()
-    const seen = new Set(out.map((q) => q.fingerprint))
-    for (const q of extra) {
+  const seen = new Set<string>()
+  let out: import('@/utils/frontend/frontendHandoutQuiz').FrontendQuizQuestion[] = []
+  const maxRounds = 4
+  for (let round = 0; round < maxRounds && out.length < total; round += 1) {
+    if (round) input.onProgress?.('正在去掉不合格题并补出…')
+    const extraAvoid = out.map((q) => q.stem.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 48))
+    const need = round === 0 ? total : Math.max(total - out.length, 3)
+    const batch = await ask(need, extraAvoid)
+    for (const q of batch) {
       if (seen.has(q.fingerprint)) continue
       seen.add(q.fingerprint)
       out.push(q)
@@ -395,6 +413,8 @@ export async function requestFrontendQuizVariant(input: {
     '只输出合法 JSON 对象，不要 markdown 围栏，不要其它说明。',
     '考查同一知识点，换提问角度或选项表述，不要几乎照抄原题，也不要写出与原题结论矛盾的新说法。',
     '若原题是代码题，变式必须改写代码（换数/换变量/换运算符），并自行算对结果。',
+    '代码必须完整可运行：用到的变量都要在片段里出现；问输出时 correct 必须是真实运行结果。',
+    'new Error() 无参时 message 是空字符串，不要把 Error / undefined 当答案。',
     '禁止使用 falsy、truthy，改写为假值/真值或具体值。',
     '选择题 correct 必须是 options 里某一项的原文；判断题 correct 写「正确」或「错误」。',
     '有代码时用 Markdown ```js 代码块或行内反引号。',

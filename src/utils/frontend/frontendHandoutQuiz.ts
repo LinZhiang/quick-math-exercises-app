@@ -1,5 +1,6 @@
 import { markdownToDisplaySafeHtml } from '@/utils/markdown/markdownToHtml'
 import { highlightHandoutCodeHtml, shouldPromoteJsToBlock } from '@/utils/markdown/highlightHandoutCode'
+import { repairSameLineFenceOpeners, normalizeJsMarkdownFences, tidyJsFencesInMarkdown } from '@/utils/markdown/tidyJsCode'
 import { judgeExplanationConflictsCorrect } from '@/utils/quiz/handoutQuizConsistency'
 
 export type FrontendQuizKind = 'choice' | 'judge' | 'calc' | 'short'
@@ -238,10 +239,11 @@ export function polishFrontendQuizJargon(s: string): string {
 export function formatFrontendQuizRichHtml(text: string): string {
   const t = polishFrontendQuizJargon(String(text ?? '').trim())
   if (!t) return ''
-  if (/^</.test(t) || /<(p|pre|code|div|br|span)\b/i.test(t)) {
+  const hasFence = /```/.test(t)
+  if (!hasFence && (/^</.test(t) || /<(p|pre|code|div|br|span)\b/i.test(t))) {
     return highlightHandoutCodeHtml(t)
   }
-  let body = t
+  let body = tidyJsFencesInMarkdown(repairSameLineFenceOpeners(normalizeJsMarkdownFences(t)))
   if (!/```/.test(body) && !/[\u4e00-\u9fff]/.test(body) && shouldPromoteJsToBlock(body)) {
     body = `\`\`\`js\n${body}\n\`\`\``
   }
@@ -318,6 +320,150 @@ function parseKind(v: unknown): FrontendQuizKind | null {
 
 function compactText(s: string): string {
   return s.replace(/\s+/g, '')
+}
+
+const JS_KEYWORDS = new Set([
+  'const', 'let', 'var', 'function', 'class', 'if', 'else', 'for', 'while', 'do', 'switch', 'case',
+  'break', 'continue', 'return', 'try', 'catch', 'finally', 'throw', 'new', 'typeof', 'instanceof',
+  'in', 'of', 'void', 'delete', 'async', 'await', 'yield', 'import', 'export', 'default', 'extends',
+  'static', 'get', 'set', 'this', 'super', 'with', 'debugger', 'true', 'false', 'null', 'undefined',
+])
+
+const JS_BUILTINS = new Set([
+  'console', 'Error', 'TypeError', 'ReferenceError', 'SyntaxError', 'RangeError', 'URIError',
+  'JSON', 'Math', 'Number', 'String', 'Boolean', 'Array', 'Object', 'Date', 'Promise', 'Symbol',
+  'BigInt', 'Map', 'Set', 'WeakMap', 'WeakSet', 'RegExp', 'Proxy', 'Reflect', 'Intl', 'Atomics',
+  'parseInt', 'parseFloat', 'isNaN', 'isFinite', 'NaN', 'Infinity', 'eval', 'Function',
+  'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'window', 'document', 'globalThis',
+  'encodeURIComponent', 'decodeURIComponent', 'encodeURI', 'decodeURI', 'arguments',
+])
+
+function decodeQuizHtmlText(raw: string): string {
+  return String(raw ?? '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|pre|code|li)>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+}
+
+function extractJsFromQuizStem(stem: string): string {
+  const s = normalizeJsMarkdownFences(String(stem ?? ''))
+  const chunks: string[] = []
+  for (const m of s.matchAll(/```(?:javascript|js|typescript|ts|jsx|tsx)?[ \t]*\r?\n([\s\S]*?)```/gi)) {
+    chunks.push(m[1] ?? '')
+  }
+  for (const m of s.matchAll(/<pre[^>]*>[\s\S]*?<code[^>]*>([\s\S]*?)<\/code>[\s\S]*?<\/pre>/gi)) {
+    chunks.push(decodeQuizHtmlText(m[1] ?? ''))
+  }
+  if (!chunks.length) {
+    const joined = decodeQuizHtmlText(s)
+    if (/console\.|function\s+|new\s+Error\b|try\s*\{/.test(joined) && !/[\u4e00-\u9fff]{12,}/.test(joined)) {
+      chunks.push(joined)
+    }
+  }
+  return chunks.join('\n')
+}
+
+function stripJsStringsAndComments(js: string): string {
+  return js
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\/\/.*$/gm, ' ')
+    .replace(/`(?:\\.|[^`\\])*`/g, ' ')
+    .replace(/'(?:\\.|[^'\\])*'/g, ' ')
+    .replace(/"(?:\\.|[^"\\])*"/g, ' ')
+}
+
+function declaredJsNames(js: string): Set<string> {
+  const names = new Set<string>()
+  const add = (raw: string) => {
+    const n = raw.trim()
+    if (n) names.add(n)
+  }
+  for (const m of js.matchAll(/\b(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/g)) add(m[1] ?? '')
+  for (const m of js.matchAll(/\bcatch\s*\(\s*([A-Za-z_$][\w$]*)/g)) add(m[1] ?? '')
+  for (const m of js.matchAll(/\bfunction(?:\s+[A-Za-z_$][\w$]*)?\s*\(([^)]*)\)/g)) {
+    for (const p of String(m[1] ?? '').split(',')) add(p.replace(/=[\s\S]*/, '').trim())
+  }
+  for (const m of js.matchAll(/\(([^)]*)\)\s*=>/g)) {
+    for (const p of String(m[1] ?? '').split(',')) add(p.replace(/=[\s\S]*/, '').trim())
+  }
+  for (const m of js.matchAll(/(?:^|[^\w$])([A-Za-z_$][\w$]*)\s*=>/g)) add(m[1] ?? '')
+  return names
+}
+
+function undeclaredJsIdentifiers(js: string): string[] {
+  const declared = declaredJsNames(js)
+  const body = stripJsStringsAndComments(js)
+  const used: string[] = []
+  const re = /(^|[^.\w$])([A-Za-z_$][\w$]*)\b/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(body))) {
+    const name = m[2] ?? ''
+    if (!name || JS_KEYWORDS.has(name) || JS_BUILTINS.has(name) || declared.has(name)) continue
+    if (!used.includes(name)) used.push(name)
+  }
+  return used
+}
+
+function isRuntimeOutputQuestion(stem: string, js: string): boolean {
+  const t = String(stem ?? '')
+  if (/(运行后|运行结果|控制台输出|输出的是|会输出|打印出|输出什么)/.test(t)) return true
+  return /console\.log/.test(js) && /输出/.test(t)
+}
+
+function looksTruncatedJs(js: string): boolean {
+  const t = js.trim()
+  if (!t) return false
+  if (/^[sS]\s+(?:var|let|const|function|try|console)\b/.test(t)) return true
+  if (/\b(?:co|con|cons|consol|console\.[a-z]{0,2})$/.test(t)) return true
+  if (/[=(,]\s*$/.test(t)) return true
+  const open = (t.match(/\{/g) || []).length
+  const close = (t.match(/\}/g) || []).length
+  return open > close
+}
+
+function emptyErrorMessageInJs(js: string): boolean {
+  if (!/\.message\b/.test(js)) return false
+  const hasText = /new\s+Error\s*\(\s*['"`][^'"`]+['"`]/.test(js)
+  if (hasText) return false
+  return /new\s+Error\s*(?:\(|;)/.test(js)
+}
+
+function isEmptyStringAnswer(ans: string): boolean {
+  const t = compactText(ans).replace(/[“”‘’]/g, '"')
+  return /^(空字符串|空串|""|''|``)$/.test(t) || t === '""'
+}
+
+/** 代码题缺上下文、结果算错、解析承认不严谨 → 整题作废。 */
+export function frontendQuizItemUnrigorous(input: {
+  stem: string
+  correctText: string
+  explanation?: string
+  options?: string[]
+}): boolean {
+  const stem = String(input.stem ?? '')
+  const correct = String(input.correctText ?? '')
+  const explanation = String(input.explanation ?? '')
+  const js = extractJsFromQuizStem(stem)
+  if (/```/.test(stem)) {
+    const html = formatFrontendQuizRichHtml(stem)
+    const visible = decodeQuizHtmlText(html)
+    if (/```/.test(visible)) return true
+  }
+  if (/严格来说.{0,24}(错|不对)|选项里没有|如果选项不包含|都是错的|都不对/.test(explanation)) return true
+  if (!js.trim()) return false
+  if (looksTruncatedJs(js)) return true
+  const runtime = isRuntimeOutputQuestion(stem, js)
+  if (runtime && undeclaredJsIdentifiers(js).length) return true
+  const ansPlain = frontendQuizPlainText(correct).replace(/^[`'"]+|[`'"]+$/g, '').trim()
+  if (runtime && /[\u4e00-\u9fff]/.test(ansPlain) && !js.includes(ansPlain)) return true
+  if (runtime && emptyErrorMessageInJs(js) && !isEmptyStringAnswer(correct)) return true
+  return false
 }
 
 function negatedSnippets(exp: string): string[] {
@@ -507,6 +653,7 @@ export function parseFrontendQuizAiItem(
     ) {
       nextKind = 'short'
     }
+    if (frontendQuizItemUnrigorous({ stem, correctText, explanation })) return null
     return {
       fingerprint: buildFrontendQuizFingerprint({ kind: nextKind, stem, correctText }),
       kind: nextKind,
@@ -580,6 +727,7 @@ export function parseFrontendQuizAiItem(
   if (!correctText) return null
   if (kind === 'judge' && judgeExplanationConflictsCorrect(correctText, explanation)) return null
   if (kind === 'choice' && stemAnswerQuantityClash(stem, correctText)) return null
+  if (frontendQuizItemUnrigorous({ stem, correctText, explanation, options })) return null
   if (kind === 'choice') {
     const rest = options.filter((_, i) => i !== correctIndex)
     options = shuffleInPlace([correctText, ...rest])

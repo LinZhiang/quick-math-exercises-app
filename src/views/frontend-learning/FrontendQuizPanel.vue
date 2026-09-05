@@ -483,9 +483,10 @@ const quizAskQuestion = computed((): FrontendAskQuestionContext | null => {
 .cb-quiz__stem {
   min-width: 0;
   max-width: 100%;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 10px;
-  background: var(--app-surface-alt);
+  background: #d7e0ea;
+  border: 1px solid #c5d0dc;
 }
 
 .cb-quiz__short.is-locked {

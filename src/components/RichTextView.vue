@@ -112,8 +112,8 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   font-size: 0.92em;
   padding: 0.08em 0.28em;
   border-radius: 4px;
-  background: #1e1e1e;
-  color: #e5e7eb;
+  background: #f1f5f9;
+  color: inherit;
 }
 
 .rich-text-view--docs {
@@ -162,34 +162,32 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   color: #94a3b8;
 }
 
-.rich-text-view--docs :deep(:not(pre) > code),
-.rich-text-view--docs :deep(code.hl-inline) {
+.rich-text-view--docs :deep(:not(pre) > code) {
   padding: 0.12em 0.42em;
-  border-radius: 5px;
-  background: #1e1e1e;
-  color: #e5e7eb;
+  border-radius: 4px;
+  background: #fdecee;
+  color: #c43b66;
   font-size: 0.9em;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .rich-text-view :deep(pre),
-.rich-text-view :deep(pre code),
-.rich-text-view :deep(pre *) {
-  word-break: normal;
-  overflow-wrap: normal;
-  word-wrap: normal;
+.rich-text-view :deep(pre code) {
+  word-break: break-word;
+  overflow-wrap: anywhere;
   hyphens: none;
 }
 
 .rich-text-view :deep(pre) {
-  white-space: pre;
+  white-space: pre-wrap;
 }
 
 .rich-text-view :deep(pre code) {
   white-space: inherit;
   display: block;
-  width: max-content;
-  min-width: 100%;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .rich-text-view--docs :deep(.md-table-scroll:has(> pre)) {
@@ -214,11 +212,12 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
   font-size: 14px;
   line-height: 1.7;
-  width: max-content;
-  min-width: 100%;
-  max-width: none;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
   box-sizing: border-box;
   overflow-x: visible;
+  white-space: pre-wrap;
 }
 
 .rich-text-view--docs :deep(.md-table-scroll > pre) {
