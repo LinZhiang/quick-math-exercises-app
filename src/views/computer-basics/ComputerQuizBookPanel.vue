@@ -14,10 +14,12 @@ import {
   type ComputerQuizBookTreeNode,
 } from '@/utils/computer/computerQuizBookTree'
 import { loadComputerBasicsTree, type ComputerTreeNode } from '@/utils/computer/computerBasics'
+import ComputerBusyHint from './ComputerBusyHint.vue'
 
 const router = useRouter()
 const tab = ref<'wrong' | 'favorite'>('wrong')
 const catalog = ref<ComputerTreeNode[]>([])
+const loading = ref(true)
 const expanded = ref<Record<string, boolean>>({})
 
 const wrongs = computed(() => {
@@ -66,6 +68,8 @@ onMounted(async () => {
     catalog.value = await loadComputerBasicsTree()
   } catch {
     catalog.value = []
+  } finally {
+    loading.value = false
   }
 })
 </script>
@@ -79,7 +83,10 @@ onMounted(async () => {
       </el-radio-group>
     </div>
 
-    <p v-if="!sourceRows.length" class="cb-book__empty">
+    <div v-if="loading" class="computer-busy-panel">
+      <ComputerBusyHint text="正在读取题目分类…" />
+    </div>
+    <p v-else-if="!sourceRows.length" class="cb-book__empty">
       暂无记录。在目录或讲义里点「AI测验」作答后会出现在这里。
     </p>
     <template v-else>
@@ -133,6 +140,14 @@ onMounted(async () => {
 
 .cb-book__tabs {
   flex-shrink: 0;
+}
+
+.computer-busy-panel {
+  flex: 1 1 0;
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .cb-book__empty,

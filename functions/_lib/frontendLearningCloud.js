@@ -158,6 +158,35 @@ async function writeCatalog(env, tree) {
   await markFlStoreUserOwned(store)
 }
 
+function shortHash(text) {
+  let h = 2166136261
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return (h >>> 0).toString(36)
+}
+
+function catalogRevision(raw) {
+  const at = String(raw?.updatedAt || raw?.seededAt || '').trim()
+  if (at) return { revision: at, updatedAt: at }
+  try {
+    const s = JSON.stringify(raw?.tree ?? [])
+    const revision = `snap:${s.length}:${shortHash(s)}`
+    return { revision, updatedAt: '' }
+  } catch {
+    return { revision: 'snap:0', updatedAt: '' }
+  }
+}
+
+function stampItem(item, id) {
+  return { ...item, id, updatedAt: new Date().toISOString() }
+}
+
+async function putItemRecord(env, id, item) {
+  await putRecord(env, itemKey(id), JSON.stringify(stampItem(item, id)))
+}
+
 async function putRecord(env, key, value, opts) {
   const store = getStore(env)
   if (!store) throw new Error('云端存储不可用')
@@ -280,7 +309,7 @@ async function rewriteLearningPath(env, request, tree, itemId) {
   if (!rec) return
   const hit = findEntry(tree, itemId)
   rec.learningPath = hit ? pathNamesTo(tree, hit.node.id) ?? [hit.node.name] : rec.learningPath
-  await putRecord(env, itemKey(itemId), JSON.stringify({ ...rec, id: itemId }))
+  await putItemRecord(env, itemId, rec)
 }
 
 async function nextMediaIndex(env, itemId) {
@@ -361,11 +390,21 @@ export async function handleFrontendLearning(env, request, pathParam) {
   const segs = pathSegs(pathParam)
   const method = request.method.toUpperCase()
   try {
+    if (method === 'GET' && segs[0] === 'revision' && segs.length === 1) {
+      await ensureStore(env, request)
+      const raw = await readRawCatalog(env, request)
+      return json({ ok: true, ...catalogRevision(raw) })
+    }
+
     if (method === 'GET' && segs[0] === 'tree' && segs.length === 1) {
       await ensureStore(env, request)
       const raw = await readRawCatalog(env, request)
       const tree = Array.isArray(raw.tree) ? raw.tree : []
-      return json({ ok: true, tree: await applyReadyFlags(env, tree, request) })
+      return json({
+        ok: true,
+        tree: await applyReadyFlags(env, tree, request),
+        ...catalogRevision(raw),
+      })
     }
 
     if (method === 'GET' && segs[0] === 'items' && segs.length === 2) {
@@ -448,7 +487,7 @@ async function handleImport(env, request) {
   for (const [id, item] of Object.entries(items)) {
     const safe = safeId(id)
     if (!safe || !item || typeof item !== 'object') continue
-    await store.put(itemKey(safe), JSON.stringify({ ...item, id: safe }))
+    await putItemRecord(env, safe, { ...item, id: safe })
   }
   for (const [file, b64] of Object.entries(media)) {
     const name = safeId(file)
@@ -553,7 +592,7 @@ async function handleCreateItem(env, request) {
     tags: Array.isArray(body.tags) ? body.tags.map(String) : ['讲义', hit.node.name],
     content,
   }
-  await putRecord(env, itemKey(id), JSON.stringify(item))
+  await putItemRecord(env, id, item)
   hit.node.entries.push({ id, title, ready: true, type })
   await writeCatalog(env, catalog.tree)
   return json({ ok: true, item })
@@ -593,7 +632,7 @@ async function handlePatchItem(env, request, idRaw) {
     content,
     tags: Array.isArray(body.tags) ? body.tags.map(String) : current.tags,
   }
-  await putRecord(env, itemKey(id), JSON.stringify(item))
+  await putItemRecord(env, id, item)
   const catalog = await readRawCatalog(env, request)
   const hit = findEntry(catalog.tree, id)
   if (hit) {

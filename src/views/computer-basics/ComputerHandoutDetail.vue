@@ -406,42 +406,42 @@ watch(photoOpen, (open) => {
     :class="{ 'is-full': fullscreen, 'is-quiz': quizOpen && !editing && !photoOpen }"
   >
     <header v-if="!(quizOpen && !editing && !photoOpen)" class="computer-detail__top">
-      <div v-if="!headCollapsed" class="computer-detail__titles">
-        <p v-if="item.learningPath.length" class="computer-detail__crumb">
-          {{ item.learningPath.join(' / ') }}
-        </p>
-        <h2 class="computer-detail__title">{{ item.title }}</h2>
-      </div>
-      <div class="computer-detail__actions">
-        <div class="computer-detail__tools">
-          <el-tooltip :content="headCollapsed ? '展开标题' : '收起标题'" placement="top">
-            <el-button
-              size="small"
-              circle
-              :icon="ArrowUp"
-              :class="{ 'is-collapsed': headCollapsed }"
-              @click="headCollapsed = !headCollapsed"
-            />
-          </el-tooltip>
-          <el-tooltip :content="fullscreen ? '退出全屏' : '全屏'" placement="top">
-            <el-button size="small" circle :icon="FullScreen" @click="fullscreen = !fullscreen" />
-          </el-tooltip>
-          <el-tooltip content="导出文档" placement="top">
-            <el-button size="small" circle :icon="Download" @click="exportMarkdown" />
-          </el-tooltip>
-          <el-tooltip v-if="isAdmin && !editing" content="编辑讲义" placement="top">
-            <el-button size="small" circle type="primary" :icon="EditPen" @click="startEdit" />
-          </el-tooltip>
-          <el-tooltip v-if="isAdmin" content="删除讲义" placement="top">
-            <el-button size="small" circle type="danger" plain :icon="Delete" @click="onDeleteCurrent" />
-          </el-tooltip>
-          <el-button size="small" type="primary" plain :disabled="editing" @click="quizOpen = true">
-            AI 测验
-          </el-button>
-        </div>
-        <div v-if="isAdmin && editing && !photoOpen" class="computer-detail__edit-btns">
-          <el-button size="small" @click="cancelEdit">取消</el-button>
-          <el-button size="small" type="primary" :loading="saving" @click="saveEdit">保存</el-button>
+      <p v-if="!headCollapsed && item.learningPath.length" class="computer-detail__crumb">
+        {{ item.learningPath.join(' / ') }}
+      </p>
+      <div class="computer-detail__title-row">
+        <h2 v-if="!headCollapsed" class="computer-detail__title">{{ item.title }}</h2>
+        <div class="computer-detail__actions">
+          <div class="computer-detail__tools">
+            <el-tooltip :content="headCollapsed ? '展开标题' : '收起标题'" placement="top">
+              <el-button
+                size="small"
+                circle
+                :icon="ArrowUp"
+                :class="{ 'is-collapsed': headCollapsed }"
+                @click="headCollapsed = !headCollapsed"
+              />
+            </el-tooltip>
+            <el-tooltip :content="fullscreen ? '退出全屏' : '全屏'" placement="top">
+              <el-button size="small" circle :icon="FullScreen" @click="fullscreen = !fullscreen" />
+            </el-tooltip>
+            <el-tooltip content="导出文档" placement="top">
+              <el-button size="small" circle :icon="Download" @click="exportMarkdown" />
+            </el-tooltip>
+            <el-tooltip v-if="isAdmin && !editing" content="编辑讲义" placement="top">
+              <el-button size="small" circle type="primary" :icon="EditPen" @click="startEdit" />
+            </el-tooltip>
+            <el-tooltip v-if="isAdmin" content="删除讲义" placement="top">
+              <el-button size="small" circle type="danger" plain :icon="Delete" @click="onDeleteCurrent" />
+            </el-tooltip>
+            <el-button size="small" type="primary" plain :disabled="editing" @click="quizOpen = true">
+              AI 测验
+            </el-button>
+          </div>
+          <div v-if="isAdmin && editing && !photoOpen" class="computer-detail__edit-btns">
+            <el-button size="small" @click="cancelEdit">取消</el-button>
+            <el-button size="small" type="primary" :loading="saving" @click="saveEdit">保存</el-button>
+          </div>
         </div>
       </div>
     </header>
@@ -648,10 +648,17 @@ watch(photoOpen, (open) => {
 
 .computer-detail__top {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.computer-detail__title-row {
+  display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px 12px;
 }
 
 .computer-detail__crumb {
@@ -662,6 +669,8 @@ watch(photoOpen, (open) => {
 
 .computer-detail__title {
   margin: 0;
+  min-width: 0;
+  flex: 1 1 auto;
   font-size: 1.28rem;
   font-weight: 800;
 }
@@ -671,8 +680,9 @@ watch(photoOpen, (open) => {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  flex: 1 1 12rem;
+  flex: 0 0 auto;
   min-width: 0;
+  margin-left: auto;
 }
 
 .computer-detail__tools {
@@ -873,22 +883,13 @@ watch(photoOpen, (open) => {
     padding: 16px 20px 18px;
   }
 
-  .computer-detail__top {
+  .computer-detail__title-row {
     flex-wrap: nowrap;
-    align-items: center;
-  }
-
-  .computer-detail__actions {
-    flex: 0 1 auto;
-    min-width: auto;
-  }
-
-  .computer-detail__titles {
-    min-width: 0;
-    flex: 1 1 auto;
   }
 
   .computer-detail__title {
+    min-width: 0;
+    flex: 1 1 auto;
     font-size: 1.42rem;
     overflow: hidden;
     text-overflow: ellipsis;

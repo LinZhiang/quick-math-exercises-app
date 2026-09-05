@@ -107,12 +107,13 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   margin: 0 0 0.6em;
 }
 
-.rich-text-view :deep(:not(pre) > code) {
+  .rich-text-view :deep(:not(pre) > code) {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
   font-size: 0.92em;
   padding: 0.08em 0.28em;
   border-radius: 4px;
-  background: #f1f5f9;
+  background: #1e1e1e;
+  color: #e5e7eb;
 }
 
 .rich-text-view--docs {
@@ -161,13 +162,14 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   color: #94a3b8;
 }
 
-.rich-text-view--docs :deep(:not(pre) > code) {
+.rich-text-view--docs :deep(:not(pre) > code),
+.rich-text-view--docs :deep(code.hl-inline) {
   padding: 0.12em 0.42em;
-  border-radius: 4px;
-  background: #fdecee;
-  color: #c43b66;
+  border-radius: 5px;
+  background: #1e1e1e;
+  color: #e5e7eb;
   font-size: 0.9em;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .rich-text-view :deep(pre),
@@ -230,39 +232,36 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   color: inherit;
 }
 
-.rich-text-view--docs :deep(.tok-kw) {
+.rich-text-view :deep(.tok-kw) {
   color: #f472b6;
   font-weight: 650;
 }
 
-.rich-text-view--docs :deep(.tok-fn) {
+.rich-text-view :deep(.tok-fn) {
   color: #fbbf24;
 }
 
-.rich-text-view--docs :deep(.tok-ty) {
+.rich-text-view :deep(.tok-ty) {
   color: #7dd3fc;
 }
 
-.rich-text-view--docs :deep(.tok-str),
-.rich-text-view--docs :deep(.tok-tmpl) {
+.rich-text-view :deep(.tok-str),
+.rich-text-view :deep(.tok-tmpl) {
   color: #86efac;
 }
 
-.rich-text-view--docs :deep(.tok-cmt) {
+.rich-text-view :deep(.tok-cmt) {
   color: #a3e635;
   font-style: italic;
 }
 
-.rich-text-view--docs :deep(.tok-num),
-.rich-text-view--docs :deep(.tok-lit) {
+.rich-text-view :deep(.tok-num),
+.rich-text-view :deep(.tok-lit) {
   color: #c4b5fd;
 }
 
-.rich-text-view--docs :deep(.tok-op) {
-  color: #e5e7eb;
-}
-
-.rich-text-view--docs :deep(.tok-id) {
+.rich-text-view :deep(.tok-op),
+.rich-text-view :deep(.tok-id) {
   color: #e5e7eb;
 }
 

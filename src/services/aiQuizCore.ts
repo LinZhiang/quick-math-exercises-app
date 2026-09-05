@@ -213,30 +213,38 @@ export async function requestFrontendHandoutQuiz(input: {
     totalFrontendQuizCount,
     extractFrontendQuizSources,
     frontendHandoutLooksLikeProgramming,
+    extractFrontendHandoutKeyPoints,
+    materialForFrontendQuiz,
   } = await import('@/utils/frontend/frontendHandoutQuiz')
   const total = totalFrontendQuizCount(input.counts)
   if (total <= 0) throw new Error('请至少设置 1 道题')
   input.onProgress?.(aiRequestProgressText('前端学习测验', input.provider))
-  const avoid = (input.avoidStems ?? []).filter(Boolean).slice(-24)
+  const avoid = (input.avoidStems ?? []).filter(Boolean).slice(-40)
   const avoidHint = avoid.length
-    ? `不要出与下列题干相近的题：\n- ${avoid.join('\n- ')}`
-    : '本轮题干、考点组合不要彼此雷同。'
+    ? `不要出与下列题干或考点相近的题（必须换考点或换问法，禁止只改数字）：\n- ${avoid.join('\n- ')}`
+    : '本轮题干、考点、问法不要彼此雷同；禁止连续 3 题同一套路。'
   const allowedSources = extractFrontendQuizSources(input.material)
   const allowedSourceIds = allowedSources.map((x) => x.id)
   const codingHeavy = frontendHandoutLooksLikeProgramming(input.material)
+  const keyPoints = extractFrontendHandoutKeyPoints(input.material)
+  const keyPointBlock = keyPoints.length
+    ? `【本讲义重点·必须先覆盖】\n${keyPoints.map((p, i) => `${i + 1}. ${p}`).join('\n')}\n前 ${Math.min(keyPoints.length, total)} 题必须分别打在这些重点上，每项至少 1 题。重点还没出完时，禁止出冷门 API / 边角细节。`
+    : '先通读全文，自行列出 3～8 个重点（标题、加粗、定义、易混对比），再按重点出题。'
   const system = [
     '你是前端（JavaScript / ES6）命题老师，专出高频、实用、易错考点题。只根据给定讲义出题，用简体中文。',
+    '出题前必须把讲义全部看完，先找重点再出题，而不是只盯着开头几段示例。',
     '只输出合法 JSON 数组，不要 markdown 围栏，不要其它说明。',
-    '选题必须分清轻重：先考讲义加粗、定义、易混对比、每天写代码会用到的内容；禁止把实际很少用的边角 API、冷门参数、无区分度细节反复出题，更禁止因此漏掉重点。',
     '解析必须证明 correct，不允许标答与解析打架，也不允许本轮题目之间互相矛盾。',
     '解析不要只抄讲义原句：先点明正确答案，再用自己的话把原理、易混点、记忆提示说清楚；不得编造与讲义矛盾的结论。',
     '英文缩写在题干和选项里只写缩写本身；全称、含义只写在 explanation。',
+    '禁止使用 falsy、truthy 这类英文行话；写成「假值」「真值」，或直接写空字符串、0、NaN、null、undefined、false。',
     '标识符、代码、进制前缀必须用 Markdown：代码块用 ```js ，行内如 `Number.MIN_VALUE`、`0x`/`0X`、`if("")`。禁止把斜杠/反斜杠写成 LaTeX 分式。',
   ].join('\n')
   const user = [
     `讲义标题：${input.title}`,
+    keyPointBlock,
     '讲义正文：',
-    input.material.slice(0, 9000),
+    materialForFrontendQuiz(input.material),
     '',
     `请出 ${total} 道题，数量：选择题 ${input.counts.choice}，判断题 ${input.counts.judge}（二选一：正确/错误），计算题 ${input.counts.calc}，简答题 ${input.counts.short}。`,
     '字段：kind(choice|judge|calc|short), term(考点短名), stem, options(选择题必须 4 项), distractors(可选，3 个干扰项), correct, explanation。',
@@ -247,14 +255,15 @@ export async function requestFrontendHandoutQuiz(input: {
     '【简答题 short】考特点、区别、原理等需要组织语言的内容。correct 写参考要点。',
     '选择题 correct 必须是 options 里某一项的原文；判断题 correct 写「正确」或「错误」。',
     '【选题优先·必须遵守】',
-    'A. 先从讲义抽出 3～6 个重点，按权重排序：①加粗/标题 ②定义与易混对比 ③高频实战（日常开发会用）④考试常考。',
-    'B. 本轮必须先打在这些重点上；重点还没出完时，禁止出冷门、低使用度内容。同一冷门细节整轮最多 1 题。',
-    'C. 一题只考一个重点；同一轮不要重复同一考点。',
+    'A. 先覆盖上面列出的重点（含概念题：定义、作用、易混对比），再考虑其它。',
+    'B. 同一冷门细节整轮最多 1 题。一题只考一个重点；同一轮不要重复同一考点。',
+    'C. 重新生成时必须换考点或换问法，不能只把数字/变量名改一下。',
     codingHeavy
       ? [
-          '【编程题·本讲义含代码/操作，必须出】',
-          'H. 本轮至少一半题目必须是编程题，而不是名词定义：看代码写运行结果、空缺处怎么填、判断这段代码在做什么。',
-          'I. 代码必须写在 stem/options/explanation 的 Markdown ```js 代码块里，或行内反引号；不要把多行代码挤成一句纯文本。',
+          '【编程题·本讲义含代码/操作】',
+          'H. 本轮至少一半题目必须是编程题：看代码写运行结果、填空、判断这段代码在做什么；其余用概念题把重点（如闭包）考到。',
+          'I. 代码必须写在 Markdown ```js 代码块里，或行内反引号；单一表达式也要用 ```js 代码块。',
+          'J. 编程题必须改写讲义示例（换变量名、换数字、换运算符或表达式结构），禁止原样照抄讲义代码。改写后的运行结果必须自己算对。',
         ].join('\n')
       : '本讲义若几乎没有代码、主要是概念定义，则以概念题为主，不要硬凑无材料的程序题。',
     '【干扰项·必须有迷惑性】',
@@ -266,10 +275,11 @@ export async function requestFrontendHandoutQuiz(input: {
     '1. 选择题 correct 必须写正确选项的全文，禁止写 A/B/C/D 或 1/2/3/4。',
     '2. 选项顺序随意，程序会打乱；不要把干扰项写成 correct。',
     '3. 题干、选项、correct、解析必须是同一道题。禁止题干问甲、答案却是乙。',
-    '4. 解析先点明正确答案；解析支持另一选项即作废。判断题：题干断言、correct、解析的对错极性必须一致（例如题干说空字符串会转为 true 且判「错误」时，解析必须说明它是 falsy / 不会执行，不能再写成会执行）。',
+    '4. 解析第一句必须点明正确答案（与 correct 字段一致）；解析支持另一选项即作废。判断题：题干断言、correct、解析的对错极性必须一致。',
     '5. 考点必须能在讲义中找到原句或等价表述。',
-    '6. 本轮题目之间不得互相矛盾（例如一题说 Number.MIN_VALUE 是最接近 0 的最小正数，另一题又说它是 -MAX_VALUE；一题说空字符串 falsy，另一题又说它是 true）。',
+    '6. 本轮题目之间不得互相矛盾。',
     '7. 计算题只出一个结果、correct 只能是该结果短串。',
+    '8. 禁止 falsy / truthy。',
     '9. 题干、选项禁止夹带缩写中文提示；全称放到 explanation。',
     avoidHint,
     '仅返回 JSON 数组。',
@@ -297,7 +307,7 @@ export async function requestFrontendHandoutQuiz(input: {
   const ask = async () => {
     const raw = await deepseekChatRaw(user, {
       system,
-      temperature: 0.38,
+      temperature: 0.46,
       maxTokens: Math.min(16384, 4096 + total * 320),
       provider: input.provider,
     })
@@ -384,6 +394,8 @@ export async function requestFrontendQuizVariant(input: {
     '你是前端（JavaScript / ES6）命题老师，专门根据原题生成变式题。',
     '只输出合法 JSON 对象，不要 markdown 围栏，不要其它说明。',
     '考查同一知识点，换提问角度或选项表述，不要几乎照抄原题，也不要写出与原题结论矛盾的新说法。',
+    '若原题是代码题，变式必须改写代码（换数/换变量/换运算符），并自行算对结果。',
+    '禁止使用 falsy、truthy，改写为假值/真值或具体值。',
     '选择题 correct 必须是 options 里某一项的原文；判断题 correct 写「正确」或「错误」。',
     '有代码时用 Markdown ```js 代码块或行内反引号。',
     '计算题 correct 只写最终结果短串；简答题 correct 写参考要点。',

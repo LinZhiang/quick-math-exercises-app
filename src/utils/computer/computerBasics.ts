@@ -1,3 +1,12 @@
+import {
+  invalidateHandoutRevisionMemo,
+  peekHandoutRevision,
+  readHandoutCachedItem,
+  readHandoutCachedTree,
+  rememberHandoutRevision,
+  writeHandoutCachedItem,
+  writeHandoutCachedTree,
+} from '@/utils/app/handoutDiskCache'
 import { markdownToDisplaySafeHtml } from '@/utils/markdown/markdownToHtml'
 import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
 import { readWenguJsonResponse, wenguApiFetch } from '@/utils/computer/wenguApiFetch'
@@ -206,10 +215,13 @@ export function computerContentToHtml(raw: string): string {
 
 let treeCache: ComputerTreeNode[] | null = null
 const itemCache = new Map<string, ComputerHandoutItem>()
+let sessionRevision = ''
 
 export function clearComputerBasicsCache() {
   treeCache = null
   itemCache.clear()
+  sessionRevision = ''
+  invalidateHandoutRevisionMemo('computer')
 }
 
 async function computerAdminFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -368,29 +380,110 @@ export async function moveComputerItem(id: string, input: { parentId: string; in
   clearComputerBasicsCache()
 }
 
+function rememberComputerRevision(revision: string) {
+  const stamp = String(revision || '').trim()
+  if (!stamp) return
+  if (sessionRevision && sessionRevision !== stamp) itemCache.clear()
+  sessionRevision = stamp
+  rememberHandoutRevision('computer', stamp)
+}
+
 export async function loadComputerBasicsTree(force = false): Promise<ComputerTreeNode[]> {
-  if (treeCache && !force) return treeCache
+  if (!force) {
+    const remote = await peekHandoutRevision('computer')
+    if (remote.status === 'ok') {
+      if (treeCache && sessionRevision === remote.revision) return treeCache
+      const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer')
+      if (disk && disk.revision === remote.revision) {
+        rememberComputerRevision(remote.revision)
+        treeCache = disk.tree
+        return treeCache
+      }
+    } else if (remote.status === 'offline') {
+      if (treeCache) return treeCache
+      const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer')
+      if (disk) {
+        rememberComputerRevision(disk.revision)
+        treeCache = disk.tree
+        return treeCache
+      }
+    }
+  }
+
   const res = await wenguApiFetch('/api/computer-basics/tree')
-  const data = await readWenguJsonResponse<{ ok?: boolean; tree?: ComputerTreeNode[]; message?: string }>(
-    res,
-  )
+  const data = await readWenguJsonResponse<{
+    ok?: boolean
+    tree?: ComputerTreeNode[]
+    revision?: string
+    message?: string
+  }>(res)
   if (!res.ok || !data.ok || !Array.isArray(data.tree)) {
+    if (!force) {
+      if (treeCache) return treeCache
+      const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer')
+      if (disk) {
+        rememberComputerRevision(disk.revision)
+        treeCache = disk.tree
+        return treeCache
+      }
+    }
     throw new Error(data.message || `读取目录失败（HTTP ${res.status}）`)
   }
   treeCache = data.tree
+  let revision = String(data.revision || '').trim()
+  if (!revision) {
+    const peek = await peekHandoutRevision('computer')
+    if (peek.status === 'ok') revision = peek.revision
+  }
+  if (revision) {
+    rememberComputerRevision(revision)
+    writeHandoutCachedTree('computer', revision, data.tree)
+  }
   return treeCache
 }
 
 export async function loadComputerBasicsItem(id: string, force = false): Promise<ComputerHandoutItem> {
   const key = String(id || '').trim()
   if (!key) throw new Error('缺少讲义编号')
-  const cached = itemCache.get(key)
-  if (cached && !force) return cached
+
+  if (!force) {
+    const remote = await peekHandoutRevision('computer')
+    if (remote.status === 'ok') {
+      const cached = itemCache.get(key)
+      if (cached && sessionRevision === remote.revision) return cached
+      const disk = await readHandoutCachedItem<ComputerHandoutItem>('computer', key)
+      if (disk && disk.revision === remote.revision) {
+        rememberComputerRevision(remote.revision)
+        itemCache.set(key, disk.item)
+        return disk.item
+      }
+    } else if (remote.status === 'offline') {
+      const cached = itemCache.get(key)
+      if (cached) return cached
+      const disk = await readHandoutCachedItem<ComputerHandoutItem>('computer', key)
+      if (disk) {
+        rememberComputerRevision(disk.revision)
+        itemCache.set(key, disk.item)
+        return disk.item
+      }
+    }
+  }
+
   const res = await wenguApiFetch(`/api/computer-basics/items/${encodeURIComponent(key)}`)
   const data = await readWenguJsonResponse<{ ok?: boolean; item?: ComputerHandoutItem; message?: string }>(
     res,
   )
   if (!res.ok || !data.ok || !data.item) {
+    if (!force) {
+      const cached = itemCache.get(key)
+      if (cached) return cached
+      const disk = await readHandoutCachedItem<ComputerHandoutItem>('computer', key)
+      if (disk) {
+        rememberComputerRevision(disk.revision)
+        itemCache.set(key, disk.item)
+        return disk.item
+      }
+    }
     throw new Error(data.message || `读取讲义失败（HTTP ${res.status}）`)
   }
   const item = {
@@ -398,5 +491,11 @@ export async function loadComputerBasicsItem(id: string, force = false): Promise
     content: rewriteComputerMediaUrls(data.item.content ?? ''),
   }
   itemCache.set(key, item)
+  const peek = await peekHandoutRevision('computer')
+  const stamp = peek.status === 'ok' ? peek.revision : sessionRevision
+  if (stamp) {
+    rememberComputerRevision(stamp)
+    writeHandoutCachedItem('computer', key, stamp, item)
+  }
   return item
 }

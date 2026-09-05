@@ -18,6 +18,7 @@ import {
 } from '@/utils/frontend/frontendHandoutQuizNotes'
 import {
   frontendQuizKindLabel,
+  frontendQuizPlainText,
   sanitizeFrontendQuizForDisplay,
   type FrontendQuizQuestion,
 } from '@/utils/frontend/frontendHandoutQuiz'
@@ -38,7 +39,7 @@ const route = useRoute()
 const router = useRouter()
 const catalog = ref<FrontendTreeNode[]>([])
 const loading = ref(true)
-const openFp = ref('')
+const detailIndex = ref(-1)
 const filterWrongCount = ref<number | undefined>()
 const filterDate = ref<string | undefined>()
 const noteDraft = ref('')
@@ -131,10 +132,33 @@ function resetNoteEdit() {
   noteSaving.value = false
 }
 
-function toggleOpen(fp: string) {
-  openFp.value = openFp.value === fp ? '' : fp
+const detailRow = computed(() => filteredRows.value[detailIndex.value] ?? null)
+
+function rowListTitle(row: StoredFrontendQuizRecord) {
+  const term = frontendQuizPlainText(row.term)
+  if (term) return term
+  const stem = frontendQuizPlainText(row.stem)
+  return stem.length > 42 ? `${stem.slice(0, 42)}…` : stem || '题目'
+}
+
+function openDetail(index: number) {
+  if (index < 0 || index >= filteredRows.value.length) {
+    detailIndex.value = -1
+    resetNoteEdit()
+    return
+  }
+  detailIndex.value = index
   resetNoteEdit()
-  if (openFp.value) noteDraft.value = getFrontendQuizNote(fp)
+  noteDraft.value = getFrontendQuizNote(filteredRows.value[index]!.fingerprint)
+}
+
+function closeDetail() {
+  detailIndex.value = -1
+  resetNoteEdit()
+}
+
+function shiftDetail(dir: -1 | 1) {
+  openDetail(detailIndex.value + dir)
 }
 
 function stillKept(fp: string) {
@@ -146,12 +170,13 @@ function stillKept(fp: string) {
 
 function remove(row: StoredFrontendQuizRecord) {
   const fp = row.fingerprint
+  const idx = detailIndex.value
   if (tab.value === 'wrong') removeFrontendQuizWrong(fp)
   else removeFrontendQuizFavorite(fp)
   if (!stillKept(fp)) removeFrontendQuizNote(fp)
-  if (openFp.value === fp) {
-    openFp.value = ''
-    resetNoteEdit()
+  if (detailRow.value?.fingerprint === fp) {
+    if (filteredRows.value.length <= 1) closeDetail()
+    else openDetail(Math.min(idx, filteredRows.value.length - 1))
   }
 }
 
@@ -203,16 +228,23 @@ function startQuiz() {
 
 watch(tab, () => {
   resetFilters()
-  openFp.value = ''
-  resetNoteEdit()
+  closeDetail()
   quizOpen.value = false
 })
 
 watch(nodeId, () => {
   resetFilters()
-  openFp.value = ''
-  resetNoteEdit()
+  closeDetail()
   quizOpen.value = false
+})
+
+watch(filteredRows, (rows) => {
+  if (detailIndex.value < 0) return
+  if (!rows.length) {
+    closeDetail()
+    return
+  }
+  if (detailIndex.value >= rows.length) openDetail(rows.length - 1)
 })
 
 onMounted(async () => {
@@ -281,12 +313,97 @@ onMounted(async () => {
           <template v-if="filteredRows.length !== scopedRows.length"> / {{ scopedRows.length }}</template>
         </p>
         <p v-if="!filteredRows.length" class="cb-book__empty">当前分类或筛选下没有题目</p>
+        <template v-else-if="detailRow">
+          <div class="cb-book__pager">
+            <el-button size="small" @click="closeDetail">返回列表</el-button>
+            <el-button size="small" text :disabled="detailIndex <= 0" @click="shiftDetail(-1)">
+              ‹ 上一题
+            </el-button>
+            <span>第 {{ detailIndex + 1 }} / {{ filteredRows.length }} 题</span>
+            <el-button
+              size="small"
+              text
+              :disabled="detailIndex >= filteredRows.length - 1"
+              @click="shiftDetail(1)"
+            >
+              下一题 ›
+            </el-button>
+          </div>
+          <div class="cb-book__detail is-page">
+            <p class="cb-book__kind">{{ frontendQuizKindLabel(detailRow.kind) }}</p>
+            <p class="cb-book__from">{{ rowPath(detailRow) }}</p>
+            <RichTextView :html="displayOf(detailRow).stem" tone="docs" :math="false" :zoom-images="false" />
+            <ul v-if="detailRow.options.length" class="cb-book__opts">
+              <li
+                v-for="(opt, i) in displayOf(detailRow).options"
+                :key="i"
+                :class="{ 'is-ans': i === detailRow.correctIndex }"
+              >
+                <RichTextView :html="opt" tone="docs" :math="false" :zoom-images="false" />
+              </li>
+            </ul>
+            <div class="cb-book__answer">
+              <span>答案：</span>
+              <RichTextView :html="displayOf(detailRow).correctText" tone="docs" :math="false" :zoom-images="false" />
+            </div>
+            <RichTextView
+              v-if="displayOf(detailRow).explanation"
+              :html="displayOf(detailRow).explanation"
+              tone="docs"
+              :math="false"
+              :zoom-images="false"
+            />
+            <div class="cb-book__note">
+              <div class="cb-book__note-head">
+                <strong>备注</strong>
+                <el-button
+                  v-if="!noteEditing"
+                  size="small"
+                  text
+                  type="primary"
+                  @click="onEditNote(detailRow.fingerprint)"
+                >
+                  {{ rowNote(detailRow.fingerprint) ? '编辑' : '添加备注' }}
+                </el-button>
+              </div>
+              <template v-if="noteEditing">
+                <el-input
+                  v-model="noteDraft"
+                  type="textarea"
+                  :rows="3"
+                  maxlength="500"
+                  show-word-limit
+                  placeholder="支持 Markdown，如标题、列表、加粗等"
+                />
+                <div class="cb-book__note-actions">
+                  <el-button
+                    size="small"
+                    type="primary"
+                    :loading="noteSaving"
+                    @click="onSaveNote(detailRow.fingerprint)"
+                  >
+                    保存
+                  </el-button>
+                  <el-button size="small" plain @click="onCancelNoteEdit(detailRow.fingerprint)">
+                    取消
+                  </el-button>
+                </div>
+              </template>
+              <template v-else-if="rowNote(detailRow.fingerprint)">
+                <!-- eslint-disable-next-line vue/no-v-html -->
+                <div class="cb-book__note-md deepseek-md" v-html="noteHtml(detailRow.fingerprint)" />
+              </template>
+              <p v-else class="cb-book__note-empty">暂无备注</p>
+            </div>
+            <el-button size="small" type="danger" plain @click="remove(detailRow)">删除</el-button>
+          </div>
+        </template>
         <ul v-else class="cb-book__list">
-          <li v-for="row in filteredRows" :key="row.fingerprint">
-            <button type="button" class="cb-book__row" @click="toggleOpen(row.fingerprint)">
+          <li v-for="(row, index) in filteredRows" :key="row.fingerprint">
+            <button type="button" class="cb-book__row" @click="openDetail(index)">
               <span class="cb-book__kind">{{ frontendQuizKindLabel(row.kind) }}</span>
               <span class="cb-book__main">
-                <span class="cb-book__title">{{ displayOf(row).term || displayOf(row).stem }}</span>
+                <span class="cb-book__title">{{ rowListTitle(row) }}</span>
                 <span class="cb-book__sub">
                   {{ rowPath(row) || '未分类' }}
                   ·
@@ -298,67 +415,6 @@ onMounted(async () => {
                 </span>
               </span>
             </button>
-            <div v-if="openFp === row.fingerprint" class="cb-book__detail">
-              <p class="cb-book__from">{{ rowPath(row) }}</p>
-              <RichTextView :html="displayOf(row).stem" tone="docs" :math="false" :zoom-images="false" />
-              <ul v-if="row.options.length" class="cb-book__opts">
-                <li
-                  v-for="(opt, i) in displayOf(row).options"
-                  :key="i"
-                  :class="{ 'is-ans': i === row.correctIndex }"
-                >
-                  <RichTextView :html="opt" tone="docs" :math="false" :zoom-images="false" />
-                </li>
-              </ul>
-              <div class="cb-book__answer">
-                <span>答案：</span>
-                <RichTextView :html="displayOf(row).correctText" tone="docs" :math="false" :zoom-images="false" />
-              </div>
-              <RichTextView v-if="displayOf(row).explanation" :html="displayOf(row).explanation" tone="docs" :math="false" :zoom-images="false" />
-              <div class="cb-book__note">
-                <div class="cb-book__note-head">
-                  <strong>备注</strong>
-                  <el-button
-                    v-if="!noteEditing"
-                    size="small"
-                    text
-                    type="primary"
-                    @click="onEditNote(row.fingerprint)"
-                  >
-                    {{ rowNote(row.fingerprint) ? '编辑' : '添加备注' }}
-                  </el-button>
-                </div>
-                <template v-if="noteEditing">
-                  <el-input
-                    v-model="noteDraft"
-                    type="textarea"
-                    :rows="3"
-                    maxlength="500"
-                    show-word-limit
-                    placeholder="支持 Markdown，如标题、列表、加粗等"
-                  />
-                  <div class="cb-book__note-actions">
-                    <el-button
-                      size="small"
-                      type="primary"
-                      :loading="noteSaving"
-                      @click="onSaveNote(row.fingerprint)"
-                    >
-                      保存
-                    </el-button>
-                    <el-button size="small" plain @click="onCancelNoteEdit(row.fingerprint)">
-                      取消
-                    </el-button>
-                  </div>
-                </template>
-                <template v-else-if="rowNote(row.fingerprint)">
-                  <!-- eslint-disable-next-line vue/no-v-html -->
-                  <div class="cb-book__note-md deepseek-md" v-html="noteHtml(row.fingerprint)" />
-                </template>
-                <p v-else class="cb-book__note-empty">暂无备注</p>
-              </div>
-              <el-button size="small" type="danger" plain @click="remove(row)">删除</el-button>
-            </div>
           </li>
         </ul>
       </template>
@@ -506,6 +562,20 @@ onMounted(async () => {
   font-size: 13px;
   min-width: 0;
   max-width: 100%;
+}
+
+.cb-book__detail.is-page {
+  padding-top: 4px;
+}
+
+.cb-book__pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--app-text-muted);
 }
 
 .cb-book__from {
