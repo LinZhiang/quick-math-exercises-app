@@ -91,6 +91,7 @@ const aiProvider = computed({
 })
 const detailId = ref<string | null>(null)
 const answerOpen = ref(false)
+const detailBodyRef = ref<HTMLElement | null>(null)
 const editingId = ref<string | null>(null)
 const exportOpen = ref(false)
 const exportBusy = ref(false)
@@ -359,6 +360,9 @@ watch(
 
 watch(detailId, () => {
   answerOpen.value = false
+  void nextTick(() => {
+    detailBodyRef.value?.scrollTo({ top: 0 })
+  })
 })
 
 function goBack() {
@@ -1036,7 +1040,7 @@ async function confirmMoveQuestion() {
       </nav>
     </div>
 
-    <div v-else-if="quizActive && activeSub" class="personal-bank-body">
+    <div v-else-if="quizActive && activeSub" class="personal-bank-body personal-bank-body--quiz">
       <PersonalBankQuizPanel
         :paper="quizPaper"
         :heading="quizHeading"
@@ -1338,7 +1342,7 @@ async function confirmMoveQuestion() {
           下一题 ›
         </el-button>
       </div>
-      <div class="personal-bank-body personal-bank-body--detail">
+      <div ref="detailBodyRef" class="personal-bank-body personal-bank-body--detail">
       <p class="personal-bank-q__meta">
         {{ personalBankQuestionTypeLabel(detailQuestion.type, personalBankChoiceModeOf(detailQuestion)) }} · {{ detailQuestion.score }} 分 · 已测验
         {{ detailQuestion.quizCount }} 次
@@ -1565,6 +1569,13 @@ async function confirmMoveQuestion() {
 
 .personal-bank-body--detail {
   padding-top: 12px;
+}
+
+.personal-bank-body--quiz {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
 }
 
 .personal-bank-lead {
