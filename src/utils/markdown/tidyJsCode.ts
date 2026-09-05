@@ -67,6 +67,22 @@ export function stripJsLangPrefix(code: string): string {
     .replace(/\r\n/g, '\n')
   s = s.replace(/^[ \t]*(?:javascript|typescript|jsx|tsx|js|ts)\b[ \t]*\r?\n/, '')
   s = s.replace(/^[ \t]*(?:javascript|typescript|jsx|tsx|js|ts)\b[ \t]+/, '')
+  return stripOuterMarkdownTicks(s)
+}
+
+/** 去掉误包在整段代码外的 markdown 反引号，避免画面上出现「`function」。 */
+export function stripOuterMarkdownTicks(code: string): string {
+  let s = String(code ?? '').replace(/\r\n/g, '\n').trim()
+  const wrapped = /^`([\s\S]+)`$/.exec(s)
+  if (wrapped && !/\$\{/.test(wrapped[1] ?? '')) {
+    const inner = wrapped[1] ?? ''
+    if (
+      inner.includes('\n') ||
+      /^\s*(?:function|class|const|let|var|if|for|while|switch|return|console)\b/.test(inner)
+    ) {
+      return inner
+    }
+  }
   return s
 }
 
@@ -133,6 +149,34 @@ export function repairSameLineFenceOpeners(md: string): string {
     /^([ \t]*)```[ \t]*(javascript|js|typescript|ts|jsx|tsx)[ \t]+(\S[^\n]*)$/gim,
     (_all, indent: string, lang: string, rest: string) => `${indent}\`\`\`${lang}\n${indent}${rest}`,
   )
+}
+
+/** 运算符后被拆开的同一句，拼回一行，交给横向滚动而不是硬折行。 */
+function joinContinuedJsLines(code: string): string {
+  const lines = String(code ?? '').replace(/\r\n/g, '\n').split('\n')
+  const out: string[] = []
+  for (let i = 0; i < lines.length; i += 1) {
+    let line = lines[i] ?? ''
+    while (i + 1 < lines.length) {
+      const nextRaw = lines[i + 1] ?? ''
+      const next = nextRaw.trim()
+      if (!next) break
+      const cur = line.trimEnd()
+      if (/[;{}]$/.test(cur)) break
+      const dangling =
+        /[=+\-*/%<>&|?:,(.]$/.test(cur) ||
+        /\b(?:return|throw|case|new)\s*$/.test(cur) ||
+        (/[A-Za-z_$]$/.test(cur) && /^\(/.test(next))
+      const continues = /^[+\-*/%<>&|?.,:(]/.test(next)
+      const exprish = /[=+\-*/%<>&|?:]/.test(cur)
+      if (!dangling && !(continues && exprish)) break
+      if (/^(function|class|const|let|var|if|for|while|try|catch|finally|else)\b/.test(next)) break
+      line = `${cur} ${next}`
+      i += 1
+    }
+    out.push(line)
+  }
+  return out.join('\n')
 }
 
 function prettyJsOneLiner(src: string): string {
@@ -229,10 +273,11 @@ function prettyJsOneLiner(src: string): string {
   return out
 }
 
-/** 展示前整理代码块：去掉误入的 js 标记，单行程序补上回车。 */
+/** 展示前整理代码块：去掉误入的 js 标记；同一句被拆开的拼回一行。 */
 export function prepareJsBlockSource(code: string, opts?: { expand?: boolean }): string {
   const stripped = stripJsLangPrefix(code)
-  const expanded = prettyJsOneLiner(stripped)
+  const joined = joinContinuedJsLines(stripped)
+  const expanded = prettyJsOneLiner(joined)
   return tidyJsFenceBody(expanded, opts)
 }
 

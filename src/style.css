@@ -190,11 +190,17 @@ strong {
 
 .md-table-scroll > pre,
 .md-table-scroll > pre code {
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  word-wrap: break-word;
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+  word-wrap: normal;
   hyphens: none;
+}
+
+.md-table-scroll > pre code {
+  display: block;
+  width: max-content;
+  min-width: 100%;
 }
 
 .md-table-scroll::-webkit-scrollbar {

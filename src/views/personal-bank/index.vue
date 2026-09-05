@@ -90,6 +90,7 @@ const aiProvider = computed({
   },
 })
 const detailId = ref<string | null>(null)
+const answerOpen = ref(false)
 const editingId = ref<string | null>(null)
 const exportOpen = ref(false)
 const exportBusy = ref(false)
@@ -183,6 +184,7 @@ const formTitle = computed(() => (editingId.value ? '修改题目' : '新建题�
 const detailQuestion = computed(
   () => questions.value.find((q) => q.id === detailId.value) ?? null,
 )
+const detailIndex = computed(() => questions.value.findIndex((q) => q.id === detailId.value))
 const pageTitle = computed(() => {
   if (photoOpen.value) {
     const upload = photoIntent.value === 'upload'
@@ -354,6 +356,10 @@ watch(
   },
   { immediate: true },
 )
+
+watch(detailId, () => {
+  answerOpen.value = false
+})
 
 function goBack() {
   if (quizActive.value) reload()
@@ -623,7 +629,16 @@ function openEditQuestion(q: PersonalBankQuestion) {
 }
 
 function openQuestionDetail(q: PersonalBankQuestion) {
+  answerOpen.value = false
   pushBank({ view: 'detail', qid: q.id })
+}
+
+function shiftDetail(dir: -1 | 1) {
+  const i = detailIndex.value + dir
+  const q = questions.value[i]
+  if (!q) return
+  answerOpen.value = false
+  pushBank({ view: 'detail', qid: q.id, replace: true })
 }
 
 function saveQuestion() {
@@ -1308,7 +1323,22 @@ async function confirmMoveQuestion() {
       </el-form>
     </div>
 
-    <div v-else-if="detailQuestion" class="personal-bank-body">
+    <template v-else-if="detailQuestion">
+      <div class="pb-q-pager">
+        <el-button size="small" text :disabled="detailIndex <= 0" @click="shiftDetail(-1)">
+          ‹ 上一题
+        </el-button>
+        <span>第 {{ detailIndex + 1 }} / {{ questions.length }} 题</span>
+        <el-button
+          size="small"
+          text
+          :disabled="detailIndex < 0 || detailIndex >= questions.length - 1"
+          @click="shiftDetail(1)"
+        >
+          下一题 ›
+        </el-button>
+      </div>
+      <div class="personal-bank-body personal-bank-body--detail">
       <p class="personal-bank-q__meta">
         {{ personalBankQuestionTypeLabel(detailQuestion.type, personalBankChoiceModeOf(detailQuestion)) }} · {{ detailQuestion.score }} 分 · 已测验
         {{ detailQuestion.quizCount }} 次
@@ -1317,31 +1347,36 @@ async function confirmMoveQuestion() {
         <h3 class="pb-q-detail__label">题目</h3>
         <RichTextView :html="detailQuestion.stemHtml" />
       </section>
-      <section class="pb-q-block">
-        <h3 class="pb-q-detail__label">答案</h3>
-        <template v-if="detailQuestion.type === 'choice' && personalBankChoiceModeOf(detailQuestion) === 'fixed'">
-          <ol class="pb-q-detail__options">
-            <li
-              v-for="(opt, idx) in detailQuestion.optionsHtml"
-              :key="idx"
-              :class="{ 'is-correct': idx === detailQuestion.correctIndex }"
-            >
-              <RichTextView :html="opt" />
-            </li>
-          </ol>
-        </template>
-        <RichTextView
-          v-else-if="detailQuestion.type === 'choice'"
-          :html="detailQuestion.answerHtml || detailQuestion.answer"
-        />
-        <div v-else class="pb-q-detail__plain">
-          <RichTextView :html="detailQuestion.answer" />
-        </div>
-      </section>
-      <section v-if="detailQuestion.explanationHtml" class="pb-q-block pb-q-block--optional">
-        <h3 class="pb-q-detail__label">解析</h3>
-        <RichTextView :html="detailQuestion.explanationHtml" />
-      </section>
+      <el-button class="pb-q-reveal" size="small" plain @click="answerOpen = !answerOpen">
+        {{ answerOpen ? '收起答案' : '查看答案与解析' }}
+      </el-button>
+      <template v-if="answerOpen">
+        <section class="pb-q-block">
+          <h3 class="pb-q-detail__label">答案</h3>
+          <template v-if="detailQuestion.type === 'choice' && personalBankChoiceModeOf(detailQuestion) === 'fixed'">
+            <ol class="pb-q-detail__options">
+              <li
+                v-for="(opt, idx) in detailQuestion.optionsHtml"
+                :key="idx"
+                :class="{ 'is-correct': idx === detailQuestion.correctIndex }"
+              >
+                <RichTextView :html="opt" />
+              </li>
+            </ol>
+          </template>
+          <RichTextView
+            v-else-if="detailQuestion.type === 'choice'"
+            :html="detailQuestion.answerHtml || detailQuestion.answer"
+          />
+          <div v-else class="pb-q-detail__plain">
+            <RichTextView :html="detailQuestion.answer" />
+          </div>
+        </section>
+        <section v-if="detailQuestion.explanationHtml" class="pb-q-block pb-q-block--optional">
+          <h3 class="pb-q-detail__label">解析</h3>
+          <RichTextView :html="detailQuestion.explanationHtml" />
+        </section>
+      </template>
       <div class="pb-q-form__actions">
         <el-button
           :loading="variantBusyId === detailQuestion.id"
@@ -1353,7 +1388,8 @@ async function confirmMoveQuestion() {
         <el-button @click="openEditQuestion(detailQuestion)">修改</el-button>
         <el-button type="danger" plain @click="onDeleteQuestion(detailQuestion)">删除</el-button>
       </div>
-    </div>
+      </div>
+    </template>
 
     <div v-else class="personal-bank-body">
       <div class="personal-bank-toolbar personal-bank-toolbar--row">
@@ -1507,6 +1543,28 @@ async function confirmMoveQuestion() {
   min-height: 0;
   overflow: auto;
   padding: 14px 12px 24px;
+}
+
+.pb-q-pager {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--app-border-soft, #e5e7eb);
+  background: #fff;
+  font-size: 13px;
+  color: var(--app-text-muted);
+}
+
+.pb-q-reveal {
+  margin: 0 0 12px;
+}
+
+.personal-bank-body--detail {
+  padding-top: 12px;
 }
 
 .personal-bank-lead {
