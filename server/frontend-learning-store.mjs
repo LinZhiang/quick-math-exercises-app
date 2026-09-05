@@ -92,7 +92,10 @@ function itemFile(id) {
 function writeItemRecord(id, rec) {
   ensureDirs()
   const file = itemFile(id)
-  atomicWriteFile(file, `${JSON.stringify({ ...rec, id }, null, 2)}\n`)
+  atomicWriteFile(
+    file,
+    `${JSON.stringify({ ...rec, id, updatedAt: new Date().toISOString() }, null, 2)}\n`,
+  )
   mirrorPublicFile(file, `items/${id}.json`)
 }
 
@@ -175,6 +178,32 @@ export function readFrontendLearningCatalog() {
   const raw = JSON.parse(fs.readFileSync(CATALOG_FILE, 'utf8'))
   const tree = applyReadyFlags(Array.isArray(raw.tree) ? raw.tree : [])
   return { tree }
+}
+
+export function readFrontendLearningRevision() {
+  ensureFrontendLearningStore()
+  const raw = readRawCatalog()
+  const catalogAt = String(raw.updatedAt || raw.seededAt || '')
+  let stamp = 0
+  try {
+    if (fs.existsSync(CATALOG_FILE)) stamp = Math.max(stamp, fs.statSync(CATALOG_FILE).mtimeMs)
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (fs.existsSync(ITEMS_DIR)) {
+      for (const name of fs.readdirSync(ITEMS_DIR)) {
+        if (!name.endsWith('.json')) continue
+        stamp = Math.max(stamp, fs.statSync(path.join(ITEMS_DIR, name)).mtimeMs)
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return {
+    revision: `${catalogAt}|${stamp}`,
+    updatedAt: catalogAt || (stamp ? new Date(stamp).toISOString() : ''),
+  }
 }
 
 export function readFrontendLearningItem(id) {
@@ -756,10 +785,26 @@ export function importFrontendLearningFromBankPack(packPath, { skipExisting = tr
 }
 
 export function attachFrontendLearningRoutes(app) {
+  app.get('/api/frontend-learning/revision', (_req, res) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+      res.json({ ok: true, ...readFrontendLearningRevision() })
+    } catch (e) {
+      res.status(500).json({
+        ok: false,
+        message: e instanceof Error ? e.message : '读取前端学习修订号失败',
+      })
+    }
+  })
+
   app.get('/api/frontend-learning/tree', (_req, res) => {
     try {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
-      res.json({ ok: true, ...readFrontendLearningCatalog() })
+      res.json({
+        ok: true,
+        ...readFrontendLearningCatalog(),
+        ...readFrontendLearningRevision(),
+      })
     } catch (e) {
       res.status(500).json({
         ok: false,

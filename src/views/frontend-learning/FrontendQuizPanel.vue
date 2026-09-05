@@ -394,6 +394,7 @@ const quizAskQuestion = computed((): FrontendAskQuestionContext | null => {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-height: 32px;
 }
 
 .cb-quiz__head-row :deep(.el-button) {
@@ -406,7 +407,7 @@ const quizAskQuestion = computed((): FrontendAskQuestionContext | null => {
   flex: 1 1 auto;
   font-size: 1.08rem;
   font-weight: 800;
-  line-height: 1.3;
+  line-height: 32px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

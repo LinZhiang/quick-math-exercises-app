@@ -476,7 +476,7 @@ async function load() {
   if (tree.value.length) busyText.value = '正在刷新目录…'
   else loading.value = true
   try {
-    const next = await loadFrontendLearningTree(true)
+    const next = await loadFrontendLearningTree()
     tree.value = next
     expanded.value = defaultExpandedFrontendIds(next)
   } catch (e) {

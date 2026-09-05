@@ -1,5 +1,5 @@
 import { markdownToDisplaySafeHtml } from '@/utils/markdown/markdownToHtml'
-import { highlightHandoutCodeHtml } from '@/utils/markdown/highlightHandoutCode'
+import { highlightHandoutCodeHtml, shouldPromoteJsToBlock } from '@/utils/markdown/highlightHandoutCode'
 import { judgeExplanationConflictsCorrect } from '@/utils/quiz/handoutQuizConsistency'
 
 export type FrontendQuizKind = 'choice' | 'judge' | 'calc' | 'short'
@@ -147,7 +147,6 @@ function promoteBareJsFences(text: string): string {
   const isJsish = (ln: string) => {
     const t = ln.trim()
     if (!t) return false
-    // 「if语句」这类中文行不要当成代码
     if (/[\u4e00-\u9fff]/.test(t) && !/[;{}()=]/.test(t) && !/=>/.test(t)) return false
     return (
       /^(?:const|let|var|function|class|console|import|export)\b/.test(t) ||
@@ -155,6 +154,7 @@ function promoteBareJsFences(text: string): string {
       (/^(?:return|else|try|catch|case)\b/.test(t) && /[;{}()=]/.test(t)) ||
       /[{};]$/.test(t) ||
       /=>/.test(t) ||
+      shouldPromoteJsToBlock(t) ||
       /^\s*[})\];]/.test(ln)
     )
   }
@@ -162,8 +162,9 @@ function promoteBareJsFences(text: string): string {
   const out: string[] = []
   let buf: string[] = []
   const flush = () => {
-    if (buf.length >= 2) out.push('```js', ...buf, '```')
-    else out.push(...buf)
+    if (buf.length >= 2 || (buf.length === 1 && shouldPromoteJsToBlock(buf[0] ?? ''))) {
+      out.push('```js', ...buf, '```')
+    } else out.push(...buf)
     buf = []
   }
   for (const ln of lines) {
@@ -177,14 +178,74 @@ function promoteBareJsFences(text: string): string {
   return out.join('\n')
 }
 
+export function frontendQuizPlainText(s: string): string {
+  return String(s ?? '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[`*_#]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** 从整篇讲义抽标题/加粗，供出题时先覆盖重点。 */
+export function extractFrontendHandoutKeyPoints(material: string, limit = 12): string[] {
+  const s = String(material || '')
+  const points: string[] = []
+  const push = (raw: string) => {
+    const x = frontendQuizPlainText(raw).replace(/^#+\s*/, '')
+    if (x.length < 2 || x.length > 36) return
+    if (points.some((p) => p === x || p.includes(x) || x.includes(p))) return
+    points.push(x)
+  }
+  for (const m of s.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi)) push(m[1] ?? '')
+  for (const m of s.matchAll(/^#{1,3}\s+(.+)$/gm)) push(m[1] ?? '')
+  for (const m of s.matchAll(/<(?:strong|b)>([\s\S]*?)<\/(?:strong|b)>/gi)) push(m[1] ?? '')
+  for (const m of s.matchAll(/\*\*([^*]{2,30})\*\*/g)) push(m[1] ?? '')
+  return points.slice(0, limit)
+}
+
+/** 长讲义：保留开头，并补上各重点附近的原文，避免闭包等后半段被截掉。 */
+export function materialForFrontendQuiz(material: string, maxLen = 14000): string {
+  const full = String(material || '')
+  if (full.length <= maxLen) return full
+  const keys = extractFrontendHandoutKeyPoints(full)
+  const chunks: string[] = [full.slice(0, Math.min(7000, maxLen))]
+  const used = new Set<number>()
+  for (const key of keys) {
+    let from = 0
+    while (from < full.length) {
+      const i = full.indexOf(key, from)
+      if (i < 0) break
+      const start = Math.max(0, i - 280)
+      if (![...used].some((u) => Math.abs(u - start) < 400)) {
+        used.add(start)
+        chunks.push(full.slice(start, Math.min(full.length, i + 900)))
+      }
+      from = i + key.length
+    }
+  }
+  chunks.push(full.slice(-1800))
+  const joined = chunks.join('\n\n')
+  return joined.length > maxLen * 1.35 ? joined.slice(0, Math.round(maxLen * 1.35)) : joined
+}
+
+export function polishFrontendQuizJargon(s: string): string {
+  return String(s ?? '')
+    .replace(/\bfalsy\b/gi, '假值')
+    .replace(/\btruthy\b/gi, '真值')
+}
+
 /** 测验题干/选项/解析：Markdown + 讲义同款 JS 代码块。 */
 export function formatFrontendQuizRichHtml(text: string): string {
-  const t = String(text ?? '').trim()
+  const t = polishFrontendQuizJargon(String(text ?? '').trim())
   if (!t) return ''
   if (/^</.test(t) || /<(p|pre|code|div|br|span)\b/i.test(t)) {
     return highlightHandoutCodeHtml(t)
   }
-  const withCode = promoteBareJsFences(t)
+  let body = t
+  if (!/```/.test(body) && !/[\u4e00-\u9fff]/.test(body) && shouldPromoteJsToBlock(body)) {
+    body = `\`\`\`js\n${body}\n\`\`\``
+  }
+  const withCode = promoteBareJsFences(body)
     .replace(/(?<![`\w])(Number\.(?:MIN|MAX)_(?:SAFE_)?VALUE)(?![`\w])/g, '`$1`')
     .replace(/(?<![`\w])0[xX]\s*[\/／]\s*0[xX](?![`\w])/g, '`0x`/`0X`')
   return highlightHandoutCodeHtml(markdownToDisplaySafeHtml(withCode))
@@ -336,6 +397,15 @@ function optionIndexByText(options: string[], hint: string): number {
   return contains
 }
 
+/** 解析里写「正确答案是 3」时，以这句话为准，避免标答和解析各说各的。 */
+function explicitAnswerFromExplanation(explanation: string): string {
+  const t = String(explanation || '')
+  const m =
+    t.match(/正确答案[是为：:\s]*[「『"“'`]*([^\s。．.\n,，;；」』"”'`]{1,40})/) ||
+    t.match(/应选[「『"“'`]*([^\s。．.\n,，;；」』"”'`]{1,40})/)
+  return (m?.[1] ?? '').replace(/^[：:\s]+/, '').trim()
+}
+
 function shuffleInPlace<T>(arr: T[]): T[] {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
@@ -408,17 +478,19 @@ export function parseFrontendQuizAiItem(
   const kind = parseKind(o.kind ?? o.type ?? o.questionType)
   if (!kind) return null
   const harvested = collectAndStripGlosses([
-    asText(o.stem ?? o.question ?? o.title),
-    asText(o.term ?? o.point ?? o.考点),
-    asText(o.correct ?? o.answer ?? o.correctText),
-    ...(Array.isArray(o.options) ? o.options.map(asText) : []),
-    ...(Array.isArray(o.choices) ? o.choices.map(asText) : []),
-    ...(Array.isArray(o.distractors) ? o.distractors.map(asText) : []),
+    polishFrontendQuizJargon(asText(o.stem ?? o.question ?? o.title)),
+    polishFrontendQuizJargon(asText(o.term ?? o.point ?? o.考点)),
+    polishFrontendQuizJargon(asText(o.correct ?? o.answer ?? o.correctText)),
+    ...(Array.isArray(o.options) ? o.options.map((x) => polishFrontendQuizJargon(asText(x))) : []),
+    ...(Array.isArray(o.choices) ? o.choices.map((x) => polishFrontendQuizJargon(asText(x))) : []),
+    ...(Array.isArray(o.distractors) ? o.distractors.map((x) => polishFrontendQuizJargon(asText(x))) : []),
   ])
   const stem = harvested.texts[0] ?? ''
   const termIn = harvested.texts[1] ?? ''
   const correctHintIn = harvested.texts[2] ?? ''
-  let explanation = mergeGlossIntoExplanation(asText(o.explanation ?? o.explain ?? o.parse), harvested.glosses)
+  let explanation = polishFrontendQuizJargon(
+    mergeGlossIntoExplanation(asText(o.explanation ?? o.explain ?? o.parse), harvested.glosses),
+  )
   const term = termIn || stem.slice(0, 24)
   if (stem.length < 6) return null
   const source = resolveQuizSourceMeta(o, meta)
@@ -479,8 +551,29 @@ export function parseFrontendQuizAiItem(
     if (/^(正确|对|true|t|√|是)$/i.test(correctHint)) correctIndex = options.findIndex((x) => /正确|对/.test(x))
     if (/^(错误|错|false|f|×|否)$/i.test(correctHint)) correctIndex = options.findIndex((x) => /错误|错/.test(x))
   }
+  const explHint = explicitAnswerFromExplanation(explanation)
+  if (explHint) {
+    const explIdx = optionIndexByText(options, explHint)
+    if (explIdx >= 0) {
+      if (kind === 'choice' && correctIndex >= 0 && explIdx !== correctIndex) {
+        correctIndex = explIdx
+      } else if (correctIndex < 0) {
+        correctIndex = explIdx
+      } else if (kind === 'judge' && explIdx !== correctIndex) {
+        return null
+      }
+    } else if (kind === 'choice' && correctIndex >= 0) {
+      const claimed = compactText(options[correctIndex] ?? '')
+      const named = compactText(explHint)
+      if (claimed && named && claimed !== named && !claimed.includes(named) && !named.includes(claimed)) {
+        return null
+      }
+    }
+  }
   // 选择题不用 A/B/C/D 下标：模型常把错误项放第一位却写 correct:"A"
-  correctIndex = reconcileByExplanation(options, correctIndex, explanation)
+  if (kind === 'choice' && (!explHint || optionIndexByText(options, explHint) < 0)) {
+    correctIndex = reconcileByExplanation(options, correctIndex, explanation)
+  }
   if (correctIndex < 0 || correctIndex >= options.length) return null
 
   const correctText = options[correctIndex] ?? ''

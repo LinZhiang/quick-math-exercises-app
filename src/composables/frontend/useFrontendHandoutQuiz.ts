@@ -192,7 +192,7 @@ export function useFrontendHandoutQuiz() {
       })
       appendFrontendQuizAvoidStems(
         item.id,
-        generated.map((q) => q.stem),
+        generated.flatMap((q) => [q.stem, q.term].filter(Boolean)),
       )
       beginRunning(item, generated)
       ElMessage.success(`已生成 ${generated.length} 道题`)

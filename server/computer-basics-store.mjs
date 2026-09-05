@@ -90,7 +90,10 @@ function itemFile(id) {
 function writeItemRecord(id, rec) {
   ensureDirs()
   const file = itemFile(id)
-  atomicWriteFile(file, `${JSON.stringify({ ...rec, id }, null, 2)}\n`)
+  atomicWriteFile(
+    file,
+    `${JSON.stringify({ ...rec, id, updatedAt: new Date().toISOString() }, null, 2)}\n`,
+  )
   mirrorPublicFile(file, `items/${id}.json`)
 }
 
@@ -160,6 +163,32 @@ export function readComputerBasicsCatalog() {
   const raw = JSON.parse(fs.readFileSync(CATALOG_FILE, 'utf8'))
   const tree = applyReadyFlags(Array.isArray(raw.tree) ? raw.tree : [])
   return { tree }
+}
+
+export function readComputerBasicsRevision() {
+  ensureComputerBasicsStore()
+  const raw = readRawCatalog()
+  const catalogAt = String(raw.updatedAt || raw.seededAt || '')
+  let stamp = 0
+  try {
+    if (fs.existsSync(CATALOG_FILE)) stamp = Math.max(stamp, fs.statSync(CATALOG_FILE).mtimeMs)
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (fs.existsSync(ITEMS_DIR)) {
+      for (const name of fs.readdirSync(ITEMS_DIR)) {
+        if (!name.endsWith('.json')) continue
+        stamp = Math.max(stamp, fs.statSync(path.join(ITEMS_DIR, name)).mtimeMs)
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return {
+    revision: `${catalogAt}|${stamp}`,
+    updatedAt: catalogAt || (stamp ? new Date(stamp).toISOString() : ''),
+  }
 }
 
 export function readComputerBasicsItem(id) {
@@ -532,10 +561,26 @@ export function importComputerBasicsFromBankPack(packPath, { skipExisting = true
 }
 
 export function attachComputerBasicsRoutes(app) {
+  app.get('/api/computer-basics/revision', (_req, res) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+      res.json({ ok: true, ...readComputerBasicsRevision() })
+    } catch (e) {
+      res.status(500).json({
+        ok: false,
+        message: e instanceof Error ? e.message : '读取计算机基础修订号失败',
+      })
+    }
+  })
+
   app.get('/api/computer-basics/tree', (_req, res) => {
     try {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
-      res.json({ ok: true, ...readComputerBasicsCatalog() })
+      res.json({
+        ok: true,
+        ...readComputerBasicsCatalog(),
+        ...readComputerBasicsRevision(),
+      })
     } catch (e) {
       res.status(500).json({
         ok: false,
@@ -546,6 +591,7 @@ export function attachComputerBasicsRoutes(app) {
 
   app.get('/api/computer-basics/items/:id', (req, res) => {
     try {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
       const item = readComputerBasicsItem(req.params.id)
       if (!item) {
         res.status(404).json({ ok: false, message: '未找到该讲义' })

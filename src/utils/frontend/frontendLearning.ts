@@ -1,3 +1,12 @@
+import {
+  invalidateHandoutRevisionMemo,
+  peekHandoutRevision,
+  readHandoutCachedItem,
+  readHandoutCachedTree,
+  rememberHandoutRevision,
+  writeHandoutCachedItem,
+  writeHandoutCachedTree,
+} from '@/utils/app/handoutDiskCache'
 import { markdownToDisplaySafeHtml } from '@/utils/markdown/markdownToHtml'
 import { highlightHandoutCodeHtml } from '@/utils/markdown/highlightHandoutCode'
 import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
@@ -208,10 +217,13 @@ export function frontendContentToHtml(raw: string): string {
 
 let treeCache: FrontendTreeNode[] | null = null
 const itemCache = new Map<string, FrontendHandoutItem>()
+let sessionRevision = ''
 
 export function clearFrontendLearningCache() {
   treeCache = null
   itemCache.clear()
+  sessionRevision = ''
+  invalidateHandoutRevisionMemo('frontend')
 }
 
 async function frontendAdminFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -370,29 +382,110 @@ export async function moveFrontendItem(id: string, input: { parentId: string; in
   clearFrontendLearningCache()
 }
 
-export async function loadFrontendLearningTree(force = true): Promise<FrontendTreeNode[]> {
-  if (treeCache && !force) return treeCache
-  const res = await wenguApiFetch(`/api/frontend-learning/tree?t=${Date.now()}`)
-  const data = await readWenguJsonResponse<{ ok?: boolean; tree?: FrontendTreeNode[]; message?: string }>(
-    res,
-  )
+function rememberFrontendRevision(revision: string) {
+  const stamp = String(revision || '').trim()
+  if (!stamp) return
+  if (sessionRevision && sessionRevision !== stamp) itemCache.clear()
+  sessionRevision = stamp
+  rememberHandoutRevision('frontend', stamp)
+}
+
+export async function loadFrontendLearningTree(force = false): Promise<FrontendTreeNode[]> {
+  if (!force) {
+    const remote = await peekHandoutRevision('frontend')
+    if (remote.status === 'ok') {
+      if (treeCache && sessionRevision === remote.revision) return treeCache
+      const disk = await readHandoutCachedTree<FrontendTreeNode[]>('frontend')
+      if (disk && disk.revision === remote.revision) {
+        rememberFrontendRevision(remote.revision)
+        treeCache = disk.tree
+        return treeCache
+      }
+    } else if (remote.status === 'offline') {
+      if (treeCache) return treeCache
+      const disk = await readHandoutCachedTree<FrontendTreeNode[]>('frontend')
+      if (disk) {
+        rememberFrontendRevision(disk.revision)
+        treeCache = disk.tree
+        return treeCache
+      }
+    }
+  }
+
+  const res = await wenguApiFetch('/api/frontend-learning/tree')
+  const data = await readWenguJsonResponse<{
+    ok?: boolean
+    tree?: FrontendTreeNode[]
+    revision?: string
+    message?: string
+  }>(res)
   if (!res.ok || !data.ok || !Array.isArray(data.tree)) {
+    if (!force) {
+      if (treeCache) return treeCache
+      const disk = await readHandoutCachedTree<FrontendTreeNode[]>('frontend')
+      if (disk) {
+        rememberFrontendRevision(disk.revision)
+        treeCache = disk.tree
+        return treeCache
+      }
+    }
     throw new Error(data.message || `读取目录失败（HTTP ${res.status}）`)
   }
   treeCache = data.tree
+  let revision = String(data.revision || '').trim()
+  if (!revision) {
+    const peek = await peekHandoutRevision('frontend')
+    if (peek.status === 'ok') revision = peek.revision
+  }
+  if (revision) {
+    rememberFrontendRevision(revision)
+    writeHandoutCachedTree('frontend', revision, data.tree)
+  }
   return treeCache
 }
 
 export async function loadFrontendLearningItem(id: string, force = false): Promise<FrontendHandoutItem> {
   const key = String(id || '').trim()
   if (!key) throw new Error('缺少讲义编号')
-  const cached = itemCache.get(key)
-  if (cached && !force) return cached
-  const res = await wenguApiFetch(`/api/frontend-learning/items/${encodeURIComponent(key)}?t=${Date.now()}`)
+
+  if (!force) {
+    const remote = await peekHandoutRevision('frontend')
+    if (remote.status === 'ok') {
+      const cached = itemCache.get(key)
+      if (cached && sessionRevision === remote.revision) return cached
+      const disk = await readHandoutCachedItem<FrontendHandoutItem>('frontend', key)
+      if (disk && disk.revision === remote.revision) {
+        rememberFrontendRevision(remote.revision)
+        itemCache.set(key, disk.item)
+        return disk.item
+      }
+    } else if (remote.status === 'offline') {
+      const cached = itemCache.get(key)
+      if (cached) return cached
+      const disk = await readHandoutCachedItem<FrontendHandoutItem>('frontend', key)
+      if (disk) {
+        rememberFrontendRevision(disk.revision)
+        itemCache.set(key, disk.item)
+        return disk.item
+      }
+    }
+  }
+
+  const res = await wenguApiFetch(`/api/frontend-learning/items/${encodeURIComponent(key)}`)
   const data = await readWenguJsonResponse<{ ok?: boolean; item?: FrontendHandoutItem; message?: string }>(
     res,
   )
   if (!res.ok || !data.ok || !data.item) {
+    if (!force) {
+      const cached = itemCache.get(key)
+      if (cached) return cached
+      const disk = await readHandoutCachedItem<FrontendHandoutItem>('frontend', key)
+      if (disk) {
+        rememberFrontendRevision(disk.revision)
+        itemCache.set(key, disk.item)
+        return disk.item
+      }
+    }
     throw new Error(data.message || `读取讲义失败（HTTP ${res.status}）`)
   }
   const item = {
@@ -400,5 +493,11 @@ export async function loadFrontendLearningItem(id: string, force = false): Promi
     content: rewriteFrontendMediaUrls(data.item.content ?? ''),
   }
   itemCache.set(key, item)
+  const peek = await peekHandoutRevision('frontend')
+  const stamp = peek.status === 'ok' ? peek.revision : sessionRevision
+  if (stamp) {
+    rememberFrontendRevision(stamp)
+    writeHandoutCachedItem('frontend', key, stamp, item)
+  }
   return item
 }
