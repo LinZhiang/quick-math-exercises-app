@@ -149,8 +149,8 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
         <template v-else>
           {{
             scopeLabel
-              ? `按「${scopeLabel}」范围内的讲义出少量重点题：优先考定义、划分标准、最主要特点等，干扰项用讲义里的易混点。`
-              : '按当前讲义出少量重点题：优先考定义、划分标准、最主要特点等，干扰项用讲义里的易混点。'
+              ? `按「${scopeLabel}」范围内的讲义出重点题：专节里的定义、原理、特点要多角度考到，不能每点只出一道边角题。`
+              : '按当前讲义出重点题：优先考定义、划分标准、最主要特点等；重要专节可从定义和易混对比各出一题。'
           }}
           计算题系统按结果判分（写出的内容包含标准答案即可）；简答题对照参考答案后自己打分。
         </template>
@@ -346,7 +346,11 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
 }
 
 .cb-quiz.is-running {
-  padding-bottom: 56px;
+  padding-bottom: 8px;
+}
+
+.cb-quiz.is-running .cb-quiz__body {
+  padding-bottom: 72px;
 }
 
 .cb-quiz__head {
@@ -580,8 +584,8 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
     gap: 14px;
   }
 
-  .cb-quiz.is-running {
-    padding-bottom: 20px;
+  .cb-quiz.is-running .cb-quiz__body {
+    padding-bottom: 72px;
   }
 
   .cb-quiz__head {

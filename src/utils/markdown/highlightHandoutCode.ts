@@ -60,9 +60,34 @@ export function shouldPromoteJsToBlock(source: string): boolean {
   const lines = t.split(/\n/).filter((ln) => ln.trim())
   if (lines.length >= 2 && looksLikeJsSource(t)) return true
   if (/\b(?:try|function|class|async)\b/.test(t) && /\{/.test(t)) return true
+  if (/^(?:if|for|while|switch)\s*\(/.test(t) && /[{};]/.test(t) && t.length >= 12) return true
+  if (/^(?:const|let|var)\b/.test(t) && /[=;]/.test(t) && t.length >= 16) return true
+  if (/^console\.\w+\s*\(/.test(t) && t.length >= 16) return true
   if ((t.match(/;/g) || []).length >= 2) return true
   if (t.length >= 48 && /[{}]/.test(t) && /;/.test(t)) return true
   return false
+}
+
+/** 选项/片段去掉标签后是否整段都是 JS（用于强制黑底代码块）。 */
+export function isJsOnlySnippet(raw: string): boolean {
+  const t = stripJsLangPrefix(
+    String(raw ?? '')
+      .replace(/```[^\n]*\n?/g, '')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(?:p|div|li)>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&'),
+  )
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (t.length < 6) return false
+  if (/[\u4e00-\u9fff]/.test(t)) return false
+  if (/^[\d.\s+\-eE]+$/.test(t)) return false
+  if (/^(true|false|null|undefined|NaN)$/i.test(t)) return false
+  return /[{};=]|function\b|\b(?:if|for|while|switch|return|console|const|let|var)\b|\(.*\)/.test(t)
 }
 
 function highlightJsSource(source: string): string {
@@ -125,17 +150,17 @@ function promoteInlineJs(root: HTMLElement, doc: Document) {
     if (code.closest('pre')) continue
     const source = stripJsLangPrefix(decodeHandoutCodeHtml(code.innerHTML))
     if (!source.trim()) continue
-    if (shouldPromoteJsToBlock(source)) {
+    if (shouldPromoteJsToBlock(source) || isJsOnlySnippet(source)) {
       const wrap = buildHighlightedPre(doc, source)
       const parent = code.parentElement
       const onlyChild =
         parent &&
-        ['P', 'LI'].includes(parent.tagName) &&
+        ['P', 'LI', 'DIV'].includes(parent.tagName) &&
         [...parent.childNodes].every(
           (n) => n === code || (n.nodeType === 3 && !String(n.textContent ?? '').trim()),
         )
       if (onlyChild && parent) parent.replaceWith(wrap)
-      else code.replaceWith(wrap)
+      else if (shouldPromoteJsToBlock(source)) code.replaceWith(wrap)
       continue
     }
     if (source !== (code.textContent ?? '')) code.textContent = source
@@ -160,7 +185,7 @@ function materializeMarkdownFences(html: string): string {
     /```[ \t]*(?:javascript|js|typescript|ts|jsx|tsx)?[ \t]*\r?\n([\s\S]*?)```/gi,
     (_all, body: string) => {
       const source = prepareJsBlockSource(String(body ?? ''), { expand: false })
-      if (!shouldPromoteJsToBlock(source) && !source.includes('\n')) {
+      if (!shouldPromoteJsToBlock(source) && !source.includes('\n') && !isJsOnlySnippet(source)) {
         return `<code>${escapeHtml(source.trim())}</code>`
       }
       const highlighted = highlightTs(source)
@@ -179,7 +204,7 @@ export function highlightHandoutCodeHtml(html: string): string {
       const looksJs = isJsLang(cls) || /\bhl-code\b/i.test(`${preAttrs} ${cls}`) || looksLikeJsSource(stripJsLangPrefix(decoded))
       if (!looksJs) return _all
       const source = prepareJsBlockSource(decoded, { expand: false })
-      if (!shouldPromoteJsToBlock(source)) {
+      if (!shouldPromoteJsToBlock(source) && !isJsOnlySnippet(source)) {
         return `<code>${escapeHtml(source.trim())}</code>`
       }
       const highlighted = highlightTs(source)

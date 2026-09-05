@@ -135,9 +135,9 @@ export async function requestComputerHandoutQuiz(input: {
     '【简答题 short】考特点、区别、原理等需要组织语言的内容。correct 写参考要点（可几句）。程序不自动判分，学员对照后自打分。',
     '选择题 correct 必须是 options 里某一项的原文；判断题 correct 写「正确」或「错误」。',
     '【选题优先·必须遵守】',
-    'A. 先从讲义抽出 3～6 个重点：加粗/定义句、「最主要/核心/本质/划分依据/原理/特点」、易混对比、考试常考的专名与标准。',
+    'A. 先从讲义抽出专节标题与加粗定义：「最主要/核心/本质/划分依据/原理/特点」、易混对比、考试常考的专名与标准。',
     'B. 本轮题目必须打在这些重点上；禁止专考边角数字、无区分度的举例、或讲义未强调的常识。',
-    'C. 一题只考一个重点；同一轮不要重复同一考点。',
+    'C. 一题只问一件事。重要专节（定义/原理/特点）应从定义、特点、易混对比多角度出题，允许同一专节出多题；禁止「一个考点只能出一道就跳过」。边角例子整轮最多 1 题。',
     '【干扰项·必须有迷惑性】',
     'D. 干扰项必须来自讲义里的真实概念/相邻特点/易混表述，看起来都像能选，不能一眼假。',
     'E. 优先用「讲义里正确、但答的不是本题」的内容作干扰（例如题干问最主要特点，用运算速度快、存储容量大等真实优点去抢「自动化程度高」）。',
@@ -213,7 +213,7 @@ export async function requestFrontendHandoutQuiz(input: {
     totalFrontendQuizCount,
     extractFrontendQuizSources,
     frontendHandoutLooksLikeProgramming,
-    extractFrontendHandoutKeyPoints,
+    extractFrontendHandoutQuizFocus,
     materialForFrontendQuiz,
   } = await import('@/utils/frontend/frontendHandoutQuiz')
   const total = totalFrontendQuizCount(input.counts)
@@ -222,14 +222,12 @@ export async function requestFrontendHandoutQuiz(input: {
   const avoid = (input.avoidStems ?? []).filter(Boolean).slice(-40)
   const avoidHint = avoid.length
     ? `不要出与下列题干或考点相近的题（必须换考点或换问法，禁止只改数字）：\n- ${avoid.join('\n- ')}`
-    : '本轮题干、考点、问法不要彼此雷同；禁止连续 3 题同一套路。'
+    : '本轮题干、问法不要彼此雷同；同一核心专节换角度加考不算雷同。'
   const allowedSources = extractFrontendQuizSources(input.material)
   const allowedSourceIds = allowedSources.map((x) => x.id)
   const codingHeavy = frontendHandoutLooksLikeProgramming(input.material)
-  const keyPoints = extractFrontendHandoutKeyPoints(input.material)
-  const keyPointBlock = keyPoints.length
-    ? `【本讲义重点·必须先覆盖】\n${keyPoints.map((p, i) => `${i + 1}. ${p}`).join('\n')}\n前 ${Math.min(keyPoints.length, total)} 题必须分别打在这些重点上，每项至少 1 题。重点还没出完时，禁止出冷门 API / 边角细节。`
-    : '先通读全文，自行列出 3～8 个重点（标题、加粗、定义、易混对比），再按重点出题。'
+  const focus = extractFrontendHandoutQuizFocus(input.material, total)
+  const keyPointBlock = focus.promptBlock || '先通读全文，自行列出专节与核心概念（标题、加粗、定义），核心概念要定义+易混+应用都考到。'
   const system = [
     '你是前端（JavaScript / ES6）命题老师，专出高频、实用、易错考点题。只根据给定讲义出题，用简体中文。',
     '出题前必须把讲义全部看完，先找重点再出题，而不是只盯着开头几段示例。',
@@ -255,13 +253,13 @@ export async function requestFrontendHandoutQuiz(input: {
     '【简答题 short】考特点、区别、原理等需要组织语言的内容。correct 写参考要点。',
     '选择题 correct 必须是 options 里某一项的原文；判断题 correct 写「正确」或「错误」。',
     '【选题优先·必须遵守】',
-    'A. 先覆盖上面列出的重点（含概念题：定义、作用、易混对比），再考虑其它。',
-    'B. 同一冷门细节整轮最多 1 题。一题只考一个重点；同一轮不要重复同一考点。',
-    'C. 重新生成时必须换考点或换问法，不能只把数字/变量名改一下。',
+    'A. 先按上面的核心专节加码，再覆盖其它专节；禁止把整轮题都压在开头几段示例上。',
+    'B. 边角 API / 无区分度的细节整轮最多 1 题。核心专节必须换角度加考，禁止「一个考点只能出一道」。',
+    'C. 重新生成时必须换问法或换例子，不能只把数字/变量名改一下。',
     codingHeavy
       ? [
           '【编程题·本讲义含代码/操作】',
-          'H. 本轮至少一半题目必须是编程题：看代码写运行结果、填空、判断这段代码在做什么；其余用概念题把重点（如闭包）考到。',
+          `H. 编程题约占三分之一到一半（大约 ${Math.max(1, Math.floor(total / 3))}～${Math.max(2, Math.ceil(total / 2))} 题），但不得挤占核心专节的定义/判断题。闭包、作用域、原型、this、Promise 等明摆着的重点：先出定义和易混对比，再出看代码。`,
           'I. 完整程序必须用 Markdown 代码块，且围栏独占一行：先换行写 ```js ，下一行才是代码，最后单独一行 ```。禁止写成「阅读代码： ``` js」。短关键字只用行内反引号。',
           'J. 编程题必须改写讲义示例（换变量名、换数字、换运算符或表达式结构），禁止原样照抄讲义代码。改写后的运行结果必须自己算对。',
           'K. 代码必须是完整可运行片段：用到的变量都要在片段里声明或赋值。禁止只写 console.log(e.message) 却不写 e 怎么来的。',

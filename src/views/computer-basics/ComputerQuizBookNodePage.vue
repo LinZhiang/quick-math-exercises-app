@@ -45,6 +45,7 @@ const noteDraft = ref('')
 const noteEditing = ref(false)
 const noteSaving = ref(false)
 const quizOpen = ref(false)
+const answerOpen = ref(false)
 
 const nodeId = computed(() => String(route.query.id ?? ''))
 const tab = computed<'wrong' | 'favorite'>(() => (String(route.query.tab ?? '') === 'favorite' ? 'favorite' : 'wrong'))
@@ -151,16 +152,19 @@ function rowListTitle(row: StoredComputerQuizRecord) {
 function openDetail(index: number) {
   if (index < 0 || index >= filteredRows.value.length) {
     detailIndex.value = -1
+    answerOpen.value = false
     resetNoteEdit()
     return
   }
   detailIndex.value = index
+  answerOpen.value = false
   resetNoteEdit()
   noteDraft.value = getComputerQuizNote(filteredRows.value[index]!.fingerprint)
 }
 
 function closeDetail() {
   detailIndex.value = -1
+  answerOpen.value = false
   resetNoteEdit()
 }
 
@@ -266,14 +270,14 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="computer-page" :class="{ 'is-quiz': quizOpen }">
-    <header v-if="!quizOpen" class="computer-page__head">
+  <section class="computer-page" :class="{ 'is-quiz': quizOpen, 'is-detail': Boolean(detailRow) && !quizOpen }">
+    <header v-if="!quizOpen && !detailRow" class="computer-page__head">
       <h2 class="computer-page__title">{{ selectedNode?.name || '题目整理' }}</h2>
       <p class="computer-page__lead">
         {{ tab === 'wrong' ? '错题' : '收藏' }} · 点「开始测验」默认测原题，可勾选变式。不入错题集，会记录测验次数。
       </p>
     </header>
-    <div class="computer-tree-card" :class="{ 'is-quiz': quizOpen }">
+    <div class="computer-tree-card" :class="{ 'is-quiz': quizOpen, 'is-detail': Boolean(detailRow) && !quizOpen }">
       <div v-if="loading" class="computer-busy-panel">
         <ComputerBusyHint text="正在读取题目…" />
       </div>
@@ -291,34 +295,36 @@ onMounted(async () => {
         <el-button size="small" @click="router.push({ name: 'computer-book' })">返回目录</el-button>
       </template>
       <template v-else>
-        <form class="cb-book__filters" @submit.prevent>
-          <label class="cb-book__field">
-            <span>错题次数</span>
-            <el-select
-              v-model="filterWrongCount"
-              clearable
-              placeholder="不限"
-              :disabled="tab !== 'wrong'"
-              style="width: 7.5rem"
-            >
-              <el-option v-for="n in wrongCountOptions" :key="n" :label="`${n} 次`" :value="n" />
-            </el-select>
-          </label>
-          <label class="cb-book__field">
-            <span>日期</span>
-            <el-select v-model="filterDate" clearable placeholder="不限" style="width: 9.5rem">
-              <el-option v-for="d in dateOptions" :key="d" :label="d" :value="d" />
-            </el-select>
-          </label>
-          <el-button size="small" plain @click="resetFilters">重置</el-button>
-          <el-button size="small" type="primary" :disabled="!filteredRows.length" @click="startQuiz">
-            开始测验
-          </el-button>
-        </form>
-        <p class="cb-book__meta">
-          「{{ selectedNode.name }}」{{ filteredRows.length }} 题
-          <template v-if="filteredRows.length !== scopedRows.length"> / {{ scopedRows.length }}</template>
-        </p>
+        <template v-if="!detailRow">
+          <form class="cb-book__filters" @submit.prevent>
+            <label class="cb-book__field">
+              <span>错题次数</span>
+              <el-select
+                v-model="filterWrongCount"
+                clearable
+                placeholder="不限"
+                :disabled="tab !== 'wrong'"
+                style="width: 7.5rem"
+              >
+                <el-option v-for="n in wrongCountOptions" :key="n" :label="`${n} 次`" :value="n" />
+              </el-select>
+            </label>
+            <label class="cb-book__field">
+              <span>日期</span>
+              <el-select v-model="filterDate" clearable placeholder="不限" style="width: 9.5rem">
+                <el-option v-for="d in dateOptions" :key="d" :label="d" :value="d" />
+              </el-select>
+            </label>
+            <el-button size="small" plain @click="resetFilters">重置</el-button>
+            <el-button size="small" type="primary" :disabled="!filteredRows.length" @click="startQuiz">
+              开始测验
+            </el-button>
+          </form>
+          <p class="cb-book__meta">
+            「{{ selectedNode.name }}」{{ filteredRows.length }} 题
+            <template v-if="filteredRows.length !== scopedRows.length"> / {{ scopedRows.length }}</template>
+          </p>
+        </template>
         <p v-if="!filteredRows.length" class="cb-book__empty">当前分类或筛选下没有题目</p>
         <template v-else-if="detailRow">
           <div class="cb-book__pager">
@@ -344,13 +350,18 @@ onMounted(async () => {
               <li
                 v-for="(opt, i) in displayOf(detailRow).options"
                 :key="i"
-                :class="{ 'is-ans': i === detailRow.correctIndex }"
+                :class="{ 'is-ans': answerOpen && i === detailRow.correctIndex }"
               >
                 {{ opt }}
               </li>
             </ul>
-            <p>答案：{{ displayOf(detailRow).correctText }}</p>
-            <RichTextView v-if="displayOf(detailRow).explanation" :html="displayOf(detailRow).explanation" />
+            <el-button size="small" plain @click="answerOpen = !answerOpen">
+              {{ answerOpen ? '收起答案' : '查看答案与解析' }}
+            </el-button>
+            <template v-if="answerOpen">
+              <p>答案：{{ displayOf(detailRow).correctText }}</p>
+              <RichTextView v-if="displayOf(detailRow).explanation" :html="displayOf(detailRow).explanation" />
+            </template>
             <div class="cb-book__note">
               <div class="cb-book__note-head">
                 <strong>备注</strong>
@@ -434,6 +445,10 @@ onMounted(async () => {
   padding-top: 8px;
 }
 
+.computer-page.is-detail {
+  padding-top: 8px;
+}
+
 .computer-page__head {
   flex-shrink: 0;
   margin-bottom: 12px;
@@ -470,6 +485,10 @@ onMounted(async () => {
   max-width: none;
   overflow: hidden;
   padding: 8px 10px;
+}
+
+.computer-tree-card.is-detail {
+  overflow: hidden;
 }
 
 .computer-busy-panel {
@@ -558,18 +577,28 @@ onMounted(async () => {
   display: grid;
   gap: 8px;
   font-size: 13px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .cb-book__detail.is-page {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
   padding-top: 4px;
 }
 
 .cb-book__pager {
+  flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  padding: 0 0 10px;
+  margin: 0 -4px;
+  border-bottom: 1px solid var(--app-border-soft);
+  background: #fff;
   font-size: 13px;
   color: var(--app-text-muted);
 }

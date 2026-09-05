@@ -1,5 +1,5 @@
 import { markdownToDisplaySafeHtml } from '@/utils/markdown/markdownToHtml'
-import { highlightHandoutCodeHtml, shouldPromoteJsToBlock } from '@/utils/markdown/highlightHandoutCode'
+import { highlightHandoutCodeHtml, isJsOnlySnippet, shouldPromoteJsToBlock } from '@/utils/markdown/highlightHandoutCode'
 import { repairSameLineFenceOpeners, normalizeJsMarkdownFences, tidyJsFencesInMarkdown } from '@/utils/markdown/tidyJsCode'
 import { judgeExplanationConflictsCorrect } from '@/utils/quiz/handoutQuizConsistency'
 
@@ -27,8 +27,8 @@ export type FrontendQuizCounts = {
 }
 
 export const DEFAULT_FRONTEND_QUIZ_COUNTS: FrontendQuizCounts = {
-  choice: 10,
-  judge: 1,
+  choice: 12,
+  judge: 2,
   calc: 0,
   short: 0,
 }
@@ -187,21 +187,93 @@ export function frontendQuizPlainText(s: string): string {
     .trim()
 }
 
-/** 从整篇讲义抽标题/加粗，供出题时先覆盖重点。 */
-export function extractFrontendHandoutKeyPoints(material: string, limit = 12): string[] {
+const WEAK_HANDOUT_HEADING = /^(概述|简介|引言|小结|总结|目录|前言|说明|注意|备注|示例|例子|练习|导读)$/
+const CORE_JS_TOPIC_RE =
+  /闭包|作用域链?|词法作用域|原型链?|执行上下文|事件循环|微任务|宏任务|Promise|async|await|柯里化|防抖|节流|事件委托|高阶函数|箭头函数|立即执行|IIFE|变量提升|暂时性死区|垃圾回收|内存泄漏|深拷贝|浅拷贝|事件冒泡|\bthis\b|\b(?:call|apply|bind)\b|继承|迭代器|生成器|模块化|可选链/
+
+function pushUniqueTitle(points: string[], raw: string, maxLen = 48): void {
+  const x = frontendQuizPlainText(raw).replace(/^#+\s*/, '').trim()
+  if (x.length < 2 || x.length > maxLen) return
+  if (WEAK_HANDOUT_HEADING.test(x)) return
+  if (points.some((p) => p === x || p.includes(x) || x.includes(p))) return
+  points.push(x)
+}
+
+function extractHandoutHeadings(material: string): string[] {
   const s = String(material || '')
   const points: string[] = []
-  const push = (raw: string) => {
-    const x = frontendQuizPlainText(raw).replace(/^#+\s*/, '')
-    if (x.length < 2 || x.length > 36) return
-    if (points.some((p) => p === x || p.includes(x) || x.includes(p))) return
-    points.push(x)
-  }
-  for (const m of s.matchAll(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi)) push(m[1] ?? '')
-  for (const m of s.matchAll(/^#{1,3}\s+(.+)$/gm)) push(m[1] ?? '')
-  for (const m of s.matchAll(/<(?:strong|b)>([\s\S]*?)<\/(?:strong|b)>/gi)) push(m[1] ?? '')
-  for (const m of s.matchAll(/\*\*([^*]{2,30})\*\*/g)) push(m[1] ?? '')
+  for (const m of s.matchAll(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi)) pushUniqueTitle(points, m[1] ?? '')
+  for (const m of s.matchAll(/^#{1,4}\s+(.+)$/gm)) pushUniqueTitle(points, m[1] ?? '')
+  return points
+}
+
+function isCoreJsTopicTitle(title: string): boolean {
+  return CORE_JS_TOPIC_RE.test(title.replace(/\s+/g, ''))
+}
+
+function mentionCount(haystack: string, term: string): number {
+  if (!term) return 0
+  const re = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
+  return (String(haystack).match(re) || []).length
+}
+
+/** 从整篇讲义抽标题/加粗，供出题时先覆盖重点。 */
+export function extractFrontendHandoutKeyPoints(material: string, limit = 16): string[] {
+  const s = String(material || '')
+  const points: string[] = extractHandoutHeadings(s)
+  for (const m of s.matchAll(/<(?:strong|b)>([\s\S]*?)<\/(?:strong|b)>/gi)) pushUniqueTitle(points, m[1] ?? '', 36)
+  for (const m of s.matchAll(/\*\*([^*]{2,36})\*\*/g)) pushUniqueTitle(points, m[1] ?? '', 36)
   return points.slice(0, limit)
+}
+
+/** 专节/高频核心概念：必须加码（定义+易混），不能只用一道编程题打发。 */
+export function extractFrontendHandoutQuizFocus(
+  material: string,
+  total: number,
+): { cores: string[]; others: string[]; minPerCore: number; promptBlock: string } {
+  const s = String(material || '')
+  const headings = extractHandoutHeadings(s)
+  const cores: string[] = headings.filter((h) => isCoreJsTopicTitle(h))
+  const hinted = [
+    '闭包',
+    '作用域链',
+    '词法作用域',
+    '原型链',
+    '执行上下文',
+    '事件循环',
+    '柯里化',
+    '防抖',
+    '节流',
+    '事件委托',
+    '变量提升',
+    '暂时性死区',
+    '高阶函数',
+    '箭头函数',
+  ]
+  for (const term of hinted) {
+    if (cores.some((c) => c.includes(term))) continue
+    if (mentionCount(s, term) >= 3) cores.push(term)
+  }
+  const others = headings.filter((h) => !cores.some((c) => c === h || c.includes(h) || h.includes(c)))
+  const minPerCore =
+    cores.length === 0 ? 0 : total >= cores.length * 3 + Math.min(2, others.length) ? 3 : 2
+  const coreLines = cores.map((p, i) => {
+    const n = minPerCore
+    return `${i + 1}. ${p} → 至少 ${n} 题：①定义/形成条件（选择或判断，禁止只用编程题）②特点/作用/易混对比③有示例再加看代码，且③不能替代①②`
+  })
+  const otherLines = others.slice(0, 8).map((p, i) => `${i + 1}. ${p}`)
+  const promptBlock = [
+    cores.length
+      ? `【核心专节·必须加码】\n${coreLines.join('\n')}\n同一核心换问法重复考是正确做法，禁止「这个点已经出过一道就跳过」。`
+      : '',
+    otherLines.length ? `【其它专节·各至少 1 题】\n${otherLines.join('\n')}` : '',
+    cores.length
+      ? '编程题不得挤占核心专节的定义题：先保证每个核心的①②，再用剩余名额出看代码。'
+      : '先覆盖标题/加粗/定义，再考虑其它。',
+  ]
+    .filter(Boolean)
+    .join('\n')
+  return { cores, others, minPerCore, promptBlock }
 }
 
 /** 长讲义：保留开头，并补上各重点附近的原文，避免闭包等后半段被截掉。 */
@@ -235,19 +307,73 @@ export function polishFrontendQuizJargon(s: string): string {
     .replace(/\btruthy\b/gi, '真值')
 }
 
+function wrapPlainJsSnippet(raw: string, asHtml: boolean): string {
+  if (asHtml) {
+    return `<code>${raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code>`
+  }
+  return `\`${raw}\``
+}
+
+/** 正文里漏标的 JS：错误名、if (v) {} 等做成行内代码；已有围栏/反引号不动。 */
+function decoratePlainJsSnippets(text: string): string {
+  const asHtml = /<(?:p|div|span|br|li|strong|em)\b/i.test(text)
+  const chunks = String(text ?? '').split(/(```[\s\S]*?```|<pre[\s\S]*?<\/pre>|<code[\s\S]*?<\/code>)/gi)
+  return chunks
+    .map((chunk) => {
+      if (/^(```|<pre\b|<code\b)/i.test(chunk)) return chunk
+      const bits = chunk.split(/(`[^`]*`)/g)
+      return bits
+        .map((bit) => {
+          if (bit.startsWith('`')) return bit
+          return bit
+            .replace(
+              /\b(ReferenceError|TypeError|SyntaxError|RangeError|URIError|EvalError)\b/g,
+              (m) => wrapPlainJsSnippet(m, asHtml),
+            )
+            .replace(
+              /\b((?:else\s+if|if|for|while)\s*\([^)]{0,80}\)\s*(?:\{\s*\})?)/g,
+              (m) => wrapPlainJsSnippet(m, asHtml),
+            )
+            .replace(/\b(typeof\s+[A-Za-z_$][\w$]*)\b/g, (m) => wrapPlainJsSnippet(m, asHtml))
+            .replace(/\b(console\.\w+\s*\([^)]{0,100}\))/g, (m) => wrapPlainJsSnippet(m, asHtml))
+        })
+        .join('')
+    })
+    .join('')
+}
+
+function unwrapQuizOptionToJs(raw: string): string {
+  return String(raw ?? '')
+    .replace(/```[^\n]*\n?/g, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(?:p|div|li)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .trim()
+}
+
 /** 测验题干/选项/解析：Markdown + 讲义同款 JS 代码块。 */
 export function formatFrontendQuizRichHtml(text: string): string {
   const t = polishFrontendQuizJargon(String(text ?? '').trim())
   if (!t) return ''
+  if (isJsOnlySnippet(t)) {
+    const src = unwrapQuizOptionToJs(t)
+    if (src) return highlightHandoutCodeHtml(`\`\`\`js\n${src}\n\`\`\``)
+  }
   const hasFence = /```/.test(t)
   if (!hasFence && (/^</.test(t) || /<(p|pre|code|div|br|span)\b/i.test(t))) {
-    return highlightHandoutCodeHtml(t)
+    return highlightHandoutCodeHtml(decoratePlainJsSnippets(t))
   }
   let body = tidyJsFencesInMarkdown(repairSameLineFenceOpeners(normalizeJsMarkdownFences(t)))
   if (!/```/.test(body) && !/[\u4e00-\u9fff]/.test(body) && shouldPromoteJsToBlock(body)) {
     body = `\`\`\`js\n${body}\n\`\`\``
   }
-  const withCode = promoteBareJsFences(body)
+  const withCode = decoratePlainJsSnippets(promoteBareJsFences(body))
     .replace(/(?<![`\w])(Number\.(?:MIN|MAX)_(?:SAFE_)?VALUE)(?![`\w])/g, '`$1`')
     .replace(/(?<![`\w])0[xX]\s*[\/／]\s*0[xX](?![`\w])/g, '`0x`/`0X`')
   return highlightHandoutCodeHtml(markdownToDisplaySafeHtml(withCode))

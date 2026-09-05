@@ -173,21 +173,21 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
 
 .rich-text-view :deep(pre),
 .rich-text-view :deep(pre code) {
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  word-break: normal;
+  overflow-wrap: normal;
+  word-wrap: normal;
   hyphens: none;
 }
 
 .rich-text-view :deep(pre) {
-  white-space: pre-wrap;
+  white-space: pre;
 }
 
 .rich-text-view :deep(pre code) {
   white-space: inherit;
   display: block;
-  width: auto;
-  max-width: 100%;
-  min-width: 0;
+  width: max-content;
+  min-width: 100%;
 }
 
 .rich-text-view--docs :deep(.md-table-scroll:has(> pre)) {
@@ -212,12 +212,12 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
   font-size: 14px;
   line-height: 1.7;
-  width: auto;
-  max-width: 100%;
-  min-width: 0;
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
   box-sizing: border-box;
   overflow-x: visible;
-  white-space: pre-wrap;
+  white-space: pre;
 }
 
 .rich-text-view--docs :deep(.md-table-scroll > pre) {

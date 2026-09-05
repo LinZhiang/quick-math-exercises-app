@@ -665,7 +665,7 @@ onBeforeUnmount(() => {
 
 .computer-ask-tab {
   position: absolute;
-  right: 0;
+  right: 12px;
   bottom: 16px;
   z-index: 12;
   display: flex;

@@ -416,7 +416,7 @@ watch(photoOpen, (open) => {
         <h2 v-if="!headCollapsed" class="computer-detail__title">{{ item.title }}</h2>
         <div class="computer-detail__actions">
           <div class="computer-detail__tools">
-            <el-tooltip :content="headCollapsed ? '展开标题' : '收起标题'" placement="top">
+            <el-tooltip :content="headCollapsed ? '展开标题' : '收起标题'" placement="bottom">
               <el-button
                 size="small"
                 circle
@@ -425,19 +425,25 @@ watch(photoOpen, (open) => {
                 @click="headCollapsed = !headCollapsed"
               />
             </el-tooltip>
-            <el-tooltip :content="fullscreen ? '退出全屏' : '全屏'" placement="top">
+            <el-tooltip :content="fullscreen ? '退出全屏' : '全屏'" placement="bottom">
               <el-button size="small" circle :icon="FullScreen" @click="fullscreen = !fullscreen" />
             </el-tooltip>
-            <el-tooltip content="导出文档" placement="top">
+            <el-tooltip content="导出文档" placement="bottom">
               <el-button size="small" circle :icon="Download" @click="exportMarkdown" />
             </el-tooltip>
-            <el-tooltip v-if="isAdmin && !editing" content="编辑讲义" placement="top">
+            <el-tooltip v-if="isAdmin && !editing" content="编辑讲义" placement="bottom">
               <el-button size="small" circle type="primary" :icon="EditPen" @click="startEdit" />
             </el-tooltip>
-            <el-tooltip v-if="isAdmin" content="删除讲义" placement="top">
+            <el-tooltip v-if="isAdmin && !editing" content="删除讲义" placement="bottom">
               <el-button size="small" circle type="danger" plain :icon="Delete" @click="onDeleteCurrent" />
             </el-tooltip>
-            <el-button size="small" type="primary" plain :disabled="editing" @click="quizOpen = true">
+            <el-button
+              v-if="!editing"
+              size="small"
+              type="primary"
+              plain
+              @click="quizOpen = true"
+            >
               AI 测验
             </el-button>
           </div>
@@ -586,7 +592,7 @@ watch(photoOpen, (open) => {
       </template>
       <RichTextView v-else :tone="docsTone ? 'docs' : 'default'" :html="html" />
     </article>
-    <FrontendAskPanel v-if="item && !fullscreen && !photoOpen && !quizOpen" :item="item" />
+    <FrontendAskPanel v-if="item && !fullscreen && !photoOpen && !quizOpen && !editing" :item="item" />
     <div v-if="loading || saving" class="computer-busy-cover">
       <FrontendBusyHint :text="saving ? '正在保存讲义…' : '正在打开讲义…'" />
     </div>
@@ -658,10 +664,9 @@ watch(photoOpen, (open) => {
 
 .computer-detail__title-row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 12px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
 }
 
 .computer-detail__crumb {
@@ -673,19 +678,18 @@ watch(photoOpen, (open) => {
 .computer-detail__title {
   margin: 0;
   min-width: 0;
-  flex: 1 1 auto;
+  width: 100%;
   font-size: 1.28rem;
   font-weight: 800;
 }
 
 .computer-detail__actions {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 8px;
-  flex: 0 0 auto;
+  width: 100%;
   min-width: 0;
-  margin-left: auto;
 }
 
 .computer-detail__tools {
@@ -703,7 +707,11 @@ watch(photoOpen, (open) => {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-left: auto;
+  width: 100%;
+}
+
+.computer-detail__edit-btns :deep(.el-button) {
+  flex: 1 1 0;
 }
 
 .computer-detail__pager {
@@ -721,7 +729,7 @@ watch(photoOpen, (open) => {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 18px 20px 16px;
+  padding: 18px 20px 80px;
   border: 1px solid var(--app-border-soft);
   border-radius: 12px;
   background: #fff;
@@ -878,7 +886,7 @@ watch(photoOpen, (open) => {
     width: 100%;
     max-width: 56rem;
     margin-inline: auto;
-    padding: 28px 40px 36px;
+    padding: 28px 40px 80px;
   }
 
   .computer-detail__quiz {
@@ -887,11 +895,29 @@ watch(photoOpen, (open) => {
   }
 
   .computer-detail__title-row {
-    flex-wrap: nowrap;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .computer-detail__actions {
+    width: auto;
+    flex: 1 1 16rem;
+    margin-left: auto;
+  }
+
+  .computer-detail__edit-btns {
+    width: auto;
+  }
+
+  .computer-detail__edit-btns :deep(.el-button) {
+    flex: 0 0 auto;
   }
 
   .computer-detail__title {
     min-width: 0;
+    width: auto;
     flex: 1 1 auto;
     font-size: 1.42rem;
     overflow: hidden;

@@ -149,8 +149,8 @@ const quizAskQuestion = computed((): FrontendAskQuestionContext | null => {
         <template v-else>
           {{
             scopeLabel
-              ? `按「${scopeLabel}」范围内的讲义出重点题：优先考加粗、定义、易混点和日常会用到的内容；讲义若有编程操作，会适当出看代码写结果、填空、判断代码在做什么的题。`
-              : '按当前讲义出重点题：优先考加粗、定义、易混点和日常会用到的内容；讲义若有编程操作，会适当出看代码写结果、填空、判断代码在做什么的题。'
+              ? `按「${scopeLabel}」范围内的讲义出重点题：专节里的核心概念要定义、易混点和应用都考到，不能只用一道编程题打发；有代码再适当出看代码题。`
+              : '按当前讲义出重点题：专节里的核心概念（如闭包）要定义、易混点和应用都考到，不能只用一道编程题打发；讲义若有代码，再适当出看代码写结果、填空题。'
           }}
           计算题系统按结果判分（写出的内容包含标准答案即可）；简答题对照参考答案后自己打分。
         </template>
@@ -348,6 +348,10 @@ const quizAskQuestion = computed((): FrontendAskQuestionContext | null => {
 }
 
 .cb-quiz.is-running {
+  padding-bottom: 8px;
+}
+
+.cb-quiz.is-running .cb-quiz__body {
   padding-bottom: 72px;
 }
 
@@ -548,6 +552,15 @@ const quizAskQuestion = computed((): FrontendAskQuestionContext | null => {
   cursor: pointer;
   min-width: 0;
   max-width: 100%;
+  overflow-x: auto;
+}
+
+.cb-quiz__opt :deep(.md-table-scroll) {
+  margin: 0;
+}
+
+.cb-quiz__opt :deep(pre) {
+  margin: 0;
 }
 
 .cb-quiz__opt.is-picked {
@@ -599,8 +612,8 @@ const quizAskQuestion = computed((): FrontendAskQuestionContext | null => {
     gap: 14px;
   }
 
-  .cb-quiz.is-running {
-    padding-bottom: 20px;
+  .cb-quiz.is-running .cb-quiz__body {
+    padding-bottom: 72px;
   }
 
   .cb-quiz__head {
