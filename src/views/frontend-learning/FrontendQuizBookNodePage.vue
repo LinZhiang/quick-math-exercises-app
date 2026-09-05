@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAppChromeTitle } from '@/composables/app/useAppChrome'
@@ -9,6 +9,8 @@ import {
   listFrontendQuizWrongRecords,
   removeFrontendQuizFavorite,
   removeFrontendQuizWrong,
+  isFrontendQuizFavorite,
+  toggleFrontendQuizFavorite,
   type StoredFrontendQuizRecord,
 } from '@/utils/frontend/frontendHandoutQuizStorage'
 import {
@@ -47,6 +49,7 @@ const noteEditing = ref(false)
 const noteSaving = ref(false)
 const quizOpen = ref(false)
 const answerOpen = ref(false)
+const detailBodyRef = ref<HTMLElement | null>(null)
 
 const nodeId = computed(() => String(route.query.id ?? ''))
 const tab = computed<'wrong' | 'favorite'>(() => (String(route.query.tab ?? '') === 'favorite' ? 'favorite' : 'wrong'))
@@ -153,6 +156,9 @@ function openDetail(index: number) {
   answerOpen.value = false
   resetNoteEdit()
   noteDraft.value = getFrontendQuizNote(filteredRows.value[index]!.fingerprint)
+  void nextTick(() => {
+    detailBodyRef.value?.scrollTo({ top: 0 })
+  })
 }
 
 function closeDetail() {
@@ -170,6 +176,27 @@ function stillKept(fp: string) {
     listFrontendQuizWrongRecords().some((r) => r.fingerprint === fp) ||
     listFrontendQuizFavoriteRecords().some((r) => r.fingerprint === fp)
   )
+}
+
+function rowFavorited(fp: string) {
+  return isFrontendQuizFavorite(fp)
+}
+
+function onToggleFavorite(row: StoredFrontendQuizRecord) {
+  const r = toggleFrontendQuizFavorite({
+    fingerprint: row.fingerprint,
+    kind: row.kind,
+    term: row.term,
+    stem: row.stem,
+    options: row.options,
+    correctIndex: row.correctIndex,
+    correctText: row.correctText,
+    explanation: row.explanation,
+    itemId: row.itemId,
+    itemTitle: row.itemTitle,
+    learningPath: row.learningPath,
+  })
+  ElMessage.success(r === 'added' ? '已加入收藏' : '已取消收藏')
 }
 
 function remove(row: StoredFrontendQuizRecord) {
@@ -321,21 +348,33 @@ onMounted(async () => {
         <p v-if="!filteredRows.length" class="cb-book__empty">当前分类或筛选下没有题目</p>
         <template v-else-if="detailRow">
           <div class="cb-book__pager">
-            <el-button size="small" @click="closeDetail">返回列表</el-button>
-            <el-button size="small" text :disabled="detailIndex <= 0" @click="shiftDetail(-1)">
-              ‹ 上一题
-            </el-button>
-            <span>第 {{ detailIndex + 1 }} / {{ filteredRows.length }} 题</span>
-            <el-button
-              size="small"
-              text
-              :disabled="detailIndex >= filteredRows.length - 1"
-              @click="shiftDetail(1)"
-            >
-              下一题 ›
-            </el-button>
+            <div class="cb-book__pager-top">
+              <el-button size="small" class="cb-book__pager-back" @click="closeDetail">返回列表</el-button>
+              <el-button v-if="tab === 'wrong'" size="small" plain @click="onToggleFavorite(detailRow)">
+                {{ rowFavorited(detailRow.fingerprint) ? '已收藏' : '收藏' }}
+              </el-button>
+            </div>
+            <div class="cb-book__pager-nav">
+              <button
+                type="button"
+                class="cb-book__pager-link"
+                :disabled="detailIndex <= 0"
+                @click="shiftDetail(-1)"
+              >
+                ‹ 上一题
+              </button>
+              <span class="cb-book__pager-pos">第 {{ detailIndex + 1 }} / {{ filteredRows.length }} 题</span>
+              <button
+                type="button"
+                class="cb-book__pager-link"
+                :disabled="detailIndex >= filteredRows.length - 1"
+                @click="shiftDetail(1)"
+              >
+                下一题 ›
+              </button>
+            </div>
           </div>
-          <div class="cb-book__detail is-page">
+          <div ref="detailBodyRef" class="cb-book__detail is-page">
             <p class="cb-book__kind">{{ frontendQuizKindLabel(detailRow.kind) }}</p>
             <p class="cb-book__from">{{ rowPath(detailRow) }}</p>
             <RichTextView :html="displayOf(detailRow).stem" tone="docs" :math="false" :zoom-images="false" />
@@ -345,14 +384,15 @@ onMounted(async () => {
                 :key="i"
                 :class="{ 'is-ans': answerOpen && i === detailRow.correctIndex }"
               >
+                <span v-if="answerOpen && i === detailRow.correctIndex" class="cb-book__opt-flag">正确</span>
                 <RichTextView :html="opt" tone="docs" :math="false" :zoom-images="false" />
               </li>
             </ul>
             <el-button size="small" plain @click="answerOpen = !answerOpen">
-              {{ answerOpen ? '收起答案' : '查看答案与解析' }}
+              {{ answerOpen ? '收起解析' : '查看答案与解析' }}
             </el-button>
             <template v-if="answerOpen">
-              <div class="cb-book__answer">
+              <div v-if="!detailRow.options.length" class="cb-book__answer">
                 <span>答案：</span>
                 <RichTextView :html="displayOf(detailRow).correctText" tone="docs" :math="false" :zoom-images="false" />
               </div>
@@ -406,7 +446,9 @@ onMounted(async () => {
               </template>
               <p v-else class="cb-book__note-empty">暂无备注</p>
             </div>
-            <el-button size="small" type="danger" plain @click="remove(detailRow)">删除</el-button>
+            <div class="cb-book__actions">
+              <el-button size="small" type="danger" plain @click="remove(detailRow)">删除</el-button>
+            </div>
           </div>
         </template>
         <ul v-else class="cb-book__list">
@@ -420,6 +462,7 @@ onMounted(async () => {
                   ·
                   <template v-if="tab === 'wrong'">错 {{ row.wrongCount ?? 1 }} 次</template>
                   <template v-else>收藏</template>
+                  <template v-if="tab === 'wrong' && rowFavorited(row.fingerprint)"> · 已收藏</template>
                   · 测 {{ row.attemptCount ?? 0 }} 次
                   · {{ frontendQuizRecordDateKey(row) || '—' }}
                   <template v-if="rowNote(row.fingerprint)"> · 有备注</template>
@@ -593,16 +636,59 @@ onMounted(async () => {
 .cb-book__pager {
   flex-shrink: 0;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
   padding: 0 0 10px;
   margin: 0 -4px;
   border-bottom: 1px solid var(--app-border-soft);
   background: #fff;
+}
+
+.cb-book__pager-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cb-book__pager-back {
+  align-self: auto;
+}
+
+.cb-book__pager-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 32px;
   font-size: 13px;
   color: var(--app-text-muted);
+  white-space: nowrap;
+}
+
+.cb-book__pager-pos {
+  min-width: 7.5rem;
+  text-align: center;
+}
+
+.cb-book__pager-link {
+  appearance: none;
+  margin: 0;
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: var(--app-primary);
+  font: inherit;
+  font-weight: 650;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.cb-book__pager-link:disabled {
+  color: var(--app-text-muted);
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .cb-book__from {
@@ -612,16 +698,51 @@ onMounted(async () => {
 
 .cb-book__opts {
   margin: 0;
-  padding-left: 1.2em;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.cb-book__opts li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--app-border-soft);
+  border-radius: 10px;
+  background: #fff;
 }
 
 .cb-book__opts :deep(p) {
   margin: 0;
 }
 
+.cb-book__opts :deep(code:not(pre code)) {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
 .cb-book__opts .is-ans {
+  border-color: #86efac;
+  background: #ecfdf5;
   font-weight: 700;
-  color: #16a34a;
+  color: #15803d;
+}
+
+.cb-book__opt-flag {
+  flex-shrink: 0;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
 }
 
 .cb-book__answer {
@@ -633,6 +754,12 @@ onMounted(async () => {
 
 .cb-book__answer :deep(p) {
   margin: 0;
+}
+
+.cb-book__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .cb-book__note {

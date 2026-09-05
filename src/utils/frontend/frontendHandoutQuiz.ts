@@ -1,5 +1,5 @@
 import { markdownToDisplaySafeHtml } from '@/utils/markdown/markdownToHtml'
-import { highlightHandoutCodeHtml, isJsOnlySnippet, shouldPromoteJsToBlock } from '@/utils/markdown/highlightHandoutCode'
+import { highlightHandoutCodeHtml, isJsOnlySnippet, jsSourceLooksLikeProse, shouldPromoteJsToBlock } from '@/utils/markdown/highlightHandoutCode'
 import { repairSameLineFenceOpeners, normalizeJsMarkdownFences, tidyJsFencesInMarkdown } from '@/utils/markdown/tidyJsCode'
 import { judgeExplanationConflictsCorrect } from '@/utils/quiz/handoutQuizConsistency'
 
@@ -142,34 +142,41 @@ export function frontendHandoutLooksLikeProgramming(material: string): boolean {
   return tokens && codeLines >= 3
 }
 
+function lineLooksLikeBareJs(ln: string): boolean {
+  const t = ln.trim()
+  if (!t) return false
+  if (/^[\u4e00-\u9fff]/.test(t)) return false
+  if (/[\u4e00-\u9fff]/.test(t) && !/[{};=]|function\b|const\b|let\b|var\b|=>/.test(t)) return false
+  return (
+    /^(?:const|let|var|function|class|console|import|export)\b/.test(t) ||
+    /^(?:if|for|while|switch)\s*\(/.test(t) ||
+    (/^(?:return|else|try|catch|case)\b/.test(t) && /[;{}()=]/.test(t)) ||
+    /[{};]$/.test(t) ||
+    /=>/.test(t) ||
+    shouldPromoteJsToBlock(t) ||
+    /^\s*[})\];]/.test(ln)
+  )
+}
+
+function flushBareJsLines(buf: string[]): string[] {
+  if (buf.length >= 2 || (buf.length === 1 && shouldPromoteJsToBlock(buf[0] ?? ''))) {
+    return ['```js', ...buf, '```']
+  }
+  return [...buf]
+}
+
 function promoteBareJsFences(text: string): string {
   const s = String(text ?? '')
   if (!s.trim() || /```/.test(s)) return s
-  const isJsish = (ln: string) => {
-    const t = ln.trim()
-    if (!t) return false
-    if (/[\u4e00-\u9fff]/.test(t) && !/[;{}()=]/.test(t) && !/=>/.test(t)) return false
-    return (
-      /^(?:const|let|var|function|class|console|import|export)\b/.test(t) ||
-      /^(?:if|for|while|switch)\s*\(/.test(t) ||
-      (/^(?:return|else|try|catch|case)\b/.test(t) && /[;{}()=]/.test(t)) ||
-      /[{};]$/.test(t) ||
-      /=>/.test(t) ||
-      shouldPromoteJsToBlock(t) ||
-      /^\s*[})\];]/.test(ln)
-    )
-  }
   const lines = s.split('\n')
   const out: string[] = []
   let buf: string[] = []
   const flush = () => {
-    if (buf.length >= 2 || (buf.length === 1 && shouldPromoteJsToBlock(buf[0] ?? ''))) {
-      out.push('```js', ...buf, '```')
-    } else out.push(...buf)
+    out.push(...flushBareJsLines(buf))
     buf = []
   }
   for (const ln of lines) {
-    if (isJsish(ln) || (buf.length > 0 && !ln.trim())) buf.push(ln)
+    if (lineLooksLikeBareJs(ln) || (buf.length > 0 && !ln.trim())) buf.push(ln)
     else {
       flush()
       out.push(ln)
@@ -177,6 +184,83 @@ function promoteBareJsFences(text: string): string {
   }
   flush()
   return out.join('\n')
+}
+
+function extractUnfencedJsLines(text: string): string {
+  const lines = decodeQuizHtmlText(String(text ?? '')).split('\n')
+  const chunks: string[] = []
+  let buf: string[] = []
+  const flush = () => {
+    const kept = buf.filter((ln) => ln.trim())
+    if (kept.length >= 2 || (kept.length === 1 && shouldPromoteJsToBlock(kept[0] ?? ''))) {
+      chunks.push(buf.join('\n'))
+    }
+    buf = []
+  }
+  for (const ln of lines) {
+    if (lineLooksLikeBareJs(ln) || (buf.length > 0 && !ln.trim())) buf.push(ln)
+    else flush()
+  }
+  flush()
+  return chunks.join('\n').trim()
+}
+
+function splitProseAndJsLines(body: string): string {
+  const lines = String(body ?? '').split('\n')
+  const out: string[] = []
+  let buf: string[] = []
+  const flush = () => {
+    if (!buf.length) return
+    const chunk = buf.join('\n')
+    if (shouldPromoteJsToBlock(chunk) && !jsSourceLooksLikeProse(chunk)) {
+      out.push('```js', ...buf, '```')
+    } else {
+      out.push(...buf)
+    }
+    buf = []
+  }
+  for (const ln of lines) {
+    if (lineLooksLikeBareJs(ln) || (buf.length > 0 && !ln.trim())) buf.push(ln)
+    else {
+      flush()
+      out.push(ln)
+    }
+  }
+  flush()
+  return out.join('\n')
+}
+
+/** 把误包进 ```js 的中文解析拆回正文，里面真正的程序行仍保留代码块。 */
+function unwrapProseJsFences(text: string): string {
+  return String(text ?? '').replace(
+    /```[ \t]*(?:javascript|js|typescript|ts|jsx|tsx)?[ \t]*\r?\n([\s\S]*?)```/gi,
+    (all, body: string) => {
+      const src = String(body ?? '')
+      if (!jsSourceLooksLikeProse(src)) return all
+      return splitProseAndJsLines(src)
+    },
+  )
+}
+
+function repairUnmatchedInlineTicks(text: string): string {
+  return String(text ?? '')
+    .split(/(```[\s\S]*?```)/)
+    .map((part) => {
+      if (part.startsWith('```')) return part
+      const ticks = part.match(/`/g)?.length ?? 0
+      if (ticks % 2 === 0) return part
+      return part.replace(/`([^`]*)$/, '$1')
+    })
+    .join('')
+}
+
+function unwrapTrivialOptionFence(text: string): string {
+  const t = String(text ?? '').trim()
+  const m = /^```[^\n]*\r?\n([\s\S]*?)\r?\n```$/.exec(t)
+  if (!m) return t
+  const inner = (m[1] ?? '').trim()
+  if (!inner.includes('\n') && !shouldPromoteJsToBlock(inner)) return inner
+  return t
 }
 
 export function frontendQuizPlainText(s: string): string {
@@ -357,19 +441,33 @@ function unwrapQuizOptionToJs(raw: string): string {
     .trim()
 }
 
+type QuizHtmlRole = 'stem' | 'option' | 'answer' | 'explanation'
+
+function formatQuizAnswerHtml(text: string): string {
+  const unwrapped = unwrapTrivialOptionFence(text)
+  const src = unwrapQuizOptionToJs(unwrapped)
+  if (src && isJsOnlySnippet(unwrapped) && shouldPromoteJsToBlock(src)) {
+    return highlightHandoutCodeHtml(`\`\`\`js\n${src}\n\`\`\``)
+  }
+  const body = tidyJsFencesInMarkdown(repairSameLineFenceOpeners(normalizeJsMarkdownFences(unwrapped)))
+  return highlightHandoutCodeHtml(markdownToDisplaySafeHtml(body))
+}
+
 /** 测验题干/选项/解析：Markdown + 讲义同款 JS 代码块。 */
-export function formatFrontendQuizRichHtml(text: string): string {
+export function formatFrontendQuizRichHtml(text: string, role: QuizHtmlRole = 'stem'): string {
   const t = polishFrontendQuizJargon(String(text ?? '').trim())
   if (!t) return ''
-  if (isJsOnlySnippet(t)) {
-    const src = unwrapQuizOptionToJs(t)
+  const prepared = repairUnmatchedInlineTicks(unwrapProseJsFences(t))
+  if (role === 'option' || role === 'answer') return formatQuizAnswerHtml(prepared)
+  if (isJsOnlySnippet(prepared) && !jsSourceLooksLikeProse(prepared)) {
+    const src = unwrapQuizOptionToJs(prepared)
     if (src) return highlightHandoutCodeHtml(`\`\`\`js\n${src}\n\`\`\``)
   }
-  const hasFence = /```/.test(t)
-  if (!hasFence && (/^</.test(t) || /<(p|pre|code|div|br|span)\b/i.test(t))) {
-    return highlightHandoutCodeHtml(decoratePlainJsSnippets(t))
+  const hasFence = /```/.test(prepared)
+  if (!hasFence && (/^</.test(prepared) || /<(p|pre|code|div|br|span)\b/i.test(prepared))) {
+    return highlightHandoutCodeHtml(decoratePlainJsSnippets(prepared))
   }
-  let body = tidyJsFencesInMarkdown(repairSameLineFenceOpeners(normalizeJsMarkdownFences(t)))
+  let body = tidyJsFencesInMarkdown(repairSameLineFenceOpeners(normalizeJsMarkdownFences(prepared)))
   if (!/```/.test(body) && !/[\u4e00-\u9fff]/.test(body) && shouldPromoteJsToBlock(body)) {
     body = `\`\`\`js\n${body}\n\`\`\``
   }
@@ -410,12 +508,13 @@ export function sanitizeFrontendQuizForDisplay(q: {
     q.correctText,
     ...(q.options ?? []),
   ])
+  const stemRaw = attachMissingStemCode(harvested.texts[0] ?? '', q.explanation)
   return {
-    stem: formatFrontendQuizRichHtml(harvested.texts[0] ?? ''),
+    stem: formatFrontendQuizRichHtml(stemRaw, 'stem'),
     term: harvested.texts[1] ?? '',
-    options: (q.options ?? []).map((opt) => formatFrontendQuizRichHtml(stripFrontendQuizHintGloss(opt))),
-    correctText: formatFrontendQuizRichHtml(harvested.texts[2] ?? ''),
-    explanation: formatFrontendQuizRichHtml(mergeGlossIntoExplanation(q.explanation, harvested.glosses)),
+    options: (q.options ?? []).map((opt) => formatFrontendQuizRichHtml(stripFrontendQuizHintGloss(opt), 'option')),
+    correctText: formatFrontendQuizRichHtml(harvested.texts[2] ?? '', 'answer'),
+    explanation: formatFrontendQuizRichHtml(mergeGlossIntoExplanation(q.explanation, harvested.glosses), 'explanation'),
   }
 }
 
@@ -480,19 +579,46 @@ function decodeQuizHtmlText(raw: string): string {
 function extractJsFromQuizStem(stem: string): string {
   const s = normalizeJsMarkdownFences(String(stem ?? ''))
   const chunks: string[] = []
+  const takeJsBody = (raw: string) => {
+    const body = String(raw ?? '')
+    if (jsSourceLooksLikeProse(body)) {
+      const onlyJs = extractUnfencedJsLines(body)
+      if (onlyJs) chunks.push(onlyJs)
+      return
+    }
+    if (body.trim()) chunks.push(body)
+  }
   for (const m of s.matchAll(/```(?:javascript|js|typescript|ts|jsx|tsx)?[ \t]*\r?\n([\s\S]*?)```/gi)) {
-    chunks.push(m[1] ?? '')
+    takeJsBody(m[1] ?? '')
   }
   for (const m of s.matchAll(/<pre[^>]*>[\s\S]*?<code[^>]*>([\s\S]*?)<\/code>[\s\S]*?<\/pre>/gi)) {
-    chunks.push(decodeQuizHtmlText(m[1] ?? ''))
+    takeJsBody(decodeQuizHtmlText(m[1] ?? ''))
   }
   if (!chunks.length) {
-    const joined = decodeQuizHtmlText(s)
-    if (/console\.|function\s+|new\s+Error\b|try\s*\{/.test(joined) && !/[\u4e00-\u9fff]{12,}/.test(joined)) {
-      chunks.push(joined)
-    }
+    const unfenced = extractUnfencedJsLines(s)
+    if (unfenced) chunks.push(unfenced)
   }
   return chunks.join('\n')
+}
+
+function stemAsksForCodeSample(stem: string): boolean {
+  const t = String(stem ?? '')
+  return (
+    /阅读.{0,16}代码/.test(t) ||
+    /下列代码|下面这段代码|下面的代码|以下代码/.test(t) ||
+    /运行.{0,12}代码/.test(t) ||
+    /代码.{0,20}(输出|运行结果|打印|返回)/.test(t) ||
+    /最后一行.{0,16}(输出|结果)/.test(t) ||
+    /看代码/.test(t)
+  )
+}
+
+function attachMissingStemCode(stem: string, explanation: string): string {
+  if (!stemAsksForCodeSample(stem)) return stem
+  if (extractJsFromQuizStem(stem).trim()) return stem
+  const fromExp = extractJsFromQuizStem(explanation)
+  if (!fromExp.trim() || jsSourceLooksLikeProse(fromExp)) return stem
+  return `${String(stem).trim()}\n\n\`\`\`js\n${fromExp.trim()}\n\`\`\``
 }
 
 function stripJsStringsAndComments(js: string): string {
@@ -538,7 +664,7 @@ function undeclaredJsIdentifiers(js: string): string[] {
 
 function isRuntimeOutputQuestion(stem: string, js: string): boolean {
   const t = String(stem ?? '')
-  if (/(运行后|运行结果|控制台输出|输出的是|会输出|打印出|输出什么)/.test(t)) return true
+  if (/(运行后|运行结果|控制台输出|输出的是|会输出|打印出|输出什么|最后一行)/.test(t)) return true
   return /console\.log/.test(js) && /输出/.test(t)
 }
 
@@ -577,11 +703,12 @@ export function frontendQuizItemUnrigorous(input: {
   const explanation = String(input.explanation ?? '')
   const js = extractJsFromQuizStem(stem)
   if (/```/.test(stem)) {
-    const html = formatFrontendQuizRichHtml(stem)
+    const html = formatFrontendQuizRichHtml(stem, 'stem')
     const visible = decodeQuizHtmlText(html)
     if (/```/.test(visible)) return true
   }
   if (/严格来说.{0,24}(错|不对)|选项里没有|如果选项不包含|都是错的|都不对/.test(explanation)) return true
+  if (stemAsksForCodeSample(stem) && !js.trim()) return true
   if (!js.trim()) return false
   if (looksTruncatedJs(js)) return true
   const runtime = isRuntimeOutputQuestion(stem, js)

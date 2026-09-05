@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useComputerHandoutQuiz } from '@/composables/computer/useComputerHandoutQuiz'
 import { isAiChatConfigured, DEEPSEEK_NOT_CONFIGURED_HINT } from '@/services/deepseek'
@@ -34,6 +34,7 @@ const emit = defineEmits<{
 
 const test = useComputerHandoutQuiz()
 const favorited = ref(false)
+const bodyRef = ref<HTMLElement | null>(null)
 const useVariant = ref(false)
 const preparedMode = computed(() => (props.preparedQuestions?.length ?? 0) > 0)
 
@@ -56,6 +57,15 @@ watch(
   () => test.currentQuestion?.fingerprint,
   (fp) => {
     favorited.value = fp ? isComputerQuizFavorite(fp) : false
+  },
+)
+
+watch(
+  () => [test.phase, test.currentIndex] as const,
+  () => {
+    void nextTick(() => {
+      bodyRef.value?.scrollTo({ top: 0 })
+    })
   },
 )
 
@@ -140,7 +150,15 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
       <p v-if="test.quizTimerPaused" class="cb-quiz__pause">计时暂停</p>
     </header>
 
-    <div class="cb-quiz__body">
+    <div v-if="test.phase === 'running' && displayQ" class="cb-quiz__meta-row">
+      <p class="cb-quiz__meta">
+        第 {{ test.currentIndex + 1 }} / {{ test.questionCount }} 题 ·
+        {{ test.computerQuizKindLabel(displayQ.kind) }}
+      </p>
+      <el-button size="small" plain @click="onFavorite">{{ favorited ? '已收藏' : '收藏' }}</el-button>
+    </div>
+
+    <div ref="bodyRef" class="cb-quiz__body">
     <template v-if="test.phase === 'idle'">
       <p class="cb-quiz__hint">
         <template v-if="preparedMode">
@@ -183,13 +201,6 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
     </template>
 
     <template v-else-if="test.phase === 'running' && displayQ">
-      <div class="cb-quiz__meta-row">
-        <p class="cb-quiz__meta">
-          第 {{ test.currentIndex + 1 }} / {{ test.questionCount }} 题 ·
-          {{ test.computerQuizKindLabel(displayQ.kind) }}
-        </p>
-        <el-button size="small" plain @click="onFavorite">{{ favorited ? '已收藏' : '收藏' }}</el-button>
-      </div>
       <div class="cb-quiz__stem">
         <RichTextView :html="displayQ.stem" />
       </div>
@@ -451,10 +462,14 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
 }
 
 .cb-quiz__meta-row {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  padding: 2px 2px 8px;
+  background: #fff;
+  border-bottom: 1px solid var(--app-border-soft);
 }
 
 .cb-quiz__meta {

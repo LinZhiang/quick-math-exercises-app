@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import RichTextView from '@/components/RichTextView.vue'
 import { usePersonalBankQuiz, type PersonalBankQuizResultRow } from '@/composables/app/usePersonalBankQuiz'
 import {
@@ -25,6 +25,16 @@ const emit = defineEmits<{
 const test = reactive(usePersonalBankQuiz())
 const detailRow = ref<PersonalBankQuizResultRow | null>(null)
 const detailVisible = ref(false)
+const bodyRef = ref<HTMLElement | null>(null)
+
+watch(
+  () => [test.phase, test.currentIndex] as const,
+  () => {
+    void nextTick(() => {
+      bodyRef.value?.scrollTo({ top: 0 })
+    })
+  },
+)
 
 const idleReady = computed(() => test.phase === 'idle')
 const loading = computed(() => test.phase === 'loading')
@@ -83,7 +93,7 @@ function onKeydown(ev: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="pb-quiz">
+  <div class="pb-quiz" :class="{ 'is-running': test.phase === 'running' }">
     <template v-if="loading">
       <p class="pb-quiz__hint">{{ test.loadingMessage || '正在组卷…' }}</p>
       <div class="pb-quiz__setup">
@@ -111,6 +121,7 @@ function onKeydown(ev: KeyboardEvent) {
         </div>
       </div>
 
+      <div ref="bodyRef" class="pb-quiz__scroll">
       <h3 class="pb-quiz__title">{{ test.currentQuestion.title }}</h3>
       <div class="pb-quiz__stem">
         <RichTextView :html="test.currentQuestion.stemHtml" />
@@ -221,6 +232,7 @@ function onKeydown(ev: KeyboardEvent) {
       >
         请先评分，再进入下一题。
       </p>
+      </div>
     </template>
 
     <template v-else-if="test.phase === 'summary'">
@@ -309,8 +321,19 @@ function onKeydown(ev: KeyboardEvent) {
 
 <style scoped>
 .pb-quiz {
+  flex: 1 1 0;
   min-width: 0;
+  min-height: 0;
   max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  padding: 14px 12px 24px;
+}
+
+.pb-quiz.is-running {
+  overflow: hidden;
+  padding: 0;
 }
 
 .pb-quiz__hint,
@@ -329,12 +352,23 @@ function onKeydown(ev: KeyboardEvent) {
 }
 
 .pb-quiz__top {
+  flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 14px;
-  margin-bottom: 14px;
+  padding: 12px 12px 10px;
+  margin: 0;
   font-size: 14px;
+  background: #fff;
+  border-bottom: 1px solid var(--app-border-soft, #e5e7eb);
+}
+
+.pb-quiz__scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 12px 24px;
 }
 
 .pb-quiz__timer.is-paused {

@@ -237,6 +237,8 @@ export async function requestFrontendHandoutQuiz(input: {
     '英文缩写在题干和选项里只写缩写本身；全称、含义只写在 explanation。',
     '禁止使用 falsy、truthy 这类英文行话；写成「假值」「真值」，或直接写空字符串、0、NaN、null、undefined、false。',
     '标识符、代码、进制前缀必须用 Markdown：完整代码用 ```js 代码块（语言名独占一行）；短关键字/表达式用行内反引号，如 `Number.MIN_VALUE`、`0x`/`0X`、`if("")`。禁止把斜杠/反斜杠写成 LaTeX 分式。',
+    '写「阅读下面代码 / 输出结果 / 最后一行」时，stem 里必须紧跟完整 ```js 代码块，禁止只写问句不给代码。',
+    'explanation、correct、判断题选项禁止把整段中文解析放进 ```js；解析用中文写，代码另起围栏或行内反引号。短答案（3、undefined、ReferenceError）不要用代码块包整项。',
   ].join('\n')
   const user = [
     `讲义标题：${input.title}`,
@@ -260,7 +262,7 @@ export async function requestFrontendHandoutQuiz(input: {
       ? [
           '【编程题·本讲义含代码/操作】',
           `H. 编程题约占三分之一到一半（大约 ${Math.max(1, Math.floor(total / 3))}～${Math.max(2, Math.ceil(total / 2))} 题），但不得挤占核心专节的定义/判断题。闭包、作用域、原型、this、Promise 等明摆着的重点：先出定义和易混对比，再出看代码。`,
-          'I. 完整程序必须用 Markdown 代码块，且围栏独占一行：先换行写 ```js ，下一行才是代码，最后单独一行 ```。禁止写成「阅读代码： ``` js」。短关键字只用行内反引号。',
+          'I. 完整程序必须用 Markdown 代码块，且围栏独占一行：先换行写 ```js ，下一行才是代码，最后单独一行 ```。禁止写成「阅读代码： ``` js」。禁止题干说「阅读下面代码」却不贴代码。短关键字只用行内反引号。',
           'J. 编程题必须改写讲义示例（换变量名、换数字、换运算符或表达式结构），禁止原样照抄讲义代码。改写后的运行结果必须自己算对。',
           'K. 代码必须是完整可运行片段：用到的变量都要在片段里声明或赋值。禁止只写 console.log(e.message) 却不写 e 怎么来的。',
           'L. 问运行结果/控制台输出时，correct 必须等于这段代码真正跑出来的值；字符串结果必须在代码字面量里出现过。',
@@ -415,7 +417,7 @@ export async function requestFrontendQuizVariant(input: {
     'new Error() 无参时 message 是空字符串，不要把 Error / undefined 当答案。',
     '禁止使用 falsy、truthy，改写为假值/真值或具体值。',
     '选择题 correct 必须是 options 里某一项的原文；判断题 correct 写「正确」或「错误」。',
-    '有代码时用 Markdown ```js 代码块或行内反引号。',
+    '有代码时用 Markdown ```js 代码块；代码必须写在 stem 里，禁止只写「阅读下面代码」不给片段。解析用中文，不要把整段解析放进代码块；短答案不要用代码块包整项。',
     '计算题 correct 只写最终结果短串；简答题 correct 写参考要点。',
   ].join('\n')
   const user = [

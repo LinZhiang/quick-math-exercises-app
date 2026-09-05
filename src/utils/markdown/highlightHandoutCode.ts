@@ -45,9 +45,24 @@ function isJsLang(cls: string): boolean {
   return JS_LANG.test(lang)
 }
 
+/** 中文讲解误进代码块：汉字多、或汉字占比高，不当成 JS 程序。 */
+export function jsSourceLooksLikeProse(source: string): boolean {
+  const t = String(source ?? '').trim()
+  if (!t) return false
+  const han = (t.match(/[\u4e00-\u9fff]/g) || []).length
+  if (!han) return false
+  const compact = t.replace(/\s+/g, '')
+  const ratio = han / Math.max(compact.length, 1)
+  if (/^(正确|错误|答案|解析|因此|所以|因为|对于)/.test(t) && han >= 4) return true
+  if (han >= 10 && ratio >= 0.18) return true
+  if (han >= 6 && ratio >= 0.28) return true
+  return false
+}
+
 function looksLikeJsSource(source: string): boolean {
   const t = source.trim()
   if (!t) return false
+  if (jsSourceLooksLikeProse(t)) return false
   if (/[\u4e00-\u9fff]/.test(t) && !/[;={}()=<>+\-*/&|!?]/.test(t)) return false
   return /[A-Za-z_$0-9;={}()+\-*/<>!&|?:`'"]/.test(t)
 }
@@ -56,6 +71,7 @@ function looksLikeJsSource(source: string): boolean {
 export function shouldPromoteJsToBlock(source: string): boolean {
   const t = stripJsLangPrefix(String(source ?? '')).trim()
   if (!t || t.length > 4000) return false
+  if (jsSourceLooksLikeProse(t)) return false
   if (/[\u4e00-\u9fff]/.test(t) && !/[;={}()]/.test(t)) return false
   const lines = t.split(/\n/).filter((ln) => ln.trim())
   if (lines.length >= 2 && looksLikeJsSource(t)) return true
@@ -84,7 +100,7 @@ export function isJsOnlySnippet(raw: string): boolean {
     .replace(/\s+/g, ' ')
     .trim()
   if (t.length < 6) return false
-  if (/[\u4e00-\u9fff]/.test(t)) return false
+  if (jsSourceLooksLikeProse(t) || /[\u4e00-\u9fff]/.test(t)) return false
   if (/^[\d.\s+\-eE]+$/.test(t)) return false
   if (/^(true|false|null|undefined|NaN)$/i.test(t)) return false
   return /[{};=]|function\b|\b(?:if|for|while|switch|return|console|const|let|var)\b|\(.*\)/.test(t)
@@ -160,7 +176,7 @@ function promoteInlineJs(root: HTMLElement, doc: Document) {
           (n) => n === code || (n.nodeType === 3 && !String(n.textContent ?? '').trim()),
         )
       if (onlyChild && parent) parent.replaceWith(wrap)
-      else if (shouldPromoteJsToBlock(source)) code.replaceWith(wrap)
+      else if (shouldPromoteJsToBlock(source) && source.includes('\n')) code.replaceWith(wrap)
       continue
     }
     if (source !== (code.textContent ?? '')) code.textContent = source
@@ -185,6 +201,9 @@ function materializeMarkdownFences(html: string): string {
     /```[ \t]*(?:javascript|js|typescript|ts|jsx|tsx)?[ \t]*\r?\n([\s\S]*?)```/gi,
     (_all, body: string) => {
       const source = prepareJsBlockSource(String(body ?? ''), { expand: false })
+      if (jsSourceLooksLikeProse(source)) {
+        return escapeHtml(source.trim()).replace(/\n/g, '<br>')
+      }
       if (!shouldPromoteJsToBlock(source) && !source.includes('\n') && !isJsOnlySnippet(source)) {
         return `<code>${escapeHtml(source.trim())}</code>`
       }
@@ -204,6 +223,9 @@ export function highlightHandoutCodeHtml(html: string): string {
       const looksJs = isJsLang(cls) || /\bhl-code\b/i.test(`${preAttrs} ${cls}`) || looksLikeJsSource(stripJsLangPrefix(decoded))
       if (!looksJs) return _all
       const source = prepareJsBlockSource(decoded, { expand: false })
+      if (jsSourceLooksLikeProse(source)) {
+        return `<p>${escapeHtml(source.trim()).replace(/\n/g, '<br>')}</p>`
+      }
       if (!shouldPromoteJsToBlock(source) && !isJsOnlySnippet(source)) {
         return `<code>${escapeHtml(source.trim())}</code>`
       }
