@@ -36,7 +36,12 @@ function mustWrangler(args) {
 }
 
 function upsertTomlKv(id, previewId) {
-  let toml = fs.existsSync(tomlPath) ? fs.readFileSync(tomlPath, 'utf8') : ''
+  const examplePath = path.join(root, 'wrangler.toml.example')
+  let toml = fs.existsSync(tomlPath)
+    ? fs.readFileSync(tomlPath, 'utf8')
+    : fs.existsSync(examplePath)
+      ? fs.readFileSync(examplePath, 'utf8')
+      : ''
   const block = [
     '[[kv_namespaces]]',
     `binding = "${BINDING}"`,
@@ -146,7 +151,7 @@ const deploy = spawnSync(
   { cwd: root, stdio: 'inherit', shell: true },
 )
 if (deploy.status !== 0) {
-  console.error('[setup:cf-storage] 自动部署没成功。请把本次 wrangler.toml 推到连着 Pages 的仓库，或在控制台 Retry deployment。')
+  console.error('[setup:cf-storage] 自动部署没成功。请确认 Pages 控制台已绑定 WENGU_KV，或在控制台 Retry deployment。')
   process.exit(deploy.status || 1)
 }
 

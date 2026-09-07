@@ -1,0 +1,11 @@
+name = "quick-math-exercises-app"
+compatibility_date = "2024-11-12"
+pages_build_output_dir = "dist"
+
+# 复制为 wrangler.toml 后执行：npm run setup:cf-storage
+# 不要把填好 id 的 wrangler.toml 提交到 git。
+#
+# [[kv_namespaces]]
+# binding = "WENGU_KV"
+# id = "由 setup:cf-storage 写入"
+# preview_id = "由 setup:cf-storage 写入"

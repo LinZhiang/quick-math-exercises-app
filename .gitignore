@@ -3,12 +3,29 @@ dist
 dist-ssr
 *.local
 .DS_Store
+.wrangler
+.dev.vars
+.env
+.env.*
+!.env.example
+!server/.env.example
+
 server/node_modules
 server/.env
 server/logs
 server/certs
+# 本机讲义库（含正文、插图）
 server/data
-server/seeds/*
-!server/seeds/frontend-learning-seed.json
-!server/seeds/frontend-learning-media/
-!server/seeds/frontend-learning-media/**
+server/seeds/
+
+# 讲义静态快照：只留本机，不进仓库、不打进 Pages 包
+public/fl-data/
+public/cb-data/
+.tmp-handout-public/
+
+# Word 解压稿、原始讲义文档
+.tmp-w3c-docx/
+*.docx
+
+# Cloudflare 本机绑定（含 KV id）；仓库里只用 wrangler.toml.example
+wrangler.toml
