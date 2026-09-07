@@ -5,6 +5,7 @@ import { usePwaInstall } from '@/composables/app/usePwaInstall'
 import DeepseekApiAuthPanel from '@/components/DeepseekApiAuthPanel.vue'
 import JsonTransferButtons from '@/components/JsonTransferButtons.vue'
 import { showAppUpdatingMask, hideAppUpdatingMask } from '@/utils/app/appUpdateMask'
+import { wipeHandoutDiskCache } from '@/utils/app/handoutDiskCache'
 import {
   applyPullToRefreshPreference,
   appUiSettingsTick,
@@ -53,6 +54,7 @@ async function updateAppContent() {
       const keys = await caches.keys()
       await Promise.all(keys.filter((k) => k.startsWith('quick-math')).map((k) => caches.delete(k)))
     }
+    await wipeHandoutDiskCache()
     const reg = await navigator.serviceWorker?.getRegistration()
     await reg?.update()
     const waiting = reg?.waiting
@@ -96,7 +98,7 @@ async function updateAppContent() {
     <div class="install-card">
       <p class="install-card__title">更新 App 内容</p>
       <p class="install-card__text">
-        只刷新页面和脚本，不会改、也不会清空计算机基础目录。有网时点一次即可；更新时会短暂提示「正在更新」。
+        只刷新本机页面、脚本和目录缓存，按服务器上的目录重新拉取；不会清空云端讲义。
       </p>
       <el-button :loading="updatingApp" @click="updateAppContent">检查并更新</el-button>
     </div>

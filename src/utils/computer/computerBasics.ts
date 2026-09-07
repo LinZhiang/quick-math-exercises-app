@@ -1,4 +1,5 @@
 import {
+  handoutCacheFitsViewer,
   invalidateHandoutRevisionMemo,
   peekHandoutRevision,
   readHandoutCachedItem,
@@ -448,20 +449,20 @@ export async function loadComputerBasicsTree(force = false): Promise<ComputerTre
   if (!force) {
     const remote = await peekHandoutRevision('computer')
     if (remote.status === 'ok') {
-      if (treeCache && sessionRevision === remote.revision && (!admin || cacheViewer === 'admin')) {
+      if (treeCache && sessionRevision === remote.revision && handoutCacheFitsViewer(admin, cacheViewer)) {
         return visibleComputerTree(treeCache)
       }
       const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer')
-      if (disk && disk.revision === remote.revision && (!admin || disk.viewer === 'admin')) {
+      if (disk && disk.revision === remote.revision && handoutCacheFitsViewer(admin, disk.viewer)) {
         treeCache = disk.tree
         cacheViewer = disk.viewer || 'public'
         rememberComputerRevision(remote.revision)
         return visibleComputerTree(treeCache)
       }
     } else if (remote.status === 'offline') {
-      if (treeCache && (!admin || cacheViewer === 'admin')) return visibleComputerTree(treeCache)
+      if (treeCache && handoutCacheFitsViewer(admin, cacheViewer)) return visibleComputerTree(treeCache)
       const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer')
-      if (disk && (!admin || disk.viewer === 'admin')) {
+      if (disk && handoutCacheFitsViewer(admin, disk.viewer)) {
         treeCache = disk.tree
         cacheViewer = disk.viewer || 'public'
         rememberComputerRevision(disk.revision)
@@ -479,9 +480,9 @@ export async function loadComputerBasicsTree(force = false): Promise<ComputerTre
   }>(res)
   if (!res.ok || !data.ok || !Array.isArray(data.tree)) {
     if (!force) {
-      if (treeCache && (!admin || cacheViewer === 'admin')) return visibleComputerTree(treeCache)
+      if (treeCache && handoutCacheFitsViewer(admin, cacheViewer)) return visibleComputerTree(treeCache)
       const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer')
-      if (disk && (!admin || disk.viewer === 'admin')) {
+      if (disk && handoutCacheFitsViewer(admin, disk.viewer)) {
         treeCache = disk.tree
         cacheViewer = disk.viewer || 'public'
         rememberComputerRevision(disk.revision)

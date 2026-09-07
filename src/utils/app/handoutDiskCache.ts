@@ -12,11 +12,18 @@ export type HandoutRevisionPeek =
   | { status: 'offline' }
   | { status: 'missing' }
 
-type TreeRecord<T> = { revision: string; tree: T; savedAt: number; viewer?: 'admin' | 'public' }
-type ItemRecord<T> = { revision: string; item: T; savedAt: number }
+type TreeRecord<T> = {
+  revision: string
+  tree: T
+  savedAt: number
+  viewer?: 'admin' | 'public'
+  schema?: number
+}
+type ItemRecord<T> = { revision: string; item: T; savedAt: number; schema?: number }
 
 const DB_NAME = 'wengu-handout-cache'
-const DB_VERSION = 1
+const DB_VERSION = 3
+const CACHE_SCHEMA = 3
 const STORE_TREE = 'tree'
 const STORE_ITEMS = 'items'
 
@@ -43,8 +50,10 @@ function openDb(): Promise<IDBDatabase> {
       const req = indexedDB.open(DB_NAME, DB_VERSION)
       req.onupgradeneeded = () => {
         const db = req.result
-        if (!db.objectStoreNames.contains(STORE_TREE)) db.createObjectStore(STORE_TREE)
-        if (!db.objectStoreNames.contains(STORE_ITEMS)) db.createObjectStore(STORE_ITEMS)
+        if (db.objectStoreNames.contains(STORE_TREE)) db.deleteObjectStore(STORE_TREE)
+        if (db.objectStoreNames.contains(STORE_ITEMS)) db.deleteObjectStore(STORE_ITEMS)
+        db.createObjectStore(STORE_TREE)
+        db.createObjectStore(STORE_ITEMS)
       }
       req.onsuccess = () => resolve(req.result)
       req.onerror = () => {
@@ -82,6 +91,32 @@ function idbPut(store: string, key: string, value: unknown): Promise<void> {
 
 function itemKey(scope: HandoutCacheScope, id: string): string {
   return `${scope}:${id}`
+}
+
+export function handoutCacheFitsViewer(admin: boolean, viewer?: string): boolean {
+  return (viewer || 'public') === (admin ? 'admin' : 'public')
+}
+
+export async function wipeHandoutDiskCache(): Promise<void> {
+  revisionMemo.clear()
+  revisionInflight.clear()
+  const pending = dbPromise
+  dbPromise = null
+  if (pending) {
+    try {
+      const db = await pending
+      db.close()
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!canUseIdb()) return
+  await new Promise<void>((resolve) => {
+    const req = indexedDB.deleteDatabase(DB_NAME)
+    req.onsuccess = () => resolve()
+    req.onerror = () => resolve()
+    req.onblocked = () => resolve()
+  })
 }
 
 export function rememberHandoutRevision(scope: HandoutCacheScope, revision: string) {
@@ -126,7 +161,7 @@ async function fetchHandoutRevision(scope: HandoutCacheScope): Promise<HandoutRe
 export async function readHandoutCachedTree<T>(scope: HandoutCacheScope): Promise<TreeRecord<T> | null> {
   try {
     const rec = await idbGet<TreeRecord<T>>(STORE_TREE, scope)
-    if (!rec || !Array.isArray(rec.tree) || !rec.revision) return null
+    if (!rec || !Array.isArray(rec.tree) || !rec.revision || rec.schema !== CACHE_SCHEMA) return null
     return rec
   } catch {
     return null
@@ -146,6 +181,7 @@ export function writeHandoutCachedTree<T>(
     revision: stamp,
     tree,
     savedAt: Date.now(),
+    schema: CACHE_SCHEMA,
     ...(viewer ? { viewer } : {}),
   } satisfies TreeRecord<T>).catch(() => undefined)
 }
@@ -158,7 +194,7 @@ export async function readHandoutCachedItem<T>(
   if (!key) return null
   try {
     const rec = await idbGet<ItemRecord<T>>(STORE_ITEMS, itemKey(scope, key))
-    if (!rec || !rec.item || !rec.revision) return null
+    if (!rec || !rec.item || !rec.revision || rec.schema !== CACHE_SCHEMA) return null
     return rec
   } catch {
     return null
@@ -178,5 +214,6 @@ export function writeHandoutCachedItem<T>(
     revision: stamp,
     item,
     savedAt: Date.now(),
+    schema: CACHE_SCHEMA,
   } satisfies ItemRecord<T>).catch(() => undefined)
 }

@@ -183,13 +183,11 @@ function shortHash(text) {
 
 function catalogRevision(raw) {
   const at = String(raw?.updatedAt || raw?.seededAt || '').trim()
-  if (at) return { revision: at, updatedAt: at }
   try {
     const s = JSON.stringify(raw?.tree ?? [])
-    const revision = `snap:${s.length}:${shortHash(s)}`
-    return { revision, updatedAt: '' }
+    return { revision: `${at || 'snap'}|${s.length}:${shortHash(s)}`, updatedAt: at }
   } catch {
-    return { revision: 'snap:0', updatedAt: '' }
+    return { revision: at || 'snap:0', updatedAt: at }
   }
 }
 

@@ -218,6 +218,15 @@ export function readFrontendLearningCatalog() {
   return { tree }
 }
 
+function shortHash(text) {
+  let h = 2166136261
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return (h >>> 0).toString(36)
+}
+
 export function readFrontendLearningRevision() {
   ensureFrontendLearningStore()
   const raw = readRawCatalog()
@@ -238,8 +247,15 @@ export function readFrontendLearningRevision() {
   } catch {
     /* ignore */
   }
+  let treeHash = '0'
+  try {
+    const s = JSON.stringify(raw.tree ?? [])
+    treeHash = `${s.length}:${shortHash(s)}`
+  } catch {
+    /* ignore */
+  }
   return {
-    revision: `${catalogAt}|${stamp}`,
+    revision: `${catalogAt}|${stamp}|${treeHash}`,
     updatedAt: catalogAt || (stamp ? new Date(stamp).toISOString() : ''),
   }
 }

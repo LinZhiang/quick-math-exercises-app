@@ -1,4 +1,5 @@
 import {
+  handoutCacheFitsViewer,
   invalidateHandoutRevisionMemo,
   peekHandoutRevision,
   readHandoutCachedItem,
@@ -449,20 +450,20 @@ export async function loadFrontendLearningTree(force = false): Promise<FrontendT
   if (!force) {
     const remote = await peekHandoutRevision('frontend')
     if (remote.status === 'ok') {
-      if (treeCache && sessionRevision === remote.revision && (!admin || cacheViewer === 'admin')) {
+      if (treeCache && sessionRevision === remote.revision && handoutCacheFitsViewer(admin, cacheViewer)) {
         return visibleFrontendTree(treeCache)
       }
       const disk = await readHandoutCachedTree<FrontendTreeNode[]>('frontend')
-      if (disk && disk.revision === remote.revision && (!admin || disk.viewer === 'admin')) {
+      if (disk && disk.revision === remote.revision && handoutCacheFitsViewer(admin, disk.viewer)) {
         treeCache = disk.tree
         cacheViewer = disk.viewer || 'public'
         rememberFrontendRevision(remote.revision)
         return visibleFrontendTree(treeCache)
       }
     } else if (remote.status === 'offline') {
-      if (treeCache && (!admin || cacheViewer === 'admin')) return visibleFrontendTree(treeCache)
+      if (treeCache && handoutCacheFitsViewer(admin, cacheViewer)) return visibleFrontendTree(treeCache)
       const disk = await readHandoutCachedTree<FrontendTreeNode[]>('frontend')
-      if (disk && (!admin || disk.viewer === 'admin')) {
+      if (disk && handoutCacheFitsViewer(admin, disk.viewer)) {
         treeCache = disk.tree
         cacheViewer = disk.viewer || 'public'
         rememberFrontendRevision(disk.revision)
@@ -480,9 +481,9 @@ export async function loadFrontendLearningTree(force = false): Promise<FrontendT
   }>(res)
   if (!res.ok || !data.ok || !Array.isArray(data.tree)) {
     if (!force) {
-      if (treeCache && (!admin || cacheViewer === 'admin')) return visibleFrontendTree(treeCache)
+      if (treeCache && handoutCacheFitsViewer(admin, cacheViewer)) return visibleFrontendTree(treeCache)
       const disk = await readHandoutCachedTree<FrontendTreeNode[]>('frontend')
-      if (disk && (!admin || disk.viewer === 'admin')) {
+      if (disk && handoutCacheFitsViewer(admin, disk.viewer)) {
         treeCache = disk.tree
         cacheViewer = disk.viewer || 'public'
         rememberFrontendRevision(disk.revision)
