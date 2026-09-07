@@ -1,5 +1,6 @@
 import type { FrontendTreeNode } from '@/utils/frontend/frontendLearning'
 import type { StoredFrontendQuizRecord } from '@/utils/frontend/frontendHandoutQuizStorage'
+import { collectCatalogIds } from '@/utils/app/handoutVisibility'
 
 export type FrontendQuizBookTreeNode = {
   id: string
@@ -112,10 +113,15 @@ export function buildFrontendQuizBookTree(
   catalog: FrontendTreeNode[],
   records: StoredFrontendQuizRecord[],
 ): FrontendQuizBookTreeNode[] {
+  const allowed = collectCatalogIds(catalog)
+  const scoped = records.filter((row) => {
+    const rid = rangeId(row.itemId)
+    return rid ? allowed.has(rid) : allowed.has(row.itemId)
+  })
   const used = new Set<string>()
 
   const take = (id: string): StoredFrontendQuizRecord[] => {
-    const hit = records.filter((row) => recordMatchesId(row, id))
+    const hit = scoped.filter((row) => recordMatchesId(row, id))
     for (const row of hit) used.add(row.fingerprint)
     return hit
   }
@@ -152,7 +158,7 @@ export function buildFrontendQuizBookTree(
   }
 
   const roots = catalog.map(fromNode).filter((n): n is FrontendQuizBookTreeNode => Boolean(n))
-  const orphans = records.filter((row) => !used.has(row.fingerprint))
+  const orphans = scoped.filter((row) => !used.has(row.fingerprint))
   if (orphans.length) {
     const byTitle = new Map<string, StoredFrontendQuizRecord[]>()
     for (const row of orphans) {

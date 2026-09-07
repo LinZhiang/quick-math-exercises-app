@@ -229,6 +229,13 @@ function scan(src: string, start: number, mode: ScanMode = {}): { html: string; 
     }
     const two = src.slice(i, i + 2)
     if (TWO_OPS.has(two)) {
+      const prev = src[i - 1]
+      const next = src[i + 2]
+      if ((two === '--' || two === '++') && prev && next && /\d/.test(prev) && /\d/.test(next)) {
+        out.push(escapeHtml('-'))
+        i += 2
+        continue
+      }
       out.push(span('op', two))
       i += 2
       continue

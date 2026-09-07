@@ -362,6 +362,7 @@ watch(detailId, () => {
   answerOpen.value = false
   void nextTick(() => {
     detailBodyRef.value?.scrollTo({ top: 0 })
+    requestAnimationFrame(() => detailBodyRef.value?.scrollTo({ top: 0 }))
   })
 })
 

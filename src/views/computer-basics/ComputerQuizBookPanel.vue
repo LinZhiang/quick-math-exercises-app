@@ -13,7 +13,8 @@ import {
   flattenComputerQuizBookRows,
   type ComputerQuizBookTreeNode,
 } from '@/utils/computer/computerQuizBookTree'
-import { loadComputerBasicsTree, type ComputerTreeNode } from '@/utils/computer/computerBasics'
+import { loadComputerBasicsTree, type ComputerTreeNode, clearComputerBasicsCache } from '@/utils/computer/computerBasics'
+import { wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 import ComputerBusyHint from './ComputerBusyHint.vue'
 
 const router = useRouter()
@@ -63,7 +64,7 @@ watch(bookTree, (nodes) => {
   expanded.value = { ...defaultExpandedQuizBookIds(nodes), ...next }
 })
 
-onMounted(async () => {
+async function loadCatalog() {
   try {
     catalog.value = await loadComputerBasicsTree()
   } catch {
@@ -71,6 +72,15 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+}
+
+watch(wenguAuthTick, () => {
+  clearComputerBasicsCache()
+  void loadCatalog()
+})
+
+onMounted(() => {
+  void loadCatalog()
 })
 </script>
 
@@ -215,7 +225,7 @@ onMounted(async () => {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   margin: 0;
   padding: 6px 4px;
@@ -226,6 +236,14 @@ onMounted(async () => {
   font-weight: 650;
   text-align: left;
   cursor: pointer;
+  white-space: normal;
+}
+
+.cb-book-tree__name > span:not(.cb-book-tree__count) {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .cb-book-tree__count {

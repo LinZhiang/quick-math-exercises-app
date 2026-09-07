@@ -1,5 +1,6 @@
 import { highlightTs } from '@/utils/dsa/highlightTs'
 import { wrapHtmlTablesForScroll } from '@/utils/markdown/markdownToHtml'
+import { unwrapNumericStrikethroughHtml } from '@/utils/markdown/markdownNormalize'
 import {
   normalizeJsMarkdownFences,
   prepareJsBlockSource,
@@ -8,6 +9,7 @@ import {
 } from '@/utils/markdown/tidyJsCode'
 
 const JS_LANG = /^(js|javascript|ts|typescript|jsx|tsx)$/i
+const FENCE_LANG = /^(js|javascript|ts|typescript|jsx|tsx|css|html|vue|xml|json|bash|sh|shell)$/i
 const PRE_CODE_RE = /<pre([^>]*)>\s*<code([^>]*)>([\s\S]*?)<\/code>\s*<\/pre>/gi
 
 export function decodeHandoutCodeHtml(raw: string): string {
@@ -36,13 +38,49 @@ function classOf(attrs: string): string {
   return m?.[2] ?? ''
 }
 
-function isJsLang(cls: string): boolean {
-  const lang = (
+function langOf(cls: string): string {
+  return (
     cls.match(/language-([A-Za-z0-9_+-]+)/i)?.[1] ||
-    cls.match(/\b(js|javascript|ts|typescript|jsx|tsx)\b/i)?.[1] ||
+    cls.match(/\b(js|javascript|ts|typescript|jsx|tsx|css|html|vue|xml|json|bash|sh|shell)\b/i)?.[1] ||
     ''
   ).toLowerCase()
-  return JS_LANG.test(lang)
+}
+
+function isJsLang(cls: string): boolean {
+  return JS_LANG.test(langOf(cls))
+}
+
+function isFenceLang(cls: string): boolean {
+  return FENCE_LANG.test(langOf(cls))
+}
+
+function highlightCodeSource(source: string, lang: string): string {
+  const js = JS_LANG.test(lang)
+  const body = js ? prepareJsBlockSource(source, { expand: false }) : String(source ?? '').replace(/\t/g, '  ')
+  if (js) {
+    if (!looksLikeJsSource(body)) return escapeHtml(body)
+    return highlightTs(body) || escapeHtml(body)
+  }
+  const compact = body.replace(/\s+/g, '')
+  const han = (compact.match(/[\u4e00-\u9fff]/g) || []).length
+  if (han / Math.max(compact.length, 1) >= 0.4) return escapeHtml(body)
+  return highlightTs(body) || escapeHtml(body)
+}
+
+function wrapCodeBlock(source: string, lang: string): string {
+  const name = lang || 'js'
+  const highlighted = highlightCodeSource(source, name)
+  return `<div class="md-table-scroll"><pre class="hl-code"><code class="language-${name}">${highlighted}</code></pre></div>`
+}
+
+/** 程序结构：即便注释/字符串是中文，仍按代码块展示。 */
+function looksLikeStructuredJs(source: string): boolean {
+  const t = source.trim()
+  if (/^(?:function|class|const|let|var|if|for|while|switch|try|async|return)\b/.test(t)) return true
+  if (/\/\*[\s\S]*\*\//.test(t) && /(?:function\b|=>|[{}();=])/.test(t)) return true
+  const tokens = (t.match(/\b(?:function|const|let|var|return|console|typeof|class)\b/g) || []).length
+  const punct = (t.match(/[{};=]/g) || []).length
+  return tokens >= 2 && punct >= 2
 }
 
 /** 中文讲解误进代码块：汉字多、或汉字占比高，不当成 JS 程序。 */
@@ -51,6 +89,8 @@ export function jsSourceLooksLikeProse(source: string): boolean {
   if (!t) return false
   const han = (t.match(/[\u4e00-\u9fff]/g) || []).length
   if (!han) return false
+  if (/^(正确|错误|答案|解析|因此|所以|因为|对于)/.test(t) && han >= 8) return true
+  if (looksLikeStructuredJs(t)) return false
   const compact = t.replace(/\s+/g, '')
   const ratio = han / Math.max(compact.length, 1)
   if (/^(正确|错误|答案|解析|因此|所以|因为|对于)/.test(t) && han >= 4) return true
@@ -107,9 +147,7 @@ export function isJsOnlySnippet(raw: string): boolean {
 }
 
 function highlightJsSource(source: string): string {
-  const body = prepareJsBlockSource(source, { expand: false })
-  if (!looksLikeJsSource(body)) return escapeHtml(body)
-  return highlightTs(body) || escapeHtml(body)
+  return highlightCodeSource(source, 'js')
 }
 
 function buildHighlightedPre(doc: Document, source: string): HTMLElement {
@@ -198,17 +236,21 @@ function materializeMarkdownFences(html: string): string {
   if (!html.includes('```')) return html
   const normalized = tidyJsFencesInMarkdown(normalizeJsMarkdownFences(html))
   return normalized.replace(
-    /```[ \t]*(?:javascript|js|typescript|ts|jsx|tsx)?[ \t]*\r?\n([\s\S]*?)```/gi,
-    (_all, body: string) => {
-      const source = prepareJsBlockSource(String(body ?? ''), { expand: false })
-      if (jsSourceLooksLikeProse(source)) {
-        return escapeHtml(source.trim()).replace(/\n/g, '<br>')
+    /```[ \t]*(javascript|js|typescript|ts|jsx|tsx|css|html|vue|xml|json|bash|sh|shell)?[ \t]*\r?\n([\s\S]*?)```/gi,
+    (_all, lang: string | undefined, body: string) => {
+      const rawLang = String(lang || '').toLowerCase()
+      const source = String(body ?? '')
+      if (JS_LANG.test(rawLang) || !rawLang) {
+        const prepared = prepareJsBlockSource(source, { expand: false })
+        if (!rawLang && jsSourceLooksLikeProse(prepared)) {
+          return escapeHtml(prepared.trim()).replace(/\n/g, '<br>')
+        }
+        if (!shouldPromoteJsToBlock(prepared) && !prepared.includes('\n') && !isJsOnlySnippet(prepared)) {
+          return `<code>${escapeHtml(prepared.trim())}</code>`
+        }
+        return wrapCodeBlock(prepared, rawLang || 'js')
       }
-      if (!shouldPromoteJsToBlock(source) && !source.includes('\n') && !isJsOnlySnippet(source)) {
-        return `<code>${escapeHtml(source.trim())}</code>`
-      }
-      const highlighted = highlightTs(source)
-      return `<div class="md-table-scroll"><pre class="hl-code"><code class="language-js">${highlighted || escapeHtml(source)}</code></pre></div>`
+      return wrapCodeBlock(source, rawLang)
     },
   )
 }
@@ -220,24 +262,36 @@ export function highlightHandoutCodeHtml(html: string): string {
     (_all, preAttrs: string, codeAttrs: string, inner: string) => {
       const cls = `${classOf(preAttrs)} ${classOf(codeAttrs)}`.trim()
       const decoded = decodeHandoutCodeHtml(inner)
-      const looksJs = isJsLang(cls) || /\bhl-code\b/i.test(`${preAttrs} ${cls}`) || looksLikeJsSource(stripJsLangPrefix(decoded))
-      if (!looksJs) return _all
+      const lang = langOf(cls)
+      const markedFence = isFenceLang(cls) || /\bhl-code\b/i.test(`${preAttrs} ${cls}`)
+      const markedJs = isJsLang(cls) || /\bhl-code\b/i.test(`${preAttrs} ${cls}`)
+      if (markedFence && !JS_LANG.test(lang || 'js')) {
+        return wrapCodeBlock(decoded, lang || 'css')
+      }
+      const looksJs = markedJs || looksLikeJsSource(stripJsLangPrefix(decoded))
+      if (!looksJs) {
+        if (markedFence) return wrapCodeBlock(decoded, lang || 'txt')
+        return _all
+      }
       const source = prepareJsBlockSource(decoded, { expand: false })
-      if (jsSourceLooksLikeProse(source)) {
+      if (!markedJs && jsSourceLooksLikeProse(source)) {
         return `<p>${escapeHtml(source.trim()).replace(/\n/g, '<br>')}</p>`
       }
-      if (!shouldPromoteJsToBlock(source) && !isJsOnlySnippet(source)) {
+      if (
+        !shouldPromoteJsToBlock(source) &&
+        !isJsOnlySnippet(source) &&
+        !(markedJs && (source.includes('\n') || source.length >= 24))
+      ) {
         return `<code>${escapeHtml(source.trim())}</code>`
       }
-      const highlighted = highlightTs(source)
-      return `<div class="md-table-scroll"><pre class="hl-code"><code class="language-js">${highlighted || escapeHtml(source)}</code></pre></div>`
+      return wrapCodeBlock(source, lang || 'js')
     },
   )
-  if (typeof DOMParser === 'undefined') return replaced
+  if (typeof DOMParser === 'undefined') return unwrapNumericStrikethroughHtml(replaced)
   const doc = new DOMParser().parseFromString(`<div id="__hl_root">${replaced}</div>`, 'text/html')
   const root = doc.getElementById('__hl_root')
-  if (!root) return replaced
+  if (!root) return unwrapNumericStrikethroughHtml(replaced)
   mergeAdjacentInlineCodes(root)
   promoteInlineJs(root, doc)
-  return wrapHtmlTablesForScroll(root.innerHTML)
+  return wrapHtmlTablesForScroll(unwrapNumericStrikethroughHtml(root.innerHTML))
 }

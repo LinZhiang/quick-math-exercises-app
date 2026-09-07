@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowUp, Delete, Download, EditPen, FullScreen } from '@element-plus/icons-vue'
@@ -22,6 +22,7 @@ import {
   FRONTEND_HANDOUT_PHOTO_MAX,
   extractFrontendHandoutFromPhoto,
 } from '@/utils/frontend/frontendHandoutPhotoExtract'
+import { aiMatchHandoutFormat } from '@/utils/markdown/aiMatchHandoutFormat'
 import { aiRequestProgressText } from '@/utils/app/aiProviderStore'
 import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
 import { isWenguAdmin, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
@@ -52,8 +53,14 @@ const editing = ref(false)
 const draftTitle = ref('')
 const draftContent = ref('')
 const saving = ref(false)
+const formatBusy = ref(false)
 const headCollapsed = ref(false)
 const editorRef = ref<{ insertNoteTag: () => Promise<void> | void } | null>(null)
+const paperRef = ref<HTMLElement | null>(null)
+
+function scrollPaperToTop() {
+  paperRef.value?.scrollTo({ top: 0 })
+}
 
 const photoIntent = computed<PhotoIntent | ''>(() => {
   if (String(route.query.edit ?? '') !== '1') return ''
@@ -92,9 +99,6 @@ useAppChromeTitle(
 )
 
 const html = computed(() => (item.value ? frontendContentToHtml(item.value.content) : ''))
-const docsTone = computed(() =>
-  (item.value?.learningPath ?? []).some((p) => p.includes('前端基础') || p.includes('ES6')),
-)
 
 function goList() {
   goBackOr(router, { name: 'frontend' })
@@ -212,6 +216,28 @@ function openPhoto(intent: PhotoIntent) {
     params: { itemId: itemId.value },
     query: { edit: '1', photo: intent },
   })
+}
+
+async function matchHandoutFormat() {
+  if (!editing.value || !isAdmin.value || formatBusy.value) return
+  try {
+    await ElMessageBox.confirm(
+      '将按讲义格式识别标题、代码块和列表，并做小幅排版调整。知识点不改写。之后仍可在编辑器里微调。',
+      'AI 自动匹配格式',
+      { confirmButtonText: '开始匹配', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  formatBusy.value = true
+  try {
+    draftContent.value = await aiMatchHandoutFormat(draftContent.value)
+    ElMessage.success('已套用讲义格式，可再微调后保存')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '格式匹配失败')
+  } finally {
+    formatBusy.value = false
+  }
 }
 
 function leavePhoto() {
@@ -373,6 +399,9 @@ watch(
         itemTitle: next.title,
         learningPath: next.learningPath,
       })
+      await nextTick()
+      if (seq !== loadSeq) return
+      scrollPaperToTop()
     } catch (e) {
       if (seq !== loadSeq) return
       item.value = null
@@ -463,10 +492,14 @@ watch(photoOpen, (open) => {
       </el-button>
     </div>
 
-    <div v-if="quizOpen && !editing && !photoOpen" class="computer-detail__paper computer-detail__quiz">
+    <div
+      v-if="quizOpen && !editing && !photoOpen"
+      ref="paperRef"
+      class="computer-detail__paper computer-detail__quiz"
+    >
       <FrontendQuizPanel :item="item" @close="quizOpen = false" />
     </div>
-    <article v-else class="computer-detail__paper" :class="{ 'is-editing': editing && !photoOpen }">
+    <article v-else ref="paperRef" class="computer-detail__paper" :class="{ 'is-editing': editing && !photoOpen }">
       <template v-if="photoOpen">
         <template v-if="!photoSrc">
           <p class="computer-photo__lead">
@@ -579,6 +612,7 @@ watch(photoOpen, (open) => {
         <div class="computer-detail__photo-btns">
           <el-button size="small" type="primary" plain @click="openPhoto('recognize')">拍照识别</el-button>
           <el-button size="small" @click="openPhoto('upload')">拍照上传</el-button>
+          <el-button size="small" type="success" plain :disabled="formatBusy" @click="matchHandoutFormat">AI自动匹配格式</el-button>
           <el-button size="small" @click="editorRef?.insertNoteTag()">备注</el-button>
         </div>
         <RichTextEditor
@@ -590,11 +624,11 @@ watch(photoOpen, (open) => {
           placeholder="输入讲义正文…"
         />
       </template>
-      <RichTextView v-else :tone="docsTone ? 'docs' : 'default'" :html="html" />
+      <RichTextView v-else tone="docs" :html="html" />
     </article>
     <FrontendAskPanel v-if="item && !fullscreen && !photoOpen && !quizOpen && !editing" :item="item" />
-    <div v-if="loading || saving" class="computer-busy-cover">
-      <FrontendBusyHint :text="saving ? '正在保存讲义…' : '正在打开讲义…'" />
+    <div v-if="loading || saving || formatBusy" class="computer-busy-cover">
+      <FrontendBusyHint :text="formatBusy ? aiRequestProgressText('匹配讲义格式') : saving ? '正在保存讲义…' : '正在打开讲义…'" />
     </div>
   </section>
   <section v-else-if="loading" class="computer-detail computer-detail--boot">
@@ -769,10 +803,9 @@ watch(photoOpen, (open) => {
 .computer-detail__photo-btns {
   flex-shrink: 0;
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
-  overflow-x: auto;
 }
 
 .computer-photo__lead {

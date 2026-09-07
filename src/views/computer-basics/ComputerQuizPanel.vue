@@ -63,8 +63,10 @@ watch(
 watch(
   () => [test.phase, test.currentIndex] as const,
   () => {
+    const toTop = () => bodyRef.value?.scrollTo({ top: 0 })
     void nextTick(() => {
-      bodyRef.value?.scrollTo({ top: 0 })
+      toTop()
+      requestAnimationFrame(toTop)
     })
   },
 )
@@ -281,20 +283,6 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
           <RichTextView v-if="displayQ.explanation" :html="displayQ.explanation" />
         </template>
       </div>
-      <div class="cb-quiz__actions">
-        <el-button v-if="!test.submitted" type="primary" @click="test.submitCurrent()">
-          {{ displayQ.kind === 'short' ? '查看参考答案' : '提交' }}
-        </el-button>
-        <template v-else>
-          <el-button type="primary" @click="test.nextQuestion()">
-            {{ test.currentIndex >= test.questionCount - 1 ? '查看结果' : '下一题' }}
-          </el-button>
-          <el-button v-if="canMarkCareless" type="warning" @click="test.markCarelessWrong()">
-            粗心答错
-          </el-button>
-          <span v-else-if="test.carelessMarked" class="cb-quiz__hint">已标记粗心，不入错题本</span>
-        </template>
-      </div>
     </template>
 
     <template v-else-if="test.phase === 'summary'">
@@ -324,6 +312,20 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
         <el-button @click="test.resetToIdle()">返回设置</el-button>
       </div>
     </template>
+    </div>
+    <div v-if="test.phase === 'running' && displayQ" class="cb-quiz__actions is-dock">
+      <el-button v-if="!test.submitted" type="primary" @click="test.submitCurrent()">
+        {{ displayQ.kind === 'short' ? '查看参考答案' : '提交' }}
+      </el-button>
+      <template v-else>
+        <el-button type="primary" @click="test.nextQuestion()">
+          {{ test.currentIndex >= test.questionCount - 1 ? '查看结果' : '下一题' }}
+        </el-button>
+        <el-button v-if="canMarkCareless" type="warning" @click="test.markCarelessWrong()">
+          粗心答错
+        </el-button>
+        <span v-else-if="test.carelessMarked" class="cb-quiz__hint">已标记粗心，不入错题本</span>
+      </template>
     </div>
   </section>
   <ComputerAskPanel
@@ -360,8 +362,11 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
   padding-bottom: 8px;
 }
 
-.cb-quiz.is-running .cb-quiz__body {
-  padding-bottom: 72px;
+.cb-quiz__actions.is-dock {
+  flex-shrink: 0;
+  padding: 8px 2px 4px;
+  background: #fff;
+  border-top: 1px solid var(--app-border-soft);
 }
 
 .cb-quiz__head {
@@ -597,10 +602,6 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
     margin: 0 auto;
     padding: 10px 12px 16px;
     gap: 14px;
-  }
-
-  .cb-quiz.is-running .cb-quiz__body {
-    padding-bottom: 72px;
   }
 
   .cb-quiz__head {

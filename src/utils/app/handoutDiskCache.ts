@@ -12,7 +12,7 @@ export type HandoutRevisionPeek =
   | { status: 'offline' }
   | { status: 'missing' }
 
-type TreeRecord<T> = { revision: string; tree: T; savedAt: number }
+type TreeRecord<T> = { revision: string; tree: T; savedAt: number; viewer?: 'admin' | 'public' }
 type ItemRecord<T> = { revision: string; item: T; savedAt: number }
 
 const DB_NAME = 'wengu-handout-cache'
@@ -133,13 +133,21 @@ export async function readHandoutCachedTree<T>(scope: HandoutCacheScope): Promis
   }
 }
 
-export function writeHandoutCachedTree<T>(scope: HandoutCacheScope, revision: string, tree: T): void {
+export function writeHandoutCachedTree<T>(
+  scope: HandoutCacheScope,
+  revision: string,
+  tree: T,
+  viewer?: 'admin' | 'public',
+): void {
   const stamp = String(revision || '').trim()
   if (!stamp) return
   rememberHandoutRevision(scope, stamp)
-  void idbPut(STORE_TREE, scope, { revision: stamp, tree, savedAt: Date.now() } satisfies TreeRecord<T>).catch(
-    () => undefined,
-  )
+  void idbPut(STORE_TREE, scope, {
+    revision: stamp,
+    tree,
+    savedAt: Date.now(),
+    ...(viewer ? { viewer } : {}),
+  } satisfies TreeRecord<T>).catch(() => undefined)
 }
 
 export async function readHandoutCachedItem<T>(

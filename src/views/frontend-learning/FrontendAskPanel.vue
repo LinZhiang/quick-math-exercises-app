@@ -187,7 +187,6 @@ const systemPrompt = computed(() => {
 })
 
 let saved: SavedLayout = {}
-let beforeFullscreen: { x: number; y: number; w: number; h: number } | null = null
 let drag: {
   kind: DragKind
   pointerId: number
@@ -249,50 +248,10 @@ function clampTab() {
 function clampPanel() {
   const { w, h } = dockSize()
   if (w <= 0 || h <= 0) return
-  if (panelFullscreen.value) {
-    panelBox.x = 0
-    panelBox.y = 0
-    panelBox.w = w
-    panelBox.h = h
-    return
-  }
-  const pad = 8
-  const wide = isWideLayout.value
-  const maxH = Math.max(160, h - pad)
-  const minH = Math.min(MIN_PANEL_H, maxH)
-  const maxW = Math.max(MIN_PANEL_W, w - pad * 2)
-  if (wide) {
-    const minW = Math.min(WIDE_PANEL_MIN_W, maxW)
-    const capW = Math.min(WIDE_PANEL_MAX_W, maxW)
-    if (panelBox.w >= maxW - 4) {
-      panelBox.w = clamp(WIDE_PANEL_W, minW, capW)
-      panelBox.x = Math.max(pad, w - pad - panelBox.w)
-    }
-    panelBox.w = clamp(panelBox.w, minW, capW)
-    panelBox.h = clamp(panelBox.h, minH, maxH)
-    panelBox.x = clamp(panelBox.x, pad, Math.max(pad, w - pad - panelBox.w))
-    panelBox.y = clamp(panelBox.y, pad, Math.max(pad, h - pad - panelBox.h))
-    return
-  }
-  panelBox.w = maxW
-  panelBox.h = clamp(panelBox.h, minH, maxH)
-  panelBox.x = pad
-  panelBox.y = clamp(panelBox.y, pad, Math.max(pad, h - pad - panelBox.h))
-}
-
-function toggleFullscreen() {
-  if (!panelFullscreen.value) {
-    beforeFullscreen = { x: panelBox.x, y: panelBox.y, w: panelBox.w, h: panelBox.h }
-    panelFullscreen.value = true
-    clampPanel()
-    return
-  }
-  panelFullscreen.value = false
-  if (beforeFullscreen) {
-    Object.assign(panelBox, beforeFullscreen)
-    beforeFullscreen = null
-  }
-  clampPanel()
+  panelBox.x = 0
+  panelBox.y = 0
+  panelBox.w = w
+  panelBox.h = h
 }
 
 function persist() {
@@ -497,8 +456,10 @@ watch(panelOpen, async (open) => {
     placeTab(true)
     return
   }
+  panelFullscreen.value = true
+  panelPlaced.value = true
   await nextTick()
-  placePanel(panelPlaced.value || (typeof saved.panelW === 'number' && saved.panelW > 0))
+  clampPanel()
 })
 
 watch(isWideLayout, async () => {
@@ -589,9 +550,6 @@ onBeforeUnmount(() => {
         <span class="computer-ask__title">{{
           question ? `问本题 · ${providerName}` : `问 AI · ${providerName}`
         }}</span>
-        <button type="button" class="computer-ask__toggle-act" @click.stop="toggleFullscreen">
-          {{ panelFullscreen ? '退出全屏' : '全屏' }}
-        </button>
         <button type="button" class="computer-ask__toggle-act" @click.stop="panelOpen = false">
           收起
         </button>

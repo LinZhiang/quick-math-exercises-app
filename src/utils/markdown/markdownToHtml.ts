@@ -1,5 +1,8 @@
 import { marked } from 'marked'
-import { normalizeMarkdownForRender } from '@/utils/markdown/markdownNormalize'
+import {
+  normalizeMarkdownForRender,
+  unwrapNumericStrikethroughHtml,
+} from '@/utils/markdown/markdownNormalize'
 import { sanitizeMarkdownHtml } from '@/utils/markdown/markdownSanitize'
 import { repairSameLineFenceOpeners, tidyJsFencesInMarkdown } from '@/utils/markdown/tidyJsCode'
 
@@ -34,5 +37,5 @@ export function markdownToDisplaySafeHtml(md: string): string {
   const text = tidyJsFencesInMarkdown(repairSameLineFenceOpeners(normalizeMarkdownForRender((md ?? '').trim())))
   if (!text) return ''
   const raw = marked.parse(text, { async: false }) as string
-  return wrapHtmlTablesForScroll(sanitizeMarkdownHtml(raw))
+  return wrapHtmlTablesForScroll(unwrapNumericStrikethroughHtml(sanitizeMarkdownHtml(raw)))
 }

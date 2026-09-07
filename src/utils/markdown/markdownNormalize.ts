@@ -59,8 +59,35 @@ function insertMissingMarkdownTableHeaders(lines: string[]): string[] {
   return out
 }
 
+/** GFM 会把 ~~1-12~~ 渲染成删除线；出题里这是范围写法，不是划掉。 */
+export function neutralizeMarkdownRangeMarks(md: string): string {
+  const range = String.raw`\d+(?:\.\d+)?(?:\s*[-–—~～至到]\s*\d+(?:\.\d+)?)?`
+  const wrapped = new RegExp(`~~(${range})~~`, 'g')
+  const between = /(\d+(?:\.\d+)?)~~(\d+(?:\.\d+)?)/g
+  const lines = String(md ?? '').split('\n')
+  let inFence = false
+  return lines
+    .map((line) => {
+      const trimmed = line.trim()
+      if (trimmed.startsWith('```')) {
+        inFence = !inFence
+        return line
+      }
+      if (inFence) return line
+      return line.replace(wrapped, '$1').replace(between, '$1-$2')
+    })
+    .join('\n')
+}
+
+export function unwrapNumericStrikethroughHtml(html: string): string {
+  return String(html ?? '').replace(
+    /<(del|s)>(\s*\d[\d.\s\-–—~～至到]*\d\s*)<\/\1>/gi,
+    '$2',
+  )
+}
+
 export function normalizeMarkdownForRender(md: string): string {
-  let lines = (md ?? '').split(/\r?\n/)
+  let lines = neutralizeMarkdownRangeMarks(md ?? '').split(/\r?\n/)
   lines = insertMissingMarkdownTableHeaders(lines)
   const out: string[] = []
   let inFence = false

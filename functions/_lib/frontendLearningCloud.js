@@ -3,7 +3,8 @@
  * 读写只走 WENGU_KV；没有 KV 时 GET 读 /fl-data 快照（只读）。
  * 禁止用边缘 Cache API 当库，否则用户新加的目录会被静态快照盖掉。
  */
-import { json, requireAdmin } from './wenguCloudAuth.js'
+import { json, peekIsAdmin, requireAdmin } from './wenguCloudAuth.js'
+import { applyPrivacyFlag, filterPublicCatalog, guestMayReadCatalogId } from './handoutVisibility.js'
 import { kvMissingMessage } from './kvBinding.js'
 import {
   getFlStore,
@@ -102,6 +103,19 @@ function sanitizeName(raw) {
   const name = String(raw ?? '').trim()
   if (!name || name.length > 80) return null
   return name
+}
+
+function applyNodeMetaPatch(node, body) {
+  let changed = false
+  if (body.name != null) {
+    const name = sanitizeName(body.name)
+    if (!name) return { error: '名称不能为空（最多 80 字）', status: 400 }
+    node.name = name
+    changed = true
+  }
+  if (applyPrivacyFlag(node, body)) changed = true
+  if (!changed) return { error: '名称不能为空（最多 80 字）', status: 400 }
+  return { ok: true }
 }
 
 function newId(prefix) {
@@ -400,16 +414,24 @@ export async function handleFrontendLearning(env, request, pathParam) {
       await ensureStore(env, request)
       const raw = await readRawCatalog(env, request)
       const tree = Array.isArray(raw.tree) ? raw.tree : []
+      const ready = await applyReadyFlags(env, tree, request)
+      const visible = (await peekIsAdmin(env, request)) ? ready : filterPublicCatalog(ready)
       return json({
         ok: true,
-        tree: await applyReadyFlags(env, tree, request),
+        tree: visible,
         ...catalogRevision(raw),
       })
     }
 
     if (method === 'GET' && segs[0] === 'items' && segs.length === 2) {
+      await ensureStore(env, request)
       const item = await readItem(env, segs[1], request)
       if (!item) return json({ ok: false, message: '未找到该讲义' }, 404)
+      const catalog = await readRawCatalog(env, request)
+      const admin = await peekIsAdmin(env, request)
+      if (!guestMayReadCatalogId(catalog.tree, item.id, admin)) {
+        return json({ ok: false, message: '未找到该讲义' }, 404)
+      }
       return json({ ok: true, item })
     }
 
@@ -539,17 +561,17 @@ async function handleRenameNode(env, request, id) {
       if (!name) return json({ ok: false, message: '名称不能为空（最多 80 字）' }, 400)
       moved.node.name = name
     }
+    applyPrivacyFlag(moved.node, body)
     await writeCatalog(env, catalog.tree)
     for (const entryId of collectEntryIds(moved.node)) {
       await rewriteLearningPath(env, request, catalog.tree, entryId)
     }
     return json({ ok: true, node: moved.node })
   }
-  const name = sanitizeName(body.name)
-  if (!name) return json({ ok: false, message: '名称不能为空（最多 80 字）' }, 400)
   const hit = findNode(catalog.tree, String(id))
   if (!hit) return json({ ok: false, message: '未找到该分类' }, 404)
-  hit.node.name = name
+  const patched = applyNodeMetaPatch(hit.node, body)
+  if (patched.error) return json({ ok: false, message: patched.error }, patched.status || 400)
   await writeCatalog(env, catalog.tree)
   return json({ ok: true, node: hit.node })
 }
@@ -616,6 +638,7 @@ async function handlePatchItem(env, request, idRaw) {
       if (!title) return json({ ok: false, message: '标题不能为空（最多 80 字）' }, 400)
       moved.entry.title = title
     }
+    applyPrivacyFlag(moved.entry, body)
     await writeCatalog(env, catalog.tree)
     await rewriteLearningPath(env, request, catalog.tree, id)
     const item = await readItem(env, id, request)
@@ -638,6 +661,7 @@ async function handlePatchItem(env, request, idRaw) {
   if (hit) {
     hit.entry.title = title
     hit.entry.ready = true
+    applyPrivacyFlag(hit.entry, body)
     await writeCatalog(env, catalog.tree)
   }
   return json({ ok: true, item })

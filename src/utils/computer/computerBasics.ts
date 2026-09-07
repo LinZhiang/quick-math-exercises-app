@@ -8,9 +8,11 @@ import {
   writeHandoutCachedTree,
 } from '@/utils/app/handoutDiskCache'
 import { markdownToDisplaySafeHtml } from '@/utils/markdown/markdownToHtml'
+import { highlightHandoutCodeHtml } from '@/utils/markdown/highlightHandoutCode'
 import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
 import { readWenguJsonResponse, wenguApiFetch } from '@/utils/computer/wenguApiFetch'
 import { resolveWenguApiUrl } from '@/utils/computer/wenguApiOrigin'
+import { catalogContainsId, catalogRowLocked, filterPublicCatalog } from '@/utils/app/handoutVisibility'
 import { getWenguAuthToken, isWenguAdmin } from '@/utils/computer/wenguAuthStore'
 
 export type ComputerEntryType = 'handout' | 'mindmap' | 'general' | 'choice' | 'group' | 'material-group'
@@ -20,6 +22,7 @@ export type ComputerTreeEntry = {
   title: string
   ready: boolean
   type: ComputerEntryType | string
+  private?: boolean
 }
 
 export type ComputerTreeNode = {
@@ -27,6 +30,7 @@ export type ComputerTreeNode = {
   name: string
   children: ComputerTreeNode[]
   entries: ComputerTreeEntry[]
+  private?: boolean
 }
 
 export type ComputerHandoutItem = {
@@ -45,12 +49,16 @@ export type ComputerTreeRow =
       name: string
       depth: number
       expandable: boolean
+      locked: boolean
+      ownPrivate: boolean
     }
   | {
       kind: 'entry'
       id: string
       depth: number
       entry: ComputerTreeEntry
+      locked: boolean
+      ownPrivate: boolean
     }
 
 export function nodeHasBody(node: ComputerTreeNode): boolean {
@@ -77,25 +85,31 @@ export function flattenVisibleComputerRows(
   nodes: ComputerTreeNode[],
   expanded: Record<string, boolean>,
   depth = 0,
+  inheritedPrivate = false,
 ): ComputerTreeRow[] {
   const rows: ComputerTreeRow[] = []
   for (const node of nodes) {
     const expandable = nodeHasBody(node)
+    const locked = catalogRowLocked(inheritedPrivate, node.private)
     rows.push({
       kind: 'branch',
       id: node.id,
       name: node.name,
       depth,
       expandable,
+      locked,
+      ownPrivate: Boolean(node.private),
     })
     if (!expandable || !expanded[node.id]) continue
-    rows.push(...flattenVisibleComputerRows(node.children, expanded, depth + 1))
+    rows.push(...flattenVisibleComputerRows(node.children, expanded, depth + 1, locked))
     for (const entry of node.entries) {
       rows.push({
         kind: 'entry',
         id: entry.id,
         depth: depth + 1,
         entry,
+        locked: catalogRowLocked(locked, entry.private),
+        ownPrivate: Boolean(entry.private),
       })
     }
   }
@@ -209,19 +223,41 @@ export function isComputerHtmlContent(raw: string): boolean {
 export function computerContentToHtml(raw: string): string {
   const t = (raw ?? '').trim()
   if (!t) return ''
-  if (isComputerHtmlContent(t)) return sanitizeRichHtml(t)
-  return markdownToDisplaySafeHtml(t)
+  const html = isComputerHtmlContent(t) ? sanitizeRichHtml(t) : markdownToDisplaySafeHtml(t)
+  return highlightHandoutCodeHtml(html)
 }
 
 let treeCache: ComputerTreeNode[] | null = null
 const itemCache = new Map<string, ComputerHandoutItem>()
 let sessionRevision = ''
+let cacheViewer: 'admin' | 'public' | '' = ''
 
 export function clearComputerBasicsCache() {
   treeCache = null
   itemCache.clear()
   sessionRevision = ''
+  cacheViewer = ''
   invalidateHandoutRevisionMemo('computer')
+}
+
+function viewerAuthInit(): RequestInit {
+  const token = getWenguAuthToken()
+  if (!token) return {}
+  return { headers: { Authorization: `Bearer ${token}` } }
+}
+
+function visibleComputerTree(tree: ComputerTreeNode[] | null): ComputerTreeNode[] {
+  const list = tree ?? []
+  return isWenguAdmin() ? list : filterPublicCatalog(list)
+}
+
+function rememberComputerTree(tree: ComputerTreeNode[], revision?: string, viewer?: 'admin' | 'public') {
+  treeCache = tree
+  cacheViewer = viewer || (isWenguAdmin() ? 'admin' : 'public')
+  if (revision) {
+    rememberComputerRevision(revision)
+    writeHandoutCachedTree('computer', revision, tree, cacheViewer)
+  }
 }
 
 async function computerAdminFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -264,6 +300,22 @@ export async function renameComputerNode(id: string, name: string) {
   clearComputerBasicsCache()
 }
 
+export async function setComputerNodePrivate(id: string, isPrivate: boolean) {
+  await computerAdminFetch(`/api/computer-basics/nodes/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ private: isPrivate }),
+  })
+  clearComputerBasicsCache()
+}
+
+export async function setComputerItemPrivate(id: string, isPrivate: boolean) {
+  await computerAdminFetch(`/api/computer-basics/items/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ private: isPrivate }),
+  })
+  clearComputerBasicsCache()
+}
+
 export async function deleteComputerNode(id: string) {
   await computerAdminFetch(`/api/computer-basics/nodes/${encodeURIComponent(id)}`, {
     method: 'DELETE',
@@ -285,7 +337,10 @@ export async function createComputerItem(input: {
   return data.item
 }
 
-export async function updateComputerItem(id: string, patch: { title?: string; content?: string }) {
+export async function updateComputerItem(
+  id: string,
+  patch: { title?: string; content?: string; private?: boolean },
+) {
   const data = await computerAdminFetch<{ item: ComputerHandoutItem }>(
     `/api/computer-basics/items/${encodeURIComponent(id)}`,
     {
@@ -389,28 +444,33 @@ function rememberComputerRevision(revision: string) {
 }
 
 export async function loadComputerBasicsTree(force = false): Promise<ComputerTreeNode[]> {
+  const admin = isWenguAdmin()
   if (!force) {
     const remote = await peekHandoutRevision('computer')
     if (remote.status === 'ok') {
-      if (treeCache && sessionRevision === remote.revision) return treeCache
+      if (treeCache && sessionRevision === remote.revision && (!admin || cacheViewer === 'admin')) {
+        return visibleComputerTree(treeCache)
+      }
       const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer')
-      if (disk && disk.revision === remote.revision) {
-        rememberComputerRevision(remote.revision)
+      if (disk && disk.revision === remote.revision && (!admin || disk.viewer === 'admin')) {
         treeCache = disk.tree
-        return treeCache
+        cacheViewer = disk.viewer || 'public'
+        rememberComputerRevision(remote.revision)
+        return visibleComputerTree(treeCache)
       }
     } else if (remote.status === 'offline') {
-      if (treeCache) return treeCache
+      if (treeCache && (!admin || cacheViewer === 'admin')) return visibleComputerTree(treeCache)
       const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer')
-      if (disk) {
-        rememberComputerRevision(disk.revision)
+      if (disk && (!admin || disk.viewer === 'admin')) {
         treeCache = disk.tree
-        return treeCache
+        cacheViewer = disk.viewer || 'public'
+        rememberComputerRevision(disk.revision)
+        return visibleComputerTree(treeCache)
       }
     }
   }
 
-  const res = await wenguApiFetch('/api/computer-basics/tree')
+  const res = await wenguApiFetch('/api/computer-basics/tree', viewerAuthInit())
   const data = await readWenguJsonResponse<{
     ok?: boolean
     tree?: ComputerTreeNode[]
@@ -419,27 +479,29 @@ export async function loadComputerBasicsTree(force = false): Promise<ComputerTre
   }>(res)
   if (!res.ok || !data.ok || !Array.isArray(data.tree)) {
     if (!force) {
-      if (treeCache) return treeCache
+      if (treeCache && (!admin || cacheViewer === 'admin')) return visibleComputerTree(treeCache)
       const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer')
-      if (disk) {
-        rememberComputerRevision(disk.revision)
+      if (disk && (!admin || disk.viewer === 'admin')) {
         treeCache = disk.tree
-        return treeCache
+        cacheViewer = disk.viewer || 'public'
+        rememberComputerRevision(disk.revision)
+        return visibleComputerTree(treeCache)
       }
     }
     throw new Error(data.message || `读取目录失败（HTTP ${res.status}）`)
   }
-  treeCache = data.tree
   let revision = String(data.revision || '').trim()
   if (!revision) {
     const peek = await peekHandoutRevision('computer')
     if (peek.status === 'ok') revision = peek.revision
   }
-  if (revision) {
-    rememberComputerRevision(revision)
-    writeHandoutCachedTree('computer', revision, data.tree)
-  }
-  return treeCache
+  rememberComputerTree(data.tree, revision)
+  return visibleComputerTree(treeCache)
+}
+
+function guestMayUseComputerItemCache(id: string): boolean {
+  if (isWenguAdmin()) return true
+  return catalogContainsId(visibleComputerTree(treeCache), id)
 }
 
 export async function loadComputerBasicsItem(id: string, force = false): Promise<ComputerHandoutItem> {
@@ -450,18 +512,18 @@ export async function loadComputerBasicsItem(id: string, force = false): Promise
     const remote = await peekHandoutRevision('computer')
     if (remote.status === 'ok') {
       const cached = itemCache.get(key)
-      if (cached && sessionRevision === remote.revision) return cached
+      if (cached && sessionRevision === remote.revision && guestMayUseComputerItemCache(key)) return cached
       const disk = await readHandoutCachedItem<ComputerHandoutItem>('computer', key)
-      if (disk && disk.revision === remote.revision) {
+      if (disk && disk.revision === remote.revision && guestMayUseComputerItemCache(key)) {
         rememberComputerRevision(remote.revision)
         itemCache.set(key, disk.item)
         return disk.item
       }
     } else if (remote.status === 'offline') {
       const cached = itemCache.get(key)
-      if (cached) return cached
+      if (cached && guestMayUseComputerItemCache(key)) return cached
       const disk = await readHandoutCachedItem<ComputerHandoutItem>('computer', key)
-      if (disk) {
+      if (disk && guestMayUseComputerItemCache(key)) {
         rememberComputerRevision(disk.revision)
         itemCache.set(key, disk.item)
         return disk.item
@@ -469,16 +531,19 @@ export async function loadComputerBasicsItem(id: string, force = false): Promise
     }
   }
 
-  const res = await wenguApiFetch(`/api/computer-basics/items/${encodeURIComponent(key)}`)
+  const res = await wenguApiFetch(`/api/computer-basics/items/${encodeURIComponent(key)}`, viewerAuthInit())
   const data = await readWenguJsonResponse<{ ok?: boolean; item?: ComputerHandoutItem; message?: string }>(
     res,
   )
   if (!res.ok || !data.ok || !data.item) {
+    if (res.status === 404 && !isWenguAdmin()) {
+      throw new Error(data.message || '未找到该讲义')
+    }
     if (!force) {
       const cached = itemCache.get(key)
-      if (cached) return cached
+      if (cached && guestMayUseComputerItemCache(key)) return cached
       const disk = await readHandoutCachedItem<ComputerHandoutItem>('computer', key)
-      if (disk) {
+      if (disk && guestMayUseComputerItemCache(key)) {
         rememberComputerRevision(disk.revision)
         itemCache.set(key, disk.item)
         return disk.item

@@ -30,8 +30,10 @@ const bodyRef = ref<HTMLElement | null>(null)
 watch(
   () => [test.phase, test.currentIndex] as const,
   () => {
+    const toTop = () => bodyRef.value?.scrollTo({ top: 0 })
     void nextTick(() => {
-      bodyRef.value?.scrollTo({ top: 0 })
+      toTop()
+      requestAnimationFrame(toTop)
     })
   },
 )

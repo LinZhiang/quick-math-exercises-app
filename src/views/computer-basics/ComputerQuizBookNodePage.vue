@@ -30,7 +30,8 @@ import {
   filterComputerQuizBookRecords,
   findComputerQuizBookNode,
 } from '@/utils/computer/computerQuizBookTree'
-import { loadComputerBasicsTree, type ComputerHandoutItem, type ComputerTreeNode } from '@/utils/computer/computerBasics'
+import { loadComputerBasicsTree, type ComputerHandoutItem, type ComputerTreeNode, clearComputerBasicsCache } from '@/utils/computer/computerBasics'
+import { wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 import { markdownToDisplaySafeHtml } from '@/utils/markdown/markdownToHtml'
 import RichTextView from '@/components/RichTextView.vue'
 import ComputerBusyHint from './ComputerBusyHint.vue'
@@ -165,6 +166,7 @@ function openDetail(index: number) {
   noteDraft.value = getComputerQuizNote(filteredRows.value[index]!.fingerprint)
   void nextTick(() => {
     detailBodyRef.value?.scrollTo({ top: 0 })
+    requestAnimationFrame(() => detailBodyRef.value?.scrollTo({ top: 0 }))
   })
 }
 
@@ -285,7 +287,11 @@ watch(filteredRows, (rows) => {
   if (detailIndex.value >= rows.length) openDetail(rows.length - 1)
 })
 
-onMounted(async () => {
+onMounted(() => {
+  void loadCatalog()
+})
+
+async function loadCatalog() {
   try {
     catalog.value = await loadComputerBasicsTree()
   } catch {
@@ -293,6 +299,11 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+}
+
+watch(wenguAuthTick, () => {
+  clearComputerBasicsCache()
+  void loadCatalog()
 })
 </script>
 
@@ -391,7 +402,6 @@ onMounted(async () => {
                 :key="i"
                 :class="{ 'is-ans': answerOpen && i === detailRow.correctIndex }"
               >
-                <span v-if="answerOpen && i === detailRow.correctIndex" class="cb-book__opt-flag">正确</span>
                 <span>{{ opt }}</span>
               </li>
             </ul>
@@ -401,49 +411,49 @@ onMounted(async () => {
             <template v-if="answerOpen">
               <p v-if="!detailRow.options.length">答案：{{ displayOf(detailRow).correctText }}</p>
               <RichTextView v-if="displayOf(detailRow).explanation" :html="displayOf(detailRow).explanation" />
-            </template>
-            <div class="cb-book__note">
-              <div class="cb-book__note-head">
-                <strong>备注</strong>
-                <el-button
-                  v-if="!noteEditing"
-                  size="small"
-                  text
-                  type="primary"
-                  @click="onEditNote(detailRow.fingerprint)"
-                >
-                  {{ rowNote(detailRow.fingerprint) ? '编辑' : '添加备注' }}
-                </el-button>
-              </div>
-              <template v-if="noteEditing">
-                <el-input
-                  v-model="noteDraft"
-                  type="textarea"
-                  :rows="3"
-                  maxlength="500"
-                  show-word-limit
-                  placeholder="支持 Markdown，如标题、列表、加粗等"
-                />
-                <div class="cb-book__note-actions">
+              <div class="cb-book__note">
+                <div class="cb-book__note-head">
+                  <strong>备注</strong>
                   <el-button
+                    v-if="!noteEditing"
                     size="small"
+                    text
                     type="primary"
-                    :loading="noteSaving"
-                    @click="onSaveNote(detailRow.fingerprint)"
+                    @click="onEditNote(detailRow.fingerprint)"
                   >
-                    保存
-                  </el-button>
-                  <el-button size="small" plain @click="onCancelNoteEdit(detailRow.fingerprint)">
-                    取消
+                    {{ rowNote(detailRow.fingerprint) ? '编辑' : '添加备注' }}
                   </el-button>
                 </div>
-              </template>
-              <template v-else-if="rowNote(detailRow.fingerprint)">
-                <!-- eslint-disable-next-line vue/no-v-html -->
-                <div class="cb-book__note-md deepseek-md" v-html="noteHtml(detailRow.fingerprint)" />
-              </template>
-              <p v-else class="cb-book__note-empty">暂无备注</p>
-            </div>
+                <template v-if="noteEditing">
+                  <el-input
+                    v-model="noteDraft"
+                    type="textarea"
+                    :rows="3"
+                    maxlength="500"
+                    show-word-limit
+                    placeholder="支持 Markdown，如标题、列表、加粗等"
+                  />
+                  <div class="cb-book__note-actions">
+                    <el-button
+                      size="small"
+                      type="primary"
+                      :loading="noteSaving"
+                      @click="onSaveNote(detailRow.fingerprint)"
+                    >
+                      保存
+                    </el-button>
+                    <el-button size="small" plain @click="onCancelNoteEdit(detailRow.fingerprint)">
+                      取消
+                    </el-button>
+                  </div>
+                </template>
+                <template v-else-if="rowNote(detailRow.fingerprint)">
+                  <!-- eslint-disable-next-line vue/no-v-html -->
+                  <div class="cb-book__note-md deepseek-md" v-html="noteHtml(detailRow.fingerprint)" />
+                </template>
+                <p v-else class="cb-book__note-empty">暂无备注</p>
+              </div>
+            </template>
             <div class="cb-book__actions">
               <el-button size="small" type="danger" plain @click="remove(detailRow)">删除</el-button>
             </div>

@@ -446,9 +446,17 @@ export function parseComputerQuizAiItem(
 
 export function normalizeCalcAnswer(s: string): string {
   return String(s ?? '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, '')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&')
     .replace(/\s+/g, '')
     .replace(/[。．.、,，;；:：]/g, '')
     .replace(/[（）()【】\[\]]/g, '')
+    .replace(/[`'"“”‘’]/g, '')
     .toLowerCase()
 }
 
@@ -457,6 +465,15 @@ function extractCalcCores(correct: string): string[] {
   const compact = normalizeCalcAnswer(raw)
   const out = new Set<string>()
   if (compact) out.add(compact)
+  const labeled = compact.replace(/^(正确答案是|答案是|结果是|结果为|等于)/, '')
+  if (labeled && labeled !== compact) out.add(labeled)
+  for (const m of raw.match(/[`'"“”]([^`'"“”]+)[`'"“”]/g) ?? []) {
+    const n = normalizeCalcAnswer(m)
+    if (n.length >= 2) out.add(n)
+  }
+  for (const m of raw.match(/[A-Za-z0-9_]+(?:--[A-Za-z0-9_]+)+/g) ?? []) {
+    out.add(m.toLowerCase())
+  }
   for (const m of raw.match(/[+-]?\d+(?:\.\d+)?/g) ?? []) {
     const n = normalizeCalcAnswer(m)
     if (n.length >= 1) out.add(n)

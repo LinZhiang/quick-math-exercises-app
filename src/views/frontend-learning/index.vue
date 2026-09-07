@@ -3,10 +3,10 @@
   管理员增删改：本机写 server/data/frontend-learning；pages.dev 写 KV。检查并更新不重置目录。
 -->
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowRight, Collection, Document, Folder, FolderOpened, MoreFilled, Notebook, Plus, Share } from '@element-plus/icons-vue'
+import { ArrowRight, Collection, Document, Folder, FolderOpened, Lock, MoreFilled, Notebook, Plus, Share } from '@element-plus/icons-vue'
 import {
   buildFrontendRangeQuizItem,
   collectReadyEntriesUnder,
@@ -24,6 +24,9 @@ import {
   moveFrontendItem,
   moveFrontendNode,
   renameFrontendNode,
+  setFrontendItemPrivate,
+  setFrontendNodePrivate,
+  clearFrontendLearningCache,
   type FrontendHandoutItem,
   type FrontendTreeEntry,
   type FrontendTreeNode,
@@ -349,6 +352,20 @@ async function onRenameNode(id: string, current: string) {
   }
 }
 
+async function onTogglePrivate(row: FrontendTreeRow) {
+  const next = !row.ownPrivate
+  try {
+    await withBusy(next ? '正在设为私密…' : '正在设为公开…', async () => {
+      if (row.kind === 'branch') await setFrontendNodePrivate(row.id, next)
+      else await setFrontendItemPrivate(row.id, next)
+      await reloadKeepExpand({ focusId: row.id })
+    })
+    ElMessage.success(next ? '已设为私密，仅管理员可见' : '已对外公开')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '设置失败')
+  }
+}
+
 async function onDeleteNode(id: string, name: string) {
   try {
     await ElMessageBox.confirm(`确定删除分类「${name}」及其下属内容？`, '删除分类', {
@@ -488,6 +505,11 @@ async function load() {
 }
 
 onMounted(() => {
+  void load()
+})
+
+watch(isAdmin, () => {
+  clearFrontendLearningCache()
   void load()
 })
 
@@ -637,6 +659,9 @@ onBeforeUnmount(() => {
                 <span class="computer-tree__leaf-title">{{ row.entry.title }}</span>
                 <span v-if="!row.entry.ready && !isAdmin" class="computer-tree__soon">即将开放</span>
               </button>
+              <span v-if="row.locked" class="computer-tree__lock" title="仅管理员可见">
+                <el-icon :size="14"><Lock /></el-icon>
+              </span>
               <button
                 v-if="rowHasMore(row)"
                 type="button"
@@ -662,6 +687,9 @@ onBeforeUnmount(() => {
                   <button type="button" class="computer-tree__icon" @click.stop="onAddChild(row.id)">小类</button>
                   <button type="button" class="computer-tree__icon" @click.stop="onAddItem(row.id)">新增讲义</button>
                   <button type="button" class="computer-tree__icon" @click.stop="onRenameNode(row.id, row.name)">改名</button>
+                  <button type="button" class="computer-tree__icon" @click.stop="onTogglePrivate(row)">
+                    {{ row.ownPrivate ? '对外公开' : '设为私密' }}
+                  </button>
                   <button type="button" class="computer-tree__icon" @click.stop="startMove(row.id, 'branch', row.name)">移动位置</button>
                   <button type="button" class="computer-tree__icon" @click.stop="onMoveNode(row.id, -1)">上移</button>
                   <button type="button" class="computer-tree__icon" @click.stop="onMoveNode(row.id, 1)">下移</button>
@@ -679,6 +707,9 @@ onBeforeUnmount(() => {
                 </button>
                 <template v-if="isAdmin">
                   <button type="button" class="computer-tree__icon" @click.stop="openEntry(row.entry, true)">编辑</button>
+                  <button type="button" class="computer-tree__icon" @click.stop="onTogglePrivate(row)">
+                    {{ row.ownPrivate ? '对外公开' : '设为私密' }}
+                  </button>
                   <button type="button" class="computer-tree__icon" @click.stop="startMove(row.id, 'entry', row.entry.title)">移动位置</button>
                   <button type="button" class="computer-tree__icon" @click.stop="onMoveEntry(row.id, -1)">上移</button>
                   <button type="button" class="computer-tree__icon" @click.stop="onMoveEntry(row.id, 1)">下移</button>
@@ -952,6 +983,7 @@ onBeforeUnmount(() => {
   color: inherit;
   font: inherit;
   text-align: left;
+  white-space: normal;
 }
 
 .computer-tree__toggle.is-clickable {
@@ -976,6 +1008,14 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   cursor: pointer;
+}
+
+.computer-tree__lock {
+  flex: 0 0 auto;
+  margin: 8px 2px 0 0;
+  color: var(--app-text-muted);
+  display: grid;
+  place-items: center;
 }
 
 .computer-tree__more.is-on,

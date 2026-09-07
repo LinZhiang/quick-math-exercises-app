@@ -120,6 +120,7 @@ export async function requestComputerHandoutQuiz(input: {
     '解析必须证明 correct，不允许标答与解析打架。',
     '解析不要只抄讲义原句：先点明正确答案，再用自己的话把原理、易混点、记忆提示说清楚（可举讲义外的浅显例子）；不得编造与讲义矛盾的结论。',
     '英文缩写（如 MAR、CPU）在题干和选项里只写缩写本身，不要夹带中文全称或括号解释；全称、含义只写在 explanation。',
+    '数值范围写成 1-12 或 1～12，禁止写成 ~~1-12~~。题干和选项里不要夹带解析、备注。',
   ].join('\n')
   const user = [
     `讲义标题：${input.title}`,
@@ -239,6 +240,8 @@ export async function requestFrontendHandoutQuiz(input: {
     '标识符、代码、进制前缀必须用 Markdown：完整代码用 ```js 代码块（语言名独占一行）；短关键字/表达式用行内反引号，如 `Number.MIN_VALUE`、`0x`/`0X`、`if("")`。禁止把斜杠/反斜杠写成 LaTeX 分式。',
     '写「阅读下面代码 / 输出结果 / 最后一行」时，stem 里必须紧跟完整 ```js 代码块，禁止只写问句不给代码。',
     'explanation、correct、判断题选项禁止把整段中文解析放进 ```js；解析用中文写，代码另起围栏或行内反引号。短答案（3、undefined、ReferenceError）不要用代码块包整项。',
+    '数值范围写成 1-12 或 1～12，禁止写成 ~~1-12~~（会被渲染成删除线）。对象字面量（含注释里的）每个属性逗号后必须换行。',
+    '题干和选项里不要夹带解析、备注；解析只写在 explanation。计算题 correct 只写核心结果（如 a--b），不要加引号或整句。',
   ].join('\n')
   const user = [
     `讲义标题：${input.title}`,
@@ -416,6 +419,7 @@ export async function requestFrontendQuizVariant(input: {
     '代码必须完整可运行：用到的变量都要在片段里出现；问输出时 correct 必须是真实运行结果。',
     'new Error() 无参时 message 是空字符串，不要把 Error / undefined 当答案。',
     '禁止使用 falsy、truthy，改写为假值/真值或具体值。',
+    '数值范围不要用 ~~1-12~~；对象字面量属性逗号后换行；计算题 correct 只写核心结果、不要加引号。',
     '选择题 correct 必须是 options 里某一项的原文；判断题 correct 写「正确」或「错误」。',
     '有代码时用 Markdown ```js 代码块；代码必须写在 stem 里，禁止只写「阅读下面代码」不给片段。解析用中文，不要把整段解析放进代码块；短答案不要用代码块包整项。',
     '计算题 correct 只写最终结果短串；简答题 correct 写参考要点。',

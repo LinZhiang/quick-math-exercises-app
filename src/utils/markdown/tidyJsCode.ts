@@ -151,7 +151,7 @@ export function repairSameLineFenceOpeners(md: string): string {
   )
 }
 
-/** 运算符后被拆开的同一句，拼回一行，交给横向滚动而不是硬折行。 */
+/** 运算符后被拆开的同一句，拼回一行。对象属性逗号后的换行要保留。 */
 function joinContinuedJsLines(code: string): string {
   const lines = String(code ?? '').replace(/\r\n/g, '\n').split('\n')
   const out: string[] = []
@@ -163,8 +163,9 @@ function joinContinuedJsLines(code: string): string {
       if (!next) break
       const cur = line.trimEnd()
       if (/[;{}]$/.test(cur)) break
+      if (/,$/.test(cur)) break
       const dangling =
-        /[=+\-*/%<>&|?:,(.]$/.test(cur) ||
+        /[=+\-*/%<>&|?:(.]$/.test(cur) ||
         /\b(?:return|throw|case|new)\s*$/.test(cur) ||
         (/[A-Za-z_$]$/.test(cur) && /^\(/.test(next))
       const continues = /^[+\-*/%<>&|?.,:(]/.test(next)
@@ -177,6 +178,193 @@ function joinContinuedJsLines(code: string): string {
     out.push(line)
   }
   return out.join('\n')
+}
+
+function skipJsTrivia(s: string, from: number): number {
+  let j = from
+  while (j < s.length) {
+    const ch = s[j]
+    if (ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n') {
+      j += 1
+      continue
+    }
+    if (ch === '/' && s[j + 1] === '/') {
+      j += 2
+      while (j < s.length && s[j] !== '\n') j += 1
+      continue
+    }
+    if (ch === '/' && s[j + 1] === '*') {
+      const end = s.indexOf('*/', j + 2)
+      j = end < 0 ? s.length : end + 2
+      continue
+    }
+    break
+  }
+  return j
+}
+
+function classifyJsBrace(s: string, openIdx: number): 'object' | 'block' | 'empty' {
+  let j = skipJsTrivia(s, openIdx + 1)
+  if (j >= s.length || s[j] === '}') return 'empty'
+  const rest = s.slice(j, j + 96)
+  if (/^(return|const|let|var|if|for|while|do|try|switch|function|class|throw|break|continue|debugger)\b/.test(rest)) {
+    return 'block'
+  }
+  if (/^[A-Za-z_$][\w$]*\s*:/.test(rest) || /^['"`]/.test(rest) || /^\.\.\./.test(rest) || /^\[/.test(rest)) {
+    return 'object'
+  }
+  return 'block'
+}
+
+/** 对象属性在逗号后换行；花括号内挤在一行的语句也拆开。注释里的对象字面量同样处理。 */
+function layoutJsStructures(src: string): string {
+  const s = String(src ?? '')
+  let out = ''
+  let i = 0
+  let str: string | null = null
+  let lineComment = false
+  let blockComment = false
+  let paren = 0
+  let bracket = 0
+  let forDepth = 0
+  const braceStack: { object: boolean; paren: number; bracket: number }[] = []
+  let commentPrefix = '// '
+
+  const depth = () => braceStack.length
+  const pad = () => '  '.repeat(depth())
+  const inObjectComma = () => {
+    const top = braceStack[braceStack.length - 1]
+    return Boolean(top?.object && paren === top.paren && bracket === top.bracket)
+  }
+  const breakPrefix = () => (lineComment ? `${commentPrefix}${pad()}` : pad())
+  const insertNl = () => {
+    out += `\n${breakPrefix()}`
+  }
+  const nextSignificant = (from: number) => skipJsTrivia(s, from)
+  const prevNonSpaceIsNewline = () => /\n[ \t]*$/.test(out) || out === ''
+
+  while (i < s.length) {
+    const ch = s[i]!
+
+    if (str) {
+      out += ch
+      if (ch === '\\' && i + 1 < s.length) {
+        out += s[i + 1]
+        i += 2
+        continue
+      }
+      if (ch === str) str = null
+      i += 1
+      continue
+    }
+
+    if (lineComment) {
+      if (ch === '\n') {
+        lineComment = false
+        out += ch
+        i += 1
+        continue
+      }
+    } else if (blockComment) {
+      out += ch
+      if (ch === '*' && s[i + 1] === '/') {
+        out += '/'
+        i += 2
+        blockComment = false
+        continue
+      }
+      i += 1
+      continue
+    } else {
+      if (ch === '/' && s[i + 1] === '/') {
+        const lineStart = out.lastIndexOf('\n') + 1
+        const indent = out.slice(lineStart).match(/^[ \t]*/)?.[0] ?? ''
+        commentPrefix = `${indent}// `
+        lineComment = true
+        out += '//'
+        i += 2
+        continue
+      }
+      if (ch === '/' && s[i + 1] === '*') {
+        blockComment = true
+        out += '/*'
+        i += 2
+        continue
+      }
+      if (ch === '"' || ch === "'" || ch === '`') {
+        str = ch
+        out += ch
+        i += 1
+        continue
+      }
+    }
+
+    if (!blockComment) {
+      if (ch === '(') {
+        paren += 1
+        if (/\bfor\s*$/.test(out.replace(/\/\/[^\n]*$/, ''))) forDepth = paren
+        out += ch
+        i += 1
+        continue
+      }
+      if (ch === ')') {
+        if (forDepth && paren === forDepth) forDepth = 0
+        paren = Math.max(0, paren - 1)
+        out += ch
+        i += 1
+        continue
+      }
+      if (ch === '[') {
+        bracket += 1
+        out += ch
+        i += 1
+        continue
+      }
+      if (ch === ']') {
+        bracket = Math.max(0, bracket - 1)
+        out += ch
+        i += 1
+        continue
+      }
+    }
+
+    if (ch === '{') {
+      const kind = classifyJsBrace(s, i)
+      braceStack.push({ object: kind === 'object', paren, bracket })
+      out = out.replace(/[ \t]+$/, '')
+      if (out && !out.endsWith(' ') && !out.endsWith('\n') && !out.endsWith('(')) out += ' '
+      out += '{'
+      i += 1
+      const nxt = nextSignificant(i)
+      if (kind !== 'empty' && s[nxt] !== '}') {
+        while (i < s.length && /[ \t]/.test(s[i]!)) i += 1
+        if (s[i] !== '\n') insertNl()
+      }
+      continue
+    }
+
+    if (ch === '}') {
+      braceStack.pop()
+      out = out.replace(/[ \t]+$/, '')
+      if (!prevNonSpaceIsNewline() && !out.endsWith('{')) insertNl()
+      else out = out.replace(/[ \t]*$/, lineComment ? commentPrefix + pad() : pad())
+      out += '}'
+      i += 1
+      continue
+    }
+
+    if (ch === ',' && inObjectComma() && !forDepth) {
+      out += ','
+      i += 1
+      while (i < s.length && /[ \t]/.test(s[i]!)) i += 1
+      if (i < s.length && s[i] !== '\n' && s[i] !== '}' && s[i] !== ']') insertNl()
+      continue
+    }
+
+    out += ch
+    i += 1
+  }
+  return out
 }
 
 function prettyJsOneLiner(src: string): string {
@@ -267,6 +455,13 @@ function prettyJsOneLiner(src: string): string {
       if (i < n && s[i] !== '}' && s[i] !== ')') nl()
       continue
     }
+    if (ch === ',' && indent > 0 && !forDepth && paren === 0) {
+      out += ','
+      i += 1
+      while (i < n && s[i] === ' ') i += 1
+      if (i < n && s[i] !== '}' && s[i] !== ')') nl()
+      continue
+    }
     out += ch
     i += 1
   }
@@ -278,7 +473,7 @@ export function prepareJsBlockSource(code: string, opts?: { expand?: boolean }):
   const stripped = stripJsLangPrefix(code)
   const joined = joinContinuedJsLines(stripped)
   const expanded = prettyJsOneLiner(joined)
-  return tidyJsFenceBody(expanded, opts)
+  return tidyJsFenceBody(layoutJsStructures(expanded), opts)
 }
 
 /** 围栏内再遇到 ```lang 时先闭合，避免结束符被写成 ```js 把后文粘进代码块。 */

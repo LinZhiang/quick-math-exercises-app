@@ -215,13 +215,23 @@ export async function resolveSessionUser(env, token) {
   const member = users.find((u) => u.username === username)
   if (!member || member.enabled === false) return null
   if (Number(payload.epoch || 0) !== Number(member.sessionEpoch || 0)) return null
-  return { username, role: 'member' }
+  return { username, role: member.role === 'admin' ? 'admin' : 'member' }
 }
 
 function bearer(request) {
   const h = request.headers.get('authorization') || ''
   const m = /^Bearer\s+(.+)$/i.exec(h)
   return m?.[1]?.trim() || ''
+}
+
+/** 公开接口探测是否管理员：失败当游客，绝不 401 */
+export async function peekIsAdmin(env, request) {
+  try {
+    const user = await resolveSessionUser(env, bearer(request))
+    return user?.role === 'admin'
+  } catch {
+    return false
+  }
 }
 
 export async function requireAuth(env, request) {

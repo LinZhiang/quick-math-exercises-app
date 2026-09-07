@@ -12,6 +12,7 @@ import { highlightHandoutCodeHtml } from '@/utils/markdown/highlightHandoutCode'
 import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
 import { readWenguJsonResponse, wenguApiFetch } from '@/utils/computer/wenguApiFetch'
 import { resolveWenguApiUrl } from '@/utils/computer/wenguApiOrigin'
+import { catalogContainsId, catalogRowLocked, filterPublicCatalog } from '@/utils/app/handoutVisibility'
 import { getWenguAuthToken, isWenguAdmin } from '@/utils/computer/wenguAuthStore'
 
 export type FrontendEntryType = 'handout' | 'mindmap' | 'general' | 'choice' | 'group' | 'material-group'
@@ -21,6 +22,7 @@ export type FrontendTreeEntry = {
   title: string
   ready: boolean
   type: FrontendEntryType | string
+  private?: boolean
 }
 
 export type FrontendTreeNode = {
@@ -28,6 +30,7 @@ export type FrontendTreeNode = {
   name: string
   children: FrontendTreeNode[]
   entries: FrontendTreeEntry[]
+  private?: boolean
 }
 
 export type FrontendHandoutItem = {
@@ -46,12 +49,16 @@ export type FrontendTreeRow =
       name: string
       depth: number
       expandable: boolean
+      locked: boolean
+      ownPrivate: boolean
     }
   | {
       kind: 'entry'
       id: string
       depth: number
       entry: FrontendTreeEntry
+      locked: boolean
+      ownPrivate: boolean
     }
 
 export function nodeHasBody(node: FrontendTreeNode): boolean {
@@ -78,25 +85,31 @@ export function flattenVisibleFrontendRows(
   nodes: FrontendTreeNode[],
   expanded: Record<string, boolean>,
   depth = 0,
+  inheritedPrivate = false,
 ): FrontendTreeRow[] {
   const rows: FrontendTreeRow[] = []
   for (const node of nodes) {
     const expandable = nodeHasBody(node)
+    const locked = catalogRowLocked(inheritedPrivate, node.private)
     rows.push({
       kind: 'branch',
       id: node.id,
       name: node.name,
       depth,
       expandable,
+      locked,
+      ownPrivate: Boolean(node.private),
     })
     if (!expandable || !expanded[node.id]) continue
-    rows.push(...flattenVisibleFrontendRows(node.children, expanded, depth + 1))
+    rows.push(...flattenVisibleFrontendRows(node.children, expanded, depth + 1, locked))
     for (const entry of node.entries) {
       rows.push({
         kind: 'entry',
         id: entry.id,
         depth: depth + 1,
         entry,
+        locked: catalogRowLocked(locked, entry.private),
+        ownPrivate: Boolean(entry.private),
       })
     }
   }
@@ -218,12 +231,34 @@ export function frontendContentToHtml(raw: string): string {
 let treeCache: FrontendTreeNode[] | null = null
 const itemCache = new Map<string, FrontendHandoutItem>()
 let sessionRevision = ''
+let cacheViewer: 'admin' | 'public' | '' = ''
 
 export function clearFrontendLearningCache() {
   treeCache = null
   itemCache.clear()
   sessionRevision = ''
+  cacheViewer = ''
   invalidateHandoutRevisionMemo('frontend')
+}
+
+function viewerAuthInit(): RequestInit {
+  const token = getWenguAuthToken()
+  if (!token) return {}
+  return { headers: { Authorization: `Bearer ${token}` } }
+}
+
+function visibleFrontendTree(tree: FrontendTreeNode[] | null): FrontendTreeNode[] {
+  const list = tree ?? []
+  return isWenguAdmin() ? list : filterPublicCatalog(list)
+}
+
+function rememberFrontendTree(tree: FrontendTreeNode[], revision?: string, viewer?: 'admin' | 'public') {
+  treeCache = tree
+  cacheViewer = viewer || (isWenguAdmin() ? 'admin' : 'public')
+  if (revision) {
+    rememberFrontendRevision(revision)
+    writeHandoutCachedTree('frontend', revision, tree, cacheViewer)
+  }
 }
 
 async function frontendAdminFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -266,6 +301,22 @@ export async function renameFrontendNode(id: string, name: string) {
   clearFrontendLearningCache()
 }
 
+export async function setFrontendNodePrivate(id: string, isPrivate: boolean) {
+  await frontendAdminFetch(`/api/frontend-learning/nodes/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ private: isPrivate }),
+  })
+  clearFrontendLearningCache()
+}
+
+export async function setFrontendItemPrivate(id: string, isPrivate: boolean) {
+  await frontendAdminFetch(`/api/frontend-learning/items/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ private: isPrivate }),
+  })
+  clearFrontendLearningCache()
+}
+
 export async function deleteFrontendNode(id: string) {
   await frontendAdminFetch(`/api/frontend-learning/nodes/${encodeURIComponent(id)}`, {
     method: 'DELETE',
@@ -287,7 +338,10 @@ export async function createFrontendItem(input: {
   return data.item
 }
 
-export async function updateFrontendItem(id: string, patch: { title?: string; content?: string }) {
+export async function updateFrontendItem(
+  id: string,
+  patch: { title?: string; content?: string; private?: boolean },
+) {
   const data = await frontendAdminFetch<{ item: FrontendHandoutItem }>(
     `/api/frontend-learning/items/${encodeURIComponent(id)}`,
     {
@@ -391,28 +445,33 @@ function rememberFrontendRevision(revision: string) {
 }
 
 export async function loadFrontendLearningTree(force = false): Promise<FrontendTreeNode[]> {
+  const admin = isWenguAdmin()
   if (!force) {
     const remote = await peekHandoutRevision('frontend')
     if (remote.status === 'ok') {
-      if (treeCache && sessionRevision === remote.revision) return treeCache
+      if (treeCache && sessionRevision === remote.revision && (!admin || cacheViewer === 'admin')) {
+        return visibleFrontendTree(treeCache)
+      }
       const disk = await readHandoutCachedTree<FrontendTreeNode[]>('frontend')
-      if (disk && disk.revision === remote.revision) {
-        rememberFrontendRevision(remote.revision)
+      if (disk && disk.revision === remote.revision && (!admin || disk.viewer === 'admin')) {
         treeCache = disk.tree
-        return treeCache
+        cacheViewer = disk.viewer || 'public'
+        rememberFrontendRevision(remote.revision)
+        return visibleFrontendTree(treeCache)
       }
     } else if (remote.status === 'offline') {
-      if (treeCache) return treeCache
+      if (treeCache && (!admin || cacheViewer === 'admin')) return visibleFrontendTree(treeCache)
       const disk = await readHandoutCachedTree<FrontendTreeNode[]>('frontend')
-      if (disk) {
-        rememberFrontendRevision(disk.revision)
+      if (disk && (!admin || disk.viewer === 'admin')) {
         treeCache = disk.tree
-        return treeCache
+        cacheViewer = disk.viewer || 'public'
+        rememberFrontendRevision(disk.revision)
+        return visibleFrontendTree(treeCache)
       }
     }
   }
 
-  const res = await wenguApiFetch('/api/frontend-learning/tree')
+  const res = await wenguApiFetch('/api/frontend-learning/tree', viewerAuthInit())
   const data = await readWenguJsonResponse<{
     ok?: boolean
     tree?: FrontendTreeNode[]
@@ -421,27 +480,29 @@ export async function loadFrontendLearningTree(force = false): Promise<FrontendT
   }>(res)
   if (!res.ok || !data.ok || !Array.isArray(data.tree)) {
     if (!force) {
-      if (treeCache) return treeCache
+      if (treeCache && (!admin || cacheViewer === 'admin')) return visibleFrontendTree(treeCache)
       const disk = await readHandoutCachedTree<FrontendTreeNode[]>('frontend')
-      if (disk) {
-        rememberFrontendRevision(disk.revision)
+      if (disk && (!admin || disk.viewer === 'admin')) {
         treeCache = disk.tree
-        return treeCache
+        cacheViewer = disk.viewer || 'public'
+        rememberFrontendRevision(disk.revision)
+        return visibleFrontendTree(treeCache)
       }
     }
     throw new Error(data.message || `读取目录失败（HTTP ${res.status}）`)
   }
-  treeCache = data.tree
   let revision = String(data.revision || '').trim()
   if (!revision) {
     const peek = await peekHandoutRevision('frontend')
     if (peek.status === 'ok') revision = peek.revision
   }
-  if (revision) {
-    rememberFrontendRevision(revision)
-    writeHandoutCachedTree('frontend', revision, data.tree)
-  }
-  return treeCache
+  rememberFrontendTree(data.tree, revision)
+  return visibleFrontendTree(treeCache)
+}
+
+function guestMayUseFrontendItemCache(id: string): boolean {
+  if (isWenguAdmin()) return true
+  return catalogContainsId(visibleFrontendTree(treeCache), id)
 }
 
 export async function loadFrontendLearningItem(id: string, force = false): Promise<FrontendHandoutItem> {
@@ -452,18 +513,18 @@ export async function loadFrontendLearningItem(id: string, force = false): Promi
     const remote = await peekHandoutRevision('frontend')
     if (remote.status === 'ok') {
       const cached = itemCache.get(key)
-      if (cached && sessionRevision === remote.revision) return cached
+      if (cached && sessionRevision === remote.revision && guestMayUseFrontendItemCache(key)) return cached
       const disk = await readHandoutCachedItem<FrontendHandoutItem>('frontend', key)
-      if (disk && disk.revision === remote.revision) {
+      if (disk && disk.revision === remote.revision && guestMayUseFrontendItemCache(key)) {
         rememberFrontendRevision(remote.revision)
         itemCache.set(key, disk.item)
         return disk.item
       }
     } else if (remote.status === 'offline') {
       const cached = itemCache.get(key)
-      if (cached) return cached
+      if (cached && guestMayUseFrontendItemCache(key)) return cached
       const disk = await readHandoutCachedItem<FrontendHandoutItem>('frontend', key)
-      if (disk) {
+      if (disk && guestMayUseFrontendItemCache(key)) {
         rememberFrontendRevision(disk.revision)
         itemCache.set(key, disk.item)
         return disk.item
@@ -471,16 +532,19 @@ export async function loadFrontendLearningItem(id: string, force = false): Promi
     }
   }
 
-  const res = await wenguApiFetch(`/api/frontend-learning/items/${encodeURIComponent(key)}`)
+  const res = await wenguApiFetch(`/api/frontend-learning/items/${encodeURIComponent(key)}`, viewerAuthInit())
   const data = await readWenguJsonResponse<{ ok?: boolean; item?: FrontendHandoutItem; message?: string }>(
     res,
   )
   if (!res.ok || !data.ok || !data.item) {
+    if (res.status === 404 && !isWenguAdmin()) {
+      throw new Error(data.message || '未找到该讲义')
+    }
     if (!force) {
       const cached = itemCache.get(key)
-      if (cached) return cached
+      if (cached && guestMayUseFrontendItemCache(key)) return cached
       const disk = await readHandoutCachedItem<FrontendHandoutItem>('frontend', key)
-      if (disk) {
+      if (disk && guestMayUseFrontendItemCache(key)) {
         rememberFrontendRevision(disk.revision)
         itemCache.set(key, disk.item)
         return disk.item

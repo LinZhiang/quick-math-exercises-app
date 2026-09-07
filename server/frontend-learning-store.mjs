@@ -2,7 +2,8 @@
  * 前端学习：Node 本地为真相源。
  * 目录/正文在 server/data/frontend-learning，插图拆成 media 文件，讲义用 /api/media/... 引用。
  */
-import { requireAdmin } from './auth-core.mjs'
+import { peekIsAdmin, requireAdmin } from './auth-core.mjs'
+import { applyPrivacyFlag, filterPublicCatalog, guestMayReadCatalogId } from './handout-visibility.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -112,6 +113,43 @@ function applyReadyFlags(tree) {
   }
   walk(tree)
   return tree
+}
+
+function copyPrivateFlags(fromNode, toNode) {
+  if (!fromNode || !toNode) return toNode
+  const map = new Map()
+  const collect = (n) => {
+    if (!n) return
+    if (n.private) map.set(`n:${n.id}`, true)
+    for (const e of n.entries || []) {
+      if (e.private) map.set(`e:${e.id}`, true)
+    }
+    for (const c of n.children || []) collect(c)
+  }
+  const apply = (n) => {
+    if (!n) return
+    if (map.get(`n:${n.id}`)) n.private = true
+    for (const e of n.entries || []) {
+      if (map.get(`e:${e.id}`)) e.private = true
+    }
+    for (const c of n.children || []) apply(c)
+  }
+  collect(fromNode)
+  apply(toNode)
+  return toNode
+}
+
+function applyNodeMetaPatch(node, body) {
+  let changed = false
+  if (body.name != null) {
+    const name = sanitizeName(body.name)
+    if (!name) return { error: '名称不能为空（最多 80 字）', status: 400 }
+    node.name = name
+    changed = true
+  }
+  if (applyPrivacyFlag(node, body)) changed = true
+  if (!changed) return { error: '名称不能为空（最多 80 字）', status: 400 }
+  return { ok: true }
 }
 
 function copySeedMedia() {
@@ -306,8 +344,11 @@ export function upsertFrontendLearningFolder({ parentId, folder, items }) {
       ready: true,
     })),
   }
+  if (folder.private) nextFolder.private = true
   if (!Array.isArray(parent.node.children)) parent.node.children = []
   const idx = parent.node.children.findIndex((n) => n.id === folderId)
+  const oldFolder = idx >= 0 ? parent.node.children[idx] : null
+  copyPrivateFlags(oldFolder, nextFolder)
   if (idx >= 0) parent.node.children[idx] = nextFolder
   else parent.node.children.push(nextFolder)
 
@@ -326,15 +367,24 @@ export function upsertFrontendLearningFolder({ parentId, folder, items }) {
 /**
  * 写入一整棵分支（大类 + 若干小类 + 讲义）。parentId 为空表示挂到根目录。
  * 先落全部 item 文件，再改 catalog，并校验每篇 ready。
+ * entries 挂在大类下（单篇不必再套一层小类）；children 仍是小类。
  */
-export function upsertFrontendLearningBranch({ id, name, parentId = null, afterId = null, children }) {
+export function upsertFrontendLearningBranch({
+  id,
+  name,
+  parentId = null,
+  afterId = null,
+  children,
+  entries,
+}) {
   ensureFrontendLearningStore()
   ensureDirs()
   const branchId = String(id || '')
   const branchName = String(name || '').trim()
   const groups = Array.isArray(children) ? children : []
+  const direct = Array.isArray(entries) ? entries : []
   if (!branchId || !branchName) throw new Error('缺少大类 id/名称')
-  if (!groups.length) throw new Error('没有要写入的小类')
+  if (!groups.length && !direct.length) throw new Error('没有要写入的讲义')
 
   const catalog = readRawCatalog()
   let siblings = catalog.tree
@@ -346,46 +396,52 @@ export function upsertFrontendLearningBranch({ id, name, parentId = null, afterI
   }
 
   const written = []
+  const writeOne = (raw) => {
+    const itemId = String(raw.id || '')
+    if (!/^[a-zA-Z0-9._-]+$/.test(itemId)) throw new Error(`非法讲义 id：${itemId}`)
+    const content = extractDataImages(String(raw.content ?? ''), itemId)
+    writeItemRecord(itemId, {
+      id: itemId,
+      title: String(raw.title || itemId),
+      type: String(raw.type || 'handout'),
+      learningPath: Array.isArray(raw.learningPath) ? raw.learningPath.map(String) : [],
+      tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
+      content,
+    })
+    if (!fs.existsSync(itemFile(itemId))) {
+      throw new Error(`讲义未落到 Node 目录：${itemFile(itemId)}`)
+    }
+    written.push(itemId)
+  }
+  for (const raw of direct) writeOne(raw)
   for (const group of groups) {
     const list = Array.isArray(group.items) ? group.items : []
     if (!list.length) throw new Error(`小类 ${group.name || group.id} 没有讲义`)
-    for (const raw of list) {
-      const itemId = String(raw.id || '')
-      if (!/^[a-zA-Z0-9._-]+$/.test(itemId)) throw new Error(`非法讲义 id：${itemId}`)
-      const content = extractDataImages(String(raw.content ?? ''), itemId)
-      writeItemRecord(itemId, {
-        id: itemId,
-        title: String(raw.title || itemId),
-        type: String(raw.type || 'handout'),
-        learningPath: Array.isArray(raw.learningPath) ? raw.learningPath.map(String) : [],
-        tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
-        content,
-      })
-      if (!fs.existsSync(itemFile(itemId))) {
-        throw new Error(`讲义未落到 Node 目录：${itemFile(itemId)}`)
-      }
-      written.push(itemId)
-    }
+    for (const raw of list) writeOne(raw)
   }
+
+  const toEntry = (raw) => ({
+    id: String(raw.id),
+    title: String(raw.title || raw.id),
+    type: String(raw.type || 'handout'),
+    ready: true,
+  })
 
   const nextNode = {
     id: branchId,
     name: branchName,
-    entries: [],
+    entries: direct.map(toEntry),
     children: groups.map((group) => ({
       id: String(group.id),
       name: String(group.name),
       children: [],
-      entries: (group.items || []).map((raw) => ({
-        id: String(raw.id),
-        title: String(raw.title || raw.id),
-        type: String(raw.type || 'handout'),
-        ready: true,
-      })),
+      entries: (group.items || []).map(toEntry),
     })),
   }
 
   const existing = siblings.findIndex((n) => n.id === branchId)
+  const oldBranch = existing >= 0 ? siblings[existing] : null
+  copyPrivateFlags(oldBranch, nextNode)
   if (existing >= 0) {
     siblings[existing] = nextNode
   } else {
@@ -400,6 +456,9 @@ export function upsertFrontendLearningBranch({ id, name, parentId = null, afterI
   const hit = findNode(verified.tree, branchId)
   if (!hit) throw new Error('写入后目录里找不到新大类（catalog 未生效）')
   const missing = []
+  for (const entry of hit.node.entries || []) {
+    if (!entry.ready) missing.push(entry.id)
+  }
   for (const child of hit.node.children) {
     for (const entry of child.entries || []) {
       if (!entry.ready) missing.push(entry.id)
@@ -797,12 +856,14 @@ export function attachFrontendLearningRoutes(app) {
     }
   })
 
-  app.get('/api/frontend-learning/tree', (_req, res) => {
+  app.get('/api/frontend-learning/tree', (req, res) => {
     try {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+      const catalog = readFrontendLearningCatalog()
+      const tree = peekIsAdmin(req) ? catalog.tree : filterPublicCatalog(catalog.tree)
       res.json({
         ok: true,
-        ...readFrontendLearningCatalog(),
+        tree,
         ...readFrontendLearningRevision(),
       })
     } catch (e) {
@@ -818,6 +879,10 @@ export function attachFrontendLearningRoutes(app) {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
       const item = readFrontendLearningItem(req.params.id)
       if (!item) {
+        res.status(404).json({ ok: false, message: '未找到该讲义' })
+        return
+      }
+      if (!guestMayReadCatalogId(readFrontendLearningCatalog().tree, item.id, peekIsAdmin(req))) {
         res.status(404).json({ ok: false, message: '未找到该讲义' })
         return
       }
@@ -891,14 +956,10 @@ export function attachFrontendLearningRoutes(app) {
           }
           moved.node.name = name
         }
+        applyPrivacyFlag(moved.node, body)
         writeCatalog(catalog.tree)
         for (const entryId of collectEntryIds(moved.node)) rewriteLearningPath(catalog.tree, entryId)
         res.json({ ok: true, node: moved.node })
-        return
-      }
-      const name = sanitizeName(body.name)
-      if (!name) {
-        res.status(400).json({ ok: false, message: '名称不能为空（最多 80 字）' })
         return
       }
       const hit = findNode(catalog.tree, String(req.params.id))
@@ -906,7 +967,11 @@ export function attachFrontendLearningRoutes(app) {
         res.status(404).json({ ok: false, message: '未找到该分类' })
         return
       }
-      hit.node.name = name
+      const patched = applyNodeMetaPatch(hit.node, body)
+      if (patched.error) {
+        res.status(patched.status || 400).json({ ok: false, message: patched.error })
+        return
+      }
       writeCatalog(catalog.tree)
       res.json({ ok: true, node: hit.node })
     } catch (e) {
@@ -996,6 +1061,7 @@ export function attachFrontendLearningRoutes(app) {
           }
           moved.entry.title = title
         }
+        applyPrivacyFlag(moved.entry, body)
         writeCatalog(catalog.tree)
         rewriteLearningPath(catalog.tree, id)
         const item = readFrontendLearningItem(id)
@@ -1021,6 +1087,7 @@ export function attachFrontendLearningRoutes(app) {
       if (hit) {
         hit.entry.title = title
         hit.entry.ready = true
+        applyPrivacyFlag(hit.entry, body)
         writeCatalog(catalog.tree)
       }
       res.json({ ok: true, item })

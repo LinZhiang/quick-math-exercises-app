@@ -173,24 +173,41 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
 
 .rich-text-view :deep(pre),
 .rich-text-view :deep(pre code) {
-  word-break: normal;
-  overflow-wrap: normal;
-  word-wrap: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  word-wrap: break-word;
   hyphens: none;
 }
 
 .rich-text-view :deep(pre) {
-  white-space: pre;
+  margin: 0.85em 0 1.25em;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: #1e1e1e;
+  color: #e5e7eb;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
+  white-space: pre-wrap;
 }
 
 .rich-text-view :deep(pre code) {
   white-space: inherit;
   display: block;
-  width: max-content;
-  min-width: 100%;
+  width: auto;
+  min-width: 0;
+  font: inherit;
+  padding: 0;
+  background: transparent;
+  color: inherit;
 }
 
-.rich-text-view--docs :deep(.md-table-scroll:has(> pre)) {
+.rich-text-view :deep(.md-table-scroll:has(> pre)) {
   margin: 0.85em 0 1.25em;
   border-radius: 12px;
   background: #1e1e1e;
@@ -203,32 +220,14 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   scrollbar-width: thin;
 }
 
-.rich-text-view--docs :deep(pre) {
-  margin: 0.85em 0 1.25em;
-  padding: 16px 18px;
-  border-radius: 12px;
-  background: #1e1e1e;
-  color: #e5e7eb;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
-  font-size: 14px;
-  line-height: 1.7;
-  width: max-content;
-  min-width: 100%;
-  max-width: none;
-  box-sizing: border-box;
-  overflow-x: visible;
-  white-space: pre;
-}
-
-.rich-text-view--docs :deep(.md-table-scroll > pre) {
+.rich-text-view :deep(.md-table-scroll > pre) {
   margin: 0;
 }
 
-.rich-text-view--docs :deep(pre code) {
-  font: inherit;
-  padding: 0;
-  background: transparent;
-  color: inherit;
+.rich-text-view :deep(pre[class*='language-']::before),
+.rich-text-view :deep(code[class*='language-']::before) {
+  content: none !important;
+  display: none !important;
 }
 
 .rich-text-view :deep(.tok-kw) {
@@ -262,6 +261,11 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
 .rich-text-view :deep(.tok-op),
 .rich-text-view :deep(.tok-id) {
   color: #e5e7eb;
+}
+
+.rich-text-view :deep(del),
+.rich-text-view :deep(s) {
+  text-decoration: none;
 }
 
 .rich-text-view :deep(p:last-child) {

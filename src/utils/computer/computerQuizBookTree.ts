@@ -1,5 +1,6 @@
 import type { ComputerTreeNode } from '@/utils/computer/computerBasics'
 import type { StoredComputerQuizRecord } from '@/utils/computer/computerHandoutQuizStorage'
+import { collectCatalogIds } from '@/utils/app/handoutVisibility'
 
 export type ComputerQuizBookTreeNode = {
   id: string
@@ -112,10 +113,15 @@ export function buildComputerQuizBookTree(
   catalog: ComputerTreeNode[],
   records: StoredComputerQuizRecord[],
 ): ComputerQuizBookTreeNode[] {
+  const allowed = collectCatalogIds(catalog)
+  const scoped = records.filter((row) => {
+    const rid = rangeId(row.itemId)
+    return rid ? allowed.has(rid) : allowed.has(row.itemId)
+  })
   const used = new Set<string>()
 
   const take = (id: string): StoredComputerQuizRecord[] => {
-    const hit = records.filter((row) => recordMatchesId(row, id))
+    const hit = scoped.filter((row) => recordMatchesId(row, id))
     for (const row of hit) used.add(row.fingerprint)
     return hit
   }
@@ -152,7 +158,7 @@ export function buildComputerQuizBookTree(
   }
 
   const roots = catalog.map(fromNode).filter((n): n is ComputerQuizBookTreeNode => Boolean(n))
-  const orphans = records.filter((row) => !used.has(row.fingerprint))
+  const orphans = scoped.filter((row) => !used.has(row.fingerprint))
   if (orphans.length) {
     const byTitle = new Map<string, StoredComputerQuizRecord[]>()
     for (const row of orphans) {

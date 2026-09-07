@@ -222,6 +222,16 @@ export function verifySessionToken(token) {
   return resolveSessionUser(token)
 }
 
+/** 公开接口探测是否管理员：失败当游客，绝不 401 */
+export function peekIsAdmin(req) {
+  try {
+    const user = resolveSessionUser(extractBearer(req))
+    return user?.role === 'admin'
+  } catch {
+    return false
+  }
+}
+
 function extractBearer(req) {
   const h = req.headers.authorization || ''
   const m = /^Bearer\s+(.+)$/i.exec(h)
