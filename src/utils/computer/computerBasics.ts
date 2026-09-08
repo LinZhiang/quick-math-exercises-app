@@ -14,6 +14,7 @@ import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
 import { readWenguJsonResponse, wenguApiFetch } from '@/utils/computer/wenguApiFetch'
 import { resolveWenguApiUrl } from '@/utils/computer/wenguApiOrigin'
 import { catalogContainsId, catalogRowLocked, filterPublicCatalog } from '@/utils/app/handoutVisibility'
+import { catalogNodeHasBody, mergeCatalogLayer, snapshotCatalogNodes } from '@/utils/app/catalogLayer'
 import { getWenguAuthToken, isWenguAdmin } from '@/utils/computer/wenguAuthStore'
 
 export type ComputerEntryType = 'handout' | 'mindmap' | 'general' | 'choice' | 'group' | 'material-group'
@@ -32,6 +33,8 @@ export type ComputerTreeNode = {
   children: ComputerTreeNode[]
   entries: ComputerTreeEntry[]
   private?: boolean
+  loaded?: boolean
+  hasBody?: boolean
 }
 
 export type ComputerHandoutItem = {
@@ -63,23 +66,15 @@ export type ComputerTreeRow =
     }
 
 export function nodeHasBody(node: ComputerTreeNode): boolean {
-  return node.children.length > 0 || node.entries.length > 0
+  return catalogNodeHasBody(node)
 }
 
-/** 默认只展开第一层有内容的大类，细节由用户点三角形展开。 */
+/** 目录默认只展示一层大类，子层由用户点开后再加载。 */
 export function defaultExpandedComputerIds(
-  nodes: ComputerTreeNode[],
-  maxDepth = 1,
+  _nodes: ComputerTreeNode[],
+  _maxDepth = 1,
 ): Record<string, boolean> {
-  const out: Record<string, boolean> = {}
-  const walk = (list: ComputerTreeNode[], depth: number) => {
-    for (const node of list) {
-      if (depth < maxDepth && nodeHasBody(node)) out[node.id] = true
-      walk(node.children, depth + 1)
-    }
-  }
-  walk(nodes, 0)
-  return out
+  return {}
 }
 
 export function flattenVisibleComputerRows(
@@ -229,15 +224,21 @@ export function computerContentToHtml(raw: string): string {
 }
 
 let treeCache: ComputerTreeNode[] | null = null
+let dirTree: ComputerTreeNode[] | null = null
 const itemCache = new Map<string, ComputerHandoutItem>()
 let sessionRevision = ''
 let cacheViewer: 'admin' | 'public' | '' = ''
+let dirViewer: 'admin' | 'public' | '' = ''
+const layerInflight = new Map<string, Promise<ComputerTreeNode[]>>()
 
 export function clearComputerBasicsCache() {
   treeCache = null
+  dirTree = null
   itemCache.clear()
   sessionRevision = ''
   cacheViewer = ''
+  dirViewer = ''
+  layerInflight.clear()
   invalidateHandoutRevisionMemo('computer')
 }
 
@@ -446,6 +447,9 @@ function rememberComputerRevision(revision: string) {
 
 export async function loadComputerBasicsTree(force = false): Promise<ComputerTreeNode[]> {
   const admin = isWenguAdmin()
+  if (!force && treeCache && handoutCacheFitsViewer(admin, cacheViewer)) {
+    return visibleComputerTree(treeCache)
+  }
   if (!force) {
     const remote = await peekHandoutRevision('computer')
     if (remote.status === 'ok') {
@@ -498,6 +502,137 @@ export async function loadComputerBasicsTree(force = false): Promise<ComputerTre
   }
   rememberComputerTree(data.tree, revision)
   return visibleComputerTree(treeCache)
+}
+
+function rememberComputerDir(tree: ComputerTreeNode[], revision?: string, viewer?: 'admin' | 'public') {
+  dirTree = tree
+  dirViewer = viewer || (isWenguAdmin() ? 'admin' : 'public')
+  if (revision) {
+    rememberComputerRevision(revision)
+    writeHandoutCachedTree('computer', revision, tree, dirViewer, 'dir')
+  }
+}
+
+function snapshotComputerDir(): ComputerTreeNode[] {
+  return snapshotCatalogNodes(visibleComputerTree(dirTree))
+}
+
+async function fetchComputerLayer(parentId: string): Promise<{
+  tree: ComputerTreeNode[]
+  entries: ComputerTreeEntry[]
+  revision: string
+}> {
+  const q = encodeURIComponent(parentId || '__root__')
+  const res = await wenguApiFetch(`/api/computer-basics/tree?parent=${q}`, viewerAuthInit())
+  const data = await readWenguJsonResponse<{
+    ok?: boolean
+    tree?: ComputerTreeNode[]
+    entries?: ComputerTreeEntry[]
+    revision?: string
+    message?: string
+  }>(res)
+  if (!res.ok || !data.ok || !Array.isArray(data.tree)) {
+    throw new Error(data.message || `读取目录失败（HTTP ${res.status}）`)
+  }
+  return {
+    tree: data.tree,
+    entries: Array.isArray(data.entries) ? data.entries : [],
+    revision: String(data.revision || '').trim(),
+  }
+}
+
+export async function loadComputerBasicsDir(force = false): Promise<ComputerTreeNode[]> {
+  const admin = isWenguAdmin()
+  if (!force && dirTree && handoutCacheFitsViewer(admin, dirViewer)) {
+    return snapshotComputerDir()
+  }
+  if (!force) {
+    const remote = await peekHandoutRevision('computer')
+    if (remote.status === 'ok') {
+      const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer', 'dir')
+      if (disk && disk.revision === remote.revision && handoutCacheFitsViewer(admin, disk.viewer)) {
+        dirTree = disk.tree
+        dirViewer = disk.viewer || 'public'
+        rememberComputerRevision(remote.revision)
+        return snapshotComputerDir()
+      }
+    } else if (remote.status === 'offline') {
+      if (dirTree && handoutCacheFitsViewer(admin, dirViewer)) return snapshotComputerDir()
+      const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer', 'dir')
+      if (disk && handoutCacheFitsViewer(admin, disk.viewer)) {
+        dirTree = disk.tree
+        dirViewer = disk.viewer || 'public'
+        rememberComputerRevision(disk.revision)
+        return snapshotComputerDir()
+      }
+    }
+  }
+
+  try {
+    const layer = await fetchComputerLayer('__root__')
+    const next = mergeCatalogLayer<ComputerTreeNode>([], '', layer.tree, [])
+    let revision = layer.revision
+    if (!revision) {
+      const peek = await peekHandoutRevision('computer')
+      if (peek.status === 'ok') revision = peek.revision
+    }
+    rememberComputerDir(next, revision)
+    return snapshotComputerDir()
+  } catch (e) {
+    if (!force) {
+      if (dirTree && handoutCacheFitsViewer(admin, dirViewer)) return snapshotComputerDir()
+      const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer', 'dir')
+      if (disk && handoutCacheFitsViewer(admin, disk.viewer)) {
+        dirTree = disk.tree
+        dirViewer = disk.viewer || 'public'
+        rememberComputerRevision(disk.revision)
+        return snapshotComputerDir()
+      }
+    }
+    throw e
+  }
+}
+
+export async function ensureComputerBasicsNodeLoaded(id: string, force = false): Promise<ComputerTreeNode[]> {
+  const key = String(id || '').trim()
+  if (!key) return loadComputerBasicsDir(force)
+  if (!dirTree) await loadComputerBasicsDir(force)
+  const hit = findComputerNode(dirTree || [], key)
+  if (!hit) throw new Error('未找到该分类')
+  if (!force && hit.node.loaded !== false) return snapshotComputerDir()
+  const inflightKey = `${force ? 'f:' : ''}${key}`
+  const pending = layerInflight.get(inflightKey)
+  if (pending) return pending
+  const run = (async () => {
+    const layer = await fetchComputerLayer(key)
+    dirTree = mergeCatalogLayer(dirTree || [], key, layer.tree, layer.entries)
+    const viewer = dirViewer || (isWenguAdmin() ? 'admin' : 'public')
+    rememberComputerDir(dirTree, layer.revision || sessionRevision, viewer)
+    return snapshotComputerDir()
+  })().finally(() => {
+    if (layerInflight.get(inflightKey) === run) layerInflight.delete(inflightKey)
+  })
+  layerInflight.set(inflightKey, run)
+  return run
+}
+
+export async function reloadComputerBasicsDir(expandedIds: string[]): Promise<ComputerTreeNode[]> {
+  let next = await loadComputerBasicsDir(true)
+  const pending = new Set(expandedIds.map((id) => String(id || '').trim()).filter(Boolean))
+  let guard = 0
+  while (pending.size && guard < 40) {
+    guard += 1
+    let progressed = false
+    for (const id of [...pending]) {
+      const hit = findComputerNode(dirTree || [], id)
+      if (!hit) continue
+      next = await ensureComputerBasicsNodeLoaded(id, true)
+      pending.delete(id)
+      progressed = true
+    }
+    if (!progressed) break
+  }
+  return next
 }
 
 function guestMayUseComputerItemCache(id: string): boolean {

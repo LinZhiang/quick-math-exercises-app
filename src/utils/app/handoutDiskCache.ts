@@ -158,9 +158,16 @@ async function fetchHandoutRevision(scope: HandoutCacheScope): Promise<HandoutRe
   }
 }
 
-export async function readHandoutCachedTree<T>(scope: HandoutCacheScope): Promise<TreeRecord<T> | null> {
+function treeStoreKey(scope: HandoutCacheScope, kind: 'full' | 'dir' = 'full') {
+  return kind === 'dir' ? `${scope}:dir` : scope
+}
+
+export async function readHandoutCachedTree<T>(
+  scope: HandoutCacheScope,
+  kind: 'full' | 'dir' = 'full',
+): Promise<TreeRecord<T> | null> {
   try {
-    const rec = await idbGet<TreeRecord<T>>(STORE_TREE, scope)
+    const rec = await idbGet<TreeRecord<T>>(STORE_TREE, treeStoreKey(scope, kind))
     if (!rec || !Array.isArray(rec.tree) || !rec.revision || rec.schema !== CACHE_SCHEMA) return null
     return rec
   } catch {
@@ -173,11 +180,12 @@ export function writeHandoutCachedTree<T>(
   revision: string,
   tree: T,
   viewer?: 'admin' | 'public',
+  kind: 'full' | 'dir' = 'full',
 ): void {
   const stamp = String(revision || '').trim()
   if (!stamp) return
   rememberHandoutRevision(scope, stamp)
-  void idbPut(STORE_TREE, scope, {
+  void idbPut(STORE_TREE, treeStoreKey(scope, kind), {
     revision: stamp,
     tree,
     savedAt: Date.now(),

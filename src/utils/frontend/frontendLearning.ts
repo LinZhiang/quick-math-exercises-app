@@ -14,6 +14,7 @@ import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
 import { readWenguJsonResponse, wenguApiFetch } from '@/utils/computer/wenguApiFetch'
 import { resolveWenguApiUrl } from '@/utils/computer/wenguApiOrigin'
 import { catalogContainsId, catalogRowLocked, filterPublicCatalog } from '@/utils/app/handoutVisibility'
+import { catalogNodeHasBody, mergeCatalogLayer, snapshotCatalogNodes } from '@/utils/app/catalogLayer'
 import { getWenguAuthToken, isWenguAdmin } from '@/utils/computer/wenguAuthStore'
 
 export type FrontendEntryType = 'handout' | 'mindmap' | 'general' | 'choice' | 'group' | 'material-group'
@@ -32,6 +33,8 @@ export type FrontendTreeNode = {
   children: FrontendTreeNode[]
   entries: FrontendTreeEntry[]
   private?: boolean
+  loaded?: boolean
+  hasBody?: boolean
 }
 
 export type FrontendHandoutItem = {
@@ -63,23 +66,15 @@ export type FrontendTreeRow =
     }
 
 export function nodeHasBody(node: FrontendTreeNode): boolean {
-  return node.children.length > 0 || node.entries.length > 0
+  return catalogNodeHasBody(node)
 }
 
-/** 默认只展开第一层有内容的大类，细节由用户点三角形展开。 */
+/** 目录默认只展示一层大类，子层由用户点开后再加载。 */
 export function defaultExpandedFrontendIds(
-  nodes: FrontendTreeNode[],
-  maxDepth = 1,
+  _nodes: FrontendTreeNode[],
+  _maxDepth = 1,
 ): Record<string, boolean> {
-  const out: Record<string, boolean> = {}
-  const walk = (list: FrontendTreeNode[], depth: number) => {
-    for (const node of list) {
-      if (depth < maxDepth && nodeHasBody(node)) out[node.id] = true
-      walk(node.children, depth + 1)
-    }
-  }
-  walk(nodes, 0)
-  return out
+  return {}
 }
 
 export function flattenVisibleFrontendRows(
@@ -230,15 +225,21 @@ export function frontendContentToHtml(raw: string): string {
 }
 
 let treeCache: FrontendTreeNode[] | null = null
+let dirTree: FrontendTreeNode[] | null = null
 const itemCache = new Map<string, FrontendHandoutItem>()
 let sessionRevision = ''
 let cacheViewer: 'admin' | 'public' | '' = ''
+let dirViewer: 'admin' | 'public' | '' = ''
+const layerInflight = new Map<string, Promise<FrontendTreeNode[]>>()
 
 export function clearFrontendLearningCache() {
   treeCache = null
+  dirTree = null
   itemCache.clear()
   sessionRevision = ''
   cacheViewer = ''
+  dirViewer = ''
+  layerInflight.clear()
   invalidateHandoutRevisionMemo('frontend')
 }
 
@@ -447,6 +448,9 @@ function rememberFrontendRevision(revision: string) {
 
 export async function loadFrontendLearningTree(force = false): Promise<FrontendTreeNode[]> {
   const admin = isWenguAdmin()
+  if (!force && treeCache && handoutCacheFitsViewer(admin, cacheViewer)) {
+    return visibleFrontendTree(treeCache)
+  }
   if (!force) {
     const remote = await peekHandoutRevision('frontend')
     if (remote.status === 'ok') {
@@ -499,6 +503,140 @@ export async function loadFrontendLearningTree(force = false): Promise<FrontendT
   }
   rememberFrontendTree(data.tree, revision)
   return visibleFrontendTree(treeCache)
+}
+
+function rememberFrontendDir(tree: FrontendTreeNode[], revision?: string, viewer?: 'admin' | 'public') {
+  dirTree = tree
+  dirViewer = viewer || (isWenguAdmin() ? 'admin' : 'public')
+  if (revision) {
+    rememberFrontendRevision(revision)
+    writeHandoutCachedTree('frontend', revision, tree, dirViewer, 'dir')
+  }
+}
+
+function snapshotFrontendDir(): FrontendTreeNode[] {
+  return snapshotCatalogNodes(visibleFrontendTree(dirTree))
+}
+
+async function fetchFrontendLayer(parentId: string): Promise<{
+  tree: FrontendTreeNode[]
+  entries: FrontendTreeEntry[]
+  revision: string
+}> {
+  const q = encodeURIComponent(parentId || '__root__')
+  const res = await wenguApiFetch(`/api/frontend-learning/tree?parent=${q}`, viewerAuthInit())
+  const data = await readWenguJsonResponse<{
+    ok?: boolean
+    tree?: FrontendTreeNode[]
+    entries?: FrontendTreeEntry[]
+    revision?: string
+    message?: string
+  }>(res)
+  if (!res.ok || !data.ok || !Array.isArray(data.tree)) {
+    throw new Error(data.message || `读取目录失败（HTTP ${res.status}）`)
+  }
+  return {
+    tree: data.tree,
+    entries: Array.isArray(data.entries) ? data.entries : [],
+    revision: String(data.revision || '').trim(),
+  }
+}
+
+export async function loadFrontendLearningDir(force = false): Promise<FrontendTreeNode[]> {
+  const admin = isWenguAdmin()
+  if (!force && dirTree && handoutCacheFitsViewer(admin, dirViewer)) {
+    return snapshotFrontendDir()
+  }
+  if (!force) {
+    const remote = await peekHandoutRevision('frontend')
+    if (remote.status === 'ok') {
+      const disk = await readHandoutCachedTree<FrontendTreeNode[]>('frontend', 'dir')
+      if (disk && disk.revision === remote.revision && handoutCacheFitsViewer(admin, disk.viewer)) {
+        dirTree = disk.tree
+        dirViewer = disk.viewer || 'public'
+        rememberFrontendRevision(remote.revision)
+        return snapshotFrontendDir()
+      }
+    } else if (remote.status === 'offline') {
+      if (dirTree && handoutCacheFitsViewer(admin, dirViewer)) return snapshotFrontendDir()
+      const disk = await readHandoutCachedTree<FrontendTreeNode[]>('frontend', 'dir')
+      if (disk && handoutCacheFitsViewer(admin, disk.viewer)) {
+        dirTree = disk.tree
+        dirViewer = disk.viewer || 'public'
+        rememberFrontendRevision(disk.revision)
+        return snapshotFrontendDir()
+      }
+    }
+  }
+
+  try {
+    const layer = await fetchFrontendLayer('__root__')
+    const next = mergeCatalogLayer<FrontendTreeNode>([], '', layer.tree, [])
+    let revision = layer.revision
+    if (!revision) {
+      const peek = await peekHandoutRevision('frontend')
+      if (peek.status === 'ok') revision = peek.revision
+    }
+    rememberFrontendDir(next, revision)
+    return snapshotFrontendDir()
+  } catch (e) {
+    if (!force) {
+      if (dirTree && handoutCacheFitsViewer(admin, dirViewer)) return snapshotFrontendDir()
+      const disk = await readHandoutCachedTree<FrontendTreeNode[]>('frontend', 'dir')
+      if (disk && handoutCacheFitsViewer(admin, disk.viewer)) {
+        dirTree = disk.tree
+        dirViewer = disk.viewer || 'public'
+        rememberFrontendRevision(disk.revision)
+        return snapshotFrontendDir()
+      }
+    }
+    throw e
+  }
+}
+
+export async function ensureFrontendLearningNodeLoaded(
+  id: string,
+  force = false,
+): Promise<FrontendTreeNode[]> {
+  const key = String(id || '').trim()
+  if (!key) return loadFrontendLearningDir(force)
+  if (!dirTree) await loadFrontendLearningDir(force)
+  const hit = findFrontendNode(dirTree || [], key)
+  if (!hit) throw new Error('未找到该分类')
+  if (!force && hit.node.loaded !== false) return snapshotFrontendDir()
+  const inflightKey = `${force ? 'f:' : ''}${key}`
+  const pending = layerInflight.get(inflightKey)
+  if (pending) return pending
+  const run = (async () => {
+    const layer = await fetchFrontendLayer(key)
+    dirTree = mergeCatalogLayer(dirTree || [], key, layer.tree, layer.entries)
+    const viewer = dirViewer || (isWenguAdmin() ? 'admin' : 'public')
+    rememberFrontendDir(dirTree, layer.revision || sessionRevision, viewer)
+    return snapshotFrontendDir()
+  })().finally(() => {
+    if (layerInflight.get(inflightKey) === run) layerInflight.delete(inflightKey)
+  })
+  layerInflight.set(inflightKey, run)
+  return run
+}
+
+export async function reloadFrontendLearningDir(expandedIds: string[]): Promise<FrontendTreeNode[]> {
+  let next = await loadFrontendLearningDir(true)
+  const pending = new Set(expandedIds.map((id) => String(id || '').trim()).filter(Boolean))
+  let guard = 0
+  while (pending.size && guard < 40) {
+    guard += 1
+    let progressed = false
+    for (const id of [...pending]) {
+      const hit = findFrontendNode(dirTree || [], id)
+      if (!hit) continue
+      next = await ensureFrontendLearningNodeLoaded(id, true)
+      pending.delete(id)
+      progressed = true
+    }
+    if (!progressed) break
+  }
+  return next
 }
 
 function guestMayUseFrontendItemCache(id: string): boolean {

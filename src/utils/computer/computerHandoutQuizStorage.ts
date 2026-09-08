@@ -56,6 +56,47 @@ export function upsertComputerQuizWrong(q: ComputerQuizQuestion) {
   writeJson(WRONG_KEY, rows)
 }
 
+/** 变式答错：用变式题面覆盖错题本/收藏里同一指纹的原题，并记一次错题。 */
+export function replaceComputerQuizQuestionContent(q: ComputerQuizQuestion) {
+  const fp = String(q.fingerprint || '').trim()
+  if (!fp) return
+  const now = new Date().toISOString()
+  const applyContent = (row: StoredComputerQuizRecord) => {
+    row.kind = q.kind
+    row.term = q.term
+    row.stem = q.stem
+    row.options = Array.isArray(q.options) ? [...q.options] : []
+    row.correctIndex = q.correctIndex
+    row.correctText = q.correctText
+    row.explanation = q.explanation
+    if (q.itemId) row.itemId = q.itemId
+    if (q.itemTitle) row.itemTitle = q.itemTitle
+    if (q.learningPath?.length) row.learningPath = [...q.learningPath]
+    row.updatedAt = now
+  }
+  const wrongs = listComputerQuizWrongRecords()
+  const favs = listComputerQuizFavoriteRecords()
+  let hitWrong = false
+  for (const row of wrongs) {
+    if (row.fingerprint !== fp) continue
+    applyContent(row)
+    row.wrongCount = (row.wrongCount ?? 0) + 1
+    hitWrong = true
+  }
+  let hitFav = false
+  for (const row of favs) {
+    if (row.fingerprint !== fp) continue
+    applyContent(row)
+    hitFav = true
+  }
+  if (!hitWrong && !hitFav) {
+    wrongs.unshift({ ...q, wrongCount: 1, updatedAt: now })
+    hitWrong = true
+  }
+  if (hitWrong) writeJson(WRONG_KEY, wrongs)
+  if (hitFav) writeJson(FAVORITE_KEY, favs)
+}
+
 export function removeComputerQuizWrong(fingerprint: string) {
   writeJson(
     WRONG_KEY,
@@ -99,8 +140,8 @@ export function listComputerQuizAvoidStems(itemId: string): string[] {
 
 export function appendComputerQuizAvoidStems(itemId: string, stems: string[]) {
   const all = readJson<Record<string, string[]>>(AVOID_KEY, {})
-  const next = [...(all[itemId] ?? []), ...stems.map((s) => s.replace(/\s+/g, '').slice(0, 60))]
-  all[itemId] = [...new Set(next)].slice(-48)
+  const next = [...(all[itemId] ?? []), ...stems.map((s) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, 160))]
+  all[itemId] = [...new Set(next.filter(Boolean))].slice(-80)
   writeJson(AVOID_KEY, all)
 }
 

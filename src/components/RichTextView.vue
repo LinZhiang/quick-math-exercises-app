@@ -172,10 +172,11 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
 }
 
 .rich-text-view :deep(pre),
+.rich-text-view :deep(pre *),
 .rich-text-view :deep(pre code) {
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  word-wrap: break-word;
+  word-break: normal;
+  overflow-wrap: normal;
+  word-wrap: normal;
   hyphens: none;
 }
 
@@ -193,14 +194,17 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   max-width: 100%;
   box-sizing: border-box;
   overflow-x: auto;
-  white-space: pre-wrap;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  white-space: pre;
+  tab-size: 2;
 }
 
 .rich-text-view :deep(pre code) {
-  white-space: inherit;
+  white-space: pre;
   display: block;
-  width: auto;
-  min-width: 0;
+  width: max-content;
+  min-width: 100%;
   font: inherit;
   padding: 0;
   background: transparent;
@@ -222,6 +226,10 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
 
 .rich-text-view :deep(.md-table-scroll > pre) {
   margin: 0;
+  max-width: none;
+  width: max-content;
+  min-width: 100%;
+  overflow: visible;
 }
 
 .rich-text-view :deep(pre[class*='language-']::before),

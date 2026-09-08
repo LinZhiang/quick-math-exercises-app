@@ -13,6 +13,7 @@ import {
   rememberFlStoreOrigin,
   FL_USER_OWNED_KEY,
 } from './flStore.js'
+import { sliceCatalogLayer, treeParentFromRequest } from './catalogLayer.js'
 
 const CATALOG_KEY = 'fl:catalog'
 const MIME_TO_EXT = {
@@ -218,14 +219,19 @@ async function itemHasBody(env, id, request) {
   return Boolean(snap && typeof snap === 'object')
 }
 
+async function applyReadyFlagsToEntries(env, entries, request) {
+  for (const entry of entries || []) {
+    entry.ready = await itemHasBody(env, String(entry.id), request)
+  }
+  return entries
+}
+
 async function applyReadyFlags(env, tree, request) {
   const walk = async (nodes) => {
     for (const node of nodes) {
       if (!Array.isArray(node.entries)) node.entries = []
       if (!Array.isArray(node.children)) node.children = []
-      for (const entry of node.entries) {
-        entry.ready = await itemHasBody(env, String(entry.id), request)
-      }
+      await applyReadyFlagsToEntries(env, node.entries, request)
       await walk(node.children)
     }
   }
@@ -412,8 +418,26 @@ export async function handleFrontendLearning(env, request, pathParam) {
       await ensureStore(env, request)
       const raw = await readRawCatalog(env, request)
       const tree = Array.isArray(raw.tree) ? raw.tree : []
+      const admin = await peekIsAdmin(env, request)
+      const parent = treeParentFromRequest(request)
+      if (parent != null) {
+        const layer = sliceCatalogLayer(tree, parent)
+        if (!layer) return json({ ok: false, message: '未找到该分类' }, 404)
+        await applyReadyFlagsToEntries(env, layer.entries, request)
+        const visibleTree = admin ? layer.tree : filterPublicCatalog(layer.tree)
+        const visibleEntries = admin
+          ? layer.entries
+          : (layer.entries || []).filter((entry) => entry?.private !== true)
+        return json({
+          ok: true,
+          parentId: layer.parentId,
+          tree: visibleTree,
+          entries: visibleEntries,
+          ...catalogRevision(raw),
+        })
+      }
       const ready = await applyReadyFlags(env, tree, request)
-      const visible = (await peekIsAdmin(env, request)) ? ready : filterPublicCatalog(ready)
+      const visible = admin ? ready : filterPublicCatalog(ready)
       return json({
         ok: true,
         tree: visible,

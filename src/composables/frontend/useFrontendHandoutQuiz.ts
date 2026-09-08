@@ -9,11 +9,13 @@ import {
   type FrontendQuizCounts,
   type FrontendQuizQuestion,
   DEFAULT_FRONTEND_QUIZ_COUNTS,
+  frontendQuizAvoidTokens,
 } from '@/utils/frontend/frontendHandoutQuiz'
 import {
   appendFrontendQuizAvoidStems,
   bumpFrontendQuizAttempt,
   listFrontendQuizAvoidStems,
+  replaceFrontendQuizQuestionContent,
   upsertFrontendQuizWrong,
 } from '@/utils/frontend/frontendHandoutQuizStorage'
 import { createChineseWrongBookGate } from '@/utils/chinese/chineseWrongBookGate'
@@ -58,6 +60,7 @@ export function useFrontendHandoutQuiz() {
   let quizItem: FrontendHandoutItem | null = null
   const skipWrongBook = ref(false)
   const recordAttempts = ref(false)
+  let replaceWrongContentOnMiss = false
   const wrongGate = createChineseWrongBookGate(upsertFrontendQuizWrong)
 
   const currentQuestion = computed(() => questions.value[currentIndex.value] ?? null)
@@ -136,6 +139,7 @@ export function useFrontendHandoutQuiz() {
     quizItem = null
     skipWrongBook.value = false
     recordAttempts.value = false
+    replaceWrongContentOnMiss = false
   }
 
   function beginRunning(item: FrontendHandoutItem, generated: FrontendQuizQuestion[]) {
@@ -174,6 +178,7 @@ export function useFrontendHandoutQuiz() {
     setAiProvider(provider)
     skipWrongBook.value = false
     recordAttempts.value = false
+    replaceWrongContentOnMiss = false
     quizItem = item
     phase.value = 'loading'
     loadingMessage.value = '正在根据讲义出题…'
@@ -192,7 +197,7 @@ export function useFrontendHandoutQuiz() {
       })
       appendFrontendQuizAvoidStems(
         item.id,
-        generated.flatMap((q) => [q.stem, q.term].filter(Boolean)),
+        generated.flatMap((q) => [q.stem, q.term, ...frontendQuizAvoidTokens(q)].filter(Boolean)),
       )
       beginRunning(item, generated)
       ElMessage.success(`已生成 ${generated.length} 道题`)
@@ -213,6 +218,7 @@ export function useFrontendHandoutQuiz() {
     }
     skipWrongBook.value = Boolean(opts?.skipWrongBook)
     recordAttempts.value = Boolean(opts?.recordAttempts)
+    replaceWrongContentOnMiss = Boolean(opts?.useVariants)
     quizItem = item
     phase.value = 'loading'
     loadingMessage.value = opts?.useVariants ? '正在生成变式题…' : '正在准备题目…'
@@ -287,7 +293,15 @@ export function useFrontendHandoutQuiz() {
     carelessMarked.value = false
     pauseQuizTimer()
     if (recordAttempts.value) bumpFrontendQuizAttempt(q.fingerprint)
-    if (!skipWrongBook.value && q.kind !== 'short' && !correct) wrongGate.noteWrongAnswer(q)
+    if (q.kind !== 'short' && !correct) noteMiss(q)
+  }
+
+  function noteMiss(q: FrontendQuizQuestion) {
+    if (replaceWrongContentOnMiss) {
+      replaceFrontendQuizQuestionContent(q)
+      return
+    }
+    if (!skipWrongBook.value) wrongGate.noteWrongAnswer(q)
   }
 
   function applySelfScore(score: FrontendQuizSelfScore) {
@@ -299,7 +313,7 @@ export function useFrontendHandoutQuiz() {
     selfScore.value = score
     carelessMarked.value = false
     if (score === 'full') wrongGate.dropPendingWrong()
-    else if (!skipWrongBook.value) wrongGate.noteWrongAnswer(q)
+    else noteMiss(q)
   }
 
   function nextQuestion() {
@@ -309,7 +323,7 @@ export function useFrontendHandoutQuiz() {
       return
     }
     try {
-      if (!skipWrongBook.value) wrongGate.flushWrongIfNeeded()
+      if (!skipWrongBook.value && !replaceWrongContentOnMiss) wrongGate.flushWrongIfNeeded()
     } catch {
       ElMessage.error('错题保存失败')
     }

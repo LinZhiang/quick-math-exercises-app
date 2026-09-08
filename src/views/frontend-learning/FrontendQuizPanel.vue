@@ -164,7 +164,7 @@ const quizAskQuestion = computed((): FrontendAskQuestionContext | null => {
     <template v-if="test.phase === 'idle'">
       <p class="cb-quiz__hint">
         <template v-if="preparedMode">
-          默认测原题。勾选「变式题测试」后，会按同一考点改写题干或选项。本题测验不进入错题集，但会记下测验次数。
+          默认测原题。勾选「变式题测试」后按同一考点改写。变式答错会用变式替换错题本/收藏里的原题，方便按新题再练。测验次数仍会记录。
         </template>
         <template v-else>
           {{

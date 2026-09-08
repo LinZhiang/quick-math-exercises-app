@@ -13,6 +13,7 @@ import {
   rememberCbStoreOrigin,
   CB_USER_OWNED_KEY,
 } from './cbStore.js'
+import { sliceCatalogLayer, treeParentFromRequest } from './catalogLayer.js'
 
 const CATALOG_KEY = 'cb:catalog'
 const MIME_TO_EXT = {
@@ -212,14 +213,19 @@ async function itemExists(env, id) {
   return Boolean(hit)
 }
 
+async function applyReadyFlagsToEntries(env, entries) {
+  for (const entry of entries || []) {
+    if (await itemExists(env, String(entry.id))) entry.ready = true
+  }
+  return entries
+}
+
 async function applyReadyFlags(env, tree) {
   const walk = async (nodes) => {
     for (const node of nodes) {
       if (!Array.isArray(node.entries)) node.entries = []
       if (!Array.isArray(node.children)) node.children = []
-      for (const entry of node.entries) {
-        if (await itemExists(env, String(entry.id))) entry.ready = true
-      }
+      await applyReadyFlagsToEntries(env, node.entries)
       await walk(node.children)
     }
   }
@@ -407,8 +413,26 @@ export async function handleComputerBasics(env, request, pathParam) {
       const raw = await readRawCatalog(env, request)
       const tree = Array.isArray(raw.tree) ? raw.tree : []
       const stamped = catalogRevision(raw)
+      const admin = await peekIsAdmin(env, request)
+      const parent = treeParentFromRequest(request)
+      if (parent != null) {
+        const layer = sliceCatalogLayer(tree, parent)
+        if (!layer) return json({ ok: false, message: '未找到该分类' }, 404)
+        if (getStore(env)) await applyReadyFlagsToEntries(env, layer.entries)
+        const visibleTree = admin ? layer.tree : filterPublicCatalog(layer.tree)
+        const visibleEntries = admin
+          ? layer.entries
+          : (layer.entries || []).filter((entry) => entry?.private !== true)
+        return json({
+          ok: true,
+          parentId: layer.parentId,
+          tree: visibleTree,
+          entries: visibleEntries,
+          ...stamped,
+        })
+      }
       const ready = tree.length && getStore(env) ? await applyReadyFlags(env, tree) : tree
-      const visible = (await peekIsAdmin(env, request)) ? ready : filterPublicCatalog(ready)
+      const visible = admin ? ready : filterPublicCatalog(ready)
       return json({ ok: true, tree: visible, ...stamped })
     }
 

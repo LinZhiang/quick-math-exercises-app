@@ -7,6 +7,7 @@ import { applyPrivacyFlag, filterPublicCatalog, guestMayReadCatalogId } from './
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { sliceCatalogLayer, treeParentFromQuery } from '../functions/_lib/catalogLayer.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(__dirname, 'data', 'computer-basics')
@@ -735,7 +736,28 @@ export function attachComputerBasicsRoutes(app) {
     try {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
       const catalog = readComputerBasicsCatalog()
-      const tree = peekIsAdmin(req) ? catalog.tree : filterPublicCatalog(catalog.tree)
+      const admin = peekIsAdmin(req)
+      const parent = treeParentFromQuery(req.query)
+      if (parent != null) {
+        const layer = sliceCatalogLayer(catalog.tree, parent)
+        if (!layer) {
+          res.status(404).json({ ok: false, message: '未找到该分类' })
+          return
+        }
+        const tree = admin ? layer.tree : filterPublicCatalog(layer.tree)
+        const entries = admin
+          ? layer.entries
+          : (layer.entries || []).filter((entry) => entry?.private !== true)
+        res.json({
+          ok: true,
+          parentId: layer.parentId,
+          tree,
+          entries,
+          ...readComputerBasicsRevision(),
+        })
+        return
+      }
+      const tree = admin ? catalog.tree : filterPublicCatalog(catalog.tree)
       res.json({
         ok: true,
         tree,

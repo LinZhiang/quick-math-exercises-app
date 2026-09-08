@@ -22,6 +22,7 @@ import {
   frontendQuizKindLabel,
   frontendQuizPlainText,
   sanitizeFrontendQuizForDisplay,
+  type FrontendQuizKind,
   type FrontendQuizQuestion,
 } from '@/utils/frontend/frontendHandoutQuiz'
 import {
@@ -43,8 +44,10 @@ const router = useRouter()
 const catalog = ref<FrontendTreeNode[]>([])
 const loading = ref(true)
 const detailIndex = ref(-1)
-const filterWrongCount = ref<number | undefined>()
-const filterDate = ref<string | undefined>()
+const filterWrongCount = ref('')
+const filterDate = ref('')
+const filterKind = ref('')
+const selected = ref(new Set<string>())
 const noteDraft = ref('')
 const noteEditing = ref(false)
 const noteSaving = ref(false)
@@ -87,15 +90,30 @@ const wrongCountOptions = computed(() => {
   return [...set].sort((a, b) => a - b)
 })
 
+const kindOptions = computed(() => {
+  const set = new Set<string>()
+  for (const row of scopedRows.value) {
+    if (row.kind) set.add(row.kind)
+  }
+  const order: FrontendQuizKind[] = ['choice', 'judge', 'calc', 'short']
+  return order.filter((k) => set.has(k))
+})
+
 const filteredRows = computed(() =>
   filterFrontendQuizBookRecords(scopedRows.value, {
-    wrongCount: tab.value === 'wrong' ? filterWrongCount.value : undefined,
-    dateKey: filterDate.value,
+    wrongCount: tab.value === 'wrong' && filterWrongCount.value !== '' ? Number(filterWrongCount.value) : undefined,
+    dateKey: filterDate.value || undefined,
+    kind: filterKind.value || undefined,
   }),
 )
 
+const quizRows = computed(() => {
+  if (selected.value.size === 0) return filteredRows.value
+  return filteredRows.value.filter((row) => selected.value.has(row.fingerprint))
+})
+
 const preparedQuestions = computed((): FrontendQuizQuestion[] =>
-  filteredRows.value.map((row) => ({
+  quizRows.value.map((row) => ({
     fingerprint: row.fingerprint,
     kind: row.kind,
     term: row.term,
@@ -127,8 +145,24 @@ useAppChromeTitle(
 )
 
 function resetFilters() {
-  filterWrongCount.value = undefined
-  filterDate.value = undefined
+  filterWrongCount.value = ''
+  filterDate.value = ''
+  filterKind.value = ''
+}
+
+function clearSelected() {
+  selected.value = new Set()
+}
+
+function selectAllFiltered() {
+  selected.value = new Set(filteredRows.value.map((row) => row.fingerprint))
+}
+
+function toggleSelect(fp: string) {
+  const next = new Set(selected.value)
+  if (next.has(fp)) next.delete(fp)
+  else next.add(fp)
+  selected.value = next
 }
 
 function resetNoteEdit() {
@@ -252,8 +286,8 @@ function rowPath(row: StoredFrontendQuizRecord) {
 }
 
 function startQuiz() {
-  if (!filteredRows.value.length) {
-    ElMessage.warning('当前没有可测验的题目')
+  if (!quizRows.value.length) {
+    ElMessage.warning(selected.value.size ? '勾选题目不在当前筛选结果中' : '当前没有可测验的题目')
     return
   }
   quizOpen.value = true
@@ -261,17 +295,22 @@ function startQuiz() {
 
 watch(tab, () => {
   resetFilters()
+  clearSelected()
   closeDetail()
   quizOpen.value = false
 })
 
 watch(nodeId, () => {
   resetFilters()
+  clearSelected()
   closeDetail()
   quizOpen.value = false
 })
 
 watch(filteredRows, (rows) => {
+  const keep = new Set(rows.map((row) => row.fingerprint))
+  const next = new Set([...selected.value].filter((fp) => keep.has(fp)))
+  if (next.size !== selected.value.size) selected.value = next
   if (detailIndex.value < 0) return
   if (!rows.length) {
     closeDetail()
@@ -305,7 +344,7 @@ watch(wenguAuthTick, () => {
     <header v-if="!quizOpen && !detailRow" class="computer-page__head">
       <h2 class="computer-page__title">{{ selectedNode?.name || '题目整理' }}</h2>
       <p class="computer-page__lead">
-        {{ tab === 'wrong' ? '错题' : '收藏' }} · 点「开始测验」默认测原题，可勾选变式。不入错题集，会记录测验次数。
+        {{ tab === 'wrong' ? '错题' : '收藏' }} · 先筛选或勾选题目再测验。点「开始测验」默认测原题，可勾选变式；变式答错会替换原题内容。
       </p>
     </header>
     <div class="computer-tree-card" :class="{ 'is-quiz': quizOpen, 'is-detail': Boolean(detailRow) && !quizOpen }">
@@ -328,16 +367,21 @@ watch(wenguAuthTick, () => {
       <template v-else>
         <template v-if="!detailRow">
           <form class="cb-book__filters" @submit.prevent>
+            <label v-if="tab === 'wrong'" class="cb-book__field">
+              <span>至少错几次</span>
+              <el-select v-model="filterWrongCount" clearable placeholder="不限" style="width: 8.5rem">
+                <el-option v-for="n in wrongCountOptions" :key="n" :label="`${n} 次及以上`" :value="String(n)" />
+              </el-select>
+            </label>
             <label class="cb-book__field">
-              <span>错题次数</span>
-              <el-select
-                v-model="filterWrongCount"
-                clearable
-                placeholder="不限"
-                :disabled="tab !== 'wrong'"
-                style="width: 7.5rem"
-              >
-                <el-option v-for="n in wrongCountOptions" :key="n" :label="`${n} 次`" :value="n" />
+              <span>题型</span>
+              <el-select v-model="filterKind" clearable placeholder="不限" style="width: 7.5rem">
+                <el-option
+                  v-for="k in kindOptions"
+                  :key="k"
+                  :label="frontendQuizKindLabel(k)"
+                  :value="k"
+                />
               </el-select>
             </label>
             <label class="cb-book__field">
@@ -351,9 +395,18 @@ watch(wenguAuthTick, () => {
               开始测验
             </el-button>
           </form>
+          <div class="cb-book__select-bar">
+            <el-button size="small" plain :disabled="!filteredRows.length" @click="selectAllFiltered">
+              全选当前筛选
+            </el-button>
+            <el-button size="small" plain :disabled="!selected.size" @click="clearSelected">取消勾选</el-button>
+          </div>
           <p class="cb-book__meta">
-            「{{ selectedNode.name }}」{{ filteredRows.length }} 题
-            <template v-if="filteredRows.length !== scopedRows.length"> / {{ scopedRows.length }}</template>
+            「{{ selectedNode.name }}」共 {{ scopedRows.length }} 题
+            <template v-if="filteredRows.length !== scopedRows.length">
+              · 筛选后 {{ filteredRows.length }}
+            </template>
+            <template v-if="selected.size"> · 将测验 {{ quizRows.length }} 题</template>
           </p>
         </template>
         <p v-if="!filteredRows.length" class="cb-book__empty">当前分类或筛选下没有题目</p>
@@ -463,6 +516,13 @@ watch(wenguAuthTick, () => {
         </template>
         <ul v-else class="cb-book__list">
           <li v-for="(row, index) in filteredRows" :key="row.fingerprint">
+            <label class="cb-book__check" @click.stop>
+              <input
+                type="checkbox"
+                :checked="selected.has(row.fingerprint)"
+                @change="toggleSelect(row.fingerprint)"
+              >
+            </label>
             <button type="button" class="cb-book__row" @click="openDetail(index)">
               <span class="cb-book__kind">{{ frontendQuizKindLabel(row.kind) }}</span>
               <span class="cb-book__main">
@@ -581,10 +641,30 @@ watch(wenguAuthTick, () => {
   color: var(--app-text-muted);
 }
 
+.cb-book__select-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .cb-book__list {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.cb-book__list > li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: flex-start;
+  gap: 2px 4px;
+  border-bottom: 1px solid var(--app-border-soft);
+}
+
+.cb-book__check {
+  display: flex;
+  padding: 12px 4px 0;
 }
 
 .cb-book__row {
@@ -596,7 +676,6 @@ watch(wenguAuthTick, () => {
   align-items: flex-start;
   padding: 10px 4px;
   border: none;
-  border-bottom: 1px solid var(--app-border-soft);
   background: transparent;
   text-align: left;
   font: inherit;
@@ -625,6 +704,10 @@ watch(wenguAuthTick, () => {
 .cb-book__sub {
   font-size: 12px;
   color: var(--app-text-muted);
+  white-space: nowrap;
+  overflow-x: auto;
+  max-width: 100%;
+  scrollbar-width: thin;
 }
 
 .cb-book__detail {

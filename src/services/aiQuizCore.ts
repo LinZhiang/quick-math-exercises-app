@@ -2,7 +2,7 @@
  * AI 对话与出题共用底层。
  * 页面请继续从 `@/services/deepseek` 引入；不要直接依赖本文件里的未导出细节。
  */
-import { parseAiJsonArrayLenient, parseAiJsonObjectLenient, stripAiJsonFence } from '@/utils/app/aiJsonParse'
+import { quizAvoidOverlaps, normalizeQuizAvoidText } from '@/utils/quiz/handoutJsQuizRuntime'
 import { filterHandoutQuizFactConflicts } from '@/utils/quiz/handoutQuizConsistency'
 import { CHINESE_MCQ_CORRECTNESS_RULES } from '@/utils/chinese/chineseMcqAiFields'
 import { hasStoredDeepSeekApiKey } from '@/utils/app/deepseekApiKeyStore'
@@ -107,9 +107,9 @@ export async function requestComputerHandoutQuiz(input: {
   const total = totalComputerQuizCount(input.counts)
   if (total <= 0) throw new Error('请至少设置 1 道题')
   input.onProgress?.(aiRequestProgressText('计算机基础测验', input.provider))
-  const avoid = (input.avoidStems ?? []).filter(Boolean).slice(-24)
+  const avoid = (input.avoidStems ?? []).filter(Boolean).slice(-80)
   const avoidHint = avoid.length
-    ? `不要出与下列题干相近的题：\n- ${avoid.join('\n- ')}`
+    ? `不要出与下列题干或考点相近的题（必须换考点或换问法，禁止只改数字/措辞）：\n- ${avoid.slice(-36).join('\n- ')}`
     : '本轮题干、考点组合不要彼此雷同。'
   const allowedSources = extractComputerQuizSources(input.material)
   const allowedSourceIds = allowedSources.map((x) => x.id)
@@ -158,7 +158,8 @@ export async function requestComputerHandoutQuiz(input: {
   ].filter(Boolean).join('\n')
   const collect = (parsed: unknown[]) => {
     const out: import('@/utils/computer/computerHandoutQuiz').ComputerQuizQuestion[] = []
-    const seen = new Set<string>()
+    const seen = new Set<string>(avoid.map(normalizeQuizAvoidText).filter(Boolean))
+    for (const raw of avoid) seen.add(raw)
     for (const item of parsed) {
       const q = parseComputerQuizAiItem(item, {
         itemId: input.itemId,
@@ -167,8 +168,17 @@ export async function requestComputerHandoutQuiz(input: {
         allowedSources,
         allowedSourceIds,
       })
-      if (!q || seen.has(q.fingerprint)) continue
+      if (
+        !q ||
+        seen.has(q.fingerprint) ||
+        quizAvoidOverlaps(q.stem, seen) ||
+        quizAvoidOverlaps(q.term, seen)
+      ) {
+        continue
+      }
       seen.add(q.fingerprint)
+      const stemKey = normalizeQuizAvoidText(q.stem)
+      if (stemKey) seen.add(stemKey)
       out.push(q)
     }
     return out
@@ -186,9 +196,16 @@ export async function requestComputerHandoutQuiz(input: {
   if (out.length < Math.max(1, Math.ceil(total * 0.6))) {
     input.onProgress?.('正在去掉不合格题并补出…')
     const extra = await ask()
-    const seen = new Set(out.map((q) => q.fingerprint))
+    const seen = new Set(out.flatMap((q) => [q.fingerprint, normalizeQuizAvoidText(q.stem), q.term]))
+    for (const raw of avoid) seen.add(raw)
     for (const q of extra) {
-      if (seen.has(q.fingerprint)) continue
+      if (
+        seen.has(q.fingerprint) ||
+        quizAvoidOverlaps(q.stem, seen) ||
+        quizAvoidOverlaps(q.term, seen)
+      ) {
+        continue
+      }
       seen.add(q.fingerprint)
       out.push(q)
     }
@@ -216,14 +233,22 @@ export async function requestFrontendHandoutQuiz(input: {
     frontendHandoutLooksLikeProgramming,
     extractFrontendHandoutQuizFocus,
     materialForFrontendQuiz,
+    frontendQuizDedupeKey,
+    frontendQuizTooSimilar,
+    frontendQuizAvoidTokens,
   } = await import('@/utils/frontend/frontendHandoutQuiz')
   const total = totalFrontendQuizCount(input.counts)
   if (total <= 0) throw new Error('请至少设置 1 道题')
   input.onProgress?.(aiRequestProgressText('前端学习测验', input.provider))
-  const avoid = (input.avoidStems ?? []).filter(Boolean).slice(-40)
+  const avoid = (input.avoidStems ?? []).filter(Boolean).slice(-80)
   const avoidHint = avoid.length
-    ? `不要出与下列题干或考点相近的题（必须换考点或换问法，禁止只改数字）：\n- ${avoid.join('\n- ')}`
-    : '本轮题干、问法不要彼此雷同；同一核心专节换角度加考不算雷同。'
+    ? [
+        '【禁止雷同·按实际题目内容规避】',
+        '不得再出与下列题干、考点或代码骨架相同的题。只改字符串、数字、变量名、连字符不算新题。',
+        '必须换考点或换问法（例如上次考 exec 取 [0]，这次就不要再考同类正则取下标）。',
+        ...avoid.slice(-36).map((s) => `- ${s}`),
+      ].join('\n')
+    : '本轮题干、问法、代码骨架不要彼此雷同；同一核心专节换角度加考不算雷同。'
   const allowedSources = extractFrontendQuizSources(input.material)
   const allowedSourceIds = allowedSources.map((x) => x.id)
   const codingHeavy = frontendHandoutLooksLikeProgramming(input.material)
@@ -268,7 +293,9 @@ export async function requestFrontendHandoutQuiz(input: {
           'I. 完整程序必须用 Markdown 代码块，且围栏独占一行：先换行写 ```js ，下一行才是代码，最后单独一行 ```。禁止写成「阅读代码： ``` js」。禁止题干说「阅读下面代码」却不贴代码。短关键字只用行内反引号。',
           'J. 编程题必须改写讲义示例（换变量名、换数字、换运算符或表达式结构），禁止原样照抄讲义代码。改写后的运行结果必须自己算对。',
           'K. 代码必须是完整可运行片段：用到的变量都要在片段里声明或赋值。禁止只写 console.log(e.message) 却不写 e 怎么来的。',
-          'L. 问运行结果/控制台输出时，correct 必须等于这段代码真正跑出来的值；字符串结果必须在代码字面量里出现过。',
+          'L. 问运行结果/控制台输出/某变量的值时，correct 必须等于这段代码在引擎里真正跑出来的值；字符串结果必须在代码字面量里出现过。',
+          'L2. 正则 exec/match 失败返回 null，不是空数组；对 null 取 [0] 会 TypeError。禁止把字符串里的连字符、空格假装去掉后再匹配（例如 \'a-bbb-a\' 配 /a(b+)a/ 不能答 abbba）。',
+          'L3. 出代码题后必须在心里逐步执行，标答与真实运行不一致的题整题作废、重新出。',
           'M. new Error() 无参时 message 是空字符串 ""，禁止把 Error / undefined 当成正确答案。',
           'N. 解析不得写「严格来说选项都不对」「选项里没有空字符串」这类承认题目不严谨的话。',
         ].join('\n')
@@ -289,7 +316,9 @@ export async function requestFrontendHandoutQuiz(input: {
     '8. 禁止 falsy / truthy。',
     '9. 题干、选项禁止夹带缩写中文提示；全称放到 explanation。',
     '10. 代码题必须自洽：片段完整、变量有来源、问输出则标答必须是真实运行结果。',
+    '10b. 程序会把题干代码跑一遍：跑出来的值和 correct 对不上，或 exec 失败却填了假匹配，该题作废并重出。',
     '11. 代码围栏必须换行写对，程序会丢掉转义失败或不严谨的题并重出。',
+    '12. 后一轮严禁与已出题代码骨架+问法相同；只换 \'a-bbb-a\' 里的字母不算新题。',
     avoidHint,
     '仅返回 JSON 数组。',
   ].filter(Boolean).join('\n')
@@ -306,7 +335,10 @@ export async function requestFrontendHandoutQuiz(input: {
         allowedSources,
         allowedSourceIds,
       })
-      if (!q || seen.has(q.fingerprint)) continue
+      if (!q) continue
+      const key = frontendQuizDedupeKey(q)
+      if (seen.has(key) || seen.has(q.fingerprint) || frontendQuizTooSimilar(q, seen)) continue
+      seen.add(key)
       seen.add(q.fingerprint)
       rawOut.push(q)
     }
@@ -316,31 +348,34 @@ export async function requestFrontendHandoutQuiz(input: {
     }))
   }
   const ask = async (need: number, extraAvoid: string[]) => {
-    const avoidAll = [...avoid, ...extraAvoid].filter(Boolean).slice(-50)
+    const avoidAll = [...avoid, ...extraAvoid].filter(Boolean).slice(-80)
     const roundHint = extraAvoid.length
-      ? `已丢掉不合格题。请再出 ${need} 道全新合格题补齐，不要重复下列题干：\n- ${avoidAll.join('\n- ')}`
+      ? `已丢掉运行结果不对或与前题雷同的题。请再出 ${need} 道全新合格题补齐，必须换考点或换问法：\n- ${avoidAll.join('\n- ')}`
       : avoidHint
     const roundUser = user
       .replace(`请出 ${total} 道题`, `请出 ${need} 道题`)
       .replace(avoidHint, roundHint)
     const raw = await deepseekChatRaw(roundUser, {
       system,
-      temperature: extraAvoid.length ? 0.55 : 0.46,
+      temperature: extraAvoid.length ? 0.58 : 0.42,
       maxTokens: Math.min(16384, 4096 + need * 320),
       provider: input.provider,
     })
-    return collect(parseAiJsonArrayLenient(stripAiJsonFence(raw)), new Set())
+    const seenRound = new Set(avoid)
+    return collect(parseAiJsonArrayLenient(stripAiJsonFence(raw)), seenRound)
   }
-  const seen = new Set<string>()
+  const seen = new Set<string>(avoid)
   let out: import('@/utils/frontend/frontendHandoutQuiz').FrontendQuizQuestion[] = []
-  const maxRounds = 4
+  const maxRounds = 5
   for (let round = 0; round < maxRounds && out.length < total; round += 1) {
-    if (round) input.onProgress?.('正在去掉不合格题并补出…')
-    const extraAvoid = out.map((q) => q.stem.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 48))
+    if (round) input.onProgress?.('正在去掉答案错误或雷同的题并重出…')
+    const extraAvoid = out.flatMap((q) => frontendQuizAvoidTokens(q))
     const need = round === 0 ? total : Math.max(total - out.length, 3)
     const batch = await ask(need, extraAvoid)
     for (const q of batch) {
-      if (seen.has(q.fingerprint)) continue
+      const key = frontendQuizDedupeKey(q)
+      if (seen.has(key) || seen.has(q.fingerprint) || frontendQuizTooSimilar(q, seen)) continue
+      seen.add(key)
       seen.add(q.fingerprint)
       out.push(q)
     }
@@ -415,8 +450,9 @@ export async function requestFrontendQuizVariant(input: {
     '你是前端（JavaScript / ES6）命题老师，专门根据原题生成变式题。',
     '只输出合法 JSON 对象，不要 markdown 围栏，不要其它说明。',
     '考查同一知识点，换提问角度或选项表述，不要几乎照抄原题，也不要写出与原题结论矛盾的新说法。',
-    '若原题是代码题，变式必须改写代码（换数/换变量/换运算符），并自行算对结果。',
+    '若原题是代码题，变式必须改写代码（换数/换变量/换运算符），并自行算对结果。禁止只改字符串却仍问同一 exec 下标。',
     '代码必须完整可运行：用到的变量都要在片段里出现；问输出时 correct 必须是真实运行结果。',
+    'exec/match 失败返回 null；对 null 取 [0] 是 TypeError，不能答成去掉分隔符后的假匹配。',
     'new Error() 无参时 message 是空字符串，不要把 Error / undefined 当答案。',
     '禁止使用 falsy、truthy，改写为假值/真值或具体值。',
     '数值范围不要用 ~~1-12~~；对象字面量属性逗号后换行；计算题 correct 只写核心结果、不要加引号。',

@@ -43,11 +43,16 @@ export function frontendQuizRecordDateKey(row: StoredFrontendQuizRecord): string
 
 export function filterFrontendQuizBookRecords(
   rows: StoredFrontendQuizRecord[],
-  opts?: { wrongCount?: number; dateKey?: string },
+  opts?: { wrongCount?: number; dateKey?: string; kind?: string },
 ): StoredFrontendQuizRecord[] {
+  const minWrong =
+    opts?.wrongCount != null && Number.isFinite(Number(opts.wrongCount)) ? Number(opts.wrongCount) : 0
+  const dateKey = String(opts?.dateKey || '').trim()
+  const kind = String(opts?.kind || '').trim()
   return rows.filter((row) => {
-    if (opts?.wrongCount != null && Math.max(1, row.wrongCount ?? 1) !== opts.wrongCount) return false
-    if (opts?.dateKey && frontendQuizRecordDateKey(row) !== opts.dateKey) return false
+    if (minWrong > 0 && Math.max(1, row.wrongCount ?? 1) < minWrong) return false
+    if (dateKey && frontendQuizRecordDateKey(row) !== dateKey) return false
+    if (kind && row.kind !== kind) return false
     return true
   })
 }

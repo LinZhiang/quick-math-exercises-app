@@ -3,6 +3,14 @@ import { highlightHandoutCodeHtml, isJsOnlySnippet, jsSourceLooksLikeProse, shou
 import { neutralizeMarkdownRangeMarks } from '@/utils/markdown/markdownNormalize'
 import { repairSameLineFenceOpeners, normalizeJsMarkdownFences, tidyJsFencesInMarkdown } from '@/utils/markdown/tidyJsCode'
 import { judgeExplanationConflictsCorrect } from '@/utils/quiz/handoutQuizConsistency'
+import {
+  detectHandoutJsProbe,
+  frontendQuizAskPattern,
+  handoutJsAnswerMatches,
+  quizAvoidOverlaps,
+  runHandoutQuizJs,
+  skeletonizeHandoutJs,
+} from '@/utils/quiz/handoutJsQuizRuntime'
 
 export type FrontendQuizKind = 'choice' | 'judge' | 'calc' | 'short'
 
@@ -76,9 +84,54 @@ export function buildFrontendQuizFingerprint(input: {
   stem: string
   correctText: string
 }): string {
+  const js = extractJsFromQuizStem(input.stem)
+  const skel = skeletonizeHandoutJs(js)
+  const ask = frontendQuizAskPattern(input.stem)
+  if (skel) return `fl-quiz:${input.kind}:${ask}:${skel}`
   const stem = input.stem.replace(/\s+/g, '').slice(0, 80)
   const ans = input.correctText.replace(/\s+/g, '').slice(0, 40)
-  return `cb-quiz:${input.kind}:${stem}:${ans}`
+  return `fl-quiz:${input.kind}:${stem}:${ans}`
+}
+
+export function frontendQuizDedupeKey(input: {
+  kind: FrontendQuizKind
+  stem: string
+  term?: string
+}): string {
+  const js = extractJsFromQuizStem(input.stem)
+  const skel = skeletonizeHandoutJs(js)
+  const ask = frontendQuizAskPattern(input.stem)
+  if (skel) return `fl:${input.kind}:${ask}:${skel}`
+  const term = String(input.term || '').replace(/\s+/g, '').slice(0, 24)
+  const stem = input.stem.replace(/```[\s\S]*?```/g, '').replace(/\s+/g, '').slice(0, 48)
+  return `fl:${input.kind}:${term}:${stem}`
+}
+
+export function frontendQuizAvoidTokens(q: {
+  kind: FrontendQuizKind
+  stem: string
+  term: string
+}): string[] {
+  const key = frontendQuizDedupeKey(q)
+  const ask = frontendQuizAskPattern(q.stem)
+  const stem = q.stem.replace(/```[\s\S]*?```/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80)
+  return [key, `${q.term}｜${ask}`, stem].filter(Boolean)
+}
+
+export function frontendQuizTooSimilar(
+  q: { kind: FrontendQuizKind; stem: string; term?: string },
+  seen: Iterable<string>,
+): boolean {
+  const key = frontendQuizDedupeKey(q)
+  const bag = [...seen]
+  if (bag.includes(key)) return true
+  if (quizAvoidOverlaps(key, bag)) return true
+  if (quizAvoidOverlaps(q.stem, bag)) return true
+  if (q.term && quizAvoidOverlaps(q.term, bag)) {
+    const ask = frontendQuizAskPattern(q.stem)
+    if (bag.some((x) => x.includes(`｜${ask}`) || x.includes(`:${ask}:`))) return true
+  }
+  return false
 }
 
 function asText(v: unknown): string {
@@ -667,7 +720,10 @@ function undeclaredJsIdentifiers(js: string): string[] {
 
 function isRuntimeOutputQuestion(stem: string, js: string): boolean {
   const t = String(stem ?? '')
-  if (/(运行后|运行结果|控制台输出|输出的是|会输出|打印出|输出什么|最后一行)/.test(t)) return true
+  if (detectHandoutJsProbe(t, js)) return true
+  if (/(运行后|运行结果|控制台输出|输出的是|会输出|打印出|输出什么|最后一行|的值是|等于多少)/.test(t)) {
+    return true
+  }
   return /console\.log/.test(js) && /输出/.test(t)
 }
 
@@ -717,8 +773,17 @@ export function frontendQuizItemUnrigorous(input: {
   const runtime = isRuntimeOutputQuestion(stem, js)
   if (runtime && undeclaredJsIdentifiers(js).length) return true
   const ansPlain = frontendQuizPlainText(correct).replace(/^[`'"]+|[`'"]+$/g, '').trim()
-  if (runtime && /[\u4e00-\u9fff]/.test(ansPlain) && !js.includes(ansPlain)) return true
+  if (runtime && /[\u4e00-\u9fff]/.test(ansPlain) && !js.includes(ansPlain) && !/报错|异常|错误|空/.test(ansPlain)) {
+    return true
+  }
   if (runtime && emptyErrorMessageInJs(js) && !isEmptyStringAnswer(correct)) return true
+  if (runtime) {
+    const probe = detectHandoutJsProbe(stem, js)
+    if (!probe && !/console\.log/.test(js)) return true
+    const run = runHandoutQuizJs(js, probe ?? 'logs')
+    if (run.status === 'skip') return true
+    if (!handoutJsAnswerMatches(correct, run, input.options)) return true
+  }
   return false
 }
 

@@ -13,12 +13,14 @@ import {
   computerNodePathNames,
   createComputerItem,
   createComputerNode,
-  defaultExpandedComputerIds,
   deleteComputerItem,
   deleteComputerNode,
   findComputerEntry,
   findComputerNode,
   flattenVisibleComputerRows,
+  loadComputerBasicsDir,
+  ensureComputerBasicsNodeLoaded,
+  reloadComputerBasicsDir,
   loadComputerBasicsItem,
   loadComputerBasicsTree,
   moveComputerItem,
@@ -48,6 +50,8 @@ const treeEl = ref<HTMLElement | null>(null)
 const loading = ref(true)
 const error = ref('')
 const expanded = ref<Record<string, boolean>>({})
+const loadingNodeId = ref('')
+const folderTree = ref<ComputerTreeNode[]>([])
 const mapOpen = ref(false)
 const adminOpenId = ref('')
 const flashId = ref('')
@@ -141,18 +145,32 @@ function revealRow(id: string, prefer: 'menu' | 'row' = 'row') {
 function toggle(id: string, expandable: boolean) {
   if (!expandable) return
   const willOpen = !expanded.value[id]
-  expanded.value = { ...expanded.value, [id]: willOpen }
-  if (!willOpen) return
-  afterLayout(() => {
-    const scroller = treeEl.value
-    const row = queryTreeRow(id)
-    if (!scroller || !row) return
-    const sRect = scroller.getBoundingClientRect()
-    const pRect = row.getBoundingClientRect()
-    if (pRect.top > sRect.top + sRect.height * 0.4) {
-      scroller.scrollTo({ top: scroller.scrollTop + (pRect.top - sRect.top - 8), behavior: 'smooth' })
+  if (!willOpen) {
+    expanded.value = { ...expanded.value, [id]: false }
+    return
+  }
+  void (async () => {
+    loadingNodeId.value = id
+    try {
+      tree.value = await ensureComputerBasicsNodeLoaded(id)
+      expanded.value = { ...expanded.value, [id]: true }
+    } catch (e) {
+      ElMessage.error(e instanceof Error ? e.message : '读取子目录失败')
+      return
+    } finally {
+      loadingNodeId.value = ''
     }
-  })
+    afterLayout(() => {
+      const scroller = treeEl.value
+      const row = queryTreeRow(id)
+      if (!scroller || !row) return
+      const sRect = scroller.getBoundingClientRect()
+      const pRect = row.getBoundingClientRect()
+      if (pRect.top > sRect.top + sRect.height * 0.4) {
+        scroller.scrollTo({ top: scroller.scrollTop + (pRect.top - sRect.top - 8), behavior: 'smooth' })
+      }
+    })
+  })()
 }
 
 function toggleAdmin(id: string) {
@@ -180,7 +198,8 @@ function closeQuiz() {
 }
 
 async function startFolderQuiz(nodeId: string, name: string) {
-  const pos = findComputerNode(tree.value, nodeId)
+  const full = await loadComputerBasicsTree()
+  const pos = findComputerNode(full, nodeId)
   if (!pos) return
   const entries = collectReadyEntriesUnder(pos.node)
   if (!entries.length) {
@@ -198,7 +217,7 @@ async function startFolderQuiz(nodeId: string, name: string) {
         }
       }
       if (!items.length) throw new Error('范围内讲义读取失败')
-      const learningPath = computerNodePathNames(tree.value, nodeId)
+      const learningPath = computerNodePathNames(full, nodeId)
       quizItem.value = buildComputerRangeQuizItem({
         scopeId: nodeId,
         scopeName: name,
@@ -274,7 +293,7 @@ async function reloadKeepExpand(opts?: {
 }) {
   const keep = { ...expanded.value }
   if (opts?.parentId) keep[opts.parentId] = true
-  const next = await loadComputerBasicsTree(true)
+  const next = await reloadComputerBasicsDir(Object.keys(keep).filter((id) => keep[id]))
   if (opts?.node && !treeHasId(next, opts.node.id)) {
     throw new Error(
       '分类接口写成功了，但读目录时这条不见了。云端讲义库还没接上，请在电脑执行 npm run setup:cf-storage 后重新部署。',
@@ -286,7 +305,8 @@ async function reloadKeepExpand(opts?: {
     )
   }
   tree.value = next
-  expanded.value = { ...defaultExpandedComputerIds(next), ...keep }
+  expanded.value = keep
+  folderTree.value = []
   adminOpenId.value = ''
   if (opts?.focusId) revealRow(opts.focusId, 'row')
 }
@@ -493,9 +513,8 @@ async function load() {
   if (tree.value.length) busyText.value = '正在刷新目录…'
   else loading.value = true
   try {
-    const next = await loadComputerBasicsTree()
+    const next = await loadComputerBasicsDir()
     tree.value = next
-    expanded.value = defaultExpandedComputerIds(next)
   } catch (e) {
     error.value = e instanceof Error ? e.message : '读取目录失败'
   } finally {
@@ -510,7 +529,27 @@ onMounted(() => {
 
 watch(isAdmin, () => {
   clearComputerBasicsCache()
+  folderTree.value = []
+  expanded.value = {}
   void load()
+})
+
+watch(mapOpen, async (on) => {
+  if (!on) return
+  try {
+    folderTree.value = await loadComputerBasicsTree()
+  } catch {
+    folderTree.value = tree.value
+  }
+})
+
+watch(moveOpen, async (on) => {
+  if (!on) return
+  try {
+    folderTree.value = await loadComputerBasicsTree()
+  } catch {
+    folderTree.value = tree.value
+  }
 })
 
 onBeforeUnmount(() => {
@@ -616,7 +655,7 @@ onBeforeUnmount(() => {
                 v-if="row.kind === 'branch' && row.expandable"
                 type="button"
                 class="computer-tree__caret-btn"
-                :class="{ 'is-open': expanded[row.id] }"
+                :class="{ 'is-open': expanded[row.id], 'is-loading': loadingNodeId === row.id }"
                 :aria-label="expanded[row.id] ? '折叠' : '展开'"
                 @click.stop="toggle(row.id, true)"
               >
@@ -726,13 +765,13 @@ onBeforeUnmount(() => {
     </div>
     <ComputerMoveDialog
       v-model="moveOpen"
-      :tree="tree"
+      :tree="folderTree.length ? folderTree : tree"
       :moving-id="movePickId"
       :moving-kind="moveKind"
       :moving-name="moveName"
       @confirm="confirmMove"
     />
-    <ComputerCategoryMapDialog v-model="mapOpen" :tree="tree" />
+    <ComputerCategoryMapDialog v-model="mapOpen" :tree="folderTree.length ? folderTree : tree" />
   </section>
 </template>
 
@@ -954,6 +993,10 @@ onBeforeUnmount(() => {
   transform: rotate(90deg);
   transform-origin: center center;
   color: var(--app-primary);
+}
+
+.computer-tree__caret-btn.is-loading {
+  opacity: 0.45;
 }
 
 .computer-tree__caret-btn:hover {
