@@ -139,6 +139,15 @@ function looksLikeLocalProxyDown(text: string, status: number): boolean {
   )
 }
 
+function looksLikeHtml(text: string): boolean {
+  const head = text.trimStart().slice(0, 96).toLowerCase()
+  return head.startsWith('<!doctype') || head.startsWith('<html') || head.startsWith('<head')
+}
+
+function isGatewayTimeoutStatus(status: number): boolean {
+  return status === 408 || status === 504 || status === 522 || status === 523 || status === 524
+}
+
 async function parseErrorResponse(
   res: Response,
   provider: AiProvider,
@@ -154,6 +163,18 @@ async function parseErrorResponse(
       provider,
     })
   }
+  if (isGatewayTimeoutStatus(status) || looksLikeHtml(errText)) {
+    throw new AiUpstreamError({
+      message:
+        status === 524 || looksLikeHtml(errText)
+          ? '云端等待模型过久被中断（524）。请稍后重试，或把题量调小、换一个模型。'
+          : `${provider} 上游超时（${status}），请稍后重试或手动切换其他模型。`,
+      status: status || 524,
+      code: 'UPSTREAM_524',
+      provider,
+      type: 'upstream_timeout',
+    })
+  }
   let payload: {
     error?: { message?: string; type?: string; code?: string; provider?: string }
   } = {}
@@ -163,20 +184,20 @@ async function parseErrorResponse(
     throw new AiUpstreamError({
       message: `AI 请求失败 (${status})：${errText.slice(0, 200)}`,
       status,
-      code: status === 429 ? 'UPSTREAM_429' : status === 504 ? 'UPSTREAM_504' : `HTTP_${status}`,
+      code: status === 429 ? 'UPSTREAM_429' : isGatewayTimeoutStatus(status) ? 'UPSTREAM_524' : `HTTP_${status}`,
       provider,
     })
   }
   const err = payload.error
   const code =
     err?.code ||
-    (status === 429 ? 'UPSTREAM_429' : status === 504 ? 'UPSTREAM_504' : `HTTP_${status}`)
+    (status === 429 ? 'UPSTREAM_429' : isGatewayTimeoutStatus(status) ? 'UPSTREAM_524' : `HTTP_${status}`)
   const message =
     err?.message ||
     (status === 429
       ? `${provider} 上游限流（429），请稍后重试或手动切换其他模型`
-      : status === 504
-        ? `${provider} 上游超时（504），请稍后重试或手动切换其他模型`
+      : isGatewayTimeoutStatus(status)
+        ? `${provider} 上游超时（${status}），请稍后重试或手动切换其他模型`
         : `AI 请求失败 (${status})`)
   throw new AiUpstreamError({
     message,
@@ -207,6 +228,61 @@ async function extractAssistantText(res: Response): Promise<string> {
   return text
 }
 
+function deltaText(raw: unknown): string {
+  if (typeof raw === 'string') return raw
+  if (!Array.isArray(raw)) return ''
+  return raw
+    .filter((p): p is AiTextPart => Boolean(p) && typeof p === 'object' && (p as AiTextPart).type === 'text')
+    .map((p) => p.text)
+    .join('')
+}
+
+async function extractAssistantTextFromSse(res: Response): Promise<string> {
+  const reader = res.body?.getReader()
+  if (!reader) return extractAssistantText(res)
+  const decoder = new TextDecoder()
+  let buf = ''
+  let content = ''
+  let reasoning = ''
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += decoder.decode(value, { stream: true })
+    const lines = buf.split(/\r?\n/)
+    buf = lines.pop() ?? ''
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed.startsWith('data:')) continue
+      const data = trimmed.slice(5).trim()
+      if (!data || data === '[DONE]') continue
+      try {
+        const json = JSON.parse(data) as {
+          choices?: Array<{
+            delta?: { content?: string | AiContentPart[]; reasoning_content?: string }
+            message?: { content?: string | AiContentPart[]; reasoning_content?: string }
+          }>
+        }
+        const choice = json.choices?.[0]
+        const delta = choice?.delta ?? choice?.message
+        if (!delta) continue
+        content += deltaText(delta.content)
+        if (typeof delta.reasoning_content === 'string') reasoning += delta.reasoning_content
+      } catch {
+        /* 半包 JSON 忽略 */
+      }
+    }
+  }
+  const text = content.trim() || reasoning.trim()
+  if (!text) throw new Error('AI 未返回有效内容')
+  return text
+}
+
+async function readAssistantText(res: Response): Promise<string> {
+  const ct = (res.headers.get('content-type') || '').toLowerCase()
+  if (ct.includes('text/event-stream')) return extractAssistantTextFromSse(res)
+  return extractAssistantText(res)
+}
+
 /**
  * 通用非流式对话。返回 choices[0].message.content 文本。
  * 业务出题 / JSON 解析逻辑无需改动，继续消费本函数返回的字符串即可。
@@ -230,7 +306,7 @@ export async function aiChatCompletion(
   if (sessionToken && !isWenguApiReadyForCurrentUser()) {
     throw new Error(WENGU_MEMBER_CUSTOM_API_HINT)
   }
-  const body = JSON.stringify(buildRequestBody(messages, provider, options))
+  const body = JSON.stringify(buildRequestBody(messages, provider, { ...options, stream: true }))
 
   if (sessionToken) {
     const res = await wenguApiFetch('/api/ai/chat/completions', {
@@ -255,7 +331,7 @@ export async function aiChatCompletion(
     }
     if (res.status === 403) throw new Error(WENGU_ACCOUNT_DISABLED_HINT)
     if (!res.ok) await parseErrorResponse(res, provider)
-    return extractAssistantText(res)
+    return readAssistantText(res)
   }
 
   // 无登录会话时：仅允许 DeepSeek 直连（开发/旧授权）；豆包必须走代理

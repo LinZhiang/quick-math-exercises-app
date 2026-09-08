@@ -90,9 +90,9 @@ export function mapUpstreamErrorMeta(status, provider) {
       message: `${provider} 上游限流（429），请稍后重试。不会自动切换其他模型，请手动切换。`,
     }
   }
-  if (status === 504 || status === 408) {
+  if (status === 504 || status === 408 || status === 524) {
     return {
-      code: 'UPSTREAM_504',
+      code: status === 524 ? 'UPSTREAM_524' : 'UPSTREAM_504',
       type: 'upstream_timeout',
       message: `${provider} 上游超时（${status}），请稍后重试。不会自动切换其他模型，请手动切换。`,
     }

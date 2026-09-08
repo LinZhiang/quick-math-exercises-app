@@ -15,6 +15,7 @@ import {
 import { WENGU_MEMBER_CUSTOM_API_HINT } from '@/utils/computer/wenguApiOrigin'
 import { aiChatCompletion, type AiMessage } from '@/services/ai'
 import { aiRequestProgressText, getAiProvider, type AiProvider } from '@/utils/app/aiProviderStore'
+import { parseAiJsonArrayLenient, parseAiJsonObjectLenient, stripAiJsonFence } from '@/utils/app/aiJsonParse'
 
 /** 是否可使用语文 AI（已登录走服务端代理；成员须自备 API；开发环境可回退本机 Key） */
 export function isAiChatConfigured(): boolean {
@@ -35,6 +36,51 @@ export { WENGU_MEMBER_CUSTOM_API_HINT }
 export type DeepSeekChatTurn = {
   role: 'user' | 'assistant'
   content: string
+}
+
+type HandoutQuizKindCounts = { choice: number; judge: number; calc: number; short: number }
+
+const HANDOUT_QUIZ_BATCH = 5
+
+function totalHandoutQuizCounts(c: HandoutQuizKindCounts) {
+  return c.choice + c.judge + c.calc + c.short
+}
+
+function remainingHandoutQuizCounts(
+  counts: HandoutQuizKindCounts,
+  have: { kind: string }[],
+): HandoutQuizKindCounts {
+  const got = { choice: 0, judge: 0, calc: 0, short: 0 }
+  for (const q of have) {
+    if (q.kind === 'choice' || q.kind === 'judge' || q.kind === 'calc' || q.kind === 'short') {
+      got[q.kind] += 1
+    }
+  }
+  return {
+    choice: Math.max(0, counts.choice - got.choice),
+    judge: Math.max(0, counts.judge - got.judge),
+    calc: Math.max(0, counts.calc - got.calc),
+    short: Math.max(0, counts.short - got.short),
+  }
+}
+
+function takeHandoutQuizBatch(
+  remaining: HandoutQuizKindCounts,
+  maxBatch = HANDOUT_QUIZ_BATCH,
+): HandoutQuizKindCounts {
+  let left = maxBatch
+  const next = { choice: 0, judge: 0, calc: 0, short: 0 }
+  for (const k of ['choice', 'judge', 'calc', 'short'] as const) {
+    const n = Math.min(remaining[k], left)
+    next[k] = n
+    left -= n
+    if (left <= 0) break
+  }
+  return next
+}
+
+function handoutQuizCountLine(total: number, counts: HandoutQuizKindCounts) {
+  return `请出 ${total} 道题，数量：选择题 ${counts.choice}，判断题 ${counts.judge}（二选一：正确/错误），计算题 ${counts.calc}，简答题 ${counts.short}。`
 }
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string }
@@ -127,7 +173,7 @@ export async function requestComputerHandoutQuiz(input: {
     '讲义正文：',
     input.material.slice(0, 9000),
     '',
-    `请出 ${total} 道题，数量：选择题 ${input.counts.choice}，判断题 ${input.counts.judge}（二选一：正确/错误），计算题 ${input.counts.calc}，简答题 ${input.counts.short}。`,
+    handoutQuizCountLine(total, input.counts),
     '字段：kind(choice|judge|calc|short), term(考点短名), stem, options(选择题必须 4 项), distractors(可选，3 个干扰项), correct, explanation。',
     allowedSourceIds.length
       ? '范围测验时每题必须带 sourceId，等于该题所考那篇【讲义ID:xxx｜标题】里的 xxx。'
@@ -183,19 +229,35 @@ export async function requestComputerHandoutQuiz(input: {
     }
     return out
   }
-  const ask = async () => {
-    const raw = await deepseekChatRaw(user, {
-      system,
-      temperature: 0.42,
-      maxTokens: Math.min(16384, 4096 + total * 280),
-      provider: input.provider,
-    })
+  const ask = async (batch: HandoutQuizKindCounts, extraAvoid: string[] = []) => {
+    const need = totalHandoutQuizCounts(batch)
+    const raw = await deepseekChatRaw(
+      user.replace(handoutQuizCountLine(total, input.counts), handoutQuizCountLine(need, batch)),
+      {
+        system,
+        temperature: extraAvoid.length ? 0.5 : 0.42,
+        maxTokens: Math.min(4096, 1600 + need * 280),
+        provider: input.provider,
+      },
+    )
     return collect(parseAiJsonArrayLenient(stripAiJsonFence(raw)))
   }
-  let out = await ask()
-  if (out.length < Math.max(1, Math.ceil(total * 0.6))) {
-    input.onProgress?.('正在去掉不合格题并补出…')
-    const extra = await ask()
+  let out: import('@/utils/computer/computerHandoutQuiz').ComputerQuizQuestion[] = []
+  const maxRounds = 8
+  for (let round = 0; round < maxRounds && out.length < total; round += 1) {
+    const remain = remainingHandoutQuizCounts(input.counts, out)
+    const batch = takeHandoutQuizBatch(remain)
+    const need = totalHandoutQuizCounts(batch)
+    if (need <= 0) break
+    input.onProgress?.(
+      round
+        ? `正在补出第 ${out.length + 1}–${out.length + need} 题…`
+        : `正在出第 ${out.length + 1}–${out.length + need} 题…`,
+    )
+    const extra = await ask(
+      batch,
+      out.flatMap((q) => [q.fingerprint, normalizeQuizAvoidText(q.stem), q.term]),
+    )
     const seen = new Set(out.flatMap((q) => [q.fingerprint, normalizeQuizAvoidText(q.stem), q.term]))
     for (const raw of avoid) seen.add(raw)
     for (const q of extra) {
@@ -274,7 +336,7 @@ export async function requestFrontendHandoutQuiz(input: {
     '讲义正文：',
     materialForFrontendQuiz(input.material),
     '',
-    `请出 ${total} 道题，数量：选择题 ${input.counts.choice}，判断题 ${input.counts.judge}（二选一：正确/错误），计算题 ${input.counts.calc}，简答题 ${input.counts.short}。`,
+    handoutQuizCountLine(total, input.counts),
     '字段：kind(choice|judge|calc|short), term(考点短名), stem, options(选择题必须 4 项), distractors(可选，3 个干扰项), correct, explanation。',
     allowedSourceIds.length
       ? '范围测验时每题必须带 sourceId，等于该题所考那篇【讲义ID:xxx｜标题】里的 xxx。'
@@ -347,18 +409,19 @@ export async function requestFrontendHandoutQuiz(input: {
       explanation: q.explanation,
     }))
   }
-  const ask = async (need: number, extraAvoid: string[]) => {
+  const ask = async (batch: HandoutQuizKindCounts, extraAvoid: string[]) => {
+    const need = totalHandoutQuizCounts(batch)
     const avoidAll = [...avoid, ...extraAvoid].filter(Boolean).slice(-80)
     const roundHint = extraAvoid.length
       ? `已丢掉运行结果不对或与前题雷同的题。请再出 ${need} 道全新合格题补齐，必须换考点或换问法：\n- ${avoidAll.join('\n- ')}`
       : avoidHint
     const roundUser = user
-      .replace(`请出 ${total} 道题`, `请出 ${need} 道题`)
+      .replace(handoutQuizCountLine(total, input.counts), handoutQuizCountLine(need, batch))
       .replace(avoidHint, roundHint)
     const raw = await deepseekChatRaw(roundUser, {
       system,
       temperature: extraAvoid.length ? 0.58 : 0.42,
-      maxTokens: Math.min(16384, 4096 + need * 320),
+      maxTokens: Math.min(4096, 1600 + need * 280),
       provider: input.provider,
     })
     const seenRound = new Set(avoid)
@@ -366,12 +429,19 @@ export async function requestFrontendHandoutQuiz(input: {
   }
   const seen = new Set<string>(avoid)
   let out: import('@/utils/frontend/frontendHandoutQuiz').FrontendQuizQuestion[] = []
-  const maxRounds = 5
+  const maxRounds = 8
   for (let round = 0; round < maxRounds && out.length < total; round += 1) {
-    if (round) input.onProgress?.('正在去掉答案错误或雷同的题并重出…')
+    const remain = remainingHandoutQuizCounts(input.counts, out)
+    const batchCounts = takeHandoutQuizBatch(remain)
+    const need = totalHandoutQuizCounts(batchCounts)
+    if (need <= 0) break
+    input.onProgress?.(
+      round
+        ? `正在去掉不合格题并补出第 ${out.length + 1}–${out.length + need} 题…`
+        : `正在出第 ${out.length + 1}–${out.length + need} 题…`,
+    )
     const extraAvoid = out.flatMap((q) => frontendQuizAvoidTokens(q))
-    const need = round === 0 ? total : Math.max(total - out.length, 3)
-    const batch = await ask(need, extraAvoid)
+    const batch = await ask(batchCounts, extraAvoid)
     for (const q of batch) {
       const key = frontendQuizDedupeKey(q)
       if (seen.has(key) || seen.has(q.fingerprint) || frontendQuizTooSimilar(q, seen)) continue

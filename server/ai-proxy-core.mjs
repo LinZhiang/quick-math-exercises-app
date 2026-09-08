@@ -22,6 +22,7 @@ import {
   stripProxyOnlyFields,
 } from './ai-upstream.mjs'
 import { Agent, fetch as undiciFetch } from 'undici'
+import { Readable } from 'node:stream'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const envFile = path.join(__dirname, '.env')
@@ -157,6 +158,7 @@ export function createAiProxyApp() {
 
     const body = stripProxyOnlyFields(rawBody)
     body.model = upstream.model
+    body.stream = true
     // 结构化出题：默认关闭深度思考，避免 reasoning 拖到 HeadersTimeout
     if (provider === 'doubao' && body.thinking == null) {
       const mode = String(process.env.DOUBAO_THINKING || 'disabled').trim().toLowerCase()
@@ -173,7 +175,6 @@ export function createAiProxyApp() {
     )
 
     let upstreamStatus = 0
-    let usage = null
 
     try {
       const upstreamRes = await undiciFetch(`${upstream.base}/chat/completions`, {
@@ -188,10 +189,8 @@ export function createAiProxyApp() {
 
       upstreamStatus = upstreamRes.status
       const ct = upstreamRes.headers.get('content-type') || 'application/json'
-      const buf = Buffer.from(await upstreamRes.arrayBuffer())
-
       const mapped = mapUpstreamErrorMeta(upstreamStatus, provider)
-      if (mapped && ct.includes('json')) {
+      if (mapped && !String(ct).includes('text/event-stream')) {
         appendAiRequestLog({
           model: `${provider}:${upstream.model}`,
           source,
@@ -212,26 +211,26 @@ export function createAiProxyApp() {
         return
       }
 
-      if (ct.includes('json') && body.stream !== true) {
-        try {
-          const parsed = JSON.parse(buf.toString('utf8'))
-          usage = parsed.usage ?? null
-        } catch {
-          /* ignore */
-        }
-      }
-
       appendAiRequestLog({
         model: `${provider}:${upstream.model}`,
         source,
         status: upstreamStatus,
         ok: upstreamStatus >= 200 && upstreamStatus < 300,
-        promptTokens: usage?.prompt_tokens ?? null,
-        completionTokens: usage?.completion_tokens ?? null,
-        totalTokens: usage?.total_tokens ?? null,
+        promptTokens: null,
+        completionTokens: null,
+        totalTokens: null,
       })
 
-      res.status(upstreamRes.status).type(ct).send(buf)
+      res.status(upstreamStatus)
+      res.setHeader('Content-Type', ct)
+      res.setHeader('Cache-Control', 'no-store')
+      const webStream = upstreamRes.body
+      if (!webStream) {
+        res.end()
+        return
+      }
+      Readable.fromWeb(webStream).pipe(res)
+      return
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'upstream fetch failed'
       const isTimeout =

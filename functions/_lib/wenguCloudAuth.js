@@ -467,6 +467,7 @@ export async function handleChatCompletions(env, request) {
 
   const body = stripProxyOnlyFields(bodyIn)
   body.model = upstream.model
+  body.stream = true
   if (provider === 'doubao' && body.thinking == null) {
     const mode = String(env.DOUBAO_THINKING || 'disabled').trim().toLowerCase()
     body.thinking = {
@@ -485,8 +486,9 @@ export async function handleChatCompletions(env, request) {
     })
 
     const status = upstreamRes.status
+    const ct = upstreamRes.headers.get('content-type') || 'application/json'
     const mapped = mapUpstreamErrorMeta(status, provider)
-    if (mapped) {
+    if (mapped && !String(ct).includes('text/event-stream')) {
       return json(
         {
           error: {
@@ -500,9 +502,7 @@ export async function handleChatCompletions(env, request) {
       )
     }
 
-    const buf = await upstreamRes.arrayBuffer()
-    const ct = upstreamRes.headers.get('content-type') || 'application/json'
-    return new Response(buf, {
+    return new Response(upstreamRes.body, {
       status,
       headers: {
         'content-type': ct,
