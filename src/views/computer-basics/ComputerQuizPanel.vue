@@ -511,6 +511,32 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
   border: 1px solid #c5d0dc;
 }
 
+.cb-quiz__stem :deep(pre),
+.cb-quiz__stem :deep(pre code),
+.cb-quiz__opt :deep(pre),
+.cb-quiz__opt :deep(pre code),
+.cb-quiz__ref :deep(pre),
+.cb-quiz__ref :deep(pre code),
+.cb-quiz__reveal :deep(pre),
+.cb-quiz__reveal :deep(pre code) {
+  text-align: left;
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+  word-wrap: normal;
+  hyphens: none;
+}
+
+.cb-quiz__stem :deep(.md-table-scroll:has(> pre)),
+.cb-quiz__opt :deep(.md-table-scroll:has(> pre)),
+.cb-quiz__ref :deep(.md-table-scroll:has(> pre)),
+.cb-quiz__reveal :deep(.md-table-scroll:has(> pre)) {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
 .cb-quiz__short.is-locked {
   pointer-events: none;
   opacity: 0.88;

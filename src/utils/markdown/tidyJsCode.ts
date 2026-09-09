@@ -367,10 +367,14 @@ function layoutJsStructures(src: string): string {
   return out
 }
 
-function prettyJsOneLiner(src: string): string {
-  const s = src.trim()
-  if (!s || s.includes('\n')) return s
-  if (!/[{}]/.test(s) && (s.match(/;/g) || []).length < 2) return s
+const JS_STMT_START =
+  /^(const|let|var|function|class|if|for|while|do|switch|try|return|throw|async|break|continue|debugger|import|export)\b/
+const JS_HOLD_KW =
+  /^(const|let|var|function|class|async|await|new|return|throw|typeof|void|delete|yield|else|do|case|in|of|instanceof|extends|from|import|export|if|for|while|switch|catch)$/
+
+function formatQuizJsTextbook(src: string): string {
+  const s = String(src ?? '').replace(/\r\n/g, '\n').trim()
+  if (!s) return s
   let out = ''
   let indent = 0
   let i = 0
@@ -381,6 +385,20 @@ function prettyJsOneLiner(src: string): string {
   const pad = () => '  '.repeat(Math.max(0, indent))
   const nl = () => {
     out += `\n${pad()}`
+  }
+  const trimmedOut = () => out.replace(/[ \t]+$/, '')
+  const asiBreak = (at: number, afterSpace: boolean): boolean => {
+    if (paren !== 0 || forDepth) return false
+    if (/^(else|catch|finally|instanceof|in|of|as|satisfies)\b/.test(s.slice(at))) return false
+    const t = trimmedOut()
+    if (!t || t.endsWith('\n') || t.endsWith('{')) return false
+    if (/[.(,:?=&|!+\-*/%~<>^]$/.test(t)) return false
+    const word = t.match(/[A-Za-z_$][\w$]*$/)?.[0]
+    if (word && JS_HOLD_KW.test(word)) return false
+    if (JS_STMT_START.test(s.slice(at))) return /(?:['"`0-9]|[)\]]|\w)$/.test(t)
+    if (/^[A-Za-z_$]/.test(s[at]!) && /(?:['"`]|[)\]])$/.test(t)) return true
+    if (afterSpace && /^[A-Za-z_$]/.test(s[at]!) && /\w$/.test(t)) return true
+    return false
   }
   while (i < n) {
     const ch = s[i]!
@@ -402,8 +420,13 @@ function prettyJsOneLiner(src: string): string {
       continue
     }
     if (ch === '/' && s[i + 1] === '/') {
-      out += s.slice(i)
-      break
+      let k = i + 2
+      while (k < n && s[k] !== '\n') k += 1
+      out = out.replace(/[ \t]+$/, '')
+      if (out && !out.endsWith('\n')) nl()
+      out += s.slice(i, k).trimEnd()
+      i = k
+      continue
     }
     if (ch === '/' && s[i + 1] === '*') {
       const end = s.indexOf('*/', i + 2)
@@ -411,10 +434,39 @@ function prettyJsOneLiner(src: string): string {
       i = end < 0 ? n : end + 2
       continue
     }
+    if (ch === '\n' || ch === '\r') {
+      i += 1
+      while (i < n && /[ \t\r\n]/.test(s[i]!)) i += 1
+      if (i >= n) break
+      if (asiBreak(i, true)) nl()
+      continue
+    }
+    if (ch === ' ' || ch === '\t') {
+      let j = i
+      while (j < n && (s[j] === ' ' || s[j] === '\t')) j += 1
+      if (j < n && asiBreak(j, true)) {
+        i = j
+        out = out.replace(/[ \t]+$/, '')
+        nl()
+        continue
+      }
+      out += ' '
+      i = j
+      continue
+    }
+    if (asiBreak(i, false)) {
+      nl()
+      continue
+    }
     if (ch === '(') {
       paren += 1
       if (/\bfor\s*$/.test(out)) forDepth = paren
-      out += ch
+      if (/\b(?:function|if|for|while|switch|catch|with)\s*$/.test(out.replace(/[ \t]+$/, ''))) {
+        out = out.replace(/[ \t]+$/, '')
+        out += ' ('
+      } else {
+        out += ch
+      }
       i += 1
       continue
     }
@@ -430,7 +482,7 @@ function prettyJsOneLiner(src: string): string {
       out += ' {'
       indent += 1
       i += 1
-      while (i < n && s[i] === ' ') i += 1
+      while (i < n && /[ \t]/.test(s[i]!)) i += 1
       if (i < n && s[i] !== '}') nl()
       continue
     }
@@ -441,7 +493,7 @@ function prettyJsOneLiner(src: string): string {
       else out = out.replace(/[ \t]*$/, pad())
       out += '}'
       i += 1
-      while (i < n && s[i] === ' ') i += 1
+      while (i < n && /[ \t]/.test(s[i]!)) i += 1
       if (i < n && s[i] !== ';' && s[i] !== ')' && s[i] !== ',' && s[i] !== '}') {
         if (/^(else|catch|finally)\b/.test(s.slice(i))) out += ' '
         else nl()
@@ -451,25 +503,54 @@ function prettyJsOneLiner(src: string): string {
     if (ch === ';' && !forDepth) {
       out += ';'
       i += 1
-      while (i < n && s[i] === ' ') i += 1
+      while (i < n && /[ \t]/.test(s[i]!)) i += 1
       if (i < n && s[i] !== '}' && s[i] !== ')') nl()
       continue
     }
     if (ch === ',' && indent > 0 && !forDepth && paren === 0) {
       out += ','
       i += 1
-      while (i < n && s[i] === ' ') i += 1
+      while (i < n && /[ \t]/.test(s[i]!)) i += 1
       if (i < n && s[i] !== '}' && s[i] !== ')') nl()
       continue
     }
     out += ch
     i += 1
   }
-  return out
+  return out.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
 }
 
-function hasOpenMultilineString(src: string): boolean {
-  return /`[\s\S]*\n[\s\S]*`/.test(src)
+function prettyJsOneLiner(src: string): string {
+  const s = src.trim()
+  if (!s || s.includes('\n')) return s
+  return formatQuizJsTextbook(s)
+}
+
+/** 函数 / 实例 / 验证之间空一行，贴近教程体例。 */
+function insertTextbookBlankLines(code: string): string {
+  const lines = String(code ?? '').replace(/\r\n/g, '\n').split('\n')
+  const out: string[] = []
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i] ?? ''
+    const t = line.trim()
+    const next = (lines[i + 1] ?? '').trim()
+    out.push(line)
+    if (!t || !next) continue
+    const indent = line.match(/^[ \t]*/)?.[0].length ?? 0
+    if (indent !== 0) continue
+    const endedBlock = t === '}' || t === '};' || /^\}\s*\)\s*\(\s*\)\s*;?$/.test(t)
+    const nextDecl = /^(function|class|var|let|const)\b/.test(next)
+    const nextComment = next.startsWith('//')
+    const nextCtrl = /^(else|catch|finally|while)\b/.test(next)
+    if (endedBlock && (nextDecl || nextComment || (!nextCtrl && next !== '}'))) {
+      out.push('')
+      continue
+    }
+    if (/^(var|let|const)\b/.test(t) && !/^(var|let|const)\b/.test(next) && !nextCtrl && next !== '}') {
+      out.push('')
+    }
+  }
+  return out.join('\n').replace(/\n{3,}/g, '\n\n')
 }
 
 /** IIFE 只剩结尾 `})();`、函数缺 `{` 时补全，避免题干代码残缺。 */
@@ -483,23 +564,13 @@ export function repairTruncatedQuizJs(code: string): string {
   return s
 }
 
-function collapseJsLinesForPretty(src: string): string {
-  const s = String(src ?? '').replace(/\r\n/g, '\n').trim()
-  if (!s.includes('\n') || hasOpenMultilineString(s)) return s
-  return s
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .join(' ')
-}
-
-/** 测验代码块：补全残缺 IIFE/花括号并按 2 空格重新缩进。 */
+/** 测验代码块：补全残缺 IIFE/花括号，并按教程体例排版（一句一行、2 空格、逻辑段空行）。 */
 export function repairAndPrettyQuizJs(code: string, opts?: { expand?: boolean }): string {
   const stripped = stripJsLangPrefix(code)
   const repaired = repairTruncatedQuizJs(stripped)
   const joined = joinContinuedJsLines(repaired)
-  const laid = prettyJsOneLiner(collapseJsLinesForPretty(joined))
-  return tidyJsFenceBody(layoutJsStructures(laid), opts)
+  const laid = formatQuizJsTextbook(joined)
+  return tidyJsFenceBody(insertTextbookBlankLines(layoutJsStructures(laid)), opts)
 }
 
 export function jsSourceUnbalanced(code: string): boolean {

@@ -174,6 +174,8 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
 .rich-text-view :deep(pre),
 .rich-text-view :deep(pre *),
 .rich-text-view :deep(pre code) {
+  text-align: left;
+  white-space: pre;
   word-break: normal;
   overflow-wrap: normal;
   word-wrap: normal;

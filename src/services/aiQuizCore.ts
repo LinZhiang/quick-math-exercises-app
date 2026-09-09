@@ -142,7 +142,7 @@ function handoutQuizCountLine(total: number, counts: HandoutQuizKindCounts) {
 const HANDOUT_QUIZ_SPEED_HINT =
   '每题 explanation 写 2～3 句即可：先点明答案，再补一句易混点；不要写成长文。一次输出完整 JSON 数组。'
 const HANDOUT_QUIZ_CONSISTENCY_HINT =
-  '标答和解析必须同一结论：解析写「正确答案是X」则 correct 必须是 X，禁止解析否定标答。判断题不要把「继承后直接拥有全部属性/方法」这类过绝对句子标成正确。代码块必须完整可运行（IIFE 要有 function 开头），2 空格缩进。'
+  '标答和解析必须同一结论：解析写「正确答案是X」则 correct 必须是 X，禁止解析否定标答。判断题不要把「继承后直接拥有全部属性/方法」这类过绝对句子标成正确。代码块必须完整可运行（IIFE 要有 function 开头）。JS 按教程体例：每条语句单独一行，2 空格缩进，function/实例/验证之间空一行；禁止把多条语句挤在同一行，也不要写成一长串。'
 
 async function collectHandoutQuizRounds<T extends { kind: string }>(input: {
   total: number
@@ -427,7 +427,7 @@ export async function requestFrontendHandoutQuiz(input: {
     codingHeavy
       ? [
           '【编程题】大约三分之一到一半即可，先保证定义/易混题。',
-          '完整程序用换行的 ```js 代码块；代码须完整可运行，运行结果必须自己算对。',
+          '完整程序用换行的 ```js 代码块，格式像教程：function 声明、再空一行写实例、再空一行写比较或 console.log；方法体 2 空格缩进；运行结果必须自己算对。',
           'exec/match 失败返回 null；对 null 取 [0] 是 TypeError。new Error() 无参时 message 是空字符串。',
         ].join('\n')
       : '本讲义若几乎没有代码、主要是概念定义，则以概念题为主，不要硬凑程序题。',
