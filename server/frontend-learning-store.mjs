@@ -8,7 +8,15 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tidyJsFencesInMarkdown } from './tidy-js-code.mjs'
+import { fetchCloudHandoutPack } from './pull-cloud-handouts.mjs'
 import { sliceCatalogLayer, treeParentFromQuery } from '../functions/_lib/catalogLayer.js'
+import {
+  assertCatalogNotStub,
+  assertHandoutNotTruncated,
+  graftUserCatalog,
+  preserveUserSubtree,
+  stripCatalogClientFlags,
+} from '../functions/_lib/catalogProtect.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(__dirname, 'data', 'frontend-learning')
@@ -18,6 +26,7 @@ const MEDIA_DIR = path.join(ROOT, 'media')
 const SEED_FILE = path.join(__dirname, 'seeds', 'frontend-learning-seed.json')
 const SEED_MEDIA_DIR = path.join(__dirname, 'seeds', 'frontend-learning-media')
 const PUBLIC_MIRROR = path.join(__dirname, '..', 'public', 'fl-data')
+const CATALOG_BACKUP_DIR = path.join(__dirname, 'data', 'handout-catalog-backups', 'frontend-learning')
 
 const MIME_TO_EXT = {
   jpeg: 'jpg',
@@ -94,6 +103,15 @@ function itemFile(id) {
 function writeItemRecord(id, rec) {
   ensureDirs()
   const file = itemFile(id)
+  if (fs.existsSync(file)) {
+    try {
+      const prev = JSON.parse(fs.readFileSync(file, 'utf8'))
+      assertHandoutNotTruncated(prev.content, rec.content, id)
+      fs.copyFileSync(file, `${file}.bak`)
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('拒绝用过短正文')) throw e
+    }
+  }
   atomicWriteFile(
     file,
     `${JSON.stringify({ ...rec, id, updatedAt: new Date().toISOString() }, null, 2)}\n`,
@@ -300,9 +318,33 @@ function atomicWriteFile(file, text) {
   }
 }
 
+function rotateCatalogBackup(prevRaw) {
+  try {
+    fs.mkdirSync(CATALOG_BACKUP_DIR, { recursive: true })
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+    fs.writeFileSync(
+      path.join(CATALOG_BACKUP_DIR, `catalog-${stamp}.json`),
+      `${JSON.stringify(prevRaw, null, 2)}\n`,
+      'utf8',
+    )
+    const files = fs
+      .readdirSync(CATALOG_BACKUP_DIR)
+      .filter((f) => f.startsWith('catalog-') && f.endsWith('.json'))
+      .sort()
+    while (files.length > 30) {
+      const old = files.shift()
+      if (old) fs.unlinkSync(path.join(CATALOG_BACKUP_DIR, old))
+    }
+  } catch (e) {
+    console.warn('[frontend-learning] 目录备份失败：', e instanceof Error ? e.message : e)
+  }
+}
+
 function writeCatalog(tree) {
+  assertCatalogNotStub(tree)
   const prev = fs.existsSync(CATALOG_FILE) ? JSON.parse(fs.readFileSync(CATALOG_FILE, 'utf8')) : {}
-  const nextTree = applyReadyFlags(Array.isArray(tree) ? tree : [])
+  if (prev && Array.isArray(prev.tree) && prev.tree.length) rotateCatalogBackup(prev)
+  const nextTree = applyReadyFlags(stripCatalogClientFlags(Array.isArray(tree) ? tree : []))
   atomicWriteFile(
     CATALOG_FILE,
     `${JSON.stringify(
@@ -366,6 +408,7 @@ export function upsertFrontendLearningFolder({ parentId, folder, items }) {
   const idx = parent.node.children.findIndex((n) => n.id === folderId)
   const oldFolder = idx >= 0 ? parent.node.children[idx] : null
   copyPrivateFlags(oldFolder, nextFolder)
+  preserveUserSubtree(nextFolder, oldFolder)
   if (idx >= 0) parent.node.children[idx] = nextFolder
   else parent.node.children.push(nextFolder)
 
@@ -459,6 +502,7 @@ export function upsertFrontendLearningBranch({
   const existing = siblings.findIndex((n) => n.id === branchId)
   const oldBranch = existing >= 0 ? siblings[existing] : null
   copyPrivateFlags(oldBranch, nextNode)
+  preserveUserSubtree(nextNode, oldBranch)
   if (existing >= 0) {
     siblings[existing] = nextNode
   } else {
@@ -678,6 +722,8 @@ function deletePublicFile(rel) {
 function deleteItemFiles(id) {
   const file = itemFile(id)
   if (fs.existsSync(file)) fs.unlinkSync(file)
+  const bak = `${file}.bak`
+  if (fs.existsSync(bak)) fs.unlinkSync(bak)
   deletePublicFile(`items/${id}.json`)
   if (!fs.existsSync(MEDIA_DIR)) return
   for (const name of fs.readdirSync(MEDIA_DIR)) {
@@ -716,44 +762,6 @@ function bankNodeId(typeId) {
 
 function bankItemId(questionId) {
   return BANK_ITEM_IDS[questionId] || `q-${questionId}`
-}
-
-function collectTreeIds(nodes, out = new Set()) {
-  for (const n of nodes || []) {
-    if (n?.id) out.add(n.id)
-    for (const e of n.entries || []) {
-      if (e?.id) out.add(e.id)
-    }
-    collectTreeIds(n.children, out)
-  }
-  return out
-}
-
-/** 题库包整树导入时，保留用户后来加的分类/讲义，避免又被种子目录盖掉。 */
-function graftUserCatalog(packTree, prevTree) {
-  if (!Array.isArray(prevTree) || !prevTree.length) return packTree
-  const packIds = collectTreeIds(packTree)
-  const walk = (nodes, parentId) => {
-    for (const n of nodes || []) {
-      if (!packIds.has(n.id)) {
-        if (!parentId) packTree.push(n)
-        else {
-          const p = findNode(packTree, parentId)
-          if (p) p.node.children.push(n)
-          else packTree.push(n)
-        }
-        continue
-      }
-      const extraEntries = (n.entries || []).filter((e) => e?.id && !packIds.has(e.id))
-      if (extraEntries.length) {
-        const p = findNode(packTree, n.id)
-        if (p) p.node.entries.push(...extraEntries)
-      }
-      walk(n.children, n.id)
-    }
-  }
-  walk(prevTree, null)
-  return packTree
 }
 
 /**
@@ -860,6 +868,46 @@ export function importFrontendLearningFromBankPack(packPath, { skipExisting = tr
   return { wrote, skipped, imageCount, tree }
 }
 
+export async function pullFrontendLearningFromCloud() {
+  ensureFrontendLearningStore()
+  ensureDirs()
+  const pack = await fetchCloudHandoutPack({
+    apiPrefix: '/api/frontend-learning',
+    mediaPrefix: '/api/media/frontend-learning',
+  })
+  const prev = readRawCatalog()
+  const remoteTree = JSON.parse(JSON.stringify(pack.tree || []))
+  const merged = graftUserCatalog(remoteTree, prev.tree)
+  let wrote = 0
+  let skipped = 0
+  for (const [id, item] of Object.entries(pack.items || {})) {
+    if (!id || !item || typeof item !== 'object') continue
+    if (fs.existsSync(itemFile(id))) {
+      skipped += 1
+      continue
+    }
+    writeItemRecord(id, {
+      id,
+      title: String(item.title || id),
+      type: String(item.type || 'handout'),
+      learningPath: Array.isArray(item.learningPath) ? item.learningPath.map(String) : [],
+      tags: Array.isArray(item.tags) ? item.tags.map(String) : [],
+      content: extractDataImages(String(item.content ?? ''), id),
+    })
+    wrote += 1
+  }
+  for (const [name, buf] of Object.entries(pack.media || {})) {
+    if (!/^[a-zA-Z0-9._-]+$/.test(name) || !buf) continue
+    const abs = path.join(MEDIA_DIR, name)
+    if (fs.existsSync(abs)) continue
+    fs.writeFileSync(abs, buf)
+    mirrorPublicFile(abs, `media/${name}`)
+  }
+  writeCatalog(merged)
+  mirrorToPublic()
+  return { wrote, skipped, remoteCount: pack.remoteCount, host: pack.host }
+}
+
 export function attachFrontendLearningRoutes(app) {
   app.get('/api/frontend-learning/revision', (_req, res) => {
     try {
@@ -870,6 +918,15 @@ export function attachFrontendLearningRoutes(app) {
         ok: false,
         message: e instanceof Error ? e.message : '读取前端学习修订号失败',
       })
+    }
+  })
+
+  app.post('/api/frontend-learning/pull-cloud', requireAdmin, async (req, res) => {
+    try {
+      const result = await pullFrontendLearningFromCloud()
+      res.json({ ok: true, ...result })
+    } catch (e) {
+      sendStoreError(res, e, '从云端拉取讲义失败')
     }
   })
 

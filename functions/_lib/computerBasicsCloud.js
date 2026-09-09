@@ -14,6 +14,12 @@ import {
   CB_USER_OWNED_KEY,
 } from './cbStore.js'
 import { sliceCatalogLayer, treeParentFromRequest } from './catalogLayer.js'
+import {
+  assertCatalogNotStub,
+  assertHandoutNotTruncated,
+  graftUserCatalog,
+  stripCatalogClientFlags,
+} from './catalogProtect.js'
 
 const CATALOG_KEY = 'cb:catalog'
 const MIME_TO_EXT = {
@@ -162,13 +168,18 @@ async function readRawCatalog(env, request) {
 }
 
 async function writeCatalog(env, tree) {
+  assertCatalogNotStub(tree)
   const store = getStore(env)
   if (!store) throw new Error('云端存储不可用')
   const prev = await store.get(CATALOG_KEY, { type: 'json' })
   const base = prev && typeof prev === 'object' ? prev : {}
+  if (prev && typeof prev === 'object' && Array.isArray(prev.tree) && prev.tree.length) {
+    await store.put(`${CATALOG_KEY}:bak`, JSON.stringify(prev))
+  }
+  const nextTree = stripCatalogClientFlags(Array.isArray(tree) ? tree : [])
   await store.put(
     CATALOG_KEY,
-    JSON.stringify({ ...base, tree, updatedAt: new Date().toISOString(), userOwned: true }),
+    JSON.stringify({ ...base, tree: nextTree, updatedAt: new Date().toISOString(), userOwned: true }),
   )
   await markCbStoreUserOwned(store)
 }
@@ -197,6 +208,17 @@ function stampItem(item, id) {
 }
 
 async function putItemRecord(env, id, item) {
+  const store = getStore(env)
+  if (!store) throw new Error('云端存储不可用')
+  const prevRaw = await store.get(itemKey(id), { type: 'text' })
+  if (prevRaw) {
+    try {
+      const prev = JSON.parse(prevRaw)
+      assertHandoutNotTruncated(prev.content, item.content, id)
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('拒绝用过短正文')) throw e
+    }
+  }
   await putRecord(env, itemKey(id), JSON.stringify(stampItem(item, id)))
 }
 
@@ -516,7 +538,15 @@ async function handleImport(env, request) {
   const store = await ensureStore(env, request)
   if (!store) return noStore()
   const body = await request.json().catch(() => ({}))
-  const tree = Array.isArray(body.tree) ? body.tree : []
+  const incoming = Array.isArray(body.tree) ? body.tree : []
+  let prevTree = []
+  try {
+    const catalog = await readRawCatalog(env, request)
+    if (Array.isArray(catalog.tree)) prevTree = catalog.tree
+  } catch {
+    prevTree = []
+  }
+  const tree = graftUserCatalog(incoming, prevTree)
   const items = body.items && typeof body.items === 'object' ? body.items : {}
   const media = body.media && typeof body.media === 'object' ? body.media : {}
   for (const [id, item] of Object.entries(items)) {

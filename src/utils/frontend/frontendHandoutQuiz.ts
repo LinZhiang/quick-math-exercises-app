@@ -1,13 +1,12 @@
 import { markdownToDisplaySafeHtml } from '@/utils/markdown/markdownToHtml'
 import { highlightHandoutCodeHtml, isJsOnlySnippet, jsSourceLooksLikeProse, shouldPromoteJsToBlock } from '@/utils/markdown/highlightHandoutCode'
 import { neutralizeMarkdownRangeMarks } from '@/utils/markdown/markdownNormalize'
-import { repairSameLineFenceOpeners, normalizeJsMarkdownFences, tidyJsFencesInMarkdown } from '@/utils/markdown/tidyJsCode'
-import { judgeExplanationConflictsCorrect } from '@/utils/quiz/handoutQuizConsistency'
+import { repairSameLineFenceOpeners, normalizeJsMarkdownFences, tidyJsFencesInMarkdown, repairAndPrettyQuizJs, jsSourceUnbalanced } from '@/utils/markdown/tidyJsCode'
+import { judgeExplanationConflictsCorrect, explanationContradictsCorrect, judgeOverclaimMarkedTrue } from '@/utils/quiz/handoutQuizConsistency'
 import {
   detectHandoutJsProbe,
   frontendQuizAskPattern,
   handoutJsAnswerMatches,
-  quizAvoidOverlaps,
   runHandoutQuizJs,
   skeletonizeHandoutJs,
 } from '@/utils/quiz/handoutJsQuizRuntime'
@@ -124,14 +123,7 @@ export function frontendQuizTooSimilar(
 ): boolean {
   const key = frontendQuizDedupeKey(q)
   const bag = [...seen]
-  if (bag.includes(key)) return true
-  if (quizAvoidOverlaps(key, bag)) return true
-  if (quizAvoidOverlaps(q.stem, bag)) return true
-  if (q.term && quizAvoidOverlaps(q.term, bag)) {
-    const ask = frontendQuizAskPattern(q.stem)
-    if (bag.some((x) => x.includes(`｜${ask}`) || x.includes(`:${ask}:`))) return true
-  }
-  return false
+  return bag.includes(key)
 }
 
 function asText(v: unknown): string {
@@ -356,7 +348,7 @@ function mentionCount(haystack: string, term: string): number {
 }
 
 /** 从整篇讲义抽标题/加粗，供出题时先覆盖重点。 */
-export function extractFrontendHandoutKeyPoints(material: string, limit = 16): string[] {
+export function extractFrontendHandoutKeyPoints(material: string, limit = 40): string[] {
   const s = String(material || '')
   const points: string[] = extractHandoutHeadings(s)
   for (const m of s.matchAll(/<(?:strong|b)>([\s\S]*?)<\/(?:strong|b)>/gi)) pushUniqueTitle(points, m[1] ?? '', 36)
@@ -399,7 +391,7 @@ export function extractFrontendHandoutQuizFocus(
     const n = minPerCore
     return `${i + 1}. ${p} → 至少 ${n} 题：①定义/形成条件（选择或判断，禁止只用编程题）②特点/作用/易混对比③有示例再加看代码，且③不能替代①②`
   })
-  const otherLines = others.slice(0, 8).map((p, i) => `${i + 1}. ${p}`)
+  const otherLines = others.slice(0, 20).map((p, i) => `${i + 1}. ${p}`)
   const promptBlock = [
     cores.length
       ? `【核心专节·必须加码】\n${coreLines.join('\n')}\n同一核心换问法重复考是正确做法，禁止「这个点已经出过一道就跳过」。`
@@ -414,29 +406,9 @@ export function extractFrontendHandoutQuizFocus(
   return { cores, others, minPerCore, promptBlock }
 }
 
-/** 长讲义：保留开头，并补上各重点附近的原文，避免闭包等后半段被截掉。 */
-export function materialForFrontendQuiz(material: string, maxLen = 14000): string {
-  const full = String(material || '')
-  if (full.length <= maxLen) return full
-  const keys = extractFrontendHandoutKeyPoints(full)
-  const chunks: string[] = [full.slice(0, Math.min(7000, maxLen))]
-  const used = new Set<number>()
-  for (const key of keys) {
-    let from = 0
-    while (from < full.length) {
-      const i = full.indexOf(key, from)
-      if (i < 0) break
-      const start = Math.max(0, i - 280)
-      if (![...used].some((u) => Math.abs(u - start) < 400)) {
-        used.add(start)
-        chunks.push(full.slice(start, Math.min(full.length, i + 900)))
-      }
-      from = i + key.length
-    }
-  }
-  chunks.push(full.slice(-1800))
-  const joined = chunks.join('\n\n')
-  return joined.length > maxLen * 1.35 ? joined.slice(0, Math.round(maxLen * 1.35)) : joined
+/** 出题只读讲义，必须送全文；禁止抽样/截断后半专节。 */
+export function materialForFrontendQuiz(material: string): string {
+  return String(material || '')
 }
 
 export function polishFrontendQuizJargon(s: string): string {
@@ -503,9 +475,11 @@ function formatQuizAnswerHtml(text: string): string {
   const unwrapped = unwrapTrivialOptionFence(text)
   const src = unwrapQuizOptionToJs(unwrapped)
   if (src && isJsOnlySnippet(unwrapped) && shouldPromoteJsToBlock(src)) {
-    return highlightHandoutCodeHtml(`\`\`\`js\n${src}\n\`\`\``)
+    return highlightHandoutCodeHtml(`\`\`\`js\n${repairAndPrettyQuizJs(src)}\n\`\`\``)
   }
-  const body = tidyJsFencesInMarkdown(repairSameLineFenceOpeners(normalizeJsMarkdownFences(unwrapped)))
+  const body = tidyJsFencesInMarkdown(repairSameLineFenceOpeners(normalizeJsMarkdownFences(unwrapped)), {
+    prettyQuiz: true,
+  })
   return highlightHandoutCodeHtml(markdownToDisplaySafeHtml(body))
 }
 
@@ -517,13 +491,15 @@ export function formatFrontendQuizRichHtml(text: string, role: QuizHtmlRole = 's
   if (role === 'option' || role === 'answer') return formatQuizAnswerHtml(prepared)
   if (isJsOnlySnippet(prepared) && !jsSourceLooksLikeProse(prepared)) {
     const src = unwrapQuizOptionToJs(prepared)
-    if (src) return highlightHandoutCodeHtml(`\`\`\`js\n${src}\n\`\`\``)
+    if (src) return highlightHandoutCodeHtml(`\`\`\`js\n${repairAndPrettyQuizJs(src)}\n\`\`\``)
   }
   const hasFence = /```/.test(prepared)
   if (!hasFence && (/^</.test(prepared) || /<(p|pre|code|div|br|span)\b/i.test(prepared))) {
     return highlightHandoutCodeHtml(decoratePlainJsSnippets(prepared))
   }
-  let body = tidyJsFencesInMarkdown(repairSameLineFenceOpeners(normalizeJsMarkdownFences(prepared)))
+  let body = tidyJsFencesInMarkdown(repairSameLineFenceOpeners(normalizeJsMarkdownFences(prepared)), {
+    prettyQuiz: true,
+  })
   if (!/```/.test(body) && !/[\u4e00-\u9fff]/.test(body) && shouldPromoteJsToBlock(body)) {
     body = `\`\`\`js\n${body}\n\`\`\``
   }
@@ -733,9 +709,9 @@ function looksTruncatedJs(js: string): boolean {
   if (/^[sS]\s+(?:var|let|const|function|try|console)\b/.test(t)) return true
   if (/\b(?:co|con|cons|consol|console\.[a-z]{0,2})$/.test(t)) return true
   if (/[=(,]\s*$/.test(t)) return true
-  const open = (t.match(/\{/g) || []).length
-  const close = (t.match(/\}/g) || []).length
-  return open > close
+  if (jsSourceUnbalanced(t)) return true
+  if (/\}\s*\)\s*\(\s*\)\s*;?\s*$/.test(t) && !/^\s*\(/.test(t)) return true
+  return false
 }
 
 function emptyErrorMessageInJs(js: string): boolean {
@@ -760,28 +736,19 @@ export function frontendQuizItemUnrigorous(input: {
   const stem = String(input.stem ?? '')
   const correct = String(input.correctText ?? '')
   const explanation = String(input.explanation ?? '')
+  if (explanationContradictsCorrect(correct, explanation)) return true
   const js = extractJsFromQuizStem(stem)
-  if (/```/.test(stem)) {
-    const html = formatFrontendQuizRichHtml(stem, 'stem')
-    const visible = decodeQuizHtmlText(html)
-    if (/```/.test(visible)) return true
-  }
   if (/严格来说.{0,24}(错|不对)|选项里没有|如果选项不包含|都是错的|都不对/.test(explanation)) return true
   if (stemAsksForCodeSample(stem) && !js.trim()) return true
   if (!js.trim()) return false
   if (looksTruncatedJs(js)) return true
   const runtime = isRuntimeOutputQuestion(stem, js)
-  if (runtime && undeclaredJsIdentifiers(js).length) return true
-  const ansPlain = frontendQuizPlainText(correct).replace(/^[`'"]+|[`'"]+$/g, '').trim()
-  if (runtime && /[\u4e00-\u9fff]/.test(ansPlain) && !js.includes(ansPlain) && !/报错|异常|错误|空/.test(ansPlain)) {
-    return true
-  }
   if (runtime && emptyErrorMessageInJs(js) && !isEmptyStringAnswer(correct)) return true
   if (runtime) {
     const probe = detectHandoutJsProbe(stem, js)
-    if (!probe && !/console\.log/.test(js)) return true
+    if (!probe && !/console\.log/.test(js)) return false
     const run = runHandoutQuizJs(js, probe ?? 'logs')
-    if (run.status === 'skip') return true
+    if (run.status === 'skip') return false
     if (!handoutJsAnswerMatches(correct, run, input.options)) return true
   }
   return false
@@ -867,9 +834,13 @@ function optionIndexByText(options: string[], hint: string): number {
 /** 解析里写「正确答案是 3」时，以这句话为准，避免标答和解析各说各的。 */
 function explicitAnswerFromExplanation(explanation: string): string {
   const t = String(explanation || '')
-  const m =
-    t.match(/正确答案[是为：:\s]*[「『"“'`]*([^\s。．.\n,，;；」』"”'`]{1,40})/) ||
-    t.match(/应选[「『"“'`]*([^\s。．.\n,，;；」』"”'`]{1,40})/)
+  const quoted = t.match(/正确答案[是为：:\s]*[「『"'“‘]([^」』"'”’]{2,120})/)
+  if (quoted?.[1]) return quoted[1].trim()
+  const labeled = t.match(/正确答案[是为：:\s]+([^\n。．]{2,80})/)
+  if (labeled?.[1]) {
+    return labeled[1].replace(/^[「『"'“‘]+|[」』"'”’。．.]+$/g, '').trim()
+  }
+  const m = t.match(/应选[「『"“'`]*([^」』"”'`\n。．]{1,80})/)
   return (m?.[1] ?? '').replace(/^[：:\s]+/, '').trim()
 }
 
@@ -952,7 +923,7 @@ export function parseFrontendQuizAiItem(
     ...(Array.isArray(o.choices) ? o.choices.map((x) => polishFrontendQuizJargon(asText(x))) : []),
     ...(Array.isArray(o.distractors) ? o.distractors.map((x) => polishFrontendQuizJargon(asText(x))) : []),
   ])
-  const stem = harvested.texts[0] ?? ''
+  const stem = tidyJsFencesInMarkdown(harvested.texts[0] ?? '', { prettyQuiz: true })
   const termIn = harvested.texts[1] ?? ''
   const correctHintIn = harvested.texts[2] ?? ''
   let explanation = polishFrontendQuizJargon(
@@ -1024,16 +995,10 @@ export function parseFrontendQuizAiItem(
     const explIdx = optionIndexByText(options, explHint)
     if (explIdx >= 0) {
       if (kind === 'choice' && correctIndex >= 0 && explIdx !== correctIndex) {
-        correctIndex = explIdx
+        return null
       } else if (correctIndex < 0) {
         correctIndex = explIdx
       } else if (kind === 'judge' && explIdx !== correctIndex) {
-        return null
-      }
-    } else if (kind === 'choice' && correctIndex >= 0) {
-      const claimed = compactText(options[correctIndex] ?? '')
-      const named = compactText(explHint)
-      if (claimed && named && claimed !== named && !claimed.includes(named) && !named.includes(claimed)) {
         return null
       }
     }
@@ -1047,6 +1012,8 @@ export function parseFrontendQuizAiItem(
   const correctText = options[correctIndex] ?? ''
   if (!correctText) return null
   if (kind === 'judge' && judgeExplanationConflictsCorrect(correctText, explanation)) return null
+  if (kind === 'judge' && judgeOverclaimMarkedTrue(stem, correctText)) return null
+  if (explanationContradictsCorrect(correctText, explanation)) return null
   if (kind === 'choice' && stemAnswerQuantityClash(stem, correctText)) return null
   if (frontendQuizItemUnrigorous({ stem, correctText, explanation, options })) return null
   if (kind === 'choice') {

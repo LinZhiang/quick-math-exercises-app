@@ -150,14 +150,11 @@ export function buildComputerRangeQuizItem(input: {
   items: ComputerHandoutItem[]
 }): ComputerHandoutItem {
   const items = input.items.filter((it) => it?.id && it.content)
-  const max = 8800
-  const n = Math.max(1, items.length)
-  const each = Math.floor(max / n)
   const chunks = items.map((it) => {
     const path = (it.learningPath ?? []).filter(Boolean).join(' / ')
     const head = `【讲义ID:${it.id}｜${path ? `${path} / ` : ''}${it.title}】\n`
-    const body = stripHandoutImagesForAi(it.content).replace(/\s+/g, ' ').trim()
-    return `${head}${body.slice(0, Math.max(280, each - head.length))}`
+    const body = stripHandoutImagesForAi(it.content).trim()
+    return `${head}${body}`
   })
   return {
     id: `range:${input.scopeId}`,
@@ -208,7 +205,6 @@ export function stripHandoutImagesForAi(md: string): string {
     .replace(/!\[[^\]]*]\([^)]+\)/g, '（图）')
     .replace(/<img\b[^>]*>/gi, '（图）')
     .replace(/\n{3,}/g, '\n\n')
-    .slice(0, 12000)
 }
 
 export function isComputerHtmlContent(raw: string): boolean {
@@ -283,6 +279,13 @@ async function computerAdminFetch<T>(path: string, init?: RequestInit): Promise<
     throw new Error(data.message || data.error?.message || `请求失败（${res.status}）`)
   }
   return data
+}
+
+export async function pullComputerBasicsFromCloud() {
+  return computerAdminFetch<{ wrote: number; skipped: number; remoteCount: number }>(
+    '/api/computer-basics/pull-cloud',
+    { method: 'POST', body: '{}' },
+  )
 }
 
 export async function createComputerNode(input: { name: string; parentId?: string | null }) {

@@ -89,12 +89,51 @@ function idbPut(store: string, key: string, value: unknown): Promise<void> {
   )
 }
 
+function idbDelete(store: string, key: string): Promise<void> {
+  return openDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(store, 'readwrite')
+        tx.objectStore(store).delete(key)
+        tx.oncomplete = () => resolve()
+        tx.onerror = () => reject(tx.error)
+      }),
+  )
+}
+
 function itemKey(scope: HandoutCacheScope, id: string): string {
   return `${scope}:${id}`
 }
 
 export function handoutCacheFitsViewer(admin: boolean, viewer?: string): boolean {
   return (viewer || 'public') === (admin ? 'admin' : 'public')
+}
+
+/** 清掉某一侧讲义的 IndexedDB 缓存，强制刷新时用。 */
+export async function wipeHandoutDiskCacheScope(scope: HandoutCacheScope): Promise<void> {
+  invalidateHandoutRevisionMemo(scope)
+  if (!canUseIdb()) return
+  try {
+    await idbDelete(STORE_TREE, treeStoreKey(scope, 'full'))
+    await idbDelete(STORE_TREE, treeStoreKey(scope, 'dir'))
+    const db = await openDb()
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_ITEMS, 'readwrite')
+      const store = tx.objectStore(STORE_ITEMS)
+      const req = store.openCursor()
+      const prefix = `${scope}:`
+      req.onsuccess = () => {
+        const cursor = req.result
+        if (!cursor) return
+        if (String(cursor.key).startsWith(prefix)) cursor.delete()
+        cursor.continue()
+      }
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+  } catch {
+    /* 清缓存失败时仍走网络拉取 */
+  }
 }
 
 export async function wipeHandoutDiskCache(): Promise<void> {

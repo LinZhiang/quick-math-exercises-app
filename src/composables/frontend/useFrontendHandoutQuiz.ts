@@ -1,6 +1,6 @@
 import { ElMessage } from 'element-plus'
 import { computed, onBeforeUnmount, reactive, ref } from 'vue'
-import { isAiChatConfigured, requestFrontendHandoutQuiz, requestFrontendQuizVariant, DEEPSEEK_NOT_CONFIGURED_HINT } from '@/services/deepseek'
+import { isAiChatConfigured, requestFrontendHandoutQuiz, requestFrontendQuizVariants, DEEPSEEK_NOT_CONFIGURED_HINT } from '@/services/deepseek'
 import {
   calcAnswerMatches,
   clampFrontendQuizCounts,
@@ -231,20 +231,13 @@ export function useFrontendHandoutQuiz() {
           return
         }
         if (opts.provider) setAiProvider(opts.provider)
-        const next: FrontendQuizQuestion[] = []
-        for (let i = 0; i < qs.length; i++) {
-          loadingMessage.value = `正在生成变式 ${i + 1}/${qs.length}`
-          try {
-            const variant = await requestFrontendQuizVariant({
-              original: qs[i],
-              provider: getAiProvider(),
-            })
-            next.push(variant ?? qs[i])
-          } catch {
-            next.push(qs[i])
-          }
-        }
-        generated = next
+        generated = await requestFrontendQuizVariants({
+          originals: qs,
+          provider: getAiProvider(),
+          onProgress: (done, total) => {
+            loadingMessage.value = `正在生成变式 ${done}/${total}`
+          },
+        })
       }
       beginRunning(item, generated)
       ElMessage.success(opts?.useVariants ? `已准备 ${generated.length} 道变式题` : `已准备 ${generated.length} 道原题`)

@@ -24,6 +24,30 @@ export function judgeExplanationConflictsCorrect(correct: string, explanation: s
   if (saysWrong && saysRight) return true
   if (ans && saysWrong && !saysRight) return true
   if (!ans && saysRight && !saysWrong) return true
+  if (ans && /并不(?:是|能|会|等于)|不能直接拥有|并非拥有全部|私有.{0,8}无法/.test(exp)) return true
+  return false
+}
+
+const ACCESS_YES = /(?:可以|能够|能).{0,24}(?:直接)?(?:读取|访问|修改|拿到|拥有)/
+const ACCESS_NO = /(?:无法|不能|不可以).{0,12}(?:直接)?(?:读取|访问|修改|拿到|拥有)/
+
+/** 标答说「可以访问」、解析却说「无法访问」这类正反打架。 */
+export function explanationContradictsCorrect(correct: string, explanation: string): boolean {
+  const a = compactText(correct)
+  const b = compactText(explanation)
+  if (!a || !b) return false
+  if (ACCESS_YES.test(a) && ACCESS_NO.test(b)) return true
+  if (ACCESS_NO.test(a) && ACCESS_YES.test(b) && !/并非|并不是|不是说/.test(b.slice(0, 24))) return true
+  if (ACCESS_YES.test(b) && ACCESS_NO.test(b)) return true
+  return false
+}
+
+/** 判断题把「继承后拥有所有属性/方法」这类过绝对的句子标成正确 → 作废。 */
+export function judgeOverclaimMarkedTrue(stem: string, correct: string): boolean {
+  if (isJudgeAnswerTrue(correct) !== true) return false
+  const t = compactText(stem)
+  if (/继承/.test(t) && /(?:所有|全部).{0,10}(?:属性|方法)/.test(t)) return true
+  if (/私有/.test(t) && ACCESS_YES.test(t) && !ACCESS_NO.test(t) && !/不|并非|无法|不能/.test(t)) return true
   return false
 }
 
@@ -83,7 +107,6 @@ export function filterHandoutQuizFactConflicts<T>(
   items: T[],
   pick: (q: T) => { correctText: string; explanation: string },
 ): T[] {
-  const seen = new Map<string, string>()
   const out: T[] = []
   for (const q of items) {
     const { correctText, explanation } = pick(q)
@@ -95,10 +118,7 @@ export function filterHandoutQuizFactConflicts<T>(
       self.set(k, set)
     }
     if ([...self.values()].some((s) => s.size > 1)) continue
-    if (facts.some(([k, p]) => seen.has(k) && seen.get(k) !== p)) continue
-    for (const [k, p] of facts) {
-      if (!seen.has(k)) seen.set(k, p)
-    }
+    if (explanationContradictsCorrect(correctText, explanation)) continue
     out.push(q)
   }
   return out

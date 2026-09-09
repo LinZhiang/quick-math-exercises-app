@@ -468,10 +468,67 @@ function prettyJsOneLiner(src: string): string {
   return out
 }
 
+function hasOpenMultilineString(src: string): boolean {
+  return /`[\s\S]*\n[\s\S]*`/.test(src)
+}
+
+/** IIFE 只剩结尾 `})();`、函数缺 `{` 时补全，避免题干代码残缺。 */
+export function repairTruncatedQuizJs(code: string): string {
+  let s = String(code ?? '').replace(/\r\n/g, '\n')
+  s = s.replace(/function\s*\(([^)]*)\)\s*(?![\s]*\{)/g, 'function ($1) {')
+  const trimmed = s.trim()
+  if (/\}\s*\)\s*\(\s*\)\s*;?\s*$/.test(trimmed) && !/^\(\s*(?:function\b|\()/.test(trimmed)) {
+    s = `(function () {\n${trimmed}`
+  }
+  return s
+}
+
+function collapseJsLinesForPretty(src: string): string {
+  const s = String(src ?? '').replace(/\r\n/g, '\n').trim()
+  if (!s.includes('\n') || hasOpenMultilineString(s)) return s
+  return s
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(' ')
+}
+
+/** 测验代码块：补全残缺 IIFE/花括号并按 2 空格重新缩进。 */
+export function repairAndPrettyQuizJs(code: string, opts?: { expand?: boolean }): string {
+  const stripped = stripJsLangPrefix(code)
+  const repaired = repairTruncatedQuizJs(stripped)
+  const joined = joinContinuedJsLines(repaired)
+  const laid = prettyJsOneLiner(collapseJsLinesForPretty(joined))
+  return tidyJsFenceBody(layoutJsStructures(laid), opts)
+}
+
+export function jsSourceUnbalanced(code: string): boolean {
+  const body = String(code ?? '')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\/\/.*$/gm, ' ')
+    .replace(/`(?:\\.|[^`\\])*`/g, ' ')
+    .replace(/'(?:\\.|[^'\\])*'/g, ' ')
+    .replace(/"(?:\\.|[^"\\])*"/g, ' ')
+  let braces = 0
+  let parens = 0
+  let squares = 0
+  for (const ch of body) {
+    if (ch === '{') braces += 1
+    else if (ch === '}') braces -= 1
+    else if (ch === '(') parens += 1
+    else if (ch === ')') parens -= 1
+    else if (ch === '[') squares += 1
+    else if (ch === ']') squares -= 1
+    if (braces < 0 || parens < 0 || squares < 0) return true
+  }
+  return braces !== 0 || parens !== 0 || squares !== 0
+}
+
 /** 展示前整理代码块：去掉误入的 js 标记；同一句被拆开的拼回一行。 */
 export function prepareJsBlockSource(code: string, opts?: { expand?: boolean }): string {
   const stripped = stripJsLangPrefix(code)
-  const joined = joinContinuedJsLines(stripped)
+  const repaired = repairTruncatedQuizJs(stripped)
+  const joined = joinContinuedJsLines(repaired)
   const expanded = prettyJsOneLiner(joined)
   return tidyJsFenceBody(layoutJsStructures(expanded), opts)
 }
@@ -530,12 +587,13 @@ export function tidyJsFenceBody(code: string, opts?: { expand?: boolean }): stri
 }
 
 /** 整理 Markdown 里的 js/ts 围栏。 */
-export function tidyJsFencesInMarkdown(md: string): string {
+export function tidyJsFencesInMarkdown(md: string, opts?: { prettyQuiz?: boolean }): string {
   const repaired = repairFusedMarkdownFences(repairSameLineFenceOpeners(normalizeJsMarkdownFences(md)))
   FENCE_RE.lastIndex = 0
   return repaired.replace(FENCE_RE, (_all, lang: string | undefined, body: string) => {
     const raw = String(lang || 'js').toLowerCase()
     const nextLang = raw === 'javascript' ? 'js' : raw === 'typescript' ? 'ts' : raw
-    return `\`\`\`${nextLang}\n${prepareJsBlockSource(body)}\n\`\`\``
+    const source = opts?.prettyQuiz ? repairAndPrettyQuizJs(body) : prepareJsBlockSource(body)
+    return `\`\`\`${nextLang}\n${source}\n\`\`\``
   })
 }

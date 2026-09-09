@@ -6,7 +6,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowRight, Collection, Document, Folder, FolderOpened, Lock, MoreFilled, Notebook, Plus, Share } from '@element-plus/icons-vue'
+import { ArrowRight, Collection, Document, Folder, FolderOpened, Lock, MoreFilled, Notebook, Plus, Refresh, Share } from '@element-plus/icons-vue'
 import {
   buildComputerRangeQuizItem,
   collectReadyEntriesUnder,
@@ -18,13 +18,11 @@ import {
   findComputerEntry,
   findComputerNode,
   flattenVisibleComputerRows,
-  loadComputerBasicsDir,
-  ensureComputerBasicsNodeLoaded,
-  reloadComputerBasicsDir,
   loadComputerBasicsItem,
   loadComputerBasicsTree,
   moveComputerItem,
   moveComputerNode,
+  pullComputerBasicsFromCloud,
   renameComputerNode,
   setComputerItemPrivate,
   setComputerNodePrivate,
@@ -35,6 +33,7 @@ import {
   type ComputerTreeRow,
 } from '@/utils/computer/computerBasics'
 import { isWenguAdmin, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
+import { wipeHandoutDiskCacheScope } from '@/utils/app/handoutDiskCache'
 import ComputerBusyHint from './ComputerBusyHint.vue'
 import ComputerCategoryMapDialog from './ComputerCategoryMapDialog.vue'
 import ComputerMoveDialog from './ComputerMoveDialog.vue'
@@ -145,32 +144,18 @@ function revealRow(id: string, prefer: 'menu' | 'row' = 'row') {
 function toggle(id: string, expandable: boolean) {
   if (!expandable) return
   const willOpen = !expanded.value[id]
-  if (!willOpen) {
-    expanded.value = { ...expanded.value, [id]: false }
-    return
-  }
-  void (async () => {
-    loadingNodeId.value = id
-    try {
-      tree.value = await ensureComputerBasicsNodeLoaded(id)
-      expanded.value = { ...expanded.value, [id]: true }
-    } catch (e) {
-      ElMessage.error(e instanceof Error ? e.message : '读取子目录失败')
-      return
-    } finally {
-      loadingNodeId.value = ''
+  expanded.value = { ...expanded.value, [id]: willOpen }
+  if (!willOpen) return
+  afterLayout(() => {
+    const scroller = treeEl.value
+    const row = queryTreeRow(id)
+    if (!scroller || !row) return
+    const sRect = scroller.getBoundingClientRect()
+    const pRect = row.getBoundingClientRect()
+    if (pRect.top > sRect.top + sRect.height * 0.4) {
+      scroller.scrollTo({ top: scroller.scrollTop + (pRect.top - sRect.top - 8), behavior: 'smooth' })
     }
-    afterLayout(() => {
-      const scroller = treeEl.value
-      const row = queryTreeRow(id)
-      if (!scroller || !row) return
-      const sRect = scroller.getBoundingClientRect()
-      const pRect = row.getBoundingClientRect()
-      if (pRect.top > sRect.top + sRect.height * 0.4) {
-        scroller.scrollTo({ top: scroller.scrollTop + (pRect.top - sRect.top - 8), behavior: 'smooth' })
-      }
-    })
-  })()
+  })
 }
 
 function toggleAdmin(id: string) {
@@ -293,7 +278,7 @@ async function reloadKeepExpand(opts?: {
 }) {
   const keep = { ...expanded.value }
   if (opts?.parentId) keep[opts.parentId] = true
-  const next = await reloadComputerBasicsDir(Object.keys(keep).filter((id) => keep[id]))
+  const next = await loadComputerBasicsTree(true)
   if (opts?.node && !treeHasId(next, opts.node.id)) {
     throw new Error(
       '分类接口写成功了，但读目录时这条不见了。云端讲义库还没接上，请在电脑执行 npm run setup:cf-storage 后重新部署。',
@@ -508,17 +493,50 @@ async function confirmMove(target: string) {
   }
 }
 
-async function load() {
+async function load(force = false) {
   error.value = ''
   if (tree.value.length) busyText.value = '正在刷新目录…'
   else loading.value = true
   try {
-    const next = await loadComputerBasicsDir()
+    const next = await loadComputerBasicsTree(force)
     tree.value = next
   } catch (e) {
     error.value = e instanceof Error ? e.message : '读取目录失败'
   } finally {
     loading.value = false
+    busyText.value = ''
+  }
+}
+
+async function forceRefreshCatalog() {
+  if (busyText.value || loading.value) return
+  busyText.value = '正在从云端拉取并刷新目录…'
+  error.value = ''
+  try {
+    let pulled = 0
+    if (isAdmin.value) {
+      try {
+        const remote = await pullComputerBasicsFromCloud()
+        pulled = Number(remote.wrote) || 0
+      } catch {
+        /* 云端暂时连不上时仍读本机目录 */
+      }
+    }
+    clearComputerBasicsCache()
+    await wipeHandoutDiskCacheScope('computer')
+    folderTree.value = []
+    const next = await loadComputerBasicsTree(true)
+    tree.value = next
+    const count = next.reduce(function walk(n, node): number {
+      return n + node.entries.length + node.children.reduce(walk, 0)
+    }, 0)
+    ElMessage.success(
+      pulled > 0 ? `已从云端并入 ${pulled} 篇，本机共 ${count} 篇` : `已重新读取目录，共 ${count} 篇`,
+    )
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '强制刷新失败'
+    ElMessage.error(error.value)
+  } finally {
     busyText.value = ''
   }
 }
@@ -578,6 +596,15 @@ onBeforeUnmount(() => {
             @click="router.push({ name: 'computer-log' })"
           >
             日志
+          </el-button>
+          <el-button
+            size="small"
+            :icon="Refresh"
+            title="丢掉本地缓存，从服务器重新读取目录"
+            :disabled="Boolean(busyText) || loading"
+            @click="forceRefreshCatalog"
+          >
+            刷新
           </el-button>
         </el-button-group>
         <el-tooltip v-if="isAdmin" content="新增大类" placement="top">

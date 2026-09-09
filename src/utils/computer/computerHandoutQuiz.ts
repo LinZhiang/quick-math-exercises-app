@@ -1,4 +1,4 @@
-import { judgeExplanationConflictsCorrect } from '@/utils/quiz/handoutQuizConsistency'
+import { judgeExplanationConflictsCorrect, explanationContradictsCorrect, judgeOverclaimMarkedTrue } from '@/utils/quiz/handoutQuizConsistency'
 
 export type ComputerQuizKind = 'choice' | 'judge' | 'calc' | 'short'
 
@@ -179,6 +179,11 @@ export function extractComputerQuizSources(material: string): { id: string; labe
 
 export function extractComputerQuizSourceIds(material: string): string[] {
   return extractComputerQuizSources(material).map((x) => x.id)
+}
+
+/** 出题只读讲义，必须送全文；禁止抽样/截断后半专节。 */
+export function materialForComputerQuiz(material: string): string {
+  return String(material || '')
 }
 
 function parseKind(v: unknown): ComputerQuizKind | null {
@@ -421,6 +426,8 @@ export function parseComputerQuizAiItem(
   const correctText = options[correctIndex] ?? ''
   if (!correctText) return null
   if (kind === 'judge' && judgeExplanationConflictsCorrect(correctText, explanation)) return null
+  if (kind === 'judge' && judgeOverclaimMarkedTrue(stem, correctText)) return null
+  if (explanationContradictsCorrect(correctText, explanation)) return null
   if (kind === 'choice' && stemAnswerQuantityClash(stem, correctText)) return null
   if (kind === 'choice') {
     const rest = options.filter((_, i) => i !== correctIndex)

@@ -222,7 +222,7 @@ async function matchHandoutFormat() {
   if (!editing.value || !isAdmin.value || formatBusy.value) return
   try {
     await ElMessageBox.confirm(
-      '将按讲义格式识别标题、代码块和列表，并做小幅排版调整。知识点不改写。之后仍可在编辑器里微调。',
+      '将按讲义格式识别标题、代码块和列表，只做排版，不删节正文。若结果明显变短会自动放弃，原文不动。之后仍可在编辑器里微调。',
       'AI 自动匹配格式',
       { confirmButtonText: '开始匹配', cancelButtonText: '取消' },
     )
