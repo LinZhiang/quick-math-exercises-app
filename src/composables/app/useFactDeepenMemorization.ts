@@ -150,10 +150,15 @@ export function useFactDeepenMemorization() {
   function start(inputKind: FactDeepenKind) {
     kind.value = inputKind
     open.value = true
-    phase.value = 'pick'
     modeConfig.value = null
     catalog.value = []
     resetSessionFields()
+    const ms = listFactDeepenModes(inputKind)
+    if (ms.length === 1) {
+      openCatalog(ms[0]!.modeId)
+      return
+    }
+    phase.value = 'pick'
   }
 
   /** 选难度 → 打开固定分组目录 */

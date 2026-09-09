@@ -1,4 +1,4 @@
-<!-- 首页模块：知识训练、题库整理、计算机基础、前端学习、数据结构与算法。 -->
+<!-- 首页模块：知识训练、题库整理、计算机基础、前端学习、计算机单词和语法、数据结构与算法。 -->
 <script setup lang="ts">
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -39,6 +39,13 @@ const modules: {
     desc: '讲义树形分类；目录与正文保存在 Node，不写死在前端',
     ready: true,
     to: { name: 'frontend' },
+  },
+  {
+    id: 'cs-vocab',
+    title: '计算机单词和语法',
+    desc: '从计算机基础、前端学习讲义抽出的核心单词、语法与必记概念；加深识记',
+    ready: true,
+    to: { name: 'cs-vocab' },
   },
   {
     id: 'dsa',

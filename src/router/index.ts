@@ -1,5 +1,5 @@
 /**
- * 路由：首页模块 + 知识训练 /train/:section + 数据结构与算法 + 题库 + 计算机基础 + 前端学习 + 安装/设置。
+ * 路由：首页模块 + 知识训练 /train/:section + 数据结构与算法 + 题库 + 计算机基础 + 前端学习 + 计算机单词和语法 + 安装/设置。
  * chrome: 'home' 才显示安装/设置按钮（见 App.vue）。
  */
 import { createRouter, createWebHistory, type RouteLocationNormalized, type RouteLocationRaw } from 'vue-router'
@@ -21,6 +21,7 @@ import FrontendHandoutDetail from '@/views/frontend-learning/FrontendHandoutDeta
 import FrontendQuizBookPage from '@/views/frontend-learning/FrontendQuizBookPage.vue'
 import FrontendQuizBookNodePage from '@/views/frontend-learning/FrontendQuizBookNodePage.vue'
 import FrontendStudyLogPage from '@/views/frontend-learning/FrontendStudyLogPage.vue'
+import CsVocabView from '@/views/cs-vocab/CsVocabView.vue'
 import InstallSettingsPage from '@/views/common/InstallSettingsPage.vue'
 
 function legacyHomeRedirect(to: RouteLocationNormalized): RouteLocationRaw | true {
@@ -180,6 +181,12 @@ const router = createRouter({
       name: 'frontend-log',
       component: FrontendStudyLogPage,
       meta: { title: '学习日志', chrome: 'app' },
+    },
+    {
+      path: '/cs-vocab',
+      name: 'cs-vocab',
+      component: CsVocabView,
+      meta: { title: '计算机单词和语法', chrome: 'app' },
     },
     { path: '/personal-bank', redirect: { name: 'bank' } },
     { path: '/graphic', redirect: { name: 'train', params: { section: 'graphic' } } },

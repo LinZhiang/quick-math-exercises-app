@@ -81,6 +81,7 @@ export type MentalMathWrongSection =
   | 'op-other-reverse'
   | 'op-other-sectional'
   | 'formula-recite'
+  | 'cs-vocab'
 
 export type MentalMathWrongRecord = {
   fingerprint: string
@@ -208,6 +209,7 @@ export const MENTAL_MATH_WRONG_SECTION_LABELS: Record<MentalMathWrongSection, st
   'op-other-reverse': '其他运算 · 逆推问题',
   'op-other-sectional': '其他运算 · 分段问题',
   'formula-recite': '公式背诵',
+  'cs-vocab': '计算机单词和语法',
 }
 
 /** 模式 id → 错题分区；不在集合内则不记错题本 */
@@ -255,6 +257,9 @@ export function mentalMathModeToWrongSection(modeId: string): MentalMathWrongSec
   }
   if (modeId === 'economy-sense-normal' || modeId === 'economy-sense-deepen-normal') {
     return 'economy-sense'
+  }
+  if (modeId === 'cs-vocab-deepen-normal') {
+    return 'cs-vocab'
   }
   if (modeId === 'rhetoric-device-normal' || modeId === 'rhetoric-device-deepen-normal') {
     return 'rhetoric-device'

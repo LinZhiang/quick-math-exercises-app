@@ -103,7 +103,7 @@ function chromeFallback(): RouteLocationRaw {
   }
   if (name === 'dsa-log') return { name: 'dsa' }
   if (name === 'dsa-sub') return { name: 'dsa' }
-  if (name === 'train' || name === 'bank' || name === 'install' || name === 'settings' || name === 'computer' || name === 'frontend' || name === 'dsa') {
+  if (name === 'train' || name === 'bank' || name === 'install' || name === 'settings' || name === 'computer' || name === 'frontend' || name === 'dsa' || name === 'cs-vocab') {
     return { name: 'home' }
   }
   return { name: 'home' }

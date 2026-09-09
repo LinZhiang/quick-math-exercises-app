@@ -1,6 +1,9 @@
 /**
- * 生活常识 / 这是什么 / 经济学常识 / 体制管理 / 文言实词 / 文言虚词 / 文言句式 / 修辞手法 · 加深识记：按难度固定切成 20 题一组目录，可溯源。
+ * 生活常识 / 这是什么 / 经济学常识 / 体制管理 / 文言实词 / 文言虚词 / 文言句式 / 修辞手法 / 计算机单词和语法 · 加深识记：按难度固定切成 20 题一组目录，可溯源。
  */
+import { CS_VOCAB_BANK } from '@/utils/cs-vocab/csVocabBank'
+import type { CsVocabBankItem } from '@/utils/cs-vocab/csVocabBankTypes'
+import { csVocabTopicLabel, csVocabTopicOrder } from '@/utils/cs-vocab/csVocabTopics'
 import { ECONOMY_SENSE_BANK } from '@/utils/chinese/economySenseBank'
 import type { EconomySenseBankItem } from '@/utils/chinese/economySenseBankTypes'
 import { LIFE_SENSE_BANK } from '@/utils/chinese/lifeSenseBank.generated'
@@ -39,6 +42,7 @@ export type FactDeepenModeId =
   | 'wenyan-xuci-deepen-normal'
   | 'wenyan-jushi-deepen-normal'
   | 'rhetoric-device-deepen-normal'
+  | 'cs-vocab-deepen-normal'
 
 export type FactDeepenBankItem = {
   kind: FactDeepenKind
@@ -49,6 +53,8 @@ export type FactDeepenBankItem = {
   /** 题库原始解析 */
   baseExplanation: string
   key: string
+  /** 计算机单词和语法：考点类型 */
+  topic?: string
 }
 
 export type FactDeepenStudyCard = FactDeepenBankItem & {
@@ -95,6 +101,8 @@ export type FactDeepenGroupMeta = {
   /** 首题题干摘要，便于目录辨认 */
   previewStem: string
   title: string
+  /** 在本难度题池中的起始下标；缺省则按 groupIndex * batchSize */
+  poolStart?: number
 }
 
 export type FactDeepenGroupStat = {
@@ -226,6 +234,16 @@ export const FACT_DEEPEN_MODES: FactDeepenModeConfig[] = [
     batchSize: FACT_DEEPEN_BATCH_SIZE,
     desc: '固定分组目录 · 先识记再限时测 · 满组 77 秒',
   },
+  {
+    modeId: 'cs-vocab-deepen-normal',
+    kind: 'cs-vocab',
+    difficulty: 'normal',
+    label: '普通题',
+    durationSec: 100,
+    optionCount: 4,
+    batchSize: FACT_DEEPEN_BATCH_SIZE,
+    desc: '按考点类型固定分组 · 先识记再限时测 · 满组 100 秒',
+  },
 ]
 
 const GROUP_STATS_KEY = 'fact-deepen-group-stats-v1'
@@ -257,7 +275,8 @@ function toDeepenItem(
     | WenyanShiciBankItem
     | WenyanXuciBankItem
     | WenyanJushiBankItem
-    | RhetoricDeviceBankItem,
+    | RhetoricDeviceBankItem
+    | CsVocabBankItem,
 ): FactDeepenBankItem {
   return {
     kind,
@@ -267,6 +286,7 @@ function toDeepenItem(
     distractors: item.distractors,
     baseExplanation: item.explanation,
     key: item.key,
+    topic: 'topic' in item ? item.topic : undefined,
   }
 }
 
@@ -287,8 +307,10 @@ function poolFor(kind: FactDeepenKind, difficulty: FactDeepenDifficulty): FactDe
               ? WENYAN_SHICI_BANK
               : kind === 'wenyan-xuci'
                 ? WENYAN_XUCI_BANK
-                : kind === 'wenyan-jushi'
-                  ? WENYAN_JUSHI_BANK
+              : kind === 'wenyan-jushi'
+                ? WENYAN_JUSHI_BANK
+                : kind === 'cs-vocab'
+                  ? CS_VOCAB_BANK
                   : RHETORIC_DEVICE_BANK
   const seen = new Set<string>()
   const out: FactDeepenBankItem[] = []
@@ -298,6 +320,15 @@ function poolFor(kind: FactDeepenKind, difficulty: FactDeepenDifficulty): FactDe
     if (!k || seen.has(k)) continue
     seen.add(k)
     out.push(toDeepenItem(kind, item))
+  }
+  if (kind === 'cs-vocab') {
+    out.sort((a, b) => {
+      const oa = csVocabTopicOrder(a.topic || '')
+      const ob = csVocabTopicOrder(b.topic || '')
+      if (oa !== ob) return oa - ob
+      return normalizeKey(a.key).localeCompare(normalizeKey(b.key), 'zh-CN')
+    })
+    return out
   }
   out.sort((a, b) => normalizeKey(a.key).localeCompare(normalizeKey(b.key), 'zh-CN'))
   return out
@@ -326,6 +357,7 @@ export function factDeepenKindLabel(kind: FactDeepenKind): string {
   if (kind === 'wenyan-xuci') return '文言虚词'
   if (kind === 'wenyan-jushi') return '文言句式'
   if (kind === 'rhetoric-device') return '修辞手法'
+  if (kind === 'cs-vocab') return '计算机单词和语法'
   return '文言实词'
 }
 
@@ -346,11 +378,95 @@ export function refreshFactDeepenStudyCard(card: FactDeepenBankItem): FactDeepen
   return withResolvedExplanation(card)
 }
 
+function previewStemOf(stem: string): string {
+  const preview = stem.trim()
+  return preview.length > 28 ? `${preview.slice(0, 28)}…` : preview
+}
+
+/** 末组若只多 1–5 题，并进上一组（20–25），避免单独出现少于 20 题的组。 */
+export const CS_VOCAB_GROUP_EXTRA = 5
+
+function csVocabChunkSizes(topicLen: number, size: number, extra: number): number[] {
+  const cap = size + extra
+  if (topicLen <= 0) return []
+  if (topicLen <= cap) return [topicLen]
+  const sizes: number[] = []
+  let left = topicLen
+  while (left > 0) {
+    if (left <= cap) {
+      sizes.push(left)
+      break
+    }
+    sizes.push(size)
+    left -= size
+  }
+  if (sizes.length >= 2) {
+    const last = sizes[sizes.length - 1]!
+    const prev = sizes[sizes.length - 2]!
+    if (last < size && prev + last <= cap) {
+      sizes[sizes.length - 2] = prev + last
+      sizes.pop()
+    }
+  }
+  return sizes
+}
+
+function listCsVocabGroups(
+  modeId: FactDeepenModeId,
+  cfg: FactDeepenModeConfig,
+  pool: FactDeepenBankItem[],
+): FactDeepenGroupMeta[] {
+  const size = cfg.batchSize
+  const extra = CS_VOCAB_GROUP_EXTRA
+  const groups: FactDeepenGroupMeta[] = []
+  let i = 0
+  while (i < pool.length) {
+    const topic = pool[i]!.topic || ''
+    let j = i
+    while (j < pool.length && (pool[j]!.topic || '') === topic) j += 1
+    const topicLen = j - i
+    const topicLabel = csVocabTopicLabel(topic)
+    const chunks = csVocabChunkSizes(topicLen, size, extra)
+    const topicGroupTotal = chunks.length
+    let local = 0
+    chunks.forEach((sliceLen, partIdx) => {
+      const slice = pool.slice(i + local, i + local + sliceLen)
+      const groupIndex = groups.length
+      const fromNo = local + 1
+      const toNo = local + sliceLen
+      const partNo = partIdx + 1
+      const title =
+        topicGroupTotal === 1
+          ? `${topicLabel} · 第 ${fromNo}–${toNo} 题`
+          : `${topicLabel} · 第 ${partNo} 组 · 第 ${fromNo}–${toNo} 题`
+      groups.push({
+        modeId,
+        kind: cfg.kind,
+        difficulty: cfg.difficulty,
+        groupIndex,
+        groupNo: groupIndex + 1,
+        count: sliceLen,
+        fromNo,
+        toNo,
+        previewStem: previewStemOf(slice[0]!.stem),
+        title,
+        poolStart: i + local,
+      })
+      local += sliceLen
+    })
+    i = j
+  }
+  return groups
+}
+
 /** 列出某难度下全部固定分组（书籍目录） */
 export function listFactDeepenGroups(modeId: FactDeepenModeId): FactDeepenGroupMeta[] {
   const cfg = getFactDeepenModeConfig(modeId)
   const pool = poolFor(cfg.kind, cfg.difficulty)
   const size = cfg.batchSize
+  if (cfg.kind === 'cs-vocab') {
+    return listCsVocabGroups(modeId, cfg, pool)
+  }
   const groups: FactDeepenGroupMeta[] = []
   for (let i = 0; i < pool.length; i += size) {
     const slice = pool.slice(i, i + size)
@@ -358,7 +474,6 @@ export function listFactDeepenGroups(modeId: FactDeepenModeId): FactDeepenGroupM
     const groupIndex = groups.length
     const fromNo = i + 1
     const toNo = i + slice.length
-    const preview = slice[0]!.stem.trim()
     groups.push({
       modeId,
       kind: cfg.kind,
@@ -368,11 +483,12 @@ export function listFactDeepenGroups(modeId: FactDeepenModeId): FactDeepenGroupM
       count: slice.length,
       fromNo,
       toNo,
-      previewStem: preview.length > 28 ? `${preview.slice(0, 28)}…` : preview,
+      previewStem: previewStemOf(slice[0]!.stem),
       title:
         slice.length === size
           ? `第 ${groupIndex + 1} 组 · 第 ${fromNo}–${toNo} 题`
           : `第 ${groupIndex + 1} 组 · 第 ${fromNo}–${toNo} 题（末组 ${slice.length} 题）`,
+      poolStart: i,
     })
   }
   return groups
@@ -385,18 +501,23 @@ export function loadFactDeepenGroup(
 ): FactDeepenStudyCard[] {
   const cfg = getFactDeepenModeConfig(modeId)
   const pool = poolFor(cfg.kind, cfg.difficulty)
-  const size = cfg.batchSize
-  const start = groupIndex * size
+  const groups = listFactDeepenGroups(modeId)
+  const meta = groups.find((g) => g.groupIndex === groupIndex)
+  if (!meta) {
+    throw new Error('该组不存在')
+  }
+  const start = meta.poolStart ?? groupIndex * cfg.batchSize
   if (start < 0 || start >= pool.length) {
     throw new Error('该组不存在')
   }
-  return pool.slice(start, start + size).map(withResolvedExplanation)
+  return pool.slice(start, start + meta.count).map(withResolvedExplanation)
 }
 
-/** 本组测验时长（秒）；末组不足 20 题按比例缩时，至少 12 秒 */
+/** 本组测验时长（秒）；不足 20 题按比例缩时，超过 20 题按比例加时，至少 12 秒 */
 export function factDeepenQuizDurationSec(cfg: FactDeepenModeConfig, questionCount: number): number {
   const full = cfg.batchSize
-  if (questionCount >= full) return cfg.durationSec
+  if (questionCount <= 0) return 12
+  if (questionCount === full) return cfg.durationSec
   const scaled = Math.round((cfg.durationSec * questionCount) / full)
   return Math.max(12, scaled)
 }

@@ -12,9 +12,10 @@ export type FactBankKind =
   | 'wenyan-xuci'
   | 'wenyan-jushi'
   | 'rhetoric-device'
+  | 'cs-vocab'
 
 const STORAGE_KEY = 'fact-explanation-overrides-v1'
-const MAX_ENTRIES = 800
+const MAX_ENTRIES = 2000
 
 export type FactExplanationOverrideStore = {
   v: 1

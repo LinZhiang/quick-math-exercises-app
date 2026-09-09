@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import { useFactDeepenMemorization } from '@/composables/app/useFactDeepenMemorization'
-import type { FactDeepenKind } from '@/utils/chinese/factDeepenMemorization'
+import { CS_VOCAB_GROUP_EXTRA, type FactDeepenKind } from '@/utils/chinese/factDeepenMemorization'
 import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/PracticeCompletionStat.vue'
 
 const emit = defineEmits<{ (e: 'active', v: boolean): void }>()
@@ -10,6 +10,7 @@ const api = useFactDeepenMemorization()
 
 const {
   open,
+  kind,
   kindLabel,
   phase,
   modes,
@@ -52,6 +53,15 @@ const cardsRemain = computed(
   () => !!modeConfig.value && studyIndex.value + 1 < cards.value.length,
 )
 
+/** 计算机单词和语法：点目录行即识记；其它模块仍用「识记 / 直接测验」按钮 */
+const catalogClickStudy = computed(() => kind.value === 'cs-vocab')
+
+const catalogCapHint = computed(() => {
+  const n = modeConfig.value?.batchSize ?? 20
+  if (kind.value === 'cs-vocab') return `${n}–${n + CS_VOCAB_GROUP_EXTRA}`
+  return `最多 ${n}`
+})
+
 defineExpose({
   start: (kind: FactDeepenKind) => start(kind),
   close,
@@ -71,8 +81,8 @@ function optKey(i: number) {
       <div>
         <p class="fd-panel__title">加深识记 · {{ kindLabel }}</p>
         <p v-if="modeConfig && phase === 'catalog'" class="fd-panel__sub">
-          {{ modeConfig.label }} · 共 {{ catalogRows.length }} 组（每组最多
-          {{ modeConfig.batchSize }} 题）
+          {{ modeConfig.label }} · 共 {{ catalogRows.length }} 组（每组 {{ catalogCapHint }}
+          题）
         </p>
         <p v-else-if="modeConfig && activeGroup && phase !== 'pick'" class="fd-panel__sub">
           {{ modeConfig.label }} · {{ activeGroup.title }}
@@ -81,7 +91,7 @@ function optKey(i: number) {
         </p>
       </div>
       <div class="fd-panel__top-actions">
-        <el-button v-if="phase === 'catalog'" size="small" plain @click="backToPick">
+        <el-button v-if="phase === 'catalog' && modes.length > 1" size="small" plain @click="backToPick">
           返回难度
         </el-button>
         <el-button
@@ -120,10 +130,21 @@ function optKey(i: number) {
 
     <template v-else-if="phase === 'catalog'">
       <p class="fd-hint">
-        以下分组按题库固定切分，组号不变。可点「识记」先看解析，或点「直接测验」跳过识记（测验题序乱序）。
+        <template v-if="catalogClickStudy">
+          点某一项进入识记。右侧「直接测验」可跳过识记（测验题序乱序）。
+        </template>
+        <template v-else>
+          以下分组按题库固定切分，组号不变。可点「识记」先看解析，或点「直接测验」跳过识记（测验题序乱序）。
+        </template>
       </p>
       <ol class="fd-toc">
-        <li v-for="g in catalogRows" :key="g.groupIndex" class="fd-toc__row">
+        <li
+          v-for="g in catalogRows"
+          :key="g.groupIndex"
+          class="fd-toc__row"
+          :class="{ 'fd-toc__row--enter': catalogClickStudy }"
+          @click="catalogClickStudy ? beginStudyGroup(g.groupIndex) : undefined"
+        >
           <div class="fd-toc__main">
             <span class="fd-toc__title">{{ g.title }}</span>
             <span class="fd-toc__preview">{{ g.previewStem }}</span>
@@ -132,8 +153,15 @@ function optKey(i: number) {
             </span>
             <span v-else class="fd-toc__stat fd-toc__stat--muted">未测</span>
           </div>
-          <div class="fd-toc__actions">
-            <el-button size="small" plain @click="beginStudyGroup(g.groupIndex)">识记</el-button>
+          <div class="fd-toc__actions" @click.stop>
+            <el-button
+              v-if="!catalogClickStudy"
+              size="small"
+              plain
+              @click="beginStudyGroup(g.groupIndex)"
+            >
+              识记
+            </el-button>
             <el-button size="small" type="primary" @click="beginQuizGroup(g.groupIndex)">
               直接测验
             </el-button>
@@ -255,7 +283,7 @@ function optKey(i: number) {
       </div>
       <div class="fd-actions">
         <el-button type="primary" @click="backToCatalog">返回目录</el-button>
-        <el-button plain @click="restartPick">换难度</el-button>
+        <el-button v-if="modes.length > 1" plain @click="restartPick">换难度</el-button>
         <el-button text @click="close">退出</el-button>
       </div>
     </template>
@@ -357,12 +385,24 @@ function optKey(i: number) {
 .fd-toc__row {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
+  align-items: center;
+  gap: 12px 14px;
+  padding: 12px 14px;
   border-radius: 8px;
   border: 1px solid var(--app-border-soft, #e4e4e8);
   background: var(--app-surface-alt, #f7f7f8);
+}
+
+.fd-toc__row--enter {
+  cursor: pointer;
+}
+
+.fd-toc__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-left: auto;
 }
 
 .fd-toc__main {
@@ -372,13 +412,6 @@ function optKey(i: number) {
   grid-template-columns: 1fr auto;
   grid-template-rows: auto auto;
   gap: 2px 12px;
-}
-
-.fd-toc__actions {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
 }
 
 .fd-toc__title {

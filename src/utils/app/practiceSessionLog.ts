@@ -281,6 +281,11 @@ const KNOWN_ITEM_LABELS: Record<string, { categoryId: string; categoryLabel: str
       categoryLabel: '经济学常识',
       itemLabel: '经济学常识 · 加深识记 · 普通题',
     },
+    'cs-vocab-deepen-normal': {
+      categoryId: 'cs-vocab',
+      categoryLabel: '计算机单词和语法',
+      itemLabel: '计算机单词和语法 · 加深识记 · 普通题',
+    },
     'rhetoric-device-normal': {
       categoryId: 'rhetoric-device',
       categoryLabel: '修辞手法',
@@ -667,6 +672,18 @@ const PREFIX_RULES: PrefixRule[] = [
     },
   },
   {
+    prefix: 'cs-vocab-',
+    categoryId: 'cs-vocab',
+    categoryLabel: '计算机单词和语法',
+    labelFor: (mid, difficulty) => {
+      const d = difficulty || mid
+      if (String(mid).includes('deepen')) {
+        return `计算机单词和语法 · 加深识记 · ${difficultyLabel(d) || d}题`
+      }
+      return `计算机单词和语法 · ${difficultyLabel(d) || d}题`
+    },
+  },
+  {
     prefix: 'rhetoric-device-',
     categoryId: 'rhetoric-device',
     categoryLabel: '修辞手法',
@@ -930,6 +947,7 @@ export const PRACTICE_LOG_CATEGORIES: { id: string; label: string }[] = [
   { id: 'life-sense', label: '生活常识' },
   { id: 'what-is-this', label: '这是什么' },
   { id: 'economy-sense', label: '经济学常识' },
+  { id: 'cs-vocab', label: '计算机单词和语法' },
   { id: 'system-mgmt', label: '体制管理' },
   { id: 'wenyan-shici', label: '文言实词' },
   { id: 'hanzi-pattern', label: '汉字规律' },

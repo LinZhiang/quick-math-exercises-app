@@ -18,6 +18,10 @@ server/certs
 server/data
 server/seeds/
 
+# 计算机单词和语法题库：只留本机，不进公开仓库
+src/utils/cs-vocab/bank.generated.json
+scripts/cs-vocab-bank.mjs
+
 # 讲义静态快照：只留本机，不进仓库、不打进 Pages 包
 public/fl-data/
 public/cb-data/

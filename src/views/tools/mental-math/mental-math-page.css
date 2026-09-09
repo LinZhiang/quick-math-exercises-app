@@ -206,6 +206,15 @@
   box-shadow: 0 4px 16px rgba(61, 155, 122, 0.12);
 }
 
+.mode-card--cs-vocab {
+  border-color: color-mix(in srgb, #0f766e 28%, var(--app-border-soft));
+}
+
+.mode-card--cs-vocab:hover {
+  border-color: color-mix(in srgb, #0f766e 50%, var(--app-border-soft));
+  box-shadow: 0 4px 16px rgba(15, 118, 110, 0.12);
+}
+
 .mode-card--what-is-this {
   border-color: color-mix(in srgb, #2563eb 28%, var(--app-border-soft));
 }
