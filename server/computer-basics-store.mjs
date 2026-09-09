@@ -12,6 +12,7 @@ import { sliceCatalogLayer, treeParentFromQuery } from '../functions/_lib/catalo
 import {
   assertCatalogNotStub,
   assertHandoutNotTruncated,
+  assertHandoutNotTooLarge,
   graftUserCatalog,
   preserveUserSubtree,
   stripCatalogClientFlags,
@@ -74,8 +75,9 @@ function writeMediaFile(itemId, index, mime, b64) {
 }
 
 function extractDataImages(content, itemId) {
-  let index = nextMediaIndex(itemId)
   let out = String(content || '')
+  if (!out.includes('data:image')) return out
+  let index = nextMediaIndex(itemId)
   out = out.replace(
     /!\[([^\]]*)]\(data:image\/([a-zA-Z0-9.+-]+);base64,([^)]+)\)/g,
     (_all, alt, mime, b64) => {
@@ -110,6 +112,7 @@ function writeItemRecord(id, rec) {
       if (e instanceof Error && e.message.includes('拒绝用过短正文')) throw e
     }
   }
+  assertHandoutNotTooLarge(rec.content)
   atomicWriteFile(
     file,
     `${JSON.stringify({ ...rec, id, updatedAt: new Date().toISOString() }, null, 2)}\n`,

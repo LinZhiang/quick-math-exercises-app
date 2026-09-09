@@ -125,3 +125,15 @@ export function assertHandoutNotTruncated(prevContent, nextContent, id) {
     )
   }
 }
+
+export const MAX_HANDOUT_CHARS = 1_200_000
+
+export function assertHandoutNotTooLarge(content) {
+  const n = String(content || '').length
+  if (n <= MAX_HANDOUT_CHARS) return
+  const err = new Error(
+    `正文太大（约 ${Math.ceil(n / 1000)} KB），云端写不下。请把大图改成「拍照上传」，不要把原图整段贴进正文。`,
+  )
+  err.code = 'HANDOUT_TOO_LARGE'
+  throw err
+}

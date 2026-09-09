@@ -25,7 +25,7 @@ import {
 } from '@/utils/frontend/frontendHandoutPhotoExtract'
 import { aiMatchHandoutFormat } from '@/utils/markdown/aiMatchHandoutFormat'
 import { aiRequestProgressText } from '@/utils/app/aiProviderStore'
-import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
+import { sanitizeRichHtml, handoutHtmlForSave } from '@/utils/markdown/richTextHtml'
 import { isWenguAdmin, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 import { logFrontendHandoutView } from '@/utils/frontend/frontendStudyLog'
 import FrontendAskPanel from './FrontendAskPanel.vue'
@@ -175,7 +175,7 @@ async function saveEdit() {
   try {
     item.value = await updateFrontendItem(item.value.id, {
       title,
-      content: draftContent.value,
+      content: handoutHtmlForSave(draftContent.value),
     })
     ElMessage.success('已保存')
     leaveEditQuery()

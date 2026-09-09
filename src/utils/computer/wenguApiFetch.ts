@@ -50,6 +50,9 @@ function nonJsonMessage(res: Response, text: string): string {
     if (res.status === 413) {
       return '这篇讲义太大，云端拒绝保存。请把超大图改成「拍照上传」插入，不要把原图整段塞进正文。'
     }
+    if (res.status === 500) {
+      return '云端保存失败（HTTP 500）。多半是这篇正文或配图把接口撑崩了。请先点取消，把大图改成拍照上传后再保存，不要连续猛点保存。'
+    }
     if (res.status === 504 || res.status === 524 || res.status === 502) {
       return '云端接口超时或暂时读不到。不是没部署 Pages Functions，请稍后重试；若总失败，把这篇里的大图改成插入照片再保存。'
     }

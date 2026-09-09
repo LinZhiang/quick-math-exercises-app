@@ -17,6 +17,7 @@ import { sliceCatalogLayer, treeParentFromRequest } from './catalogLayer.js'
 import {
   assertCatalogNotStub,
   assertHandoutNotTruncated,
+  assertHandoutNotTooLarge,
   graftUserCatalog,
   stripCatalogClientFlags,
 } from './catalogProtect.js'
@@ -219,6 +220,7 @@ async function putItemRecord(env, id, item) {
       if (e instanceof Error && e.message.includes('拒绝用过短正文')) throw e
     }
   }
+  assertHandoutNotTooLarge(item.content)
   await putRecord(env, itemKey(id), JSON.stringify(stampItem(item, id)))
 }
 
@@ -376,8 +378,9 @@ async function writeMediaFile(env, itemId, index, mime, b64) {
 }
 
 async function extractDataImages(env, content, itemId) {
-  let index = await nextMediaIndex(env, itemId)
   let out = String(content || '')
+  if (!out.includes('data:image')) return out
+  let index = await nextMediaIndex(env, itemId)
   const mdRe = /!\[([^\]]*)]\(data:image\/([a-zA-Z0-9.+-]+);base64,([^)]+)\)/g
   const mdHits = [...out.matchAll(mdRe)]
   for (const hit of mdHits) {
@@ -499,6 +502,9 @@ export async function handleFrontendLearning(env, request, pathParam) {
 
     return json({ ok: false, message: '未找到该接口' }, 404)
   } catch (e) {
+    if (e?.code === 'HANDOUT_TOO_LARGE') {
+      return json({ ok: false, message: e.message }, 413)
+    }
     if (e?.code === 'USER_CATALOG_UNAVAILABLE') {
       return json(
         {

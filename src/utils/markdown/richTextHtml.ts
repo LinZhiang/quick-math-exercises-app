@@ -70,6 +70,19 @@ export function compactTrailingEmptyHtml(html: string): string {
   return wrap.innerHTML.trim()
 }
 
+/** 保存讲义前：代码块只留源码，去掉高亮 span，避免把展示 HTML 写进云端把 Worker 撑爆。 */
+export function handoutHtmlForSave(html: string): string {
+  const sanitized = compactTrailingEmptyHtml(html)
+  if (typeof document === 'undefined') return sanitized
+  const wrap = document.createElement('div')
+  wrap.innerHTML = sanitized
+  wrap.querySelectorAll('pre code, pre.hl-code').forEach((el) => {
+    const text = el.textContent ?? ''
+    el.replaceChildren(document.createTextNode(text))
+  })
+  return wrap.innerHTML
+}
+
 export function richHtmlIsEmpty(html: string): boolean {
   const sanitized = sanitizeRichHtml(html)
   const text = sanitized
