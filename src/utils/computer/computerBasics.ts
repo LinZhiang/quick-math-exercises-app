@@ -212,11 +212,14 @@ export function isComputerHtmlContent(raw: string): boolean {
   return /<[a-z][\s\S]*>/i.test(t)
 }
 
-export function computerContentToHtml(raw: string): string {
+export function computerContentToEditorHtml(raw: string): string {
   const t = (raw ?? '').trim()
   if (!t) return ''
-  const html = isComputerHtmlContent(t) ? sanitizeRichHtml(t) : markdownToDisplaySafeHtml(t)
-  return highlightHandoutCodeHtml(html)
+  return isComputerHtmlContent(t) ? sanitizeRichHtml(t) : markdownToDisplaySafeHtml(t)
+}
+
+export function computerContentToHtml(raw: string): string {
+  return highlightHandoutCodeHtml(computerContentToEditorHtml(raw))
 }
 
 let treeCache: ComputerTreeNode[] | null = null

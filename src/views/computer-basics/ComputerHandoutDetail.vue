@@ -9,6 +9,7 @@ import ImageCropPanel from '@/components/ImageCropPanel.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import RichTextView from '@/components/RichTextView.vue'
 import {
+  computerContentToEditorHtml,
   computerContentToHtml,
   deleteComputerItem,
   listReadyComputerEntries,
@@ -126,7 +127,7 @@ function exportMarkdown() {
 function applyEditDraft() {
   if (!item.value || !isAdmin.value) return
   draftTitle.value = item.value.title
-  draftContent.value = computerContentToHtml(item.value.content)
+  draftContent.value = computerContentToEditorHtml(item.value.content)
   editing.value = true
 }
 

@@ -47,14 +47,24 @@ function nonJsonMessage(res: Response, text: string): string {
     } catch {
       path = ''
     }
+    if (res.status === 413) {
+      return '这篇讲义太大，云端拒绝保存。请把超大图改成「拍照上传」插入，不要把原图整段塞进正文。'
+    }
+    if (res.status === 504 || res.status === 524 || res.status === 502) {
+      return '云端接口超时或暂时读不到。不是没部署 Pages Functions，请稍后重试；若总失败，把这篇里的大图改成插入照片再保存。'
+    }
     if (path.includes('computer-basics') || path.includes('/api/media/computer-basics')) {
       return (
-        '云端还没有计算机基础数据接口（当前返回了网页）。请部署本仓库的 Pages Functions。这与 DEEPSEEK_API_KEY 无关。'
+        '云端计算机基础接口返回了网页而不是数据（HTTP ' +
+        res.status +
+        '）。先确认开的是 pages.dev 本站，不要填错自定义 API。这与 DEEPSEEK_API_KEY 无关。'
       )
     }
     if (path.includes('frontend-learning') || path.includes('/api/media/frontend-learning')) {
       return (
-        '云端还没有前端学习数据接口（当前返回了网页）。请部署本仓库的 Pages Functions。这与 DEEPSEEK_API_KEY 无关。'
+        '云端前端学习接口返回了网页而不是数据（HTTP ' +
+        res.status +
+        '）。先确认开的是 pages.dev 本站，不要填错自定义 API。这与 DEEPSEEK_API_KEY 无关。'
       )
     }
     return `接口返回了网页而不是数据（${path || `HTTP ${res.status}`}）。${offlineHint()}`

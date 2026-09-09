@@ -221,15 +221,16 @@ function promoteInlineJs(root: HTMLElement, doc: Document) {
   }
 }
 
-/** 编辑器插入的 JS 代码块（深色高亮，和讲义展示一致）。 */
+/** 编辑器插入的 JS 代码块（深色高亮，和讲义展示一致）。不要改写用户原文。 */
 export function buildJsCodeBlockHtml(code: string): string {
-  const highlighted = highlightTs(prepareJsBlockSource(code))
+  const body = stripJsLangPrefix(code)
+  const highlighted = highlightTs(body) || escapeHtml(body)
   return `<div class="md-table-scroll"><pre class="hl-code"><code class="language-js">${highlighted}</code></pre></div>`
 }
 
 export function jsSourceFromPre(pre: HTMLElement): string {
   const code = pre.querySelector('code')
-  return prepareJsBlockSource(decodeHandoutCodeHtml(code?.innerHTML ?? pre.innerHTML), { expand: false })
+  return stripJsLangPrefix(decodeHandoutCodeHtml(code?.innerHTML ?? pre.innerHTML))
 }
 
 function materializeMarkdownFences(html: string): string {

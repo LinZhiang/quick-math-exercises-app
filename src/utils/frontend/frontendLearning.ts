@@ -213,11 +213,14 @@ export function isFrontendHtmlContent(raw: string): boolean {
   return /^</.test(t)
 }
 
-export function frontendContentToHtml(raw: string): string {
+export function frontendContentToEditorHtml(raw: string): string {
   const t = (raw ?? '').trim()
   if (!t) return ''
-  const html = isFrontendHtmlContent(t) ? sanitizeRichHtml(t) : markdownToDisplaySafeHtml(t)
-  return highlightHandoutCodeHtml(html)
+  return isFrontendHtmlContent(t) ? sanitizeRichHtml(t) : markdownToDisplaySafeHtml(t)
+}
+
+export function frontendContentToHtml(raw: string): string {
+  return highlightHandoutCodeHtml(frontendContentToEditorHtml(raw))
 }
 
 let treeCache: FrontendTreeNode[] | null = null

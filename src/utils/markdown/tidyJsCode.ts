@@ -520,12 +520,6 @@ function formatQuizJsTextbook(src: string): string {
   return out.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
 }
 
-function prettyJsOneLiner(src: string): string {
-  const s = src.trim()
-  if (!s || s.includes('\n')) return s
-  return formatQuizJsTextbook(s)
-}
-
 /** 函数 / 实例 / 验证之间空一行，贴近教程体例。 */
 function insertTextbookBlankLines(code: string): string {
   const lines = String(code ?? '').replace(/\r\n/g, '\n').split('\n')
@@ -595,13 +589,11 @@ export function jsSourceUnbalanced(code: string): boolean {
   return braces !== 0 || parens !== 0 || squares !== 0
 }
 
-/** 展示前整理代码块：去掉误入的 js 标记；同一句被拆开的拼回一行。 */
+/** 展示前整理代码块：去掉误入的 js 标记；同一句被拆开的拼回一行。不要用测验排版改写讲义。 */
 export function prepareJsBlockSource(code: string, opts?: { expand?: boolean }): string {
   const stripped = stripJsLangPrefix(code)
-  const repaired = repairTruncatedQuizJs(stripped)
-  const joined = joinContinuedJsLines(repaired)
-  const expanded = prettyJsOneLiner(joined)
-  return tidyJsFenceBody(layoutJsStructures(expanded), opts)
+  const joined = joinContinuedJsLines(stripped)
+  return tidyJsFenceBody(layoutJsStructures(joined), opts)
 }
 
 /** 围栏内再遇到 ```lang 时先闭合，避免结束符被写成 ```js 把后文粘进代码块。 */
