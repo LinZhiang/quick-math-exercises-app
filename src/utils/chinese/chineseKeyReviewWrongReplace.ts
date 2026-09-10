@@ -70,6 +70,7 @@ import {
   removeChineseGeographyCommonSenseWrong,
 } from '@/utils/chinese/chineseGeographyCommonSenseStorage'
 import { chinesePracticeDataTick } from '@/utils/chinese/chineseIdiomStorage'
+import { readUserJson, writeUserJson } from '@/utils/app/syncedUserJson'
 import {
   chineseWrongReviewScope,
   recordWrongBookReviewAttempt,
@@ -221,16 +222,11 @@ function writeWrongWithCount(
 
   const key = storageKeyFor(source)
   if (!key) return
-  try {
-    const raw = localStorage.getItem(key)
-    const rows: WrongRow[] = raw ? (JSON.parse(raw) as WrongRow[]) : []
-    const list = Array.isArray(rows) ? rows.filter((r) => r.fingerprint !== fp) : []
-    list.unshift(base)
-    localStorage.setItem(key, JSON.stringify(list))
-    chinesePracticeDataTick.value += 1
-  } catch {
-    /* ignore */
-  }
+  const rows = readUserJson<WrongRow[]>(key, [])
+  const list = Array.isArray(rows) ? rows.filter((r) => r.fingerprint !== fp) : []
+  list.unshift(base)
+  writeUserJson(key, list)
+  chinesePracticeDataTick.value += 1
 }
 
 /** 与各 *Storage.ts 中 WRONG_KEY 对齐 */

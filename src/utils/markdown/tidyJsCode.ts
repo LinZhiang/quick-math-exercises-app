@@ -171,6 +171,8 @@ function joinContinuedJsLines(code: string): string {
       const continues = /^[+\-*/%<>&|?.,:(]/.test(next)
       const exprish = /[=+\-*/%<>&|?:]/.test(cur)
       if (!dangling && !(continues && exprish)) break
+      if (/\/\//.test(cur) && !/:\/\//.test(cur)) break
+      if (/\/\//.test(next) && !/:\/\//.test(next)) break
       if (/^(function|class|const|let|var|if|for|while|try|catch|finally|else)\b/.test(next)) break
       line = `${cur} ${next}`
       i += 1
@@ -265,6 +267,9 @@ function layoutJsStructures(src: string): string {
         i += 1
         continue
       }
+      out += ch
+      i += 1
+      continue
     } else if (blockComment) {
       out += ch
       if (ch === '*' && s[i + 1] === '/') {
@@ -372,6 +377,9 @@ const JS_STMT_START =
 const JS_HOLD_KW =
   /^(const|let|var|function|class|async|await|new|return|throw|typeof|void|delete|yield|else|do|case|in|of|instanceof|extends|from|import|export|if|for|while|switch|catch)$/
 
+const JS_AFTER_LINE_COMMENT =
+  /(?:;|>)\s*(?=(?:function|const|let|var|class|document|window|setTimeout|setInterval|console|if|for|while|return|async)\b)|\s(?=(?:setTimeout|setInterval|document|window|console)\b)/
+
 function formatQuizJsTextbook(src: string): string {
   const s = String(src ?? '').replace(/\r\n/g, '\n').trim()
   if (!s) return s
@@ -421,11 +429,16 @@ function formatQuizJsTextbook(src: string): string {
     }
     if (ch === '/' && s[i + 1] === '/') {
       let k = i + 2
-      while (k < n && s[k] !== '\n') k += 1
+      const lineEnd = s.indexOf('\n', k)
+      const rest = lineEnd < 0 ? s.slice(k) : s.slice(k, lineEnd)
+      const cut = rest.search(JS_AFTER_LINE_COMMENT)
+      k = cut >= 0 ? k + cut + (rest[cut] === ';' || rest[cut] === '>' ? 1 : 0) : lineEnd < 0 ? n : lineEnd
       out = out.replace(/[ \t]+$/, '')
       if (out && !out.endsWith('\n')) nl()
       out += s.slice(i, k).trimEnd()
       i = k
+      while (i < n && /[ \t]/.test(s[i]!)) i += 1
+      if (i < n && s[i] !== '\n') nl()
       continue
     }
     if (ch === '/' && s[i + 1] === '*') {
@@ -589,11 +602,9 @@ export function jsSourceUnbalanced(code: string): boolean {
   return braces !== 0 || parens !== 0 || squares !== 0
 }
 
-/** 展示前整理代码块：去掉误入的 js 标记；同一句被拆开的拼回一行。不要用测验排版改写讲义。 */
+/** 展示前整理代码块：去掉误入的 js 标记；挤在一行的先按语句拆开，再排版。 */
 export function prepareJsBlockSource(code: string, opts?: { expand?: boolean }): string {
-  const stripped = stripJsLangPrefix(code)
-  const joined = joinContinuedJsLines(stripped)
-  return tidyJsFenceBody(layoutJsStructures(joined), opts)
+  return repairAndPrettyQuizJs(code, opts)
 }
 
 /** 围栏内再遇到 ```lang 时先闭合，避免结束符被写成 ```js 把后文粘进代码块。 */

@@ -1,4 +1,5 @@
 import { judgeExplanationConflictsCorrect, explanationContradictsCorrect, judgeOverclaimMarkedTrue } from '@/utils/quiz/handoutQuizConsistency'
+import { stripLeadingAnswerEcho } from '@/utils/quiz/stripAnswerEcho'
 
 export type ComputerQuizKind = 'choice' | 'judge' | 'calc' | 'short'
 
@@ -72,6 +73,33 @@ export function buildComputerQuizFingerprint(input: {
   const stem = input.stem.replace(/\s+/g, '').slice(0, 80)
   const ans = input.correctText.replace(/\s+/g, '').slice(0, 40)
   return `cb-quiz:${input.kind}:${stem}:${ans}`
+}
+
+function computerQuizAskPattern(stem: string): string {
+  return String(stem || '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, '')
+    .slice(0, 36)
+}
+
+export function computerQuizTooSimilar(
+  q: { kind: ComputerQuizKind; stem: string; term?: string },
+  seen: Iterable<string>,
+): boolean {
+  const bag = new Set(
+    [...seen].map((s) =>
+      String(s || '')
+        .replace(/\s+/g, '')
+        .slice(0, 80),
+    ),
+  )
+  const term = String(q.term || '').replace(/\s+/g, '')
+  if (term && bag.has(`term:${q.kind}:${term}`)) return true
+  const ask = computerQuizAskPattern(q.stem)
+  if (ask && bag.has(`ask:${q.kind}:${ask}`)) return true
+  const stem = q.stem.replace(/```[\s\S]*?```/g, '').replace(/\s+/g, '').slice(0, 48)
+  return Boolean(stem && bag.has(`stem:${q.kind}:${stem}`))
 }
 
 function asText(v: unknown): string {
@@ -161,7 +189,7 @@ export function sanitizeComputerQuizForDisplay(q: {
     term: harvested.texts[1] ?? '',
     options: (q.options ?? []).map((opt) => stripComputerQuizHintGloss(opt)),
     correctText: harvested.texts[2] ?? '',
-    explanation: mergeGlossIntoExplanation(q.explanation, harvested.glosses),
+    explanation: stripLeadingAnswerEcho(mergeGlossIntoExplanation(q.explanation, harvested.glosses), harvested.texts[2] ?? ''),
   }
 }
 

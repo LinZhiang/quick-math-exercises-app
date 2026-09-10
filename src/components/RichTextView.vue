@@ -175,10 +175,10 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
 .rich-text-view :deep(pre *),
 .rich-text-view :deep(pre code) {
   text-align: left;
-  white-space: pre;
-  word-break: normal;
-  overflow-wrap: normal;
-  word-wrap: normal;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  word-wrap: break-word;
   hyphens: none;
 }
 
@@ -191,22 +191,21 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
   font-size: 14px;
   line-height: 1.7;
-  width: auto;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  white-space: pre;
+  overflow-x: visible;
+  overflow-y: visible;
+  white-space: pre-wrap;
   tab-size: 2;
 }
 
 .rich-text-view :deep(pre code) {
-  white-space: pre;
+  white-space: pre-wrap;
   display: block;
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
+  min-width: 0;
   font: inherit;
   padding: 0;
   background: transparent;
@@ -228,9 +227,9 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
 
 .rich-text-view :deep(.md-table-scroll > pre) {
   margin: 0;
-  max-width: none;
-  width: max-content;
-  min-width: 100%;
+  max-width: 100%;
+  width: 100%;
+  min-width: 0;
   overflow: visible;
 }
 

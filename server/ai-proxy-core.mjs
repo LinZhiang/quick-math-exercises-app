@@ -7,9 +7,16 @@ import express from 'express'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { attachAuthRoutes, isAuthConfigured, noStoreCacheMiddleware, requireAuth } from './auth-core.mjs'
+import {
+  attachAuthRoutes,
+  isAuthConfigured,
+  mutatingRequestGuard,
+  noStoreCacheMiddleware,
+  requireAuth,
+} from './auth-core.mjs'
 import { attachComputerBasicsRoutes } from './computer-basics-store.mjs'
 import { attachFrontendLearningRoutes } from './frontend-learning-store.mjs'
+import { attachUserKvRoutes } from './user-kv-store.mjs'
 import {
   appendAiRequestLog,
   readRecentAiRequestLogs,
@@ -94,10 +101,12 @@ export function createAiProxyApp() {
   app.use(corsMiddleware)
   app.use(noStoreCacheMiddleware)
   app.use(express.json({ limit: '32mb' }))
+  app.use(mutatingRequestGuard)
 
   attachAuthRoutes(app)
   attachComputerBasicsRoutes(app)
   attachFrontendLearningRoutes(app)
+  attachUserKvRoutes(app)
 
   app.get('/health', (_req, res) => {
     res.json({

@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { readUserJson, writeUserJson } from '@/utils/app/syncedUserJson'
 
 /** 支持错题集的口算分区（与侧栏 id 对齐） */
 export type MentalMathWrongSection =
@@ -107,25 +108,19 @@ function notifyChanged() {
 }
 
 function readAll(): MentalMathWrongRecord[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as unknown
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter(
-      (r): r is MentalMathWrongRecord =>
-        !!r &&
-        typeof r === 'object' &&
-        typeof (r as MentalMathWrongRecord).fingerprint === 'string' &&
-        typeof (r as MentalMathWrongRecord).section === 'string',
-    )
-  } catch {
-    return []
-  }
+  const parsed = readUserJson<unknown>(STORAGE_KEY, [])
+  if (!Array.isArray(parsed)) return []
+  return parsed.filter(
+    (r): r is MentalMathWrongRecord =>
+      !!r &&
+      typeof r === 'object' &&
+      typeof (r as MentalMathWrongRecord).fingerprint === 'string' &&
+      typeof (r as MentalMathWrongRecord).section === 'string',
+  )
 }
 
 function writeAll(rows: MentalMathWrongRecord[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(rows))
+  writeUserJson(STORAGE_KEY, rows)
   notifyChanged()
 }
 

@@ -262,6 +262,37 @@ function rememberFrontendTree(tree: FrontendTreeNode[], revision?: string, viewe
   }
 }
 
+function cloneFrontendTree(tree: FrontendTreeNode[]): FrontendTreeNode[] {
+  return JSON.parse(JSON.stringify(tree)) as FrontendTreeNode[]
+}
+
+function removeFrontendNodeById(nodes: FrontendTreeNode[], id: string): FrontendTreeNode[] {
+  const next = nodes.filter((n) => n.id !== id)
+  for (const n of next) n.children = removeFrontendNodeById(n.children, id)
+  return next
+}
+
+function removeFrontendEntryById(nodes: FrontendTreeNode[], id: string): boolean {
+  for (const n of nodes) {
+    const before = n.entries.length
+    n.entries = n.entries.filter((e) => e.id !== id)
+    if (n.entries.length !== before) return true
+    if (removeFrontendEntryById(n.children, id)) return true
+  }
+  return false
+}
+
+function commitFrontendCatalog(tree: FrontendTreeNode[], revision?: string) {
+  const viewer = isWenguAdmin() ? 'admin' : 'public'
+  rememberFrontendTree(tree, revision, viewer)
+  if (dirTree) rememberFrontendDir(snapshotCatalogNodes(tree), revision, viewer)
+}
+
+function patchFrontendCatalog(revision: string | undefined, patch: (tree: FrontendTreeNode[]) => FrontendTreeNode[]) {
+  if (!treeCache) return
+  commitFrontendCatalog(patch(cloneFrontendTree(treeCache)), revision)
+}
+
 async function frontendAdminFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getWenguAuthToken()
   if (!token) throw new Error('请先用管理员账号登录')
@@ -293,43 +324,89 @@ export async function pullFrontendLearningFromCloud() {
 }
 
 export async function createFrontendNode(input: { name: string; parentId?: string | null }) {
-  const data = await frontendAdminFetch<{ node: FrontendTreeNode }>('/api/frontend-learning/nodes', {
-    method: 'POST',
-    body: JSON.stringify(input),
+  const data = await frontendAdminFetch<{ node: FrontendTreeNode; revision?: string }>(
+    '/api/frontend-learning/nodes',
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+  )
+  const node: FrontendTreeNode = {
+    ...data.node,
+    children: data.node.children ?? [],
+    entries: data.node.entries ?? [],
+  }
+  patchFrontendCatalog(data.revision, (tree) => {
+    const parentId = input.parentId ?? null
+    const copy = cloneFrontendTree([node])[0]!
+    if (!parentId) {
+      tree.push(copy)
+      return tree
+    }
+    const hit = findFrontendNode(tree, parentId)
+    if (hit) hit.node.children.push(copy)
+    return tree
   })
-  clearFrontendLearningCache()
-  return data.node
+  return node
 }
 
 export async function renameFrontendNode(id: string, name: string) {
-  await frontendAdminFetch(`/api/frontend-learning/nodes/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ name }),
+  const data = await frontendAdminFetch<{ revision?: string }>(
+    `/api/frontend-learning/nodes/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    },
+  )
+  patchFrontendCatalog(data.revision, (tree) => {
+    const hit = findFrontendNode(tree, id)
+    if (hit) hit.node.name = name
+    return tree
   })
-  clearFrontendLearningCache()
 }
 
 export async function setFrontendNodePrivate(id: string, isPrivate: boolean) {
-  await frontendAdminFetch(`/api/frontend-learning/nodes/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ private: isPrivate }),
+  const data = await frontendAdminFetch<{ revision?: string }>(
+    `/api/frontend-learning/nodes/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ private: isPrivate }),
+    },
+  )
+  patchFrontendCatalog(data.revision, (tree) => {
+    const hit = findFrontendNode(tree, id)
+    if (hit) {
+      if (isPrivate) hit.node.private = true
+      else delete hit.node.private
+    }
+    return tree
   })
-  clearFrontendLearningCache()
 }
 
 export async function setFrontendItemPrivate(id: string, isPrivate: boolean) {
-  await frontendAdminFetch(`/api/frontend-learning/items/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ private: isPrivate }),
+  const data = await frontendAdminFetch<{ revision?: string }>(
+    `/api/frontend-learning/items/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ private: isPrivate }),
+    },
+  )
+  patchFrontendCatalog(data.revision, (tree) => {
+    const hit = findFrontendEntry(tree, id)
+    if (hit) {
+      if (isPrivate) hit.entry.private = true
+      else delete hit.entry.private
+    }
+    return tree
   })
-  clearFrontendLearningCache()
 }
 
 export async function deleteFrontendNode(id: string) {
-  await frontendAdminFetch(`/api/frontend-learning/nodes/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  })
-  clearFrontendLearningCache()
+  const data = await frontendAdminFetch<{ revision?: string }>(
+    `/api/frontend-learning/nodes/${encodeURIComponent(id)}`,
+    { method: 'DELETE' },
+  )
+  patchFrontendCatalog(data.revision, (tree) => removeFrontendNodeById(tree, id))
 }
 
 export async function createFrontendItem(input: {
@@ -338,37 +415,75 @@ export async function createFrontendItem(input: {
   content?: string
   type?: string
 }) {
-  const data = await frontendAdminFetch<{ item: FrontendHandoutItem }>('/api/frontend-learning/items', {
-    method: 'POST',
-    body: JSON.stringify(input),
+  const data = await frontendAdminFetch<{ item: FrontendHandoutItem; revision?: string }>(
+    '/api/frontend-learning/items',
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+  )
+  const item = {
+    ...data.item,
+    content: rewriteFrontendMediaUrls(data.item.content ?? ''),
+  }
+  if (data.revision) rememberFrontendRevision(data.revision)
+  itemCache.set(item.id, item)
+  if (data.revision) writeHandoutCachedItem('frontend', item.id, data.revision, item)
+  patchFrontendCatalog(data.revision, (tree) => {
+    const hit = findFrontendNode(tree, input.parentId)
+    if (hit) {
+      hit.node.entries.push({
+        id: item.id,
+        title: item.title,
+        ready: true,
+        type: item.type,
+      })
+    }
+    return tree
   })
-  clearFrontendLearningCache()
-  return data.item
+  return item
 }
 
 export async function updateFrontendItem(
   id: string,
   patch: { title?: string; content?: string; private?: boolean },
 ) {
-  const data = await frontendAdminFetch<{ item: FrontendHandoutItem }>(
+  const data = await frontendAdminFetch<{ item: FrontendHandoutItem; revision?: string }>(
     `/api/frontend-learning/items/${encodeURIComponent(id)}`,
     {
       method: 'PATCH',
       body: JSON.stringify(patch),
     },
   )
-  clearFrontendLearningCache()
-  return {
+  const item = {
     ...data.item,
     content: rewriteFrontendMediaUrls(data.item.content ?? ''),
   }
+  if (data.revision) rememberFrontendRevision(data.revision)
+  itemCache.set(id, item)
+  if (data.revision) writeHandoutCachedItem('frontend', id, data.revision, item)
+  patchFrontendCatalog(data.revision, (tree) => {
+    const hit = findFrontendEntry(tree, id)
+    if (hit) {
+      hit.entry.title = item.title
+      if (patch.private === true) hit.entry.private = true
+      if (patch.private === false) delete hit.entry.private
+    }
+    return tree
+  })
+  return item
 }
 
 export async function deleteFrontendItem(id: string) {
-  await frontendAdminFetch(`/api/frontend-learning/items/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
+  const data = await frontendAdminFetch<{ revision?: string }>(
+    `/api/frontend-learning/items/${encodeURIComponent(id)}`,
+    { method: 'DELETE' },
+  )
+  itemCache.delete(id)
+  patchFrontendCatalog(data.revision, (tree) => {
+    removeFrontendEntryById(tree, id)
+    return tree
   })
-  clearFrontendLearningCache()
 }
 
 export type FrontendFolderOption = { id: string; label: string }

@@ -1,5 +1,6 @@
 import { chinesePracticeDataTick } from '@/utils/chinese/chineseIdiomStorage'
 import type { ChineseKeyQuestionSource } from '@/constants/chinese-practice-tabs'
+import { readUserJson, writeUserJson } from '@/utils/app/syncedUserJson'
 
 const NOTES_KEY = 'chinese-key-question-notes-v1'
 
@@ -10,23 +11,17 @@ function noteKey(source: ChineseKeyQuestionSource, fingerprint: string): string 
 }
 
 function readNotes(): NotesMap {
-  try {
-    const raw = localStorage.getItem(NOTES_KEY)
-    if (!raw) return {}
-    const parsed = JSON.parse(raw) as unknown
-    if (!parsed || typeof parsed !== 'object') return {}
-    const out: NotesMap = {}
-    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-      if (typeof v === 'string' && v.trim()) out[k] = v.trim()
-    }
-    return out
-  } catch {
-    return {}
+  const parsed = readUserJson<unknown>(NOTES_KEY, {})
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+  const out: NotesMap = {}
+  for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+    if (typeof v === 'string' && v.trim()) out[k] = v.trim()
   }
+  return out
 }
 
 function writeNotes(map: NotesMap) {
-  localStorage.setItem(NOTES_KEY, JSON.stringify(map))
+  writeUserJson(NOTES_KEY, map)
   chinesePracticeDataTick.value += 1
 }
 

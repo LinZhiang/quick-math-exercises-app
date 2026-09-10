@@ -2,6 +2,7 @@
  * 口算各分区收藏（与错题本并列，对齐语文关题收藏）
  */
 import { ref } from 'vue'
+import { readUserJson, writeUserJson } from '@/utils/app/syncedUserJson'
 import {
   buildMentalMathWrongFingerprint,
   mentalMathModeToWrongSection,
@@ -28,25 +29,19 @@ function notifyChanged() {
 }
 
 function readAll(): MentalMathFavoriteRecord[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as unknown
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter(
-      (r): r is MentalMathFavoriteRecord =>
-        !!r &&
-        typeof r === 'object' &&
-        typeof (r as MentalMathFavoriteRecord).fingerprint === 'string' &&
-        typeof (r as MentalMathFavoriteRecord).section === 'string',
-    )
-  } catch {
-    return []
-  }
+  const parsed = readUserJson<unknown>(STORAGE_KEY, [])
+  if (!Array.isArray(parsed)) return []
+  return parsed.filter(
+    (r): r is MentalMathFavoriteRecord =>
+      !!r &&
+      typeof r === 'object' &&
+      typeof (r as MentalMathFavoriteRecord).fingerprint === 'string' &&
+      typeof (r as MentalMathFavoriteRecord).section === 'string',
+  )
 }
 
 function writeAll(rows: MentalMathFavoriteRecord[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(rows))
+  writeUserJson(STORAGE_KEY, rows)
   notifyChanged()
 }
 

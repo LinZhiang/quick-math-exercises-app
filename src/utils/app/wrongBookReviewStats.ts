@@ -3,9 +3,10 @@
  * - attempted：做过多少题（每提交一题 +1）
  * - correct：复盘答对多少题
  * - completeReviews：完整复盘次数（整组题全部答完才 +1）
- * 按分区 / 关题来源归类，持久化到 localStorage。
+ * 按分区 / 关题来源归类，持久化到 Node（IndexedDB 缓存）。
  */
 import { computed, ref, type MaybeRefOrGetter, toValue } from 'vue'
+import { readUserJson, writeUserJson } from '@/utils/app/syncedUserJson'
 import {
   appendPracticeSessionLog,
   type PracticeSessionLogStats,
@@ -45,32 +46,24 @@ const EMPTY: WrongBookReviewBucket = {
 }
 
 function readMap(): StatsMap {
-  try {
-    if (typeof localStorage === 'undefined') return {}
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return {}
-    const parsed = JSON.parse(raw) as unknown
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
-    const out: StatsMap = {}
-    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-      if (!k || !v || typeof v !== 'object' || Array.isArray(v)) continue
-      const o = v as Record<string, unknown>
-      const attempted = Math.max(0, Math.floor(Number(o.attempted) || 0))
-      const correct = Math.max(0, Math.floor(Number(o.correct) || 0))
-      const completeReviews = Math.max(0, Math.floor(Number(o.completeReviews) || 0))
-      if (attempted || correct || completeReviews) {
-        out[k] = { attempted, correct, completeReviews }
-      }
+  const parsed = readUserJson<unknown>(STORAGE_KEY, {})
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+  const out: StatsMap = {}
+  for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+    if (!k || !v || typeof v !== 'object' || Array.isArray(v)) continue
+    const o = v as Record<string, unknown>
+    const attempted = Math.max(0, Math.floor(Number(o.attempted) || 0))
+    const correct = Math.max(0, Math.floor(Number(o.correct) || 0))
+    const completeReviews = Math.max(0, Math.floor(Number(o.completeReviews) || 0))
+    if (attempted || correct || completeReviews) {
+      out[k] = { attempted, correct, completeReviews }
     }
-    return out
-  } catch {
-    return {}
   }
+  return out
 }
 
 function writeMap(map: StatsMap) {
-  if (typeof localStorage === 'undefined') return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(map))
+  writeUserJson(STORAGE_KEY, map)
   wrongBookReviewStatsTick.value += 1
 }
 

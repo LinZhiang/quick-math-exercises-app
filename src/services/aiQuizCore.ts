@@ -140,7 +140,7 @@ function handoutQuizCountLine(total: number, counts: HandoutQuizKindCounts) {
 }
 
 const HANDOUT_QUIZ_SPEED_HINT =
-  '每题 explanation 写 2～3 句即可：先点明答案，再补一句易混点；不要写成长文。一次输出完整 JSON 数组。'
+  '每题 explanation 写 2～3 句即可：只讲为什么、易混点；不要再复述正确答案全文（界面已经展示答案）。一次输出完整 JSON 数组。'
 const HANDOUT_QUIZ_CONSISTENCY_HINT =
   '标答和解析必须同一结论：解析写「正确答案是X」则 correct 必须是 X，禁止解析否定标答。判断题不要把「继承后直接拥有全部属性/方法」这类过绝对句子标成正确。代码块必须完整可运行（IIFE 要有 function 开头）。JS 按教程体例：每条语句单独一行，2 空格缩进，function/实例/验证之间空一行；禁止把多条语句挤在同一行，也不要写成一长串。'
 
@@ -276,14 +276,14 @@ export async function requestComputerHandoutQuiz(input: {
   provider?: AiProvider
   onProgress?: (message: string) => void
 }): Promise<import('@/utils/computer/computerHandoutQuiz').ComputerQuizQuestion[]> {
-  const { parseComputerQuizAiItem, totalComputerQuizCount, extractComputerQuizSources, materialForComputerQuiz } = await import('@/utils/computer/computerHandoutQuiz')
+  const { parseComputerQuizAiItem, totalComputerQuizCount, extractComputerQuizSources, materialForComputerQuiz, computerQuizTooSimilar } = await import('@/utils/computer/computerHandoutQuiz')
   const total = totalComputerQuizCount(input.counts)
   if (total <= 0) throw new Error('请至少设置 1 道题')
   input.onProgress?.(aiRequestProgressText('计算机基础测验', input.provider))
   const avoid = (input.avoidStems ?? []).filter(Boolean).slice(-24)
   const avoidHint = avoid.length
-    ? `尽量不要出与下列题干过近的题（可换问法，同一专节允许多角度）：\n- ${avoid.slice(-12).join('\n- ')}`
-    : '本轮题干不要彼此雷同；同一专节换角度加考可以。'
+    ? `禁止与下列题干雷同（不要同考点同问法；改几个字不算新题）：\n- ${avoid.slice(-16).join('\n- ')}`
+    : '本轮每题必须覆盖不同考点/不同问法，禁止连续出几乎同一题。'
   const allowedSources = extractComputerQuizSources(input.material)
   const allowedSourceIds = allowedSources.map((x) => x.id)
   const system = [
@@ -308,8 +308,8 @@ export async function requestComputerHandoutQuiz(input: {
       : '',
     '【计算题 calc】correct 只写最终结果短串。【简答题 short】correct 写参考要点。',
     '选择题 correct 必须是 options 里某一项的原文；判断题 correct 写「正确」或「错误」。',
-    '【选题】必须覆盖讲义里的专节标题与加粗定义；允许同一专节多角度出题。禁止整轮都压在开头示例上。干扰项尽量用讲义里相邻/易混表述。',
-    '选择题 correct 写选项全文，不要写 A/B/C/D。解析先点明答案。缩写中文提示只放 explanation。',
+    '【选题】必须覆盖讲义里的专节标题与加粗定义。同一 term 在本轮只能出现一次。禁止整轮都压在开头示例上。干扰项尽量用讲义里相邻/易混表述。同一问法、同一代码骨架只出一题。',
+    '选择题 correct 写选项全文，不要写 A/B/C/D。解析不要重复正确答案原文。缩写中文提示只放 explanation。',
     avoidHint,
     '仅返回 JSON 数组。',
   ].filter(Boolean).join('\n')
@@ -326,8 +326,16 @@ export async function requestComputerHandoutQuiz(input: {
         allowedSourceIds,
       })
       if (!q || seen.has(q.fingerprint) || seen.has(normalizeQuizAvoidText(q.stem))) continue
+      const termKey = `term:${q.kind}:${String(q.term || '').replace(/\s+/g, '')}`
+      const askKey = `ask:${q.kind}:${String(q.stem || '').replace(/```[\s\S]*?```/g, '').replace(/<[^>]+>/g, '').replace(/\s+/g, '').slice(0, 36)}`
+      const stemKey = `stem:${q.kind}:${String(q.stem || '').replace(/```[\s\S]*?```/g, '').replace(/\s+/g, '').slice(0, 48)}`
+      if (computerQuizTooSimilar(q, seen)) continue
+      if (q.term && seen.has(termKey)) continue
       seen.add(q.fingerprint)
-      const stemKey = normalizeQuizAvoidText(q.stem)
+      const stemNorm = normalizeQuizAvoidText(q.stem)
+      if (stemNorm) seen.add(stemNorm)
+      if (q.term) seen.add(termKey)
+      if (askKey) seen.add(askKey)
       if (stemKey) seen.add(stemKey)
       out.push(q)
     }
@@ -337,7 +345,7 @@ export async function requestComputerHandoutQuiz(input: {
     total,
     counts: input.counts,
     onProgress: input.onProgress,
-    ask: async (batch, splitHint) => {
+    ask: async (batch, splitHint, have) => {
       const need = totalHandoutQuizCounts(batch)
       const raw = await deepseekChatRaw(
         `${user.replace(handoutQuizCountLine(total, input.counts), handoutQuizCountLine(need, batch))}${
@@ -345,7 +353,7 @@ export async function requestComputerHandoutQuiz(input: {
         }`,
         {
           system,
-          temperature: 0.42,
+          temperature: have.length ? 0.62 : 0.52,
           maxTokens: handoutQuizMaxTokens(need),
           provider: input.provider,
         },
@@ -353,12 +361,19 @@ export async function requestComputerHandoutQuiz(input: {
       return collect(parseAiJsonArrayLenient(stripAiJsonFence(raw)))
     },
     absorb: (have, extra) => {
-      const seen = new Set(have.flatMap((q) => [q.fingerprint, normalizeQuizAvoidText(q.stem)]))
-      for (const raw of avoid) seen.add(raw)
+      const seen = new Set<string>(avoid)
+      for (const q of have) {
+        seen.add(q.fingerprint)
+        seen.add(normalizeQuizAvoidText(q.stem))
+        if (q.term) seen.add(`term:${q.kind}:${String(q.term || '').replace(/\s+/g, '')}`)
+      }
       const next = [...have]
       for (const q of extra) {
-        if (seen.has(q.fingerprint) || seen.has(normalizeQuizAvoidText(q.stem))) continue
+        if (seen.has(q.fingerprint) || seen.has(normalizeQuizAvoidText(q.stem)) || computerQuizTooSimilar(q, seen)) {
+          continue
+        }
         seen.add(q.fingerprint)
+        if (q.term) seen.add(`term:${q.kind}:${String(q.term || '').replace(/\s+/g, '')}`)
         next.push(q)
       }
       return next
@@ -393,10 +408,10 @@ export async function requestFrontendHandoutQuiz(input: {
   const avoid = (input.avoidStems ?? []).filter(Boolean).slice(-24)
   const avoidHint = avoid.length
     ? [
-        '尽量不要与下列题干/代码骨架过近；同一专节换问法可以。只改字符串或变量名不算新题。',
-        ...avoid.slice(-12).map((s) => `- ${s}`),
+        '禁止与下列题干/代码骨架雷同；只改字符串或变量名不算新题。同一 term 不要重复出同一问法。',
+        ...avoid.slice(-16).map((s) => `- ${s}`),
       ].join('\n')
-    : '本轮题干、问法、代码骨架不要彼此雷同；同一核心专节换角度加考不算雷同。'
+    : '本轮题干、问法、代码骨架必须互不相同；同一 term 最多一题。'
   const allowedSources = extractFrontendQuizSources(input.material)
   const allowedSourceIds = allowedSources.map((x) => x.id)
   const codingHeavy = frontendHandoutLooksLikeProgramming(input.material)
@@ -423,7 +438,7 @@ export async function requestFrontendHandoutQuiz(input: {
       ? '范围测验时每题必须带 sourceId，等于该题所考那篇【讲义ID:xxx｜标题】里的 xxx。'
       : '',
     '选择题 correct 必须是 options 里某一项的原文；判断题 correct 写「正确」或「错误」。计算题 correct 只写结果短串。',
-    '【选题】先按上面的核心专节加码，再覆盖其它专节；禁止把整轮题都压在开头几段示例上。同一专节换角度加考可以。',
+    '【选题】先按上面的核心专节加码，再覆盖其它专节；禁止把整轮题都压在开头几段示例上。同一 term 本轮不要重复。',
     codingHeavy
       ? [
           '【编程题】大约三分之一到一半即可，先保证定义/易混题。',
@@ -431,7 +446,7 @@ export async function requestFrontendHandoutQuiz(input: {
           'exec/match 失败返回 null；对 null 取 [0] 是 TypeError。new Error() 无参时 message 是空字符串。',
         ].join('\n')
       : '本讲义若几乎没有代码、主要是概念定义，则以概念题为主，不要硬凑程序题。',
-    '选择题 correct 写选项全文，不要写 A/B/C/D。解析第一句点明答案。',
+    '选择题 correct 写选项全文，不要写 A/B/C/D。解析不要重复正确答案原文。',
     avoidHint,
     '仅返回 JSON 数组。',
   ].filter(Boolean).join('\n')
@@ -450,9 +465,12 @@ export async function requestFrontendHandoutQuiz(input: {
       })
       if (!q) continue
       const key = frontendQuizDedupeKey(q)
-      if (seen.has(key) || seen.has(q.fingerprint) || frontendQuizTooSimilar(q, seen)) continue
+      const termKey = `term:${q.kind}:${String(q.term || '').replace(/\s+/g, '')}`
+      if (seen.has(key) || seen.has(q.fingerprint) || seen.has(termKey) || frontendQuizTooSimilar(q, seen)) continue
       seen.add(key)
       seen.add(q.fingerprint)
+      if (q.term) seen.add(termKey)
+      for (const t of frontendQuizAvoidTokens(q)) seen.add(t)
       rawOut.push(q)
     }
     return filterHandoutQuizFactConflicts(rawOut, (q) => ({
@@ -475,7 +493,7 @@ export async function requestFrontendHandoutQuiz(input: {
         .replace(avoidHint, roundHint)}${splitHint ? `\n${splitHint}` : ''}`
       const raw = await deepseekChatRaw(roundUser, {
         system,
-        temperature: extraAvoid.length ? 0.52 : 0.42,
+        temperature: extraAvoid.length ? 0.62 : 0.52,
         maxTokens: handoutQuizMaxTokens(need),
         provider: input.provider,
       })
@@ -487,13 +505,25 @@ export async function requestFrontendHandoutQuiz(input: {
       for (const q of have) {
         seen.add(frontendQuizDedupeKey(q))
         seen.add(q.fingerprint)
+        if (q.term) seen.add(`term:${q.kind}:${String(q.term || '').replace(/\s+/g, '')}`)
+        for (const t of frontendQuizAvoidTokens(q)) seen.add(t)
       }
       const next = [...have]
       for (const q of extra) {
         const key = frontendQuizDedupeKey(q)
-        if (seen.has(key) || seen.has(q.fingerprint) || frontendQuizTooSimilar(q, seen)) continue
+        const termKey = `term:${q.kind}:${String(q.term || '').replace(/\s+/g, '')}`
+        if (
+          seen.has(key) ||
+          seen.has(q.fingerprint) ||
+          (q.term && seen.has(termKey)) ||
+          frontendQuizTooSimilar(q, seen)
+        ) {
+          continue
+        }
         seen.add(key)
         seen.add(q.fingerprint)
+        if (q.term) seen.add(termKey)
+        for (const t of frontendQuizAvoidTokens(q)) seen.add(t)
         next.push(q)
       }
       return filterHandoutQuizFactConflicts(next, (q) => ({

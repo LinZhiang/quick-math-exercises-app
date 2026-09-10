@@ -3,6 +3,7 @@
  * 复盘测验只用原题，不做 AI 变式。
  */
 import { ref } from 'vue'
+import { readUserJson, writeUserJson } from '@/utils/app/syncedUserJson'
 import type { CurrentAffairsDrillMode, CurrentAffairsDrillQuestion } from '@/utils/chinese/currentAffairsDrillPractice'
 import type { PoetDrillQuestion } from '@/utils/chinese/poetDrillPractice'
 import { WRONG_BOOK_BATCH_SIZE } from '@/utils/math/mentalMathWrongQuiz'
@@ -40,26 +41,20 @@ function notifyChanged() {
 }
 
 function readAll(): MemorizationWrongRecord[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as unknown
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter(
-      (r): r is MemorizationWrongRecord =>
-        !!r &&
-        typeof r === 'object' &&
-        typeof (r as MemorizationWrongRecord).fingerprint === 'string' &&
-        ((r as MemorizationWrongRecord).module === 'poet-drill' ||
-          (r as MemorizationWrongRecord).module === 'current-affairs'),
-    )
-  } catch {
-    return []
-  }
+  const parsed = readUserJson<unknown>(STORAGE_KEY, [])
+  if (!Array.isArray(parsed)) return []
+  return parsed.filter(
+    (r): r is MemorizationWrongRecord =>
+      !!r &&
+      typeof r === 'object' &&
+      typeof (r as MemorizationWrongRecord).fingerprint === 'string' &&
+      ((r as MemorizationWrongRecord).module === 'poet-drill' ||
+        (r as MemorizationWrongRecord).module === 'current-affairs'),
+  )
 }
 
 function writeAll(rows: MemorizationWrongRecord[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(rows))
+  writeUserJson(STORAGE_KEY, rows)
   notifyChanged()
 }
 

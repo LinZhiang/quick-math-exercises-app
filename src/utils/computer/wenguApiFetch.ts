@@ -94,6 +94,7 @@ export async function wenguApiFetch(path: string, init?: RequestInit): Promise<R
       ...init,
       cache: 'no-store',
       headers: {
+        'X-Wengu-Client': 'app',
         ...(init?.headers ?? {}),
       },
     })

@@ -214,6 +214,8 @@ export async function readHandoutCachedTree<T>(
   }
 }
 
+const treeWriteTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
 export function writeHandoutCachedTree<T>(
   scope: HandoutCacheScope,
   revision: string,
@@ -224,13 +226,23 @@ export function writeHandoutCachedTree<T>(
   const stamp = String(revision || '').trim()
   if (!stamp) return
   rememberHandoutRevision(scope, stamp)
-  void idbPut(STORE_TREE, treeStoreKey(scope, kind), {
+  const key = treeStoreKey(scope, kind)
+  const rec = {
     revision: stamp,
     tree,
     savedAt: Date.now(),
     schema: CACHE_SCHEMA,
     ...(viewer ? { viewer } : {}),
-  } satisfies TreeRecord<T>).catch(() => undefined)
+  } satisfies TreeRecord<T>
+  const prev = treeWriteTimers.get(key)
+  if (prev) clearTimeout(prev)
+  treeWriteTimers.set(
+    key,
+    setTimeout(() => {
+      treeWriteTimers.delete(key)
+      void idbPut(STORE_TREE, key, rec).catch(() => undefined)
+    }, 160),
+  )
 }
 
 export async function readHandoutCachedItem<T>(

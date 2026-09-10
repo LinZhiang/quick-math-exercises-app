@@ -261,6 +261,37 @@ function rememberComputerTree(tree: ComputerTreeNode[], revision?: string, viewe
   }
 }
 
+function cloneComputerTree(tree: ComputerTreeNode[]): ComputerTreeNode[] {
+  return JSON.parse(JSON.stringify(tree)) as ComputerTreeNode[]
+}
+
+function removeComputerNodeById(nodes: ComputerTreeNode[], id: string): ComputerTreeNode[] {
+  const next = nodes.filter((n) => n.id !== id)
+  for (const n of next) n.children = removeComputerNodeById(n.children, id)
+  return next
+}
+
+function removeComputerEntryById(nodes: ComputerTreeNode[], id: string): boolean {
+  for (const n of nodes) {
+    const before = n.entries.length
+    n.entries = n.entries.filter((e) => e.id !== id)
+    if (n.entries.length !== before) return true
+    if (removeComputerEntryById(n.children, id)) return true
+  }
+  return false
+}
+
+function commitComputerCatalog(tree: ComputerTreeNode[], revision?: string) {
+  const viewer = isWenguAdmin() ? 'admin' : 'public'
+  rememberComputerTree(tree, revision, viewer)
+  if (dirTree) rememberComputerDir(snapshotCatalogNodes(tree), revision, viewer)
+}
+
+function patchComputerCatalog(revision: string | undefined, patch: (tree: ComputerTreeNode[]) => ComputerTreeNode[]) {
+  if (!treeCache) return
+  commitComputerCatalog(patch(cloneComputerTree(treeCache)), revision)
+}
+
 async function computerAdminFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getWenguAuthToken()
   if (!token) throw new Error('请先用管理员账号登录')
@@ -292,43 +323,88 @@ export async function pullComputerBasicsFromCloud() {
 }
 
 export async function createComputerNode(input: { name: string; parentId?: string | null }) {
-  const data = await computerAdminFetch<{ node: ComputerTreeNode }>('/api/computer-basics/nodes', {
-    method: 'POST',
-    body: JSON.stringify(input),
+  const data = await computerAdminFetch<{ node: ComputerTreeNode; revision?: string }>(
+    '/api/computer-basics/nodes',
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+  )
+  const node: ComputerTreeNode = {
+    ...data.node,
+    children: data.node.children ?? [],
+    entries: data.node.entries ?? [],
+  }
+  patchComputerCatalog(data.revision, (tree) => {
+    const parentId = input.parentId ?? null
+    if (!parentId) {
+      tree.push(cloneComputerTree([node])[0]!)
+      return tree
+    }
+    const hit = findComputerNode(tree, parentId)
+    if (hit) hit.node.children.push(cloneComputerTree([node])[0]!)
+    return tree
   })
-  clearComputerBasicsCache()
-  return data.node
+  return node
 }
 
 export async function renameComputerNode(id: string, name: string) {
-  await computerAdminFetch(`/api/computer-basics/nodes/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ name }),
+  const data = await computerAdminFetch<{ revision?: string }>(
+    `/api/computer-basics/nodes/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    },
+  )
+  patchComputerCatalog(data.revision, (tree) => {
+    const hit = findComputerNode(tree, id)
+    if (hit) hit.node.name = name
+    return tree
   })
-  clearComputerBasicsCache()
 }
 
 export async function setComputerNodePrivate(id: string, isPrivate: boolean) {
-  await computerAdminFetch(`/api/computer-basics/nodes/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ private: isPrivate }),
+  const data = await computerAdminFetch<{ revision?: string }>(
+    `/api/computer-basics/nodes/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ private: isPrivate }),
+    },
+  )
+  patchComputerCatalog(data.revision, (tree) => {
+    const hit = findComputerNode(tree, id)
+    if (hit) {
+      if (isPrivate) hit.node.private = true
+      else delete hit.node.private
+    }
+    return tree
   })
-  clearComputerBasicsCache()
 }
 
 export async function setComputerItemPrivate(id: string, isPrivate: boolean) {
-  await computerAdminFetch(`/api/computer-basics/items/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ private: isPrivate }),
+  const data = await computerAdminFetch<{ revision?: string }>(
+    `/api/computer-basics/items/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ private: isPrivate }),
+    },
+  )
+  patchComputerCatalog(data.revision, (tree) => {
+    const hit = findComputerEntry(tree, id)
+    if (hit) {
+      if (isPrivate) hit.entry.private = true
+      else delete hit.entry.private
+    }
+    return tree
   })
-  clearComputerBasicsCache()
 }
 
 export async function deleteComputerNode(id: string) {
-  await computerAdminFetch(`/api/computer-basics/nodes/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  })
-  clearComputerBasicsCache()
+  const data = await computerAdminFetch<{ revision?: string }>(
+    `/api/computer-basics/nodes/${encodeURIComponent(id)}`,
+    { method: 'DELETE' },
+  )
+  patchComputerCatalog(data.revision, (tree) => removeComputerNodeById(tree, id))
 }
 
 export async function createComputerItem(input: {
@@ -337,37 +413,75 @@ export async function createComputerItem(input: {
   content?: string
   type?: string
 }) {
-  const data = await computerAdminFetch<{ item: ComputerHandoutItem }>('/api/computer-basics/items', {
-    method: 'POST',
-    body: JSON.stringify(input),
+  const data = await computerAdminFetch<{ item: ComputerHandoutItem; revision?: string }>(
+    '/api/computer-basics/items',
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+  )
+  const item = {
+    ...data.item,
+    content: rewriteComputerMediaUrls(data.item.content ?? ''),
+  }
+  if (data.revision) rememberComputerRevision(data.revision)
+  itemCache.set(item.id, item)
+  if (data.revision) writeHandoutCachedItem('computer', item.id, data.revision, item)
+  patchComputerCatalog(data.revision, (tree) => {
+    const hit = findComputerNode(tree, input.parentId)
+    if (hit) {
+      hit.node.entries.push({
+        id: item.id,
+        title: item.title,
+        ready: true,
+        type: item.type,
+      })
+    }
+    return tree
   })
-  clearComputerBasicsCache()
-  return data.item
+  return item
 }
 
 export async function updateComputerItem(
   id: string,
   patch: { title?: string; content?: string; private?: boolean },
 ) {
-  const data = await computerAdminFetch<{ item: ComputerHandoutItem }>(
+  const data = await computerAdminFetch<{ item: ComputerHandoutItem; revision?: string }>(
     `/api/computer-basics/items/${encodeURIComponent(id)}`,
     {
       method: 'PATCH',
       body: JSON.stringify(patch),
     },
   )
-  clearComputerBasicsCache()
-  return {
+  const item = {
     ...data.item,
     content: rewriteComputerMediaUrls(data.item.content ?? ''),
   }
+  if (data.revision) rememberComputerRevision(data.revision)
+  itemCache.set(id, item)
+  if (data.revision) writeHandoutCachedItem('computer', id, data.revision, item)
+  patchComputerCatalog(data.revision, (tree) => {
+    const hit = findComputerEntry(tree, id)
+    if (hit) {
+      hit.entry.title = item.title
+      if (patch.private === true) hit.entry.private = true
+      if (patch.private === false) delete hit.entry.private
+    }
+    return tree
+  })
+  return item
 }
 
 export async function deleteComputerItem(id: string) {
-  await computerAdminFetch(`/api/computer-basics/items/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
+  const data = await computerAdminFetch<{ revision?: string }>(
+    `/api/computer-basics/items/${encodeURIComponent(id)}`,
+    { method: 'DELETE' },
+  )
+  itemCache.delete(id)
+  patchComputerCatalog(data.revision, (tree) => {
+    removeComputerEntryById(tree, id)
+    return tree
   })
-  clearComputerBasicsCache()
 }
 
 export type ComputerFolderOption = { id: string; label: string }

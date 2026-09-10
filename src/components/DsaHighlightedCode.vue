@@ -108,18 +108,19 @@ defineExpose({
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .dsa-hl--edit {
   position: relative;
   min-height: 14rem;
+  overflow: hidden;
 }
 
 .dsa-hl--view {
   padding: 14px 16px;
   border-radius: 12px;
-  overflow-x: hidden;
+  overflow: visible;
 }
 
 .dsa-hl__pre,

@@ -5,6 +5,8 @@ import { RouterView, useRoute, useRouter, type RouteLocationRaw } from 'vue-rout
 import { appChromeTitleOverride } from '@/composables/app/useAppChrome'
 import { goBackOr, omitQueryKey } from '@/utils/app/appNavigation'
 import JsonTransferButtons from '@/components/JsonTransferButtons.vue'
+import { hydrateUserJsonStore } from '@/utils/app/syncedUserJson'
+import { wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,6 +27,14 @@ const showDataTransfer = computed(() => {
   const name = String(route.name ?? '')
   return (name === 'train' || name === 'bank' || name === 'bank-sub') && route.query.play !== '1'
 })
+
+watch(
+  wenguAuthTick,
+  () => {
+    void hydrateUserJsonStore()
+  },
+  { immediate: true },
+)
 
 function chromeFallback(): RouteLocationRaw {
   const name = String(route.name ?? '')

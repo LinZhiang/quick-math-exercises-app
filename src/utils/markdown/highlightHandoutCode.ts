@@ -70,7 +70,7 @@ function highlightCodeSource(source: string, lang: string): string {
 function wrapCodeBlock(source: string, lang: string): string {
   const name = lang || 'js'
   const highlighted = highlightCodeSource(source, name)
-  return `<div class="md-table-scroll"><pre class="hl-code"><code class="language-${name}">${highlighted}</code></pre></div>`
+  return `<pre class="hl-code"><code class="language-${name}">${highlighted}</code></pre>`
 }
 
 /** 程序结构：即便注释/字符串是中文，仍按代码块展示。 */
@@ -151,16 +151,13 @@ function highlightJsSource(source: string): string {
 }
 
 function buildHighlightedPre(doc: Document, source: string): HTMLElement {
-  const wrap = doc.createElement('div')
-  wrap.className = 'md-table-scroll'
   const pre = doc.createElement('pre')
   pre.className = 'hl-code'
   const code = doc.createElement('code')
   code.className = 'language-js'
   code.innerHTML = highlightJsSource(source)
   pre.appendChild(code)
-  wrap.appendChild(pre)
-  return wrap
+  return pre
 }
 
 function isElement(node: Node, tag: string): node is HTMLElement {
@@ -225,7 +222,7 @@ function promoteInlineJs(root: HTMLElement, doc: Document) {
 export function buildJsCodeBlockHtml(code: string): string {
   const body = stripJsLangPrefix(code)
   const highlighted = highlightTs(body) || escapeHtml(body)
-  return `<div class="md-table-scroll"><pre class="hl-code"><code class="language-js">${highlighted}</code></pre></div>`
+  return `<pre class="hl-code"><code class="language-js">${highlighted}</code></pre>`
 }
 
 export function jsSourceFromPre(pre: HTMLElement): string {

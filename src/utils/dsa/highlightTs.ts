@@ -107,7 +107,13 @@ function scan(src: string, start: number, mode: ScanMode = {}): { html: string; 
 
     if (ch === '/' && src[i + 1] === '/') {
       let j = i + 2
-      while (j < n && src[j] !== '\n') j += 1
+      const lineEnd = src.indexOf('\n', j)
+      const end = lineEnd < 0 ? n : lineEnd
+      const rest = src.slice(j, end)
+      const cut = rest.search(
+        /(?:;|>)\s*(?=(?:function|const|let|var|class|document|window|setTimeout|setInterval|console|if|for|while|return|async)\b)|\s(?=(?:setTimeout|setInterval|document|window|console)\b)/,
+      )
+      j = cut >= 0 ? j + cut + (rest[cut] === ';' || rest[cut] === '>' ? 1 : 0) : end
       out.push(span('cmt', src.slice(i, j)))
       i = j
       lastWasColon = false

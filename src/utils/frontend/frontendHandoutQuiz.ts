@@ -3,6 +3,7 @@ import { highlightHandoutCodeHtml, isJsOnlySnippet, jsSourceLooksLikeProse, shou
 import { neutralizeMarkdownRangeMarks } from '@/utils/markdown/markdownNormalize'
 import { repairSameLineFenceOpeners, normalizeJsMarkdownFences, tidyJsFencesInMarkdown, repairAndPrettyQuizJs, jsSourceUnbalanced } from '@/utils/markdown/tidyJsCode'
 import { judgeExplanationConflictsCorrect, explanationContradictsCorrect, judgeOverclaimMarkedTrue } from '@/utils/quiz/handoutQuizConsistency'
+import { stripLeadingAnswerEcho } from '@/utils/quiz/stripAnswerEcho'
 import {
   detectHandoutJsProbe,
   frontendQuizAskPattern,
@@ -121,9 +122,24 @@ export function frontendQuizTooSimilar(
   q: { kind: FrontendQuizKind; stem: string; term?: string },
   seen: Iterable<string>,
 ): boolean {
-  const key = frontendQuizDedupeKey(q)
-  const bag = [...seen]
-  return bag.includes(key)
+  const bag = new Set(
+    [...seen].map((s) =>
+      String(s || '')
+        .replace(/\s+/g, '')
+        .slice(0, 80),
+    ),
+  )
+  for (const t of frontendQuizAvoidTokens({
+    kind: q.kind,
+    stem: q.stem,
+    term: q.term || '',
+  })) {
+    const compact = t.replace(/\s+/g, '').slice(0, 80)
+    if (compact && bag.has(compact)) return true
+  }
+  const term = String(q.term || '').replace(/\s+/g, '')
+  if (term && bag.has(`term:${q.kind}:${term}`)) return true
+  return false
 }
 
 function asText(v: unknown): string {
@@ -546,7 +562,10 @@ export function sanitizeFrontendQuizForDisplay(q: {
     term: harvested.texts[1] ?? '',
     options: (q.options ?? []).map((opt) => formatFrontendQuizRichHtml(stripFrontendQuizHintGloss(opt), 'option')),
     correctText: formatFrontendQuizRichHtml(harvested.texts[2] ?? '', 'answer'),
-    explanation: formatFrontendQuizRichHtml(mergeGlossIntoExplanation(q.explanation, harvested.glosses), 'explanation'),
+    explanation: formatFrontendQuizRichHtml(
+      stripLeadingAnswerEcho(mergeGlossIntoExplanation(q.explanation, harvested.glosses), harvested.texts[2] ?? ''),
+      'explanation',
+    ),
   }
 }
 

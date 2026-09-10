@@ -278,7 +278,7 @@ async function reloadKeepExpand(opts?: {
 }) {
   const keep = { ...expanded.value }
   if (opts?.parentId) keep[opts.parentId] = true
-  const next = await loadFrontendLearningTree(true)
+  const next = await loadFrontendLearningTree(false)
   if (opts?.node && !treeHasId(next, opts.node.id)) {
     throw new Error(
       '分类接口写成功了，但读目录时这条不见了。云端讲义库还没接上，请在电脑执行 npm run setup:cf-storage 后重新部署。',

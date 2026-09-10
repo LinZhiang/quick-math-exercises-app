@@ -112,12 +112,12 @@ function writeItemRecord(id, rec) {
       if (e instanceof Error && e.message.includes('拒绝用过短正文')) throw e
     }
   }
-  assertHandoutNotTooLarge(rec.content)
+  const content = stripDangerousHtml(rec.content)
+  assertHandoutNotTooLarge(content)
   atomicWriteFile(
     file,
-    `${JSON.stringify({ ...rec, id, updatedAt: new Date().toISOString() }, null, 2)}\n`,
+    `${JSON.stringify({ ...rec, content, id, updatedAt: new Date().toISOString() }, null, 2)}\n`,
   )
-  mirrorPublicFile(file, `items/${id}.json`)
 }
 
 function applyReadyFlags(tree) {
@@ -126,7 +126,7 @@ function applyReadyFlags(tree) {
       if (!Array.isArray(node.entries)) node.entries = []
       if (!Array.isArray(node.children)) node.children = []
       for (const entry of node.entries) {
-        entry.ready = fs.existsSync(itemFile(String(entry.id)))
+        entry.ready = entry.ready !== false
       }
       walk(node.children)
     }
@@ -214,32 +214,16 @@ export function readComputerBasicsRevision() {
   ensureComputerBasicsStore()
   const raw = readRawCatalog()
   const catalogAt = String(raw.updatedAt || raw.seededAt || '')
-  let stamp = 0
+  const generation = Number(raw.generation || 0)
+  let mtime = 0
   try {
-    if (fs.existsSync(CATALOG_FILE)) stamp = Math.max(stamp, fs.statSync(CATALOG_FILE).mtimeMs)
-  } catch {
-    /* ignore */
-  }
-  try {
-    if (fs.existsSync(ITEMS_DIR)) {
-      for (const name of fs.readdirSync(ITEMS_DIR)) {
-        if (!name.endsWith('.json')) continue
-        stamp = Math.max(stamp, fs.statSync(path.join(ITEMS_DIR, name)).mtimeMs)
-      }
-    }
-  } catch {
-    /* ignore */
-  }
-  let treeHash = '0'
-  try {
-    const s = JSON.stringify(raw.tree ?? [])
-    treeHash = `${s.length}:${shortHash(s)}`
+    if (fs.existsSync(CATALOG_FILE)) mtime = fs.statSync(CATALOG_FILE).mtimeMs
   } catch {
     /* ignore */
   }
   return {
-    revision: `${catalogAt}|${stamp}|${treeHash}`,
-    updatedAt: catalogAt || (stamp ? new Date(stamp).toISOString() : ''),
+    revision: `${generation}|${catalogAt}|${mtime}`,
+    updatedAt: catalogAt || (mtime ? new Date(mtime).toISOString() : ''),
   }
 }
 
@@ -282,20 +266,25 @@ function atomicWriteFile(file, text) {
   }
 }
 
+let lastCatalogBackupAt = 0
+
 function rotateCatalogBackup(prevRaw) {
   try {
+    const now = Date.now()
+    if (now - lastCatalogBackupAt < 20_000) return
+    lastCatalogBackupAt = now
     fs.mkdirSync(CATALOG_BACKUP_DIR, { recursive: true })
     const stamp = new Date().toISOString().replace(/[:.]/g, '-')
     fs.writeFileSync(
       path.join(CATALOG_BACKUP_DIR, `catalog-${stamp}.json`),
-      `${JSON.stringify(prevRaw, null, 2)}\n`,
+      `${JSON.stringify(prevRaw)}\n`,
       'utf8',
     )
     const files = fs
       .readdirSync(CATALOG_BACKUP_DIR)
       .filter((f) => f.startsWith('catalog-') && f.endsWith('.json'))
       .sort()
-    while (files.length > 30) {
+    while (files.length > 8) {
       const old = files.shift()
       if (old) fs.unlinkSync(path.join(CATALOG_BACKUP_DIR, old))
     }
@@ -309,15 +298,17 @@ function writeCatalog(tree) {
   const prev = fs.existsSync(CATALOG_FILE) ? JSON.parse(fs.readFileSync(CATALOG_FILE, 'utf8')) : {}
   if (prev && Array.isArray(prev.tree) && prev.tree.length) rotateCatalogBackup(prev)
   const nextTree = stripCatalogClientFlags(Array.isArray(tree) ? tree : [])
+  const generation = Number(prev.generation || 0) + 1
   atomicWriteFile(
     CATALOG_FILE,
-    `${JSON.stringify(
-      { ...prev, tree: nextTree, updatedAt: new Date().toISOString(), userOwned: true },
-      null,
-      2,
-    )}\n`,
+    `${JSON.stringify({
+      ...prev,
+      tree: nextTree,
+      generation,
+      updatedAt: new Date().toISOString(),
+      userOwned: true,
+    })}\n`,
   )
-  mirrorPublicFile(CATALOG_FILE, 'catalog.json')
 }
 
 function mirrorPublicFile(absSrc, rel) {
@@ -347,9 +338,30 @@ function newId(prefix) {
 }
 
 function sanitizeName(raw) {
-  const name = String(raw ?? '').trim()
+  const name = String(raw ?? '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .replace(/[<>]/g, '')
+    .trim()
   if (!name || name.length > 80) return null
   return name
+}
+
+function stripDangerousHtml(html) {
+  return String(html ?? '')
+    .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+    .replace(/<iframe\b[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<object\b[\s\S]*?<\/object>/gi, '')
+    .replace(/<embed\b[^>]*>/gi, '')
+    .replace(/<link\b[^>]*>/gi, '')
+    .replace(/<meta\b[^>]*>/gi, '')
+    .replace(/<base\b[^>]*>/gi, '')
+    .replace(/<form\b[\s\S]*?<\/form>/gi, '')
+    .replace(/\son\w+\s*=\s*(['"]).*?\1/gi, '')
+    .replace(/\son\w+\s*=\s*[^\s>]+/gi, '')
+    .replace(/\s(?:href|src|xlink:href|action)\s*=\s*(['"])\s*javascript:[\s\S]*?\1/gi, '')
+    .replace(/javascript:/gi, '')
+    .replace(/\ssrcdoc\s*=\s*(['"]).*?\1/gi, '')
 }
 
 function findNode(nodes, id, parent = null) {
@@ -843,7 +855,7 @@ export function attachComputerBasicsRoutes(app) {
         res.status(404).json({ ok: false, message: '未找到该讲义' })
         return
       }
-      res.json({ ok: true, item })
+      res.json({ ok: true, item, ...readComputerBasicsRevision() })
     } catch (e) {
       res.status(500).json({
         ok: false,
@@ -887,7 +899,7 @@ export function attachComputerBasicsRoutes(app) {
         hit.node.children.push(node)
       }
       writeCatalog(catalog.tree)
-      res.json({ ok: true, node })
+      res.json({ ok: true, node, ...readComputerBasicsRevision() })
     } catch (e) {
       sendStoreError(res, e, '新增分类失败')
     }
@@ -916,7 +928,7 @@ export function attachComputerBasicsRoutes(app) {
         applyPrivacyFlag(moved.node, body)
         writeCatalog(catalog.tree)
         for (const entryId of collectEntryIds(moved.node)) rewriteLearningPath(catalog.tree, entryId)
-        res.json({ ok: true, node: moved.node })
+        res.json({ ok: true, node: moved.node, ...readComputerBasicsRevision() })
         return
       }
       const hit = findNode(catalog.tree, String(req.params.id))
@@ -930,7 +942,7 @@ export function attachComputerBasicsRoutes(app) {
         return
       }
       writeCatalog(catalog.tree)
-      res.json({ ok: true, node: hit.node })
+      res.json({ ok: true, node: hit.node, ...readComputerBasicsRevision() })
     } catch (e) {
       sendStoreError(res, e, '重命名失败')
     }
@@ -948,7 +960,7 @@ export function attachComputerBasicsRoutes(app) {
       const idx = hit.siblings.findIndex((n) => n.id === hit.node.id)
       if (idx >= 0) hit.siblings.splice(idx, 1)
       writeCatalog(catalog.tree)
-      res.json({ ok: true })
+      res.json({ ok: true, ...readComputerBasicsRevision() })
     } catch (e) {
       sendStoreError(res, e, '删除分类失败')
     }
@@ -987,7 +999,7 @@ export function attachComputerBasicsRoutes(app) {
       writeItemRecord(id, item)
       hit.node.entries.push({ id, title, ready: true, type })
       writeCatalog(catalog.tree)
-      res.json({ ok: true, item })
+      res.json({ ok: true, item, ...readComputerBasicsRevision() })
     } catch (e) {
       sendStoreError(res, e, '新增讲义失败')
     }
@@ -1022,7 +1034,7 @@ export function attachComputerBasicsRoutes(app) {
         writeCatalog(catalog.tree)
         rewriteLearningPath(catalog.tree, id)
         const item = readComputerBasicsItem(id)
-        res.json({ ok: true, item })
+        res.json({ ok: true, item, ...readComputerBasicsRevision() })
         return
       }
       const title = body.title == null ? current.title : sanitizeName(body.title)
@@ -1047,7 +1059,7 @@ export function attachComputerBasicsRoutes(app) {
         applyPrivacyFlag(hit.entry, body)
         writeCatalog(catalog.tree)
       }
-      res.json({ ok: true, item })
+      res.json({ ok: true, item, ...readComputerBasicsRevision() })
     } catch (e) {
       sendStoreError(res, e, '保存讲义失败')
     }
@@ -1066,7 +1078,7 @@ export function attachComputerBasicsRoutes(app) {
       hit.node.entries.splice(hit.idx, 1)
       deleteItemFiles(id)
       writeCatalog(catalog.tree)
-      res.json({ ok: true })
+      res.json({ ok: true, ...readComputerBasicsRevision() })
     } catch (e) {
       sendStoreError(res, e, '删除讲义失败')
     }

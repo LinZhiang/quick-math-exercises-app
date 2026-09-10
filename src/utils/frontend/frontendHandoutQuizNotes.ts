@@ -1,27 +1,22 @@
 import { frontendQuizBookTick } from '@/utils/frontend/frontendHandoutQuizStorage'
+import { readUserJson, writeUserJson } from '@/utils/app/syncedUserJson'
 
 export const FRONTEND_QUIZ_NOTES_KEY = 'frontend-handout-quiz-notes-v1'
 
 type NotesMap = Record<string, string>
 
 function readNotes(): NotesMap {
-  try {
-    const raw = localStorage.getItem(FRONTEND_QUIZ_NOTES_KEY)
-    if (!raw) return {}
-    const parsed = JSON.parse(raw) as unknown
-    if (!parsed || typeof parsed !== 'object') return {}
-    const out: NotesMap = {}
-    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-      if (typeof v === 'string' && v.trim()) out[k] = v.trim()
-    }
-    return out
-  } catch {
-    return {}
+  const parsed = readUserJson<unknown>(FRONTEND_QUIZ_NOTES_KEY, {})
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+  const out: NotesMap = {}
+  for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+    if (typeof v === 'string' && v.trim()) out[k] = v.trim()
   }
+  return out
 }
 
 function writeNotes(map: NotesMap) {
-  localStorage.setItem(FRONTEND_QUIZ_NOTES_KEY, JSON.stringify(map))
+  writeUserJson(FRONTEND_QUIZ_NOTES_KEY, map)
   frontendQuizBookTick.value += 1
 }
 

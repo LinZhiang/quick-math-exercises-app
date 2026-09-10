@@ -295,6 +295,57 @@ export function requireAdmin(req, res, next) {
   })
 }
 
+function originHost(url) {
+  try {
+    return new URL(url).host
+  } catch {
+    return ''
+  }
+}
+
+/** 写接口：要求 JSON + 自定义头，Origin 若出现则必须同源/白名单（减轻 CSRF）。鉴权仍靠 Bearer。 */
+export function mutatingRequestGuard(req, res, next) {
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    next()
+    return
+  }
+  const path = String(req.path || req.url || '')
+  if (path === '/auth/login' || path === '/auth/logout') {
+    next()
+    return
+  }
+  const type = String(req.headers['content-type'] || '')
+  if (req.method !== 'DELETE' && type && !type.includes('application/json')) {
+    res.status(415).json({ ok: false, message: '请使用 JSON 提交' })
+    return
+  }
+  const client = String(req.headers['x-wengu-client'] || '')
+  if (path.startsWith('/api/') && client !== 'app') {
+    res.status(403).json({ ok: false, message: '非法请求来源' })
+    return
+  }
+  const origin = String(req.headers.origin || '')
+  if (origin) {
+    const host = originHost(origin)
+    const self = String(req.headers.host || '')
+    const extra = String(process.env.CORS_ORIGIN || '')
+      .split(',')
+      .map((s) => originHost(s.trim()) || s.trim())
+      .filter(Boolean)
+    const ok =
+      host === self ||
+      host.startsWith('localhost') ||
+      host.startsWith('127.0.0.1') ||
+      host.endsWith('.pages.dev') ||
+      extra.includes(host)
+    if (!ok) {
+      res.status(403).json({ ok: false, message: '跨站请求已拒绝' })
+      return
+    }
+  }
+  next()
+}
+
 function sanitizeUsername(raw) {
   const name = String(raw ?? '').trim()
   if (!/^[a-zA-Z0-9_\u4e00-\u9fa5]{2,32}$/.test(name)) return null
