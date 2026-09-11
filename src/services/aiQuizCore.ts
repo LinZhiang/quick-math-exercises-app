@@ -142,7 +142,7 @@ function handoutQuizCountLine(total: number, counts: HandoutQuizKindCounts) {
 const HANDOUT_QUIZ_SPEED_HINT =
   '每题 explanation 写 2～3 句即可：只讲为什么、易混点；不要再复述正确答案全文（界面已经展示答案）。一次输出完整 JSON 数组。'
 const HANDOUT_QUIZ_CONSISTENCY_HINT =
-  '标答和解析必须同一结论：解析写「正确答案是X」则 correct 必须是 X，禁止解析否定标答。判断题不要把「继承后直接拥有全部属性/方法」这类过绝对句子标成正确。代码块必须完整可运行（IIFE 要有 function 开头）。JS 按教程体例：每条语句单独一行，2 空格缩进，function/实例/验证之间空一行；禁止把多条语句挤在同一行，也不要写成一长串。'
+  '标答和解析必须同一结论：解析写「正确答案是X」则 correct 必须是 X，禁止解析否定标答。判断题不要把「继承后直接拥有全部属性/方法」这类过绝对句子标成正确。代码块必须完整可运行：调用要写出括号和参数，禁止只写 history.pushState、location.href 这种残缺 API 名。题干说「执行下列代码」却没有完整语句的，这题作废重出。JS 按教程体例：一条语句一行，写完再换行；禁止把赋值拆成 href 一行、= 一行，也禁止把多条语句挤成一行。'
 
 async function collectHandoutQuizRounds<T extends { kind: string }>(input: {
   total: number
@@ -442,7 +442,7 @@ export async function requestFrontendHandoutQuiz(input: {
     codingHeavy
       ? [
           '【编程题】大约三分之一到一半即可，先保证定义/易混题。',
-          '完整程序用换行的 ```js 代码块，格式像教程：function 声明、再空一行写实例、再空一行写比较或 console.log；方法体 2 空格缩进；运行结果必须自己算对。',
+          '完整程序用换行的 ```js 代码块。history.pushState / replaceState 必须写成 history.pushState(state, title, url) 这种完整调用，禁止只写方法名。',
           'exec/match 失败返回 null；对 null 取 [0] 是 TypeError。new Error() 无参时 message 是空字符串。',
         ].join('\n')
       : '本讲义若几乎没有代码、主要是概念定义，则以概念题为主，不要硬凑程序题。',

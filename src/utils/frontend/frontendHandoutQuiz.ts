@@ -1,7 +1,7 @@
 import { markdownToDisplaySafeHtml } from '@/utils/markdown/markdownToHtml'
 import { highlightHandoutCodeHtml, isJsOnlySnippet, jsSourceLooksLikeProse, shouldPromoteJsToBlock } from '@/utils/markdown/highlightHandoutCode'
 import { neutralizeMarkdownRangeMarks } from '@/utils/markdown/markdownNormalize'
-import { repairSameLineFenceOpeners, normalizeJsMarkdownFences, tidyJsFencesInMarkdown, repairAndPrettyQuizJs, jsSourceUnbalanced } from '@/utils/markdown/tidyJsCode'
+import { repairSameLineFenceOpeners, normalizeJsMarkdownFences, tidyJsFencesInMarkdown, repairAndPrettyQuizJs, quizJsLooksIncomplete } from '@/utils/markdown/tidyJsCode'
 import { judgeExplanationConflictsCorrect, explanationContradictsCorrect, judgeOverclaimMarkedTrue } from '@/utils/quiz/handoutQuizConsistency'
 import { stripLeadingAnswerEcho } from '@/utils/quiz/stripAnswerEcho'
 import {
@@ -725,11 +725,9 @@ function isRuntimeOutputQuestion(stem: string, js: string): boolean {
 function looksTruncatedJs(js: string): boolean {
   const t = js.trim()
   if (!t) return false
+  if (quizJsLooksIncomplete(t)) return true
   if (/^[sS]\s+(?:var|let|const|function|try|console)\b/.test(t)) return true
   if (/\b(?:co|con|cons|consol|console\.[a-z]{0,2})$/.test(t)) return true
-  if (/[=(,]\s*$/.test(t)) return true
-  if (jsSourceUnbalanced(t)) return true
-  if (/\}\s*\)\s*\(\s*\)\s*;?\s*$/.test(t) && !/^\s*\(/.test(t)) return true
   return false
 }
 

@@ -152,6 +152,41 @@ export function repairSameLineFenceOpeners(md: string): string {
 }
 
 /** 运算符后被拆开的同一句，拼回一行。对象属性逗号后的换行要保留。 */
+function lineCommentIndex(line: string): number {
+  let str: string | null = null
+  for (let i = 0; i < line.length; i += 1) {
+    const ch = line[i]!
+    if (str) {
+      if (ch === '\\') {
+        i += 1
+        continue
+      }
+      if (ch === str) str = null
+      continue
+    }
+    if (ch === '"' || ch === "'" || ch === '`') {
+      str = ch
+      continue
+    }
+    if (ch === '/' && line[i + 1] === '*') {
+      const end = line.indexOf('*/', i + 2)
+      if (end < 0) return -1
+      i = end + 1
+      continue
+    }
+    if (ch === '/' && line[i + 1] === '/') {
+      if (line[i - 1] === ':') continue
+      return i
+    }
+  }
+  return -1
+}
+
+function codeBeforeLineComment(line: string): string {
+  const idx = lineCommentIndex(line)
+  return (idx >= 0 ? line.slice(0, idx) : line).trimEnd()
+}
+
 function joinContinuedJsLines(code: string): string {
   const lines = String(code ?? '').replace(/\r\n/g, '\n').split('\n')
   const out: string[] = []
@@ -162,19 +197,25 @@ function joinContinuedJsLines(code: string): string {
       const next = nextRaw.trim()
       if (!next) break
       const cur = line.trimEnd()
-      if (/[;{}]$/.test(cur)) break
-      if (/,$/.test(cur)) break
+      const curCode = codeBeforeLineComment(cur)
+      if (!curCode.trim()) break
+      if (lineCommentIndex(next) === 0) break
+      if (/[;{}]$/.test(curCode)) break
+      if (/,$/.test(curCode)) break
       const dangling =
-        /[=+\-*/%<>&|?:(.]$/.test(cur) ||
-        /\b(?:return|throw|case|new)\s*$/.test(cur) ||
-        (/[A-Za-z_$]$/.test(cur) && /^\(/.test(next))
-      const continues = /^[+\-*/%<>&|?.,:(]/.test(next)
-      const exprish = /[=+\-*/%<>&|?:]/.test(cur)
-      if (!dangling && !(continues && exprish)) break
-      if (/\/\//.test(cur) && !/:\/\//.test(cur)) break
-      if (/\/\//.test(next) && !/:\/\//.test(next)) break
-      if (/^(function|class|const|let|var|if|for|while|try|catch|finally|else)\b/.test(next)) break
-      line = `${cur} ${next}`
+        /[=+\-*/%<>&|?.]$/.test(curCode) ||
+        /\($/.test(curCode) ||
+        /\b(?:return|throw|case|new)\s*$/.test(curCode)
+      const continues = /^[=+\-*/%<>&|?.,]/.test(next) || /^\./.test(next)
+      if (!dangling && !continues) break
+      if (
+        /^(function|class|const|let|var|if|for|while|try|catch|finally|else|window|document|location|history|console)\b/.test(
+          next,
+        )
+      ) {
+        break
+      }
+      line = `${curCode} ${next}`
       i += 1
     }
     out.push(line)
@@ -398,6 +439,8 @@ function formatQuizJsTextbook(src: string): string {
   const asiBreak = (at: number, afterSpace: boolean): boolean => {
     if (paren !== 0 || forDepth) return false
     if (/^(else|catch|finally|instanceof|in|of|as|satisfies)\b/.test(s.slice(at))) return false
+    if (/^[=+\-*/%<>&|?:]/.test(s[at]!)) return false
+    if (/^['"`]/.test(s[at]!)) return false
     const t = trimmedOut()
     if (!t || t.endsWith('\n') || t.endsWith('{')) return false
     if (/[.(,:?=&|!+\-*/%~<>^]$/.test(t)) return false
@@ -602,9 +645,42 @@ export function jsSourceUnbalanced(code: string): boolean {
   return braces !== 0 || parens !== 0 || squares !== 0
 }
 
-/** 展示前整理代码块：去掉误入的 js 标记；挤在一行的先按语句拆开，再排版。 */
+/** 题干代码只写了 API 名、括号没写全、或花括号不配。 */
+export function quizJsLooksIncomplete(code: string): boolean {
+  const t = String(code ?? '').trim()
+  if (!t) return true
+  if (jsSourceUnbalanced(t)) return true
+  const compact = t
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\/\/.*$/gm, ' ')
+    .replace(/\s+/g, '')
+  if (!compact) return true
+  if (/^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/.test(compact)) return true
+  if (/\b(?:pushState|replaceState)\b/.test(t) && !/\b(?:pushState|replaceState)\s*\(/.test(t)) return true
+  if (/[=(,]\s*$/.test(t)) return true
+  if (/\}\s*\)\s*\(\s*\)\s*;?\s*$/.test(t) && !/^\s*\(/.test(t)) return true
+  return false
+}
+
+function jsNeedsFullPretty(code: string): boolean {
+  const lines = String(code ?? '')
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .filter((l) => l.trim())
+  const compact = String(code ?? '').replace(/\s+/g, '')
+  if (lines.some((l) => /;\s*(?:var|let|const|function|document|window|setTimeout|setInterval|if)\b/.test(l))) {
+    return true
+  }
+  if (lines.length <= 2 && compact.length > 72 && /;/.test(code)) return true
+  if (lines.length === 1 && compact.length > 56 && /(?:function|=>|\{)/.test(code)) return true
+  return false
+}
+
+/** 展示前整理代码块：原文已换行的保持原样；只给挤在一行的拆语句。 */
 export function prepareJsBlockSource(code: string, opts?: { expand?: boolean }): string {
-  return repairAndPrettyQuizJs(code, opts)
+  const stripped = stripJsLangPrefix(code)
+  if (jsNeedsFullPretty(stripped)) return repairAndPrettyQuizJs(stripped, opts)
+  return tidyJsFenceBody(stripped, { expand: opts?.expand === true })
 }
 
 /** 围栏内再遇到 ```lang 时先闭合，避免结束符被写成 ```js 把后文粘进代码块。 */

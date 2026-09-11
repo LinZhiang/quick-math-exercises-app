@@ -520,10 +520,10 @@ const quizAskQuestion = computed((): ComputerAskQuestionContext | null => {
 .cb-quiz__reveal :deep(pre),
 .cb-quiz__reveal :deep(pre code) {
   text-align: left;
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  word-wrap: break-word;
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+  word-wrap: normal;
   hyphens: none;
 }
 

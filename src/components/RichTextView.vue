@@ -175,10 +175,10 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
 .rich-text-view :deep(pre *),
 .rich-text-view :deep(pre code) {
   text-align: left;
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  word-wrap: break-word;
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+  word-wrap: normal;
   hyphens: none;
 }
 
@@ -195,14 +195,15 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
-  overflow-x: visible;
+  overflow-x: auto;
   overflow-y: visible;
-  white-space: pre-wrap;
+  -webkit-overflow-scrolling: touch;
+  white-space: pre;
   tab-size: 2;
 }
 
 .rich-text-view :deep(pre code) {
-  white-space: pre-wrap;
+  white-space: pre;
   display: block;
   width: 100%;
   min-width: 0;

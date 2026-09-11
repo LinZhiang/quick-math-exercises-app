@@ -105,10 +105,10 @@ defineExpose({
   font-size: 13.5px;
   line-height: 1.65;
   tab-size: 4;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  overflow: visible;
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+  overflow: auto;
 }
 
 .dsa-hl--edit {
@@ -136,9 +136,9 @@ defineExpose({
   font: inherit;
   line-height: inherit;
   tab-size: inherit;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
   overflow: hidden;
 }
 
