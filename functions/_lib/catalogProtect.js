@@ -1,5 +1,6 @@
 /**
- * 讲义目录/正文写入保护：公开给别人看的材料，禁止用残目录或过短正文覆盖。
+ * 讲义目录/正文写入保护：未展开的目录残片不能整树写回。
+ * 正文改短由管理员自己决定；只挡住几乎空的误保存。
  * Node 本地与 Cloudflare KV 共用。
  */
 import { findCatalogNode } from './catalogLayer.js'
@@ -116,13 +117,12 @@ export function handoutTextFingerprint(s) {
     .replace(/\s+/g, '')
 }
 
+/** 只挡住几乎空的误保存；管理员主动改短、删图、重写都允许。 */
 export function assertHandoutNotTruncated(prevContent, nextContent, id) {
   const prev = handoutTextFingerprint(prevContent)
   const next = handoutTextFingerprint(nextContent)
-  if (prev.length >= 2000 && next.length < Math.floor(prev.length * 0.5)) {
-    throw new Error(
-      `拒绝用过短正文覆盖讲义「${id}」（${prev.length} → ${next.length} 字）。公开讲义不允许截断保存。`,
-    )
+  if (prev.length >= 2000 && next.length < 20) {
+    throw new Error(`讲义「${id}」正文几乎是空的，取消保存以免误清空。`)
   }
 }
 
