@@ -326,11 +326,11 @@ function poolFor(kind: FactDeepenKind, difficulty: FactDeepenDifficulty): FactDe
       const oa = csVocabTopicOrder(a.topic || '')
       const ob = csVocabTopicOrder(b.topic || '')
       if (oa !== ob) return oa - ob
-      return normalizeKey(a.key).localeCompare(normalizeKey(b.key), 'zh-CN')
+      return zhKeyCompare(normalizeKey(a.key), normalizeKey(b.key))
     })
     return out
   }
-  out.sort((a, b) => normalizeKey(a.key).localeCompare(normalizeKey(b.key), 'zh-CN'))
+  out.sort((a, b) => zhKeyCompare(normalizeKey(a.key), normalizeKey(b.key)))
   return out
 }
 
@@ -376,6 +376,14 @@ function withResolvedExplanation(item: FactDeepenBankItem): FactDeepenStudyCard 
 
 export function refreshFactDeepenStudyCard(card: FactDeepenBankItem): FactDeepenStudyCard {
   return withResolvedExplanation(card)
+}
+
+function zhKeyCompare(a: string, b: string): number {
+  try {
+    return a.localeCompare(b, 'zh-CN')
+  } catch {
+    return a < b ? -1 : a > b ? 1 : 0
+  }
 }
 
 function previewStemOf(stem: string): string {

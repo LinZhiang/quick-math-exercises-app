@@ -70,6 +70,13 @@ function nonJsonMessage(res: Response, text: string): string {
         '）。先确认开的是 pages.dev 本站，不要填错自定义 API。这与 DEEPSEEK_API_KEY 无关。'
       )
     }
+    if (path.includes('cs-vocab') || path.includes('/api/cs-vocab')) {
+      return (
+        '云端计算机单词题库接口返回了网页而不是数据（HTTP ' +
+        res.status +
+        '）。请先部署带 Functions 的版本，再在电脑执行 npm run sync:cf-cs-vocab。'
+      )
+    }
     return `接口返回了网页而不是数据（${path || `HTTP ${res.status}`}）。${offlineHint()}`
   }
   return `服务器返回了非 JSON（HTTP ${res.status}）。${offlineHint()}`
@@ -87,15 +94,17 @@ export async function readWenguJsonResponse<T>(res: Response): Promise<T> {
   }
 }
 
-export async function wenguApiFetch(path: string, init?: RequestInit): Promise<Response> {
-  const url = resolveWenguApiUrl(path)
+export async function wenguApiFetch(path: string, init?: RequestInit & { cacheBust?: boolean }): Promise<Response> {
+  const { cacheBust, ...rest } = (init ?? {}) as RequestInit & { cacheBust?: boolean }
+  const urlPath = cacheBust ? `${path}${path.includes('?') ? '&' : '?'}_=${Date.now()}` : path
+  const url = resolveWenguApiUrl(urlPath)
   try {
     return await fetch(url, {
-      ...init,
+      ...rest,
       cache: 'no-store',
       headers: {
         'X-Wengu-Client': 'app',
-        ...(init?.headers ?? {}),
+        ...(rest.headers ?? {}),
       },
     })
   } catch {

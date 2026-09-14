@@ -597,7 +597,7 @@ export async function loadFrontendLearningTree(force = false): Promise<FrontendT
     }
   }
 
-  const res = await wenguApiFetch('/api/frontend-learning/tree', viewerAuthInit())
+  const res = await wenguApiFetch('/api/frontend-learning/tree', { ...viewerAuthInit(), cacheBust: force })
   const data = await readWenguJsonResponse<{
     ok?: boolean
     tree?: FrontendTreeNode[]
@@ -645,7 +645,10 @@ async function fetchFrontendLayer(parentId: string): Promise<{
   revision: string
 }> {
   const q = encodeURIComponent(parentId || '__root__')
-  const res = await wenguApiFetch(`/api/frontend-learning/tree?parent=${q}`, viewerAuthInit())
+  const res = await wenguApiFetch(`/api/frontend-learning/tree?parent=${q}`, {
+    ...viewerAuthInit(),
+    cacheBust: true,
+  })
   const data = await readWenguJsonResponse<{
     ok?: boolean
     tree?: FrontendTreeNode[]
@@ -792,7 +795,10 @@ export async function loadFrontendLearningItem(id: string, force = false): Promi
     }
   }
 
-  const res = await wenguApiFetch(`/api/frontend-learning/items/${encodeURIComponent(key)}`, viewerAuthInit())
+  const res = await wenguApiFetch(`/api/frontend-learning/items/${encodeURIComponent(key)}`, {
+    ...viewerAuthInit(),
+    cacheBust: force,
+  })
   const data = await readWenguJsonResponse<{ ok?: boolean; item?: FrontendHandoutItem; message?: string }>(
     res,
   )

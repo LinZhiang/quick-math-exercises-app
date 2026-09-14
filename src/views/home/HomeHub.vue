@@ -1,62 +1,20 @@
-<!-- 首页模块：知识训练、题库整理、计算机基础、前端学习、计算机单词和语法、数据结构与算法。 -->
+<!-- 首页模块：显示哪些卡片由设置「菜单管理」控制；题库整理始终在。 -->
 <script setup lang="ts">
-import { useRouter, type RouteLocationRaw } from 'vue-router'
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { HOME_HUB_MODULES } from '@/constants/home-hub-modules'
+import { isHomeHubModuleVisible } from '@/utils/app/homeHubMenu'
+import { userJsonEpoch } from '@/utils/app/syncedUserJson'
 
 const router = useRouter()
 
-const modules: {
-  id: string
-  title: string
-  desc: string
-  ready: boolean
-  to?: RouteLocationRaw
-}[] = [
-  {
-    id: 'train',
-    title: '知识训练',
-    desc: '口算、快判、数学推理、语文练习与练习日志',
-    ready: true,
-    to: { name: 'train', params: { section: 'log' } },
-  },
-  {
-    id: 'bank',
-    title: '题库整理',
-    desc: '个人题库：分类、拍照录入、测验与导出',
-    ready: true,
-    to: { name: 'bank' },
-  },
-  {
-    id: 'computer',
-    title: '计算机基础',
-    desc: '讲义树形分类；已开放「计算机概述」',
-    ready: true,
-    to: { name: 'computer' },
-  },
-  {
-    id: 'frontend',
-    title: '前端学习',
-    desc: '讲义树形分类；目录与正文保存在 Node，不写死在前端',
-    ready: true,
-    to: { name: 'frontend' },
-  },
-  {
-    id: 'cs-vocab',
-    title: '计算机单词和语法',
-    desc: '从计算机基础、前端学习讲义抽出的核心单词、语法与必记概念；加深识记',
-    ready: true,
-    to: { name: 'cs-vocab' },
-  },
-  {
-    id: 'dsa',
-    title: '数据结构与算法',
-    desc: '编程练习：先看题，再补全 JavaScript 并测试执行结果',
-    ready: true,
-    to: { name: 'dsa' },
-  },
-]
+const modules = computed(() => {
+  void userJsonEpoch.value
+  return HOME_HUB_MODULES.filter((mod) => isHomeHubModuleVisible(mod.id))
+})
 
-function openModule(mod: (typeof modules)[number]) {
+function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
   if (!mod.ready || !mod.to) {
     ElMessage.info('即将开放')
     return
@@ -68,7 +26,7 @@ function openModule(mod: (typeof modules)[number]) {
 <template>
   <section class="home-hub">
     <header class="home-hub__intro">
-      <p class="home-hub__lead">选择一个模块开始。安装与登录在右上角。</p>
+      <p class="home-hub__lead">选择一个模块开始。安装与登录在右上角。首页卡片可在设置「菜单管理」里开关。</p>
     </header>
     <div class="home-hub__grid">
       <button

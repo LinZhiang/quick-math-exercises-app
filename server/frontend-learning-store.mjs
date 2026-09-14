@@ -102,6 +102,27 @@ function itemFile(id) {
   return path.join(ITEMS_DIR, `${id}.json`)
 }
 
+function listLocalItemIds() {
+  ensureDirs()
+  try {
+    return fs
+      .readdirSync(ITEMS_DIR)
+      .filter((name) => name.endsWith('.json'))
+      .map((name) => name.slice(0, -'.json'.length))
+  } catch {
+    return []
+  }
+}
+
+function listLocalMediaNames() {
+  ensureDirs()
+  try {
+    return fs.readdirSync(MEDIA_DIR).filter((name) => /^[a-zA-Z0-9._-]+$/.test(name))
+  } catch {
+    return []
+  }
+}
+
 function writeItemRecord(id, rec) {
   ensureDirs()
   const file = itemFile(id)
@@ -889,10 +910,15 @@ export async function pullFrontendLearningFromCloud() {
   const pack = await fetchCloudHandoutPack({
     apiPrefix: '/api/frontend-learning',
     mediaPrefix: '/api/media/frontend-learning',
+    skipItemIds: listLocalItemIds(),
+    skipMediaNames: listLocalMediaNames(),
   })
   const prev = readRawCatalog()
-  const remoteTree = JSON.parse(JSON.stringify(pack.tree || []))
-  const merged = graftUserCatalog(remoteTree, prev.tree)
+  const remoteTree = stripCatalogClientFlags(JSON.parse(JSON.stringify(pack.tree || [])))
+  if (!remoteTree.length && !Object.keys(pack.items || {}).length) {
+    throw new Error('云端目录是空的，取消合并以免冲掉本机讲义')
+  }
+  const merged = stripCatalogClientFlags(graftUserCatalog(remoteTree, prev.tree))
   let wrote = 0
   let skipped = 0
   for (const [id, item] of Object.entries(pack.items || {})) {

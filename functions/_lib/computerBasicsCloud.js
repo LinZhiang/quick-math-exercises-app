@@ -13,7 +13,7 @@ import {
   rememberCbStoreOrigin,
   CB_USER_OWNED_KEY,
 } from './cbStore.js'
-import { sliceCatalogLayer, treeParentFromRequest } from './catalogLayer.js'
+import { sliceCatalogLayer, treeParentFromRequest, treeSkipReadyFromRequest } from './catalogLayer.js'
 import {
   assertCatalogNotStub,
   assertHandoutNotTruncated,
@@ -239,22 +239,10 @@ async function itemExists(env, id) {
 
 async function applyReadyFlagsToEntries(env, entries) {
   for (const entry of entries || []) {
+    if (entry?.ready) continue
     if (await itemExists(env, String(entry.id))) entry.ready = true
   }
   return entries
-}
-
-async function applyReadyFlags(env, tree) {
-  const walk = async (nodes) => {
-    for (const node of nodes) {
-      if (!Array.isArray(node.entries)) node.entries = []
-      if (!Array.isArray(node.children)) node.children = []
-      await applyReadyFlagsToEntries(env, node.entries)
-      await walk(node.children)
-    }
-  }
-  await walk(tree)
-  return tree
 }
 
 function findNode(nodes, id, parent = null) {
@@ -443,7 +431,9 @@ export async function handleComputerBasics(env, request, pathParam) {
       if (parent != null) {
         const layer = sliceCatalogLayer(tree, parent)
         if (!layer) return json({ ok: false, message: '未找到该分类' }, 404)
-        if (getStore(env)) await applyReadyFlagsToEntries(env, layer.entries)
+        if (getStore(env) && !treeSkipReadyFromRequest(request)) {
+          await applyReadyFlagsToEntries(env, layer.entries)
+        }
         const visibleTree = admin ? layer.tree : filterPublicCatalog(layer.tree)
         const visibleEntries = admin
           ? layer.entries
@@ -456,8 +446,7 @@ export async function handleComputerBasics(env, request, pathParam) {
           ...stamped,
         })
       }
-      const ready = tree.length && getStore(env) ? await applyReadyFlags(env, tree) : tree
-      const visible = admin ? ready : filterPublicCatalog(ready)
+      const visible = admin ? tree : filterPublicCatalog(tree)
       return json({ ok: true, tree: visible, ...stamped })
     }
 

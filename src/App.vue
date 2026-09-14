@@ -6,6 +6,7 @@ import { appChromeTitleOverride } from '@/composables/app/useAppChrome'
 import { goBackOr, omitQueryKey } from '@/utils/app/appNavigation'
 import JsonTransferButtons from '@/components/JsonTransferButtons.vue'
 import { hydrateUserJsonStore } from '@/utils/app/syncedUserJson'
+import { hydrateCsVocabBank } from '@/utils/cs-vocab/csVocabBank'
 import { wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 
 const route = useRoute()
@@ -32,6 +33,7 @@ watch(
   wenguAuthTick,
   () => {
     void hydrateUserJsonStore()
+    void hydrateCsVocabBank()
   },
   { immediate: true },
 )

@@ -70,6 +70,14 @@ export function usesRemoteWenguApi(): boolean {
   return configured !== location.origin
 }
 
+/** 当前页打的是本机 Node（npm run dev:full），不是 pages.dev。手机 PWA 写在 Cloudflare，刷新时需要先 pull-cloud。 */
+export function isLocalNodeWenguApi(): boolean {
+  if (usesRemoteWenguApi()) return false
+  if (typeof location === 'undefined') return false
+  const host = location.hostname
+  return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host.endsWith('.local')
+}
+
 export function resolveWenguApiUrl(path: string): string {
   const p = path.startsWith('/') ? path : `/${path}`
   const origin = getWenguApiOrigin()

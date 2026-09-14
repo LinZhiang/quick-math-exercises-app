@@ -31,6 +31,7 @@ import { logComputerHandoutView } from '@/utils/computer/computerStudyLog'
 import ComputerAskPanel from './ComputerAskPanel.vue'
 import ComputerBusyHint from './ComputerBusyHint.vue'
 import ComputerQuizPanel from './ComputerQuizPanel.vue'
+import HandoutExportDialog from '@/components/HandoutExportDialog.vue'
 
 type PhotoSlot = { original: string; cropped: string | null }
 type PhotoIntent = 'recognize' | 'upload'
@@ -39,6 +40,7 @@ const route = useRoute()
 const router = useRouter()
 const fullscreen = ref(false)
 const quizOpen = ref(false)
+const exportOpen = ref(false)
 const loading = ref(true)
 const error = ref('')
 const item = ref<ComputerHandoutItem | null>(null)
@@ -111,17 +113,9 @@ function goNav(dir: -1 | 1) {
   void router.replace({ name: 'computer-item', params: { itemId: next.id } })
 }
 
-function exportMarkdown() {
-  const row = item.value
-  if (!row) return
-  const blob = new Blob([row.content], { type: 'text/markdown;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${row.title}.md`
-  a.click()
-  URL.revokeObjectURL(url)
-  ElMessage.success('已导出 Markdown')
+function openExport() {
+  if (!item.value) return
+  exportOpen.value = true
 }
 
 function applyEditDraft() {
@@ -459,7 +453,7 @@ watch(photoOpen, (open) => {
               <el-button size="small" circle :icon="FullScreen" @click="fullscreen = !fullscreen" />
             </el-tooltip>
             <el-tooltip content="导出文档" placement="bottom">
-              <el-button size="small" circle :icon="Download" @click="exportMarkdown" />
+              <el-button size="small" circle :icon="Download" @click="openExport" />
             </el-tooltip>
             <el-tooltip v-if="isAdmin && !editing" content="编辑讲义" placement="bottom">
               <el-button size="small" circle type="primary" :icon="EditPen" @click="startEdit" />
@@ -641,6 +635,13 @@ watch(photoOpen, (open) => {
     <p>{{ error || '未找到该讲义。' }}</p>
     <el-button @click="goList">返回列表</el-button>
   </section>
+  <HandoutExportDialog
+    v-if="item"
+    v-model="exportOpen"
+    :title="item.title"
+    :markdown="item.content"
+    :html="html"
+  />
 </template>
 
 <style scoped>

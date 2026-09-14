@@ -50,6 +50,7 @@ export const USER_KV_KEYS = [
   'frontend-handout-quiz-wrong-v1',
   'frontend-handout-quiz-favorite-v1',
   'frontend-handout-quiz-notes-v1',
+  'home-hub-menu-v1',
 ] as const
 
 const ALLOWED = new Set<string>(USER_KV_KEYS)
@@ -158,6 +159,7 @@ export function writeUserJson(key: string, value: unknown) {
   const text = JSON.stringify(value)
   memory.set(key, text)
   writeLocalRaw(key, text)
+  userJsonEpoch.value += 1
   if (!ALLOWED.has(key)) return
   void idbPut(key, text).catch(() => undefined)
   dirty.add(key)

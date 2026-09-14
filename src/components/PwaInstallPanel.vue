@@ -12,6 +12,9 @@ import {
   isPullToRefreshEnabled,
   setPullToRefreshEnabled,
 } from '@/utils/app/appUiSettings'
+import { HOME_HUB_MODULES, HOME_HUB_PINNED_ID } from '@/constants/home-hub-modules'
+import { isHomeHubModuleVisible, setHomeHubModuleVisible } from '@/utils/app/homeHubMenu'
+import { userJsonEpoch } from '@/utils/app/syncedUserJson'
 
 const props = withDefaults(
   defineProps<{
@@ -34,6 +37,21 @@ const pullToRefreshOn = computed({
     ElMessage.success(v ? '已开启手势刷新' : '已关闭手势刷新（推荐）')
   },
 })
+
+const menuRows = computed(() => {
+  void userJsonEpoch.value
+  return HOME_HUB_MODULES.map((mod) => ({
+    id: mod.id,
+    title: mod.title,
+    desc: mod.desc,
+    visible: isHomeHubModuleVisible(mod.id),
+    locked: mod.id === HOME_HUB_PINNED_ID,
+  }))
+})
+
+function onMenuVisibleChange(id: (typeof HOME_HUB_MODULES)[number]['id'], on: string | number | boolean) {
+  setHomeHubModuleVisible(id, Boolean(on))
+}
 
 onMounted(() => {
   applyPullToRefreshPreference()
@@ -124,6 +142,24 @@ async function updateAppContent() {
       </div>
 
       <div class="install-card settings-card">
+        <p class="install-card__title">菜单管理</p>
+        <p class="install-card__text">
+          控制首页显示哪些模块。题库整理始终显示；未登录记在本机，登录后同步到账号。
+        </p>
+        <div v-for="row in menuRows" :key="row.id" class="settings-row menu-row">
+          <div class="settings-row__text">
+            <p class="install-card__title">{{ row.title }}</p>
+            <p class="install-card__text">{{ row.locked ? '始终显示，不能关闭' : row.desc }}</p>
+          </div>
+          <el-switch
+            :model-value="row.visible"
+            :disabled="row.locked"
+            @change="onMenuVisibleChange(row.id, $event)"
+          />
+        </div>
+      </div>
+
+      <div class="install-card settings-card">
         <p class="install-card__title">数据备份与迁移</p>
         <p class="install-card__text">
           按模块导出 JSON，手机可分享到微信/文件，电脑会下载。不含登录密钥。旧版「错题与收藏」「全部练习数据」文件仍可导入。
@@ -191,6 +227,21 @@ async function updateAppContent() {
 
 .settings-row__text .install-card__title {
   margin-bottom: 4px;
+}
+
+.menu-row {
+  margin-top: 10px;
+}
+
+.menu-row + .menu-row {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--app-border-soft);
+}
+
+.menu-row .install-card__title {
+  margin-bottom: 2px;
+  font-size: 14px;
 }
 
 .backup-block {

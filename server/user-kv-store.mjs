@@ -50,6 +50,7 @@ const ALLOWED = new Set([
   'frontend-handout-quiz-wrong-v1',
   'frontend-handout-quiz-favorite-v1',
   'frontend-handout-quiz-notes-v1',
+  'home-hub-menu-v1',
 ])
 
 const MAX_JSON_BYTES = 1_500_000

@@ -119,6 +119,12 @@ async function main() {
     process.exit(1)
   }
   console.log(`[sync:cf-computer] 完成：讲义 ${data.items}，插图 ${data.media}`)
+  try {
+    const { publishCsVocabBank } = await import('./publish-cf-cs-vocab.mjs')
+    await publishCsVocabBank(HOST, login.token)
+  } catch (e) {
+    console.warn('[sync:cf-computer] 计算机单词题库未同步：', e instanceof Error ? e.message : e)
+  }
   console.log(`手机打开 ${HOST} → 计算机基础 即可看到。若仍是旧页，请强刷或去掉主屏幕旧图标后重开。`)
 }
 

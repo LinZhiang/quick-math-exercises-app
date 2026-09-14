@@ -109,9 +109,20 @@ export function handoutCacheFitsViewer(admin: boolean, viewer?: string): boolean
   return (viewer || 'public') === (admin ? 'admin' : 'public')
 }
 
+const treeWriteTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+function cancelHandoutTreeWrites(scope?: HandoutCacheScope) {
+  for (const [key, timer] of [...treeWriteTimers.entries()]) {
+    if (scope && key !== scope && !String(key).startsWith(`${scope}:`)) continue
+    clearTimeout(timer)
+    treeWriteTimers.delete(key)
+  }
+}
+
 /** 清掉某一侧讲义的 IndexedDB 缓存，强制刷新时用。 */
 export async function wipeHandoutDiskCacheScope(scope: HandoutCacheScope): Promise<void> {
   invalidateHandoutRevisionMemo(scope)
+  cancelHandoutTreeWrites(scope)
   if (!canUseIdb()) return
   try {
     await idbDelete(STORE_TREE, treeStoreKey(scope, 'full'))
@@ -139,6 +150,7 @@ export async function wipeHandoutDiskCacheScope(scope: HandoutCacheScope): Promi
 export async function wipeHandoutDiskCache(): Promise<void> {
   revisionMemo.clear()
   revisionInflight.clear()
+  cancelHandoutTreeWrites()
   const pending = dbPromise
   dbPromise = null
   if (pending) {
@@ -213,8 +225,6 @@ export async function readHandoutCachedTree<T>(
     return null
   }
 }
-
-const treeWriteTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
 export function writeHandoutCachedTree<T>(
   scope: HandoutCacheScope,

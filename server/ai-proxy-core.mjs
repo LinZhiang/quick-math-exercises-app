@@ -16,6 +16,7 @@ import {
 } from './auth-core.mjs'
 import { attachComputerBasicsRoutes } from './computer-basics-store.mjs'
 import { attachFrontendLearningRoutes } from './frontend-learning-store.mjs'
+import { attachCsVocabRoutes } from './cs-vocab-store.mjs'
 import { attachUserKvRoutes } from './user-kv-store.mjs'
 import {
   appendAiRequestLog,
@@ -106,6 +107,7 @@ export function createAiProxyApp() {
   attachAuthRoutes(app)
   attachComputerBasicsRoutes(app)
   attachFrontendLearningRoutes(app)
+  attachCsVocabRoutes(app)
   attachUserKvRoutes(app)
 
   app.get('/health', (_req, res) => {

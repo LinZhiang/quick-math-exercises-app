@@ -42,6 +42,7 @@ const ALLOWED = new Set([
   'frontend-handout-quiz-wrong-v1',
   'frontend-handout-quiz-favorite-v1',
   'frontend-handout-quiz-notes-v1',
+  'home-hub-menu-v1',
 ])
 
 function kvKey(username, key) {

@@ -6,6 +6,14 @@ import PracticeCompletionStat from '@/views/tools/mental-math/components/shared/
 
 const emit = defineEmits<{ (e: 'active', v: boolean): void }>()
 
+const props = withDefaults(
+  defineProps<{
+    /** 单独模块页（如计算机单词）铺满剩余高度，避免手机 App 里目录被裁切 */
+    fill?: boolean
+  }>(),
+  { fill: false },
+)
+
 const api = useFactDeepenMemorization()
 
 const {
@@ -76,7 +84,7 @@ function optKey(i: number) {
 </script>
 
 <template>
-  <div v-if="open" class="fd-panel">
+  <div v-if="open" class="fd-panel" :class="{ 'fd-panel--fill': fill }">
     <div class="fd-panel__top">
       <div>
         <p class="fd-panel__title">加深识记 · {{ kindLabel }}</p>
@@ -291,6 +299,18 @@ function optKey(i: number) {
 </template>
 
 <style scoped>
+.fd-panel--fill {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 0;
+}
+
+.fd-panel--fill .fd-toc {
+  max-height: none;
+}
+
 .fd-panel {
   margin-top: 12px;
   padding: 14px 16px 20px;

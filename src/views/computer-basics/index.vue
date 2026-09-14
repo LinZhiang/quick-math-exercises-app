@@ -18,11 +18,13 @@ import {
   findComputerEntry,
   findComputerNode,
   flattenVisibleComputerRows,
+  ensureComputerBasicsNodeLoaded,
   loadComputerBasicsItem,
   loadComputerBasicsTree,
   moveComputerItem,
   moveComputerNode,
   pullComputerBasicsFromCloud,
+  reloadComputerBasicsDir,
   renameComputerNode,
   setComputerItemPrivate,
   setComputerNodePrivate,
@@ -33,6 +35,7 @@ import {
   type ComputerTreeRow,
 } from '@/utils/computer/computerBasics'
 import { isWenguAdmin, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
+import { isLocalNodeWenguApi } from '@/utils/computer/wenguApiOrigin'
 import { wipeHandoutDiskCacheScope } from '@/utils/app/handoutDiskCache'
 import ComputerBusyHint from './ComputerBusyHint.vue'
 import ComputerCategoryMapDialog from './ComputerCategoryMapDialog.vue'
@@ -62,6 +65,8 @@ const moveOpen = ref(false)
 const quizItem = ref<ComputerHandoutItem | null>(null)
 const quizScopeLabel = ref('')
 let flashTimer = 0
+let catalogLoadGen = 0
+let cloudPullOnce = false
 
 const isAdmin = computed(() => {
   void wenguAuthTick.value
@@ -141,11 +146,24 @@ function revealRow(id: string, prefer: 'menu' | 'row' = 'row') {
   })
 }
 
-function toggle(id: string, expandable: boolean) {
+async function toggle(id: string, expandable: boolean) {
   if (!expandable) return
   const willOpen = !expanded.value[id]
   expanded.value = { ...expanded.value, [id]: willOpen }
   if (!willOpen) return
+  const node = findComputerNode(tree.value, id)?.node
+  if (node?.loaded === false) {
+    loadingNodeId.value = id
+    try {
+      tree.value = await ensureComputerBasicsNodeLoaded(id, true)
+    } catch (e) {
+      expanded.value = { ...expanded.value, [id]: false }
+      ElMessage.error(e instanceof Error ? e.message : '加载分类失败')
+      loadingNodeId.value = ''
+      return
+    }
+    loadingNodeId.value = ''
+  }
   afterLayout(() => {
     const scroller = treeEl.value
     const row = queryTreeRow(id)
@@ -493,51 +511,108 @@ async function confirmMove(target: string) {
   }
 }
 
+async function syncCloudIfLocalAdmin(force = false) {
+  if (!isAdmin.value || !isLocalNodeWenguApi()) return null
+  if (!force && cloudPullOnce) return null
+  cloudPullOnce = true
+  if (force) busyText.value = '正在从云端同步手机上新增的讲义…'
+  try {
+    return await pullComputerBasicsFromCloud()
+  } catch (e) {
+    cloudPullOnce = false
+    throw e
+  }
+}
+
+function catalogEntryCount(nodes: ComputerTreeNode[]): number {
+  return nodes.reduce(function walk(n, node): number {
+    return n + node.entries.length + node.children.reduce(walk, 0)
+  }, 0)
+}
+
+async function pullCloudInBackground(gen: number) {
+  try {
+    const pulled = await syncCloudIfLocalAdmin(false)
+    if (gen !== catalogLoadGen) return
+    if (!pulled?.wrote) return
+    clearComputerBasicsCache()
+    const next = await loadComputerBasicsTree(true)
+    if (gen !== catalogLoadGen) return
+    tree.value = next
+    ElMessage.success(`已从云端并入 ${pulled.wrote} 篇`)
+  } catch (e) {
+    if (gen !== catalogLoadGen) return
+    ElMessage.warning(e instanceof Error ? `云端同步失败：${e.message}` : '云端同步失败，先显示本机目录')
+  }
+}
+
 async function load(force = false) {
+  const gen = ++catalogLoadGen
   error.value = ''
   if (tree.value.length) busyText.value = '正在刷新目录…'
   else loading.value = true
   try {
     const next = await loadComputerBasicsTree(force)
+    if (gen !== catalogLoadGen) return
     tree.value = next
+    void pullCloudInBackground(gen)
   } catch (e) {
+    if (gen !== catalogLoadGen) return
     error.value = e instanceof Error ? e.message : '读取目录失败'
   } finally {
-    loading.value = false
-    busyText.value = ''
+    if (gen === catalogLoadGen) {
+      loading.value = false
+      busyText.value = ''
+    }
   }
 }
 
 async function forceRefreshCatalog() {
-  if (busyText.value || loading.value) return
-  busyText.value = '正在从云端拉取并刷新目录…'
+  const gen = ++catalogLoadGen
   error.value = ''
+  const keep = { ...expanded.value }
+  tree.value = []
+  expanded.value = {}
+  folderTree.value = []
+  loading.value = true
+  busyText.value = '正在清除缓存并重新加载目录…'
   try {
-    let pulled = 0
-    if (isAdmin.value) {
-      try {
-        const remote = await pullComputerBasicsFromCloud()
-        pulled = Number(remote.wrote) || 0
-      } catch {
-        /* 云端暂时连不上时仍读本机目录 */
-      }
+    let pulled: { wrote?: number } | null = null
+    try {
+      pulled = await syncCloudIfLocalAdmin(true)
+    } catch (e) {
+      if (gen !== catalogLoadGen) return
+      ElMessage.warning(e instanceof Error ? `云端同步失败：${e.message}` : '云端同步失败，先显示本机目录')
     }
+    if (gen !== catalogLoadGen) return
     clearComputerBasicsCache()
     await wipeHandoutDiskCacheScope('computer')
-    folderTree.value = []
-    const next = await loadComputerBasicsTree(true)
+    if (gen !== catalogLoadGen) return
+    let next: ComputerTreeNode[]
+    try {
+      next = await loadComputerBasicsTree(true)
+    } catch {
+      next = await reloadComputerBasicsDir(Object.keys(keep).filter((id) => keep[id]))
+    }
+    if (gen !== catalogLoadGen) return
     tree.value = next
-    const count = next.reduce(function walk(n, node): number {
-      return n + node.entries.length + node.children.reduce(walk, 0)
-    }, 0)
-    ElMessage.success(
-      pulled > 0 ? `已从云端并入 ${pulled} 篇，本机共 ${count} 篇` : `已重新读取目录，共 ${count} 篇`,
-    )
+    const restored: Record<string, boolean> = {}
+    for (const [id, on] of Object.entries(keep)) {
+      if (on && treeHasId(next, id)) restored[id] = true
+    }
+    expanded.value = restored
+    const count = catalogEntryCount(next)
+    const extra = pulled?.wrote ? `，并从云端并入 ${pulled.wrote} 篇` : ''
+    ElMessage.success(`已清除缓存并重新加载，共 ${count} 篇${extra}`)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '强制刷新失败'
+    if (gen !== catalogLoadGen) return
+    error.value = e instanceof Error ? e.message : '刷新失败'
     ElMessage.error(error.value)
   } finally {
-    busyText.value = ''
+    if (gen === catalogLoadGen) {
+      loading.value = false
+      busyText.value = ''
+    }
   }
 }
 
@@ -600,8 +675,7 @@ onBeforeUnmount(() => {
           <el-button
             size="small"
             :icon="Refresh"
-            title="丢掉本地缓存，从服务器重新读取目录"
-            :disabled="Boolean(busyText) || loading"
+            title="清除本地缓存；本机还会从云端并入手机上新增的讲义"
             @click="forceRefreshCatalog"
           >
             刷新
@@ -612,7 +686,7 @@ onBeforeUnmount(() => {
         </el-tooltip>
       </div>
       <p class="computer-page__lead">
-        分类是树形结构，大类下可叠多层小类。管理员登录后可直接新增、改名；「检查并更新」只刷新应用，不会清空目录。
+        分类是树形结构，大类下可叠多层小类。管理员登录后可直接新增、改名。电脑本机打开时会把手机云端新增的讲义并回来；「检查并更新」只刷新应用，不会清空目录。
       </p>
       <p v-if="quizStats.lifetimeTotal" class="computer-page__stats">
         累计测验 {{ quizStats.lifetimeTotal }} 题，答对 {{ quizStats.lifetimeCorrect }}。

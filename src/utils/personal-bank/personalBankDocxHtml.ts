@@ -5,6 +5,7 @@ import {
   MathFraction,
   MathRun,
   Paragraph,
+  ShadingType,
   Table,
   TableCell,
   TableRow,
@@ -34,7 +35,28 @@ type RunStyle = {
   italics?: boolean
   superScript?: boolean
   subScript?: boolean
+  color?: string
+  font?: string
+  size?: number
+  shadingFill?: string
+  inPre?: boolean
 }
+
+const TOK_COLOR: Record<string, string> = {
+  'tok-kw': 'F472B6',
+  'tok-fn': 'FBBF24',
+  'tok-ty': '7DD3FC',
+  'tok-str': '86EFAC',
+  'tok-tmpl': '86EFAC',
+  'tok-cmt': 'A3E635',
+  'tok-num': 'C4B5FD',
+  'tok-lit': 'C4B5FD',
+  'tok-op': 'E5E7EB',
+  'tok-id': 'E5E7EB',
+}
+
+const CODE_BG = '1E1E1E'
+const CODE_FG = 'E5E7EB'
 
 const MAX_IMG_PX = 520
 const CONTENT_DXA = 9638
@@ -95,26 +117,61 @@ function collapseText(s: string): string {
 }
 
 function styledRun(text: string, style: RunStyle): TextRun | null {
-  const value = collapseText(text)
-  if (!value) return null
+  const value = style.inPre ? String(text).replace(/\u00a0/g, ' ') : collapseText(text)
+  if (!value && !style.inPre) return null
   return new TextRun({
-    text: value,
+    text: value || ' ',
     bold: style.bold,
     italics: style.italics,
     superScript: style.superScript,
     subScript: style.subScript,
-    font: 'SimSun',
-    size: 24,
+    font: style.font || (style.inPre ? 'Consolas' : 'SimSun'),
+    size: style.size || (style.inPre ? 20 : 24),
+    color: style.color,
+    shading: style.shadingFill
+      ? { type: ShadingType.CLEAR, fill: style.shadingFill }
+      : undefined,
   })
 }
 
-function childStyle(name: string, style: RunStyle): RunStyle {
-  return {
+function tokenColorOf(el: Element): string | undefined {
+  const tok = [...el.classList].find((c) => c.startsWith('tok-'))
+  return tok ? TOK_COLOR[tok] : undefined
+}
+
+function childStyle(name: string, style: RunStyle, el?: Element): RunStyle {
+  const next: RunStyle = {
     bold: style.bold || name === 'strong' || name === 'b' || name === 'th',
     italics: style.italics || name === 'em' || name === 'i',
     superScript: style.superScript || name === 'sup',
     subScript: style.subScript || name === 'sub',
+    color: style.color,
+    font: style.font,
+    size: style.size,
+    shadingFill: style.shadingFill,
+    inPre: style.inPre,
   }
+  if (el) {
+    const tok = tokenColorOf(el)
+    if (tok) {
+      next.color = tok
+      next.italics = next.italics || el.classList.contains('tok-cmt')
+      next.bold = next.bold || el.classList.contains('tok-kw')
+    }
+  }
+  if (name === 'code' && !style.inPre) {
+    next.font = 'Consolas'
+    next.size = 21
+    next.color = next.color || 'C43B66'
+    next.shadingFill = next.shadingFill || 'FDECEE'
+  }
+  if (style.inPre) {
+    next.font = 'Consolas'
+    next.size = 20
+    next.color = next.color || CODE_FG
+    next.shadingFill = undefined
+  }
+  return next
 }
 
 function mathComponentsFrom(el: Element | null): MathComponent[] {
@@ -234,12 +291,12 @@ function inlineFromNode(node: Node, style: RunStyle, images: Map<string, Prepare
   }
   if (!isElement(node)) return []
   const name = tagName(node)
-  if (name === 'br') return [new TextRun(' ')]
+  if (name === 'br') return style.inPre ? [new TextRun({ break: 1 })] : [new TextRun(' ')]
   if (node.classList.contains('da-math-frac__rule')) return []
   if (isFrac(node)) return [mathFromFrac(node)]
   if (name === 'img') return imageChild(node.getAttribute('src') ?? '', images)
   if (name === 'table' || name === 'ul' || name === 'ol') return []
-  const next = childStyle(name, style)
+  const next = childStyle(name, style, node)
   const out: ParagraphChild[] = []
   for (const child of [...node.childNodes]) out.push(...inlineFromNode(child, next, images))
   return out
@@ -249,8 +306,8 @@ function flattenInline(root: ParentNode, images: Map<string, PreparedImage>, sty
   const out: ParagraphChild[] = []
   for (const child of [...root.childNodes]) {
     if (isElement(child) && isBlockTag(tagName(child)) && tagName(child) !== 'table') {
-      if (out.length) out.push(new TextRun(' '))
-      out.push(...flattenInline(child, images, childStyle(tagName(child), style)))
+      if (out.length) out.push(new TextRun(style.inPre ? { break: 1 } : { text: ' ' }))
+      out.push(...flattenInline(child, images, childStyle(tagName(child), style, child)))
     } else {
       out.push(...inlineFromNode(child, style, images))
     }
@@ -258,7 +315,9 @@ function flattenInline(root: ParentNode, images: Map<string, PreparedImage>, sty
   return out
 }
 
-type HtmlBlock = { kind: 'p'; children: ParagraphChild[] } | { kind: 'table'; table: Table }
+type HtmlBlock =
+  | { kind: 'p'; children: ParagraphChild[]; extra?: Omit<IParagraphOptions, 'children'> }
+  | { kind: 'table'; table: Table }
 
 function tableFromElement(tableEl: Element, images: Map<string, PreparedImage>): Table {
   const rows = [...tableEl.querySelectorAll(':scope > tr, :scope > thead > tr, :scope > tbody > tr, :scope > tfoot > tr')]
@@ -294,7 +353,49 @@ function tableFromElement(tableEl: Element, images: Map<string, PreparedImage>):
   })
 }
 
-function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>): HtmlBlock[] {
+function codeLineExtra(isFirst: boolean, isLast: boolean): Omit<IParagraphOptions, 'children'> {
+  return {
+    shading: { type: ShadingType.CLEAR, fill: CODE_BG },
+    spacing: { before: isFirst ? 160 : 0, after: isLast ? 200 : 0, line: 276 },
+    indent: { left: 140, right: 140 },
+  }
+}
+
+function splitPreLines(pre: Element, images: Map<string, PreparedImage>): ParagraphChild[][] {
+  const code = pre.querySelector('code') ?? pre
+  const lines: ParagraphChild[][] = [[]]
+  const pushLine = () => {
+    if (lines[lines.length - 1]) lines.push([])
+  }
+  const current = () => lines[lines.length - 1]!
+  const walk = (node: Node, style: RunStyle) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const parts = String(node.textContent ?? '').replace(/\r\n/g, '\n').split('\n')
+      parts.forEach((part, i) => {
+        if (i > 0) pushLine()
+        const run = styledRun(part, style)
+        if (run && (part.length || style.inPre)) current().push(run)
+      })
+      return
+    }
+    if (!isElement(node)) return
+    const name = tagName(node)
+    if (name === 'br') {
+      pushLine()
+      return
+    }
+    if (name === 'img') {
+      current().push(...imageChild(node.getAttribute('src') ?? '', images))
+      return
+    }
+    const next = childStyle(name, style, node)
+    for (const child of [...node.childNodes]) walk(child, next)
+  }
+  walk(code, { inPre: true, font: 'Consolas', size: 20, color: CODE_FG })
+  return lines.length ? lines : [[]]
+}
+
+function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, handout = false): HtmlBlock[] {
   const out: HtmlBlock[] = []
   let pending: ParagraphChild[] = []
 
@@ -321,22 +422,111 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>): H
       out.push({ kind: 'table', table: tableFromElement(node, images) })
       return
     }
+    if (name === 'pre') {
+      flush()
+      const lines = splitPreLines(node, images)
+      lines.forEach((children, i) => {
+        out.push({
+          kind: 'p',
+          children: children.length ? children : [new TextRun({ text: ' ', font: 'Consolas', size: 20, color: CODE_FG })],
+          extra: codeLineExtra(i === 0, i === lines.length - 1),
+        })
+      })
+      return
+    }
+    if (node.classList.contains('cb-handout-note') || (name === 'aside' && node.classList.contains('cb-handout-note'))) {
+      flush()
+      const tab = (node.querySelector('.cb-handout-note__tab')?.textContent || '备注').trim()
+      const body = node.querySelector('.cb-handout-note__body')
+      out.push({
+        kind: 'p',
+        children: [textRun(`【${tab}】`, { bold: true, color: 'C43B66', size: 22 })],
+        extra: {
+          shading: { type: ShadingType.CLEAR, fill: 'FDECEE' },
+          spacing: { before: 120, after: 40, line: 276 },
+        },
+      })
+      if (body) {
+        for (const block of blocksFromNode(body, images, handout)) {
+          if (block.kind === 'p') {
+            out.push({
+              ...block,
+              extra: {
+                ...block.extra,
+                shading: { type: ShadingType.CLEAR, fill: 'FDECEE' },
+              },
+            })
+          } else out.push(block)
+        }
+      }
+      return
+    }
+    if (/^h[1-6]$/.test(name)) {
+      flush()
+      const level = Number(name.slice(1))
+      const size = level === 1 ? 40 : level === 2 ? (handout ? 34 : 32) : handout ? 26 : 26
+      const inlines = flattenInline(node, images, {
+        bold: true,
+        font: 'SimHei',
+        size,
+        color: '1E2937',
+      })
+      out.push({
+        kind: 'p',
+        children: inlines.length ? inlines : [textRun(collapseText(node.textContent ?? '').trim(), { bold: true, font: 'SimHei', size })],
+        extra: { spacing: { before: level === 1 ? 80 : 280, after: 120, line: 320 } },
+      })
+      return
+    }
+    if (name === 'blockquote') {
+      flush()
+      for (const block of blocksFromNode(node, images, handout)) {
+        if (block.kind === 'p') {
+          out.push({
+            ...block,
+            extra: {
+              ...block.extra,
+              indent: { left: 240 },
+              border: { left: { style: BorderStyle.SINGLE, size: 12, color: '94A3B8', space: 8 } },
+            },
+          })
+        } else out.push(block)
+      }
+      return
+    }
     if (name === 'ul' || name === 'ol') {
       flush()
       ;[...node.children].forEach((li, i) => {
         if (tagName(li) !== 'li') return
         const mark = name === 'ol' ? `${i + 1}. ` : '• '
-        out.push({ kind: 'p', children: [textRun(mark), ...flattenInline(li, images)] })
+        out.push({
+          kind: 'p',
+          children: [textRun(mark, { color: '94A3B8' }), ...flattenInline(li, images)],
+          extra: { indent: { left: 220 }, spacing: { after: 60, before: 0, line: 276 } },
+        })
       })
       return
     }
-    if (isFrac(node) || name === 'img' || name === 'span' || name === 'strong' || name === 'b' || name === 'em' || name === 'i' || name === 'sup' || name === 'sub' || name === 'a' || name === 'u') {
+    if (
+      isFrac(node) ||
+      name === 'img' ||
+      name === 'span' ||
+      name === 'strong' ||
+      name === 'b' ||
+      name === 'em' ||
+      name === 'i' ||
+      name === 'sup' ||
+      name === 'sub' ||
+      name === 'a' ||
+      name === 'u' ||
+      name === 'code'
+    ) {
       pending.push(...inlineFromNode(node, {}, images))
       return
     }
     if (isBlockTag(name)) {
       flush()
-      const inner = blocksFromNode(node, images)
+      const inner = blocksFromNode(node, images, handout)
       if (inner.length) out.push(...inner)
       else {
         const inlines = flattenInline(node, images)
@@ -369,24 +559,27 @@ export async function htmlToInlineChildren(html: string): Promise<ParagraphChild
 
 function toFileChild(block: HtmlBlock, extra: Omit<IParagraphOptions, 'children'>): FileChild {
   if (block.kind === 'table') return block.table
-  return bodyParagraph(block.children, extra)
+  return bodyParagraph(block.children, { ...extra, ...block.extra })
 }
 
 export async function htmlToDocxBlocks(
   html: string,
-  options?: { prefix?: ParagraphChild[]; indent?: number },
+  options?: { prefix?: ParagraphChild[]; indent?: number; handout?: boolean },
 ): Promise<FileChild[]> {
   const prefix = options?.prefix ?? []
   const extra: Omit<IParagraphOptions, 'children'> = options?.indent != null ? { indent: { left: options.indent } } : {}
   const root = parseRoot(html)
   if (!root) return prefix.length ? [bodyParagraph(prefix, extra)] : []
   const images = await collectImages(root)
-  const blocks = blocksFromNode(root, images)
+  const blocks = blocksFromNode(root, images, Boolean(options?.handout))
   if (!prefix.length) return blocks.map((b) => toFileChild(b, extra))
   if (!blocks.length) return [bodyParagraph(prefix, extra)]
   const first = blocks[0]
   if (first && first.kind === 'p') {
-    return [bodyParagraph([...prefix, ...first.children], extra), ...blocks.slice(1).map((b) => toFileChild(b, extra))]
+    return [
+      bodyParagraph([...prefix, ...first.children], { ...extra, ...first.extra }),
+      ...blocks.slice(1).map((b) => toFileChild(b, extra)),
+    ]
   }
   return [bodyParagraph(prefix, extra), ...blocks.map((b) => toFileChild(b, extra))]
 }

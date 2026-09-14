@@ -66,3 +66,11 @@ export function treeParentFromQuery(query) {
   if (raw == null) return null
   return Array.isArray(raw) ? String(raw[0] ?? '') : String(raw)
 }
+
+export function treeSkipReadyFromRequest(request) {
+  try {
+    return new URL(request.url).searchParams.get('skipReady') === '1'
+  } catch {
+    return false
+  }
+}

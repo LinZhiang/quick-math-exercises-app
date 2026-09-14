@@ -13,7 +13,7 @@ import {
   rememberFlStoreOrigin,
   FL_USER_OWNED_KEY,
 } from './flStore.js'
-import { sliceCatalogLayer, treeParentFromRequest } from './catalogLayer.js'
+import { sliceCatalogLayer, treeParentFromRequest, treeSkipReadyFromRequest } from './catalogLayer.js'
 import {
   assertCatalogNotStub,
   assertHandoutNotTruncated,
@@ -245,22 +245,10 @@ async function itemHasBody(env, id, request) {
 
 async function applyReadyFlagsToEntries(env, entries, request) {
   for (const entry of entries || []) {
+    if (entry?.ready) continue
     entry.ready = await itemHasBody(env, String(entry.id), request)
   }
   return entries
-}
-
-async function applyReadyFlags(env, tree, request) {
-  const walk = async (nodes) => {
-    for (const node of nodes) {
-      if (!Array.isArray(node.entries)) node.entries = []
-      if (!Array.isArray(node.children)) node.children = []
-      await applyReadyFlagsToEntries(env, node.entries, request)
-      await walk(node.children)
-    }
-  }
-  await walk(tree)
-  return tree
 }
 
 function findNode(nodes, id, parent = null) {
@@ -448,7 +436,9 @@ export async function handleFrontendLearning(env, request, pathParam) {
       if (parent != null) {
         const layer = sliceCatalogLayer(tree, parent)
         if (!layer) return json({ ok: false, message: '未找到该分类' }, 404)
-        await applyReadyFlagsToEntries(env, layer.entries, request)
+        if (!treeSkipReadyFromRequest(request)) {
+          await applyReadyFlagsToEntries(env, layer.entries, request)
+        }
         const visibleTree = admin ? layer.tree : filterPublicCatalog(layer.tree)
         const visibleEntries = admin
           ? layer.entries
@@ -461,8 +451,7 @@ export async function handleFrontendLearning(env, request, pathParam) {
           ...catalogRevision(raw),
         })
       }
-      const ready = await applyReadyFlags(env, tree, request)
-      const visible = admin ? ready : filterPublicCatalog(ready)
+      const visible = admin ? tree : filterPublicCatalog(tree)
       return json({
         ok: true,
         tree: visible,

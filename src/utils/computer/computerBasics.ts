@@ -595,7 +595,7 @@ export async function loadComputerBasicsTree(force = false): Promise<ComputerTre
     }
   }
 
-  const res = await wenguApiFetch('/api/computer-basics/tree', viewerAuthInit())
+  const res = await wenguApiFetch('/api/computer-basics/tree', { ...viewerAuthInit(), cacheBust: force })
   const data = await readWenguJsonResponse<{
     ok?: boolean
     tree?: ComputerTreeNode[]
@@ -643,7 +643,10 @@ async function fetchComputerLayer(parentId: string): Promise<{
   revision: string
 }> {
   const q = encodeURIComponent(parentId || '__root__')
-  const res = await wenguApiFetch(`/api/computer-basics/tree?parent=${q}`, viewerAuthInit())
+  const res = await wenguApiFetch(`/api/computer-basics/tree?parent=${q}`, {
+    ...viewerAuthInit(),
+    cacheBust: true,
+  })
   const data = await readWenguJsonResponse<{
     ok?: boolean
     tree?: ComputerTreeNode[]
@@ -787,7 +790,10 @@ export async function loadComputerBasicsItem(id: string, force = false): Promise
     }
   }
 
-  const res = await wenguApiFetch(`/api/computer-basics/items/${encodeURIComponent(key)}`, viewerAuthInit())
+  const res = await wenguApiFetch(`/api/computer-basics/items/${encodeURIComponent(key)}`, {
+    ...viewerAuthInit(),
+    cacheBust: force,
+  })
   const data = await readWenguJsonResponse<{ ok?: boolean; item?: ComputerHandoutItem; message?: string }>(
     res,
   )
