@@ -42,9 +42,22 @@ function revisionOf(items) {
   return (h >>> 0).toString(16).padStart(8, '0')
 }
 
-async function readBank(kv) {
-  const raw = await kv.get(BANK_KEY, { type: 'json' }).catch(() => null)
-  return normalizeItems(raw)
+async function readBankFromAssets(env, request) {
+  if (!env.ASSETS || typeof env.ASSETS.fetch !== 'function' || !request) return []
+  try {
+    const url = new URL('/cs-vocab/bank.json', request.url)
+    const res = await env.ASSETS.fetch(new Request(url.toString(), { method: 'GET' }))
+    if (!res.ok) return []
+    return normalizeItems(await res.json())
+  } catch {
+    return []
+  }
+}
+
+async function readBank(kv, env, request) {
+  const fromKv = kv ? normalizeItems(await kv.get(BANK_KEY, { type: 'json' }).catch(() => null)) : []
+  if (fromKv.length) return fromKv
+  return readBankFromAssets(env, request)
 }
 
 export async function handleCsVocab(env, request, path) {
@@ -55,14 +68,12 @@ export async function handleCsVocab(env, request, path) {
   const kv = getWenguKv(env)
 
   if (method === 'GET' && (segs.length === 0 || segs[0] === 'bank')) {
-    if (!kv) return json({ ok: true, items: [], revision: '', count: 0 })
-    const items = await readBank(kv)
+    const items = await readBank(kv, env, request)
     return json({ ok: true, items, revision: revisionOf(items), count: items.length })
   }
 
   if (method === 'GET' && segs[0] === 'revision') {
-    if (!kv) return json({ ok: true, revision: '', count: 0 })
-    const items = await readBank(kv)
+    const items = await readBank(kv, env, request)
     return json({ ok: true, revision: revisionOf(items), count: items.length })
   }
 

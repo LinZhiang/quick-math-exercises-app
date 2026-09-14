@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "setup": "node scripts/sync-server-env.mjs && vue-tsc -b && vite build",
-    "prebuild": "node scripts/sync-server-env.mjs",
-    "predev": "node scripts/sync-server-env.mjs",
+    "prebuild": "node scripts/sync-server-env.mjs && node scripts/sync-cs-vocab-public.mjs",
+    "predev": "node scripts/sync-server-env.mjs && node scripts/sync-cs-vocab-public.mjs",
     "dev": "vite",
     "dev:ai": "npm --prefix server run dev",
     "dev:full": "concurrently -n web,ai -c blue,green \"npm run dev\" \"npm run dev:ai\"",

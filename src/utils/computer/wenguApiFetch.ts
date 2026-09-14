@@ -74,7 +74,7 @@ function nonJsonMessage(res: Response, text: string): string {
       return (
         '云端计算机单词题库接口返回了网页而不是数据（HTTP ' +
         res.status +
-        '）。请先部署带 Functions 的版本，再在电脑执行 npm run sync:cf-cs-vocab。'
+        '）。请先部署带 Functions 的版本；题库正文在 public/cs-vocab/bank.json，随页面一起发布。'
       )
     }
     return `接口返回了网页而不是数据（${path || `HTTP ${res.status}`}）。${offlineHint()}`
@@ -107,7 +107,14 @@ export async function wenguApiFetch(path: string, init?: RequestInit & { cacheBu
         ...(rest.headers ?? {}),
       },
     })
-  } catch {
+  } catch (e) {
+    if (
+      rest.signal?.aborted ||
+      (e instanceof DOMException && e.name === 'AbortError') ||
+      (e instanceof Error && e.name === 'AbortError')
+    ) {
+      throw e instanceof Error ? e : new DOMException('Aborted', 'AbortError')
+    }
     throw new WenguApiError(offlineHint())
   }
 }

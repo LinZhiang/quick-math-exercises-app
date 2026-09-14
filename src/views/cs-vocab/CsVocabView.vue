@@ -38,9 +38,9 @@ function openDeepen() {
       </p>
       <p v-if="hydrating" class="mode-section__hint">正在同步题库…</p>
       <p v-else-if="!bankCount" class="mode-section__hint">
-        这台设备还没有题库。请连上学习服务后再打开；电脑生成题库后执行
-        <code>npm run sync:cf-cs-vocab</code>
-        ，手机即可用。
+        还没有读到题库文件。请确认本机
+        <code>src/utils/cs-vocab/bank.generated.json</code>
+        已生成，然后重新构建/打开；部署后手机与电脑共用同一份静态题库。
       </p>
       <div class="mode-grid cs-vocab-grid">
         <button

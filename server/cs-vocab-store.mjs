@@ -1,6 +1,6 @@
 /**
  * 计算机单词和语法题库：本机 Node 提供给 App 拉取。
- * 源文件 git 忽略；优先 server/data/cs-vocab/bank.json，其次 src 下生成稿。
+ * 优先 server/data/cs-vocab/bank.json，其次 src 下生成稿；构建时拷到 public/cs-vocab。
  */
 import crypto from 'node:crypto'
 import fs from 'node:fs'

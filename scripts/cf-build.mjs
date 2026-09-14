@@ -72,6 +72,8 @@ if (!isCf) {
 const parked = parkHandoutSnapshots()
 let code = 0
 try {
+  const { syncCsVocabPublicBank } = await import('./sync-cs-vocab-public.mjs')
+  syncCsVocabPublicBank()
   code = run('npx', isCf ? ['vite', 'build', '--logLevel', 'warn'] : ['vite', 'build'])
 } finally {
   restoreHandoutSnapshots(parked)

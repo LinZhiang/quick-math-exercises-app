@@ -61,6 +61,7 @@ export type AiChatCompletionOptions = {
   stream?: boolean
   /** 可选覆盖模型（deepseek 有效；doubao 由服务端 DOUBAO_MODEL_ID 决定） */
   model?: string
+  signal?: AbortSignal
 }
 
 export class AiUpstreamError extends Error {
@@ -318,6 +319,7 @@ export async function aiChatCompletion(
         'X-Wengu-Ai-Provider': provider,
       },
       body,
+      signal: options?.signal,
     })
     if (res.status === 401) {
       const errText = await res.text().catch(() => '')
@@ -355,6 +357,7 @@ export async function aiChatCompletion(
       'X-Wengu-Ai-Source': WENGU_AI_SOURCE,
     },
     body: JSON.stringify(directBody),
+    signal: options?.signal,
   })
   if (!res.ok) await parseErrorResponse(res, 'deepseek')
   return extractAssistantText(res)

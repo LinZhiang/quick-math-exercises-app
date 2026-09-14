@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowUp, Delete, Download, EditPen, FullScreen } from '@element-plus/icons-vue'
@@ -23,7 +23,10 @@ import {
   FRONTEND_HANDOUT_PHOTO_MAX,
   extractFrontendHandoutFromPhoto,
 } from '@/utils/frontend/frontendHandoutPhotoExtract'
-import { aiMatchHandoutFormat } from '@/utils/markdown/aiMatchHandoutFormat'
+import {
+  aiMatchHandoutFormat,
+  isHandoutFormatAborted,
+} from '@/utils/markdown/aiMatchHandoutFormat'
 import { aiRequestProgressText } from '@/utils/app/aiProviderStore'
 import { sanitizeRichHtml, handoutHtmlForSave } from '@/utils/markdown/richTextHtml'
 import { isWenguAdmin, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
@@ -57,6 +60,8 @@ const draftTitle = ref('')
 const draftContent = ref('')
 const saving = ref(false)
 const formatBusy = ref(false)
+const formatProgressText = ref('')
+let formatAbort: AbortController | null = null
 const headCollapsed = ref(false)
 const editorRef = ref<{ insertNoteTag: () => Promise<void> | void } | null>(null)
 const paperRef = ref<HTMLElement | null>(null)
@@ -213,25 +218,50 @@ function openPhoto(intent: PhotoIntent) {
   })
 }
 
+function abortFormatMatch() {
+  formatAbort?.abort()
+}
+
+function formatMatchProgressText(p: { current: number; total: number; attempt: number; round: number }) {
+  const retry = p.attempt > 1 ? `，第 ${p.attempt} 次` : ''
+  const again = p.round > 1 ? `，整篇第 ${p.round} 轮` : ''
+  return `${aiRequestProgressText('匹配讲义格式')}（${p.current}/${p.total}${retry}${again}）`
+}
+
 async function matchHandoutFormat() {
   if (!editing.value || !isAdmin.value || formatBusy.value) return
   try {
     await ElMessageBox.confirm(
-      '将按讲义格式识别标题、代码块和列表，只做排版，不删节正文。若结果明显变短会自动放弃，原文不动。之后仍可在编辑器里微调。',
+      '将按讲义样式整理标题、列表和代码块，只做排版，不删节。没有标题/列表/代码的段落会按普通正文处理，不反复卡重试。可随时点「中断」停止，原文不动。',
       'AI 自动匹配格式',
       { confirmButtonText: '开始匹配', cancelButtonText: '取消' },
     )
   } catch {
     return
   }
+  formatAbort?.abort()
+  const controller = new AbortController()
+  formatAbort = controller
   formatBusy.value = true
+  formatProgressText.value = aiRequestProgressText('匹配讲义格式')
   try {
-    draftContent.value = await aiMatchHandoutFormat(draftContent.value)
+    draftContent.value = await aiMatchHandoutFormat(draftContent.value, {
+      signal: controller.signal,
+      onProgress: (p) => {
+        formatProgressText.value = formatMatchProgressText(p)
+      },
+    })
     ElMessage.success('已套用讲义格式，可再微调后保存')
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '格式匹配失败')
+    if (isHandoutFormatAborted(e)) {
+      ElMessage.info('已中断，原文未改')
+    } else {
+      ElMessage.error(e instanceof Error ? e.message : '格式匹配失败')
+    }
   } finally {
     formatBusy.value = false
+    formatProgressText.value = ''
+    if (formatAbort === controller) formatAbort = null
   }
 }
 
@@ -378,9 +408,13 @@ async function startPhotoRecognize() {
 }
 
 let loadSeq = 0
+onUnmounted(() => {
+  formatAbort?.abort()
+})
 watch(
   itemId,
   async (id) => {
+    formatAbort?.abort()
     const seq = ++loadSeq
     loading.value = true
     error.value = ''
@@ -623,7 +657,13 @@ watch(photoOpen, (open) => {
     </article>
     <FrontendAskPanel v-if="item && !fullscreen && !photoOpen && !quizOpen && !editing" :item="item" />
     <div v-if="loading || saving || formatBusy" class="computer-busy-cover">
-      <FrontendBusyHint :text="formatBusy ? aiRequestProgressText('匹配讲义格式') : saving ? '正在保存讲义…' : '正在打开讲义…'" />
+      <div class="computer-busy-cover__box">
+        <FrontendBusyHint
+          :text="formatBusy ? (formatProgressText || aiRequestProgressText('匹配讲义格式')) : saving ? '正在保存讲义…' : '正在打开讲义…'"
+          :hint="formatBusy ? '有结构就排样式，没有就按段落处理；可随时中断' : '请稍候，马上就完成'"
+        />
+        <el-button v-if="formatBusy" type="danger" plain @click="abortFormatMatch">中断</el-button>
+      </div>
     </div>
   </section>
   <section v-else-if="loading" class="computer-detail computer-detail--boot">
@@ -689,6 +729,15 @@ watch(photoOpen, (open) => {
   align-items: center;
   justify-content: center;
   background: rgb(255 255 255 / 82%);
+}
+
+.computer-busy-cover__box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 20px;
+  max-width: min(22rem, calc(100% - 24px));
 }
 
 .computer-detail__top {

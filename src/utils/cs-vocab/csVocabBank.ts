@@ -42,9 +42,14 @@ function loadBundled(): CsVocabBankItem[] {
 }
 
 function setBank(items: CsVocabBankItem[]) {
+  if (!items.length) return
   CS_VOCAB_BANK.length = 0
   CS_VOCAB_BANK.push(...items)
   csVocabBankTick.value += 1
+}
+
+function takeIfRicher(items: CsVocabBankItem[]) {
+  if (items.length > CS_VOCAB_BANK.length) setBank(items)
 }
 
 setBank(loadBundled())
@@ -97,29 +102,45 @@ async function writeCache(row: CacheRow): Promise<void> {
   }
 }
 
+async function loadStaticBank(): Promise<CsVocabBankItem[]> {
+  try {
+    const res = await fetch('/cs-vocab/bank.json', { cache: 'no-store' })
+    if (!res.ok) return []
+    return normalizeItems(await res.json())
+  } catch {
+    return []
+  }
+}
+
 let hydratePromise: Promise<void> | null = null
 
 export function hydrateCsVocabBank(): Promise<void> {
   if (hydratePromise) return hydratePromise
   hydratePromise = (async () => {
     const cached = await readCache()
-    if (cached?.items?.length && cached.items.length >= CS_VOCAB_BANK.length) {
-      setBank(cached.items)
-    }
+    takeIfRicher(cached?.items ?? [])
+    takeIfRicher(await loadStaticBank())
     try {
       const res = await wenguApiFetch('/api/cs-vocab/bank')
       const data = await readWenguJsonResponse<Pack>(res)
       const items = normalizeItems(data)
       if (items.length) {
-        setBank(items)
+        takeIfRicher(items)
         await writeCache({
           revision: String(data.revision || ''),
-          items,
+          items: CS_VOCAB_BANK.slice(),
           savedAt: Date.now(),
         })
       }
     } catch {
-      /* 离线时用打包稿 / IndexedDB */
+      /* 离线时用打包稿 / 静态文件 / IndexedDB */
+    }
+    if (CS_VOCAB_BANK.length) {
+      await writeCache({
+        revision: String(cached?.revision || CS_VOCAB_BANK.length),
+        items: CS_VOCAB_BANK.slice(),
+        savedAt: Date.now(),
+      })
     }
   })().finally(() => {
     hydratePromise = null
