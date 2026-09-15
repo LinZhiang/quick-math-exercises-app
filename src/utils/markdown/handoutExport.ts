@@ -116,6 +116,29 @@ export type CatalogExportNode = {
 
 export type CatalogExportRef = { id: string; title: string; path: string[] }
 
+/** 按目录顺序挑出勾选的讲义，仍走私密/未开放过滤。 */
+export function pickHandoutExportRefs(
+  nodes: CatalogExportNode[],
+  ids: string[],
+  isAdmin: boolean,
+): CatalogExportRef[] {
+  const want = new Set(ids)
+  const out: CatalogExportRef[] = []
+  for (const node of nodes) {
+    for (const ref of collectHandoutExportRefs(node, isAdmin)) {
+      if (want.has(ref.id)) out.push(ref)
+    }
+  }
+  return out
+}
+
+export function batchHandoutExportTitle(refs: CatalogExportRef[]): string {
+  if (refs.length === 1) return refs[0]?.title || '讲义'
+  const root = refs[0]?.path[0]
+  if (root && refs.every((ref) => ref.path[0] === root)) return root
+  return '批量讲义'
+}
+
 /** 收集可导出讲义；非管理员跳过私密分类/讲义和未开放条目。 */
 export function collectHandoutExportRefs(
   node: CatalogExportNode,

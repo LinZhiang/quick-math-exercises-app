@@ -6,7 +6,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowRight, Collection, Document, Folder, FolderOpened, Lock, MoreFilled, Notebook, Plus, Refresh, Share } from '@element-plus/icons-vue'
+import { ArrowRight, Collection, Document, Download, Folder, FolderOpened, Lock, MoreFilled, Notebook, Plus, Refresh, Share } from '@element-plus/icons-vue'
 import {
   buildComputerRangeQuizItem,
   collectReadyEntriesUnder,
@@ -40,10 +40,13 @@ import { isWenguAdmin, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 import { isLocalNodeWenguApi } from '@/utils/computer/wenguApiOrigin'
 import { wipeHandoutDiskCacheScope } from '@/utils/app/handoutDiskCache'
 import {
+  batchHandoutExportTitle,
   collectHandoutExportRefs,
   exportHandoutDocx,
   exportHandoutFolderDocx,
+  pickHandoutExportRefs,
 } from '@/utils/markdown/handoutExport'
+import HandoutBatchDownloadDialog from '@/components/HandoutBatchDownloadDialog.vue'
 import ComputerBusyHint from './ComputerBusyHint.vue'
 import ComputerCategoryMapDialog from './ComputerCategoryMapDialog.vue'
 import ComputerMoveDialog from './ComputerMoveDialog.vue'
@@ -69,6 +72,7 @@ const movePickId = ref('')
 const moveKind = ref<'branch' | 'entry'>('branch')
 const moveName = ref('')
 const moveOpen = ref(false)
+const batchOpen = ref(false)
 const quizItem = ref<ComputerHandoutItem | null>(null)
 const quizScopeLabel = ref('')
 let flashTimer = 0
@@ -308,6 +312,36 @@ async function onDownloadRow(row: ComputerTreeRow) {
       if (row.kind === 'entry') await downloadComputerEntry(row.entry)
       else await downloadComputerFolder(row.id, row.name)
       adminOpenId.value = ''
+    })
+    ElMessage.success('已导出 Word')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '导出失败')
+  }
+}
+
+async function onBatchDownload(ids: string[]) {
+  try {
+    await withBusy('正在导出 Word…', async () => {
+      const refs = pickHandoutExportRefs(tree.value, ids, isAdmin.value)
+      if (!refs.length) throw new Error('请先勾选要下载的讲义')
+      const packed: { path: string[]; title: string; html: string }[] = []
+      for (const ref of refs) {
+        try {
+          const item = await loadComputerBasicsItem(ref.id)
+          packed.push({
+            path: ref.path,
+            title: item.title || ref.title,
+            html: computerContentToHtml(item.content),
+          })
+        } catch {
+          /* 无权限或缺失的讲义不写入文档 */
+        }
+      }
+      if (!packed.length) throw new Error('没有可下载的讲义')
+      const title = batchHandoutExportTitle(refs)
+      if (packed.length === 1) await exportHandoutDocx(packed[0]!.title, packed[0]!.html)
+      else await exportHandoutFolderDocx(title, packed)
+      batchOpen.value = false
     })
     ElMessage.success('已导出 Word')
   } catch (e) {
@@ -718,6 +752,7 @@ onBeforeUnmount(() => {
     <header v-if="!quizItem" class="computer-page__head">
       <div class="computer-page__title-row">
         <el-button-group class="computer-page__nav-btns">
+          <el-button size="small" :icon="Download" title="批量下载讲义" @click="batchOpen = true">批量下载</el-button>
           <el-button size="small" :icon="Share" title="查看知识分布" @click="mapOpen = true">分布</el-button>
           <el-button
             size="small"
@@ -952,6 +987,13 @@ onBeforeUnmount(() => {
       @confirm="confirmMove"
     />
     <ComputerCategoryMapDialog v-model="mapOpen" :tree="folderTree.length ? folderTree : tree" />
+    <HandoutBatchDownloadDialog
+      v-model="batchOpen"
+      :tree="tree"
+      :admin="isAdmin"
+      :busy="Boolean(busyText)"
+      @confirm="onBatchDownload"
+    />
   </section>
 </template>
 
@@ -983,8 +1025,9 @@ onBeforeUnmount(() => {
 }
 
 .computer-page__nav-btns {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .computer-page__nav-btns :deep(.el-button) {
