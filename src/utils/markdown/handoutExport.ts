@@ -75,7 +75,7 @@ export async function exportHandoutMarkdown(title: string, content: string): Pro
 
 export async function exportHandoutDocx(title: string, html: string): Promise<void> {
   const body = html.trim()
-    ? await htmlToDocxBlocks(html, { handout: true, stripTitle: title })
+    ? await htmlToDocxBlocks(html, { handout: true })
     : [new Paragraph({ children: [textRun('')] })]
   await saveDocx(title, body)
 }
@@ -94,11 +94,7 @@ export async function exportHandoutFolderDocx(title: string, items: HandoutFolde
   for (let i = 0; i < list.length; i += 1) {
     const html = list[i]?.html.trim() ?? ''
     const body = html
-      ? await htmlToDocxBlocks(html, {
-          handout: true,
-          pageBreakFirst: i > 0,
-          stripTitle: list[i]?.title,
-        })
+      ? await htmlToDocxBlocks(html, { handout: true, pageBreakFirst: i > 0 })
       : [
           new Paragraph({
             pageBreakBefore: i > 0,

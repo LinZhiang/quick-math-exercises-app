@@ -765,50 +765,6 @@ function zeroFirstHeadingBefore(blocks: HtmlBlock[]) {
   first.extra = { ...first.extra, spacing: { ...first.extra.spacing, before: 0 } }
 }
 
-function headingText(el: Element): string {
-  return collapseText(el.textContent ?? '').trim()
-}
-
-/** 去掉讲义标题（h1 / 与文件名相同的首段标题），正文小标题保留。 */
-function stripHandoutExportTitles(root: HTMLElement, title?: string) {
-  for (const el of [...root.querySelectorAll('h1')]) el.remove()
-  const wanted = collapseText(title ?? '').trim()
-  const peel = (host: HTMLElement) => {
-    while (host.firstChild) {
-      const node = host.firstChild
-      if (node.nodeType === Node.TEXT_NODE) {
-        if (!collapseText(node.textContent ?? '').trim()) {
-          host.removeChild(node)
-          continue
-        }
-        break
-      }
-      if (!isElement(node)) break
-      if ((tagName(node) === 'p' || tagName(node) === 'div' || tagName(node) === 'section') && isEmptyExportBlock(node)) {
-        node.remove()
-        continue
-      }
-      if (tagName(node) === 'h1') {
-        node.remove()
-        continue
-      }
-      const text = headingText(node)
-      if (wanted && text === wanted && /^h[1-6]$|^p$/.test(tagName(node))) {
-        node.remove()
-        continue
-      }
-      if (tagName(node) === 'div' || tagName(node) === 'section' || tagName(node) === 'article') {
-        peel(node as HTMLElement)
-        if (!node.childNodes.length) node.remove()
-        else break
-        continue
-      }
-      break
-    }
-  }
-  peel(root)
-}
-
 function pageBreakSpacer(): Paragraph {
   return new Paragraph({
     pageBreakBefore: true,
@@ -824,7 +780,6 @@ export async function htmlToDocxBlocks(
     indent?: number
     handout?: boolean
     pageBreakFirst?: boolean
-    stripTitle?: string
   },
 ): Promise<FileChild[]> {
   const prefix = options?.prefix ?? []
@@ -836,7 +791,6 @@ export async function htmlToDocxBlocks(
     if (!prefix.length) return []
     return [bodyParagraph(prefix, { ...extra, pageBreakBefore: pageBreakFirst })]
   }
-  if (handout) stripHandoutExportTitles(root, options?.stripTitle)
   const images = await collectImages(root)
   const blocks = blocksFromNode(root, images, handout)
   if (handout) zeroFirstHeadingBefore(blocks)
