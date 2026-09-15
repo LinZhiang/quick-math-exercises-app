@@ -329,8 +329,9 @@ function flattenInline(root: ParentNode, images: Map<string, PreparedImage>, sty
 type HtmlBlock =
   | { kind: 'p'; children: ParagraphChild[]; extra?: Omit<IParagraphOptions, 'children'> }
   | { kind: 'table'; table: Table }
+  | { kind: 'code'; lines: ParagraphChild[][] }
 
-function tableFromElement(tableEl: Element, images: Map<string, PreparedImage>): Table {
+function tableFromElement(tableEl: Element, images: Map<string, PreparedImage>, pageBreakBefore = false): Table {
   const rows = [...tableEl.querySelectorAll(':scope > tr, :scope > thead > tr, :scope > tbody > tr, :scope > tfoot > tr')]
   const grid = rows.map((tr) => [...tr.children].filter((c) => tagName(c) === 'td' || tagName(c) === 'th'))
   const colCount = Math.max(1, ...grid.map((r) => r.length))
@@ -349,6 +350,7 @@ function tableFromElement(tableEl: Element, images: Map<string, PreparedImage>):
           margins: { top: 40, bottom: 40, left: 60, right: 60 },
           children: [
             bodyParagraph(inlines.length ? inlines : [textRun(collapseText(cell.textContent ?? '').trim(), { bold: header, size: 22 })], {
+              pageBreakBefore: pageBreakBefore && ri === 0,
               spacing: { after: 0, before: 0, line: 240 },
             }),
           ],
@@ -378,11 +380,12 @@ const codeBoxBorder = {
   color: CODE_BG,
 }
 
-function codeBlockTable(lines: ParagraphChild[][]): Table {
+function codeBlockTable(lines: ParagraphChild[][], pageBreakBefore = false): Table {
   const paras = lines.map(
-    (children) =>
+    (children, i) =>
       new Paragraph({
-        spacing: { before: 0, after: 0, line: 400 },
+        pageBreakBefore: pageBreakBefore && i === 0,
+        spacing: { before: 0, after: 0, line: 276 },
         children: children.length
           ? children
           : [new TextRun({ text: ' ', font: 'Consolas', size: 20, color: CODE_FG })],
@@ -398,7 +401,7 @@ function codeBlockTable(lines: ParagraphChild[][]): Table {
           new TableCell({
             width: { size: CONTENT_DXA, type: WidthType.DXA },
             shading: { type: ShadingType.CLEAR, fill: CODE_BG },
-            margins: { top: 180, bottom: 200, left: 220, right: 220 },
+            margins: { top: 100, bottom: 100, left: 140, right: 140 },
             borders: {
               top: codeBoxBorder,
               bottom: codeBoxBorder,
@@ -513,7 +516,7 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, ha
       flush()
       const lines = splitPreLines(node, images)
       if (handout) {
-        out.push({ kind: 'table', table: codeBlockTable(lines) })
+        out.push({ kind: 'code', lines })
         return
       }
       lines.forEach((children, i) => {
@@ -553,6 +556,7 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, ha
       return
     }
     if (/^h[1-6]$/.test(name)) {
+      if (isEmptyExportBlock(node)) return
       flush()
       const level = Number(name.slice(1))
       const size = handout
@@ -589,10 +593,11 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, ha
               }),
             ],
         extra: {
+          keepNext: false,
           spacing: {
-            before: handout ? (level === 1 ? 0 : level === 2 ? 280 : 220) : level === 1 ? 80 : 280,
-            after: handout ? (level === 1 ? 200 : level === 2 ? 140 : 100) : 120,
-            line: 360,
+            before: handout ? (level === 1 ? 0 : level === 2 ? 140 : 100) : level === 1 ? 80 : 280,
+            after: handout ? (level === 1 ? 60 : level === 2 ? 40 : 40) : 120,
+            line: 276,
           },
         },
       })
@@ -631,7 +636,7 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, ha
           ],
           extra: {
             indent: { left: handout ? 280 : 220 },
-            spacing: { after: handout ? 50 : 60, before: 0, line: handout ? 440 : 276 },
+            spacing: { after: handout ? 20 : 60, before: 0, line: 276 },
           },
         })
       })
@@ -668,9 +673,9 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, ha
         children: inlines,
         extra: {
           spacing: {
-            before: handout ? 220 : 200,
-            after: handout ? 100 : 120,
-            line: 360,
+            before: handout ? 100 : 200,
+            after: handout ? 40 : 120,
+            line: 276,
           },
         },
       })
@@ -713,19 +718,26 @@ function paragraphSpacing(
   block: Extract<HtmlBlock, { kind: 'p' }>,
   handout: boolean,
   afterCode: boolean,
+  pageBreak = false,
 ): IParagraphOptions['spacing'] {
   const given = block.extra?.spacing
   const merged = {
-    after: handout ? 220 : 80,
-    before: afterCode && handout ? 240 : 0,
-    line: handout ? 456 : 276,
+    after: handout ? 60 : 80,
+    before: afterCode && handout ? 60 : 0,
+    line: 276,
+    lineRule: 'auto' as const,
     ...(typeof given === 'object' && given ? given : {}),
   }
   if (handout && afterCode) {
     const before = typeof merged.before === 'number' ? merged.before : 0
-    merged.before = Math.max(before, 240)
+    merged.before = Math.max(before, 60)
   }
+  if (pageBreak) merged.before = 0
   return merged
+}
+
+function isCodeLike(block: HtmlBlock | undefined): boolean {
+  return block?.kind === 'table' || block?.kind === 'code'
 }
 
 function toFileChild(
@@ -733,13 +745,17 @@ function toFileChild(
   extra: Omit<IParagraphOptions, 'children'>,
   handout = false,
   afterCode = false,
+  pageBreak = false,
 ): FileChild {
+  if (block.kind === 'code') return codeBlockTable(block.lines, pageBreak)
   if (block.kind === 'table') return block.table
-  const { spacing: _ignored, ...rest } = block.extra ?? {}
+  const { spacing: _ignored, pageBreakBefore: extraBreak, ...rest } = block.extra ?? {}
   return bodyParagraph(block.children, {
     ...extra,
     ...rest,
-    spacing: paragraphSpacing(block, handout, afterCode),
+    pageBreakBefore: pageBreak || extraBreak,
+    contextualSpacing: true,
+    spacing: paragraphSpacing(block, handout, afterCode, pageBreak || extraBreak),
   })
 }
 
@@ -749,32 +765,111 @@ function zeroFirstHeadingBefore(blocks: HtmlBlock[]) {
   first.extra = { ...first.extra, spacing: { ...first.extra.spacing, before: 0 } }
 }
 
+function headingText(el: Element): string {
+  return collapseText(el.textContent ?? '').trim()
+}
+
+/** 去掉讲义标题（h1 / 与文件名相同的首段标题），正文小标题保留。 */
+function stripHandoutExportTitles(root: HTMLElement, title?: string) {
+  for (const el of [...root.querySelectorAll('h1')]) el.remove()
+  const wanted = collapseText(title ?? '').trim()
+  const peel = (host: HTMLElement) => {
+    while (host.firstChild) {
+      const node = host.firstChild
+      if (node.nodeType === Node.TEXT_NODE) {
+        if (!collapseText(node.textContent ?? '').trim()) {
+          host.removeChild(node)
+          continue
+        }
+        break
+      }
+      if (!isElement(node)) break
+      if ((tagName(node) === 'p' || tagName(node) === 'div' || tagName(node) === 'section') && isEmptyExportBlock(node)) {
+        node.remove()
+        continue
+      }
+      if (tagName(node) === 'h1') {
+        node.remove()
+        continue
+      }
+      const text = headingText(node)
+      if (wanted && text === wanted && /^h[1-6]$|^p$/.test(tagName(node))) {
+        node.remove()
+        continue
+      }
+      if (tagName(node) === 'div' || tagName(node) === 'section' || tagName(node) === 'article') {
+        peel(node as HTMLElement)
+        if (!node.childNodes.length) node.remove()
+        else break
+        continue
+      }
+      break
+    }
+  }
+  peel(root)
+}
+
+function pageBreakSpacer(): Paragraph {
+  return new Paragraph({
+    pageBreakBefore: true,
+    spacing: { before: 0, after: 0, line: 20, lineRule: 'exact' },
+    children: [new TextRun({ text: '', size: 2 })],
+  })
+}
+
 export async function htmlToDocxBlocks(
   html: string,
-  options?: { prefix?: ParagraphChild[]; indent?: number; handout?: boolean },
+  options?: {
+    prefix?: ParagraphChild[]
+    indent?: number
+    handout?: boolean
+    pageBreakFirst?: boolean
+    stripTitle?: string
+  },
 ): Promise<FileChild[]> {
   const prefix = options?.prefix ?? []
   const extra: Omit<IParagraphOptions, 'children'> = options?.indent != null ? { indent: { left: options.indent } } : {}
   const handout = Boolean(options?.handout)
+  const pageBreakFirst = Boolean(options?.pageBreakFirst)
   const root = parseRoot(html)
-  if (!root) return prefix.length ? [bodyParagraph(prefix, extra)] : []
+  if (!root) {
+    if (!prefix.length) return []
+    return [bodyParagraph(prefix, { ...extra, pageBreakBefore: pageBreakFirst })]
+  }
+  if (handout) stripHandoutExportTitles(root, options?.stripTitle)
   const images = await collectImages(root)
   const blocks = blocksFromNode(root, images, handout)
   if (handout) zeroFirstHeadingBefore(blocks)
   const mapped = (list: HtmlBlock[], offset: number) =>
-    list.map((b, i) => toFileChild(b, extra, handout, handout && (offset + i > 0) && blocks[offset + i - 1]?.kind === 'table'))
-  if (!prefix.length) return mapped(blocks, 0)
-  if (!blocks.length) return [bodyParagraph(prefix, extra)]
+    list.map((b, i) =>
+      toFileChild(
+        b,
+        extra,
+        handout,
+        handout && offset + i > 0 && isCodeLike(blocks[offset + i - 1]),
+        pageBreakFirst && offset + i === 0 && (b.kind === 'p' || b.kind === 'code'),
+      ),
+    )
+  if (!prefix.length) {
+    const kids = mapped(blocks, 0)
+    if (pageBreakFirst && blocks[0]?.kind === 'table') return [pageBreakSpacer(), ...kids]
+    return kids
+  }
+  if (!blocks.length) return [bodyParagraph(prefix, { ...extra, pageBreakBefore: pageBreakFirst })]
   const first = blocks[0]
   if (first && first.kind === 'p') {
     return [
       bodyParagraph([...prefix, ...first.children], {
         ...extra,
         ...first.extra,
-        spacing: paragraphSpacing(first, handout, false),
+        pageBreakBefore: pageBreakFirst,
+        contextualSpacing: true,
+        spacing: paragraphSpacing(first, handout, false, pageBreakFirst),
       }),
       ...mapped(blocks.slice(1), 1),
     ]
   }
-  return [bodyParagraph(prefix, extra), ...mapped(blocks, 0)]
+  const rest = mapped(blocks, 0)
+  if (pageBreakFirst) return [pageBreakSpacer(), ...rest]
+  return [bodyParagraph(prefix, extra), ...rest]
 }
