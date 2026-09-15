@@ -40,7 +40,10 @@ type RunStyle = {
   size?: number
   shadingFill?: string
   inPre?: boolean
+  handout?: boolean
 }
+
+const HANDOUT_FONT = 'Microsoft YaHei'
 
 const TOK_COLOR: Record<string, string> = {
   'tok-kw': 'F472B6',
@@ -116,6 +119,12 @@ function collapseText(s: string): string {
   return s.replace(/\u00a0/g, ' ').replace(/[\t\r\n]+/g, ' ')
 }
 
+function bodyFont(style: RunStyle): string {
+  if (style.font) return style.font
+  if (style.inPre) return 'Consolas'
+  return style.handout ? HANDOUT_FONT : 'SimSun'
+}
+
 function styledRun(text: string, style: RunStyle): TextRun | null {
   const value = style.inPre ? String(text).replace(/\u00a0/g, ' ') : collapseText(text)
   if (!value && !style.inPre) return null
@@ -125,7 +134,7 @@ function styledRun(text: string, style: RunStyle): TextRun | null {
     italics: style.italics,
     superScript: style.superScript,
     subScript: style.subScript,
-    font: style.font || (style.inPre ? 'Consolas' : 'SimSun'),
+    font: bodyFont(style),
     size: style.size || (style.inPre ? 20 : 24),
     color: style.color,
     shading: style.shadingFill
@@ -150,6 +159,7 @@ function childStyle(name: string, style: RunStyle, el?: Element): RunStyle {
     size: style.size,
     shadingFill: style.shadingFill,
     inPre: style.inPre,
+    handout: style.handout,
   }
   if (el) {
     const tok = tokenColorOf(el)
@@ -161,9 +171,10 @@ function childStyle(name: string, style: RunStyle, el?: Element): RunStyle {
   }
   if (name === 'code' && !style.inPre) {
     next.font = 'Consolas'
-    next.size = 21
+    next.size = style.handout ? 22 : 21
     next.color = next.color || 'C43B66'
     next.shadingFill = next.shadingFill || 'FDECEE'
+    if (style.handout) next.bold = true
   }
   if (style.inPre) {
     next.font = 'Consolas'
@@ -361,6 +372,79 @@ function codeLineExtra(isFirst: boolean, isLast: boolean): Omit<IParagraphOption
   }
 }
 
+const codeBoxBorder = {
+  style: BorderStyle.SINGLE,
+  size: 4,
+  color: CODE_BG,
+}
+
+function codeBlockTable(lines: ParagraphChild[][]): Table {
+  const paras = lines.map(
+    (children) =>
+      new Paragraph({
+        spacing: { before: 0, after: 0, line: 400 },
+        children: children.length
+          ? children
+          : [new TextRun({ text: ' ', font: 'Consolas', size: 20, color: CODE_FG })],
+      }),
+  )
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    columnWidths: [CONTENT_DXA],
+    rows: [
+      new TableRow({
+        cantSplit: lines.length <= 18,
+        children: [
+          new TableCell({
+            width: { size: CONTENT_DXA, type: WidthType.DXA },
+            shading: { type: ShadingType.CLEAR, fill: CODE_BG },
+            margins: { top: 180, bottom: 200, left: 220, right: 220 },
+            borders: {
+              top: codeBoxBorder,
+              bottom: codeBoxBorder,
+              left: codeBoxBorder,
+              right: codeBoxBorder,
+            },
+            children: paras,
+          }),
+        ],
+      }),
+    ],
+    borders: {
+      top: codeBoxBorder,
+      bottom: codeBoxBorder,
+      left: codeBoxBorder,
+      right: codeBoxBorder,
+      insideHorizontal: { style: BorderStyle.NONE, size: 0, color: CODE_BG },
+      insideVertical: { style: BorderStyle.NONE, size: 0, color: CODE_BG },
+    },
+  })
+}
+
+function isEmptyExportBlock(el: Element): boolean {
+  if (el.querySelector('img, table, pre, ul, ol, hr, video, .cb-handout-note')) return false
+  return !collapseText(el.textContent ?? '').trim()
+}
+
+function handoutBase(handout: boolean): RunStyle {
+  return handout ? { font: HANDOUT_FONT, handout: true, color: '334155' } : {}
+}
+
+function looksLikeSubheading(el: Element): boolean {
+  const t = collapseText(el.textContent ?? '').trim()
+  if (t.length < 2 || t.length > 56) return false
+  if (!/^\d+[.、]\s*\S/.test(t)) return false
+  const parts = [...el.childNodes].filter((n) => {
+    if (n.nodeType === Node.TEXT_NODE) return Boolean(collapseText(n.textContent ?? '').trim())
+    return isElement(n)
+  })
+  if (!parts.length) return false
+  return parts.every((n) => {
+    if (n.nodeType === Node.TEXT_NODE) return true
+    return isElement(n) && /^(strong|b|code|span|em)$/.test(tagName(n))
+  })
+}
+
 function splitPreLines(pre: Element, images: Map<string, PreparedImage>): ParagraphChild[][] {
   const code = pre.querySelector('code') ?? pre
   const lines: ParagraphChild[][] = [[]]
@@ -407,12 +491,15 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, ha
 
   const walk = (node: Node) => {
     if (node.nodeType === Node.TEXT_NODE) {
-      const run = styledRun(node.textContent ?? '', {})
+      const run = styledRun(node.textContent ?? '', handoutBase(handout))
       if (run) pending.push(run)
       return
     }
     if (!isElement(node)) return
     const name = tagName(node)
+    if ((name === 'p' || name === 'div' || name === 'section' || name === 'article') && isEmptyExportBlock(node)) {
+      return
+    }
     if (name === 'br') {
       if (pending.length) pending.push(new TextRun(' '))
       return
@@ -425,6 +512,10 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, ha
     if (name === 'pre') {
       flush()
       const lines = splitPreLines(node, images)
+      if (handout) {
+        out.push({ kind: 'table', table: codeBlockTable(lines) })
+        return
+      }
       lines.forEach((children, i) => {
         out.push({
           kind: 'p',
@@ -464,17 +555,46 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, ha
     if (/^h[1-6]$/.test(name)) {
       flush()
       const level = Number(name.slice(1))
-      const size = level === 1 ? 40 : level === 2 ? (handout ? 34 : 32) : handout ? 26 : 26
+      const size = handout
+        ? level === 1
+          ? 40
+          : level === 2
+            ? 36
+            : level === 3
+              ? 28
+              : 24
+        : level === 1
+          ? 40
+          : level === 2
+            ? 32
+            : 26
+      const color = handout && level >= 3 ? '334155' : '1E2937'
       const inlines = flattenInline(node, images, {
         bold: true,
-        font: 'SimHei',
+        font: handout ? HANDOUT_FONT : 'SimHei',
         size,
-        color: '1E2937',
+        color,
+        handout,
       })
       out.push({
         kind: 'p',
-        children: inlines.length ? inlines : [textRun(collapseText(node.textContent ?? '').trim(), { bold: true, font: 'SimHei', size })],
-        extra: { spacing: { before: level === 1 ? 80 : 280, after: 120, line: 320 } },
+        children: inlines.length
+          ? inlines
+          : [
+              textRun(collapseText(node.textContent ?? '').trim(), {
+                bold: true,
+                font: handout ? HANDOUT_FONT : 'SimHei',
+                size,
+                color,
+              }),
+            ],
+        extra: {
+          spacing: {
+            before: handout ? (level === 1 ? 0 : level === 2 ? 280 : 220) : level === 1 ? 80 : 280,
+            after: handout ? (level === 1 ? 200 : level === 2 ? 140 : 100) : 120,
+            line: 360,
+          },
+        },
       })
       return
     }
@@ -501,8 +621,18 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, ha
         const mark = name === 'ol' ? `${i + 1}. ` : '• '
         out.push({
           kind: 'p',
-          children: [textRun(mark, { color: '94A3B8' }), ...flattenInline(li, images)],
-          extra: { indent: { left: 220 }, spacing: { after: 60, before: 0, line: 276 } },
+          children: [
+            textRun(mark, {
+              color: '94A3B8',
+              size: 24,
+              ...(handout ? { font: HANDOUT_FONT } : {}),
+            }),
+            ...flattenInline(li, images, handoutBase(handout)),
+          ],
+          extra: {
+            indent: { left: handout ? 280 : 220 },
+            spacing: { after: handout ? 50 : 60, before: 0, line: handout ? 440 : 276 },
+          },
         })
       })
       return
@@ -521,7 +651,29 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, ha
       name === 'u' ||
       name === 'code'
     ) {
-      pending.push(...inlineFromNode(node, {}, images))
+      pending.push(...inlineFromNode(node, handoutBase(handout), images))
+      return
+    }
+    if (name === 'p' && looksLikeSubheading(node)) {
+      flush()
+      const inlines = flattenInline(node, images, {
+        bold: true,
+        font: handout ? HANDOUT_FONT : 'SimHei',
+        size: handout ? 28 : 26,
+        color: handout ? '334155' : '1E2937',
+        handout,
+      })
+      out.push({
+        kind: 'p',
+        children: inlines,
+        extra: {
+          spacing: {
+            before: handout ? 220 : 200,
+            after: handout ? 100 : 120,
+            line: 360,
+          },
+        },
+      })
       return
     }
     if (isBlockTag(name)) {
@@ -529,7 +681,7 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, ha
       const inner = blocksFromNode(node, images, handout)
       if (inner.length) out.push(...inner)
       else {
-        const inlines = flattenInline(node, images)
+        const inlines = flattenInline(node, images, handoutBase(handout))
         if (inlines.length) out.push({ kind: 'p', children: inlines })
       }
       return
@@ -557,9 +709,44 @@ export async function htmlToInlineChildren(html: string): Promise<ParagraphChild
   return flattenInline(root, images)
 }
 
-function toFileChild(block: HtmlBlock, extra: Omit<IParagraphOptions, 'children'>): FileChild {
+function paragraphSpacing(
+  block: Extract<HtmlBlock, { kind: 'p' }>,
+  handout: boolean,
+  afterCode: boolean,
+): IParagraphOptions['spacing'] {
+  const given = block.extra?.spacing
+  const merged = {
+    after: handout ? 220 : 80,
+    before: afterCode && handout ? 240 : 0,
+    line: handout ? 456 : 276,
+    ...(typeof given === 'object' && given ? given : {}),
+  }
+  if (handout && afterCode) {
+    const before = typeof merged.before === 'number' ? merged.before : 0
+    merged.before = Math.max(before, 240)
+  }
+  return merged
+}
+
+function toFileChild(
+  block: HtmlBlock,
+  extra: Omit<IParagraphOptions, 'children'>,
+  handout = false,
+  afterCode = false,
+): FileChild {
   if (block.kind === 'table') return block.table
-  return bodyParagraph(block.children, { ...extra, ...block.extra })
+  const { spacing: _ignored, ...rest } = block.extra ?? {}
+  return bodyParagraph(block.children, {
+    ...extra,
+    ...rest,
+    spacing: paragraphSpacing(block, handout, afterCode),
+  })
+}
+
+function zeroFirstHeadingBefore(blocks: HtmlBlock[]) {
+  const first = blocks[0]
+  if (!first || first.kind !== 'p' || !first.extra?.spacing || typeof first.extra.spacing !== 'object') return
+  first.extra = { ...first.extra, spacing: { ...first.extra.spacing, before: 0 } }
 }
 
 export async function htmlToDocxBlocks(
@@ -568,18 +755,26 @@ export async function htmlToDocxBlocks(
 ): Promise<FileChild[]> {
   const prefix = options?.prefix ?? []
   const extra: Omit<IParagraphOptions, 'children'> = options?.indent != null ? { indent: { left: options.indent } } : {}
+  const handout = Boolean(options?.handout)
   const root = parseRoot(html)
   if (!root) return prefix.length ? [bodyParagraph(prefix, extra)] : []
   const images = await collectImages(root)
-  const blocks = blocksFromNode(root, images, Boolean(options?.handout))
-  if (!prefix.length) return blocks.map((b) => toFileChild(b, extra))
+  const blocks = blocksFromNode(root, images, handout)
+  if (handout) zeroFirstHeadingBefore(blocks)
+  const mapped = (list: HtmlBlock[], offset: number) =>
+    list.map((b, i) => toFileChild(b, extra, handout, handout && (offset + i > 0) && blocks[offset + i - 1]?.kind === 'table'))
+  if (!prefix.length) return mapped(blocks, 0)
   if (!blocks.length) return [bodyParagraph(prefix, extra)]
   const first = blocks[0]
   if (first && first.kind === 'p') {
     return [
-      bodyParagraph([...prefix, ...first.children], { ...extra, ...first.extra }),
-      ...blocks.slice(1).map((b) => toFileChild(b, extra)),
+      bodyParagraph([...prefix, ...first.children], {
+        ...extra,
+        ...first.extra,
+        spacing: paragraphSpacing(first, handout, false),
+      }),
+      ...mapped(blocks.slice(1), 1),
     ]
   }
-  return [bodyParagraph(prefix, extra), ...blocks.map((b) => toFileChild(b, extra))]
+  return [bodyParagraph(prefix, extra), ...mapped(blocks, 0)]
 }

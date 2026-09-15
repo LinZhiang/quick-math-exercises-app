@@ -19,6 +19,7 @@ import {
   findComputerNode,
   flattenVisibleComputerRows,
   ensureComputerBasicsNodeLoaded,
+  ensureComputerBasicsSubtreeLoaded,
   loadComputerBasicsItem,
   loadComputerBasicsTree,
   moveComputerItem,
@@ -29,6 +30,7 @@ import {
   setComputerItemPrivate,
   setComputerNodePrivate,
   clearComputerBasicsCache,
+  computerContentToHtml,
   type ComputerHandoutItem,
   type ComputerTreeEntry,
   type ComputerTreeNode,
@@ -37,6 +39,11 @@ import {
 import { isWenguAdmin, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 import { isLocalNodeWenguApi } from '@/utils/computer/wenguApiOrigin'
 import { wipeHandoutDiskCacheScope } from '@/utils/app/handoutDiskCache'
+import {
+  collectHandoutExportRefs,
+  exportHandoutDocx,
+  exportHandoutFolderDocx,
+} from '@/utils/markdown/handoutExport'
 import ComputerBusyHint from './ComputerBusyHint.vue'
 import ComputerCategoryMapDialog from './ComputerCategoryMapDialog.vue'
 import ComputerMoveDialog from './ComputerMoveDialog.vue'
@@ -249,6 +256,62 @@ async function startEntryQuiz(entry: ComputerTreeEntry) {
     })
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '打开测验失败')
+  }
+}
+
+const EXPORT_DENIED = '没有权限下载保密内容'
+
+function canDownloadRow(row: ComputerTreeRow) {
+  if (row.locked && !isAdmin.value) return false
+  if (row.kind === 'entry' && !row.entry.ready && !isAdmin.value) return false
+  return true
+}
+
+async function downloadComputerEntry(entry: ComputerTreeEntry) {
+  if (!isAdmin.value && (!entry.ready || entry.private)) {
+    throw new Error(entry.ready ? EXPORT_DENIED : '该小节即将开放')
+  }
+  const item = await loadComputerBasicsItem(entry.id)
+  await exportHandoutDocx(item.title, computerContentToHtml(item.content))
+}
+
+async function downloadComputerFolder(nodeId: string, name: string) {
+  const node = await ensureComputerBasicsSubtreeLoaded(nodeId)
+  const refs = collectHandoutExportRefs(node, isAdmin.value)
+  if (!refs.length) {
+    throw new Error(node.private && !isAdmin.value ? EXPORT_DENIED : '该范围内还没有可下载的讲义')
+  }
+  const packed: { path: string[]; title: string; html: string }[] = []
+  for (const ref of refs) {
+    try {
+      const item = await loadComputerBasicsItem(ref.id)
+      packed.push({
+        path: ref.path,
+        title: item.title || ref.title,
+        html: computerContentToHtml(item.content),
+      })
+    } catch {
+      /* 无权限或缺失的讲义不写入文档 */
+    }
+  }
+  if (!packed.length) throw new Error('没有可下载的讲义')
+  await exportHandoutFolderDocx(name, packed)
+}
+
+async function onDownloadRow(row: ComputerTreeRow) {
+  if (!canDownloadRow(row)) {
+    ElMessage.warning(EXPORT_DENIED)
+    return
+  }
+  try {
+    await withBusy('正在导出 Word…', async () => {
+      if (row.kind === 'entry') await downloadComputerEntry(row.entry)
+      else await downloadComputerFolder(row.id, row.name)
+      adminOpenId.value = ''
+    })
+    ElMessage.success('已导出 Word')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '导出失败')
   }
 }
 
@@ -823,6 +886,14 @@ onBeforeUnmount(() => {
             >
               <template v-if="row.kind === 'branch'">
                 <button type="button" class="computer-tree__icon" @click.stop="startFolderQuiz(row.id, row.name)">AI测验</button>
+                <button
+                  v-if="canDownloadRow(row)"
+                  type="button"
+                  class="computer-tree__icon"
+                  @click.stop="onDownloadRow(row)"
+                >
+                  下载
+                </button>
                 <template v-if="isAdmin">
                   <button type="button" class="computer-tree__icon" @click.stop="onAddChild(row.id)">小类</button>
                   <button type="button" class="computer-tree__icon" @click.stop="onAddItem(row.id)">新增讲义</button>
@@ -844,6 +915,14 @@ onBeforeUnmount(() => {
                   @click.stop="startEntryQuiz(row.entry)"
                 >
                   AI测验
+                </button>
+                <button
+                  v-if="canDownloadRow(row)"
+                  type="button"
+                  class="computer-tree__icon"
+                  @click.stop="onDownloadRow(row)"
+                >
+                  下载
                 </button>
                 <template v-if="isAdmin">
                   <button type="button" class="computer-tree__icon" @click.stop="openEntry(row.entry, true)">编辑</button>

@@ -62,6 +62,9 @@ const saving = ref(false)
 const formatBusy = ref(false)
 const formatProgressText = ref('')
 let formatAbort: AbortController | null = null
+let loadAbort: AbortController | null = null
+let saveAbort: AbortController | null = null
+let photoAbort: AbortController | null = null
 const headCollapsed = ref(false)
 const editorRef = ref<{ insertNoteTag: () => Promise<void> | void } | null>(null)
 const paperRef = ref<HTMLElement | null>(null)
@@ -92,6 +95,23 @@ const allPhotosCropped = computed(
 const photoBusyText = computed(() =>
   photoIntent.value === 'upload' ? '正在插入照片…' : aiRequestProgressText('识别文字', 'doubao'),
 )
+const contentBusy = computed(
+  () => loading.value || saving.value || formatBusy.value || photoBusy.value,
+)
+const busyCoverText = computed(() => {
+  if (formatBusy.value) return formatProgressText.value || aiRequestProgressText('匹配讲义格式')
+  if (photoBusy.value) return photoBusyText.value
+  if (saving.value) return '正在保存讲义…'
+  return '正在打开讲义…'
+})
+const busyCoverHint = computed(() => {
+  if (formatBusy.value) return '有结构就排样式，没有就按段落处理；可随时中断'
+  if (photoBusy.value) {
+    return photoIntent.value === 'upload' ? '可随时中断，照片不会插入' : '可随时中断，识别结果不会写入'
+  }
+  if (saving.value) return '可随时中断，本次不会保存'
+  return '可随时中断'
+})
 const photoCropHint = computed(() =>
   photoIntent.value === 'upload'
     ? '拖动或拉伸选框，只留下要插入讲义的照片。多张会按顺序插入。'
@@ -113,6 +133,7 @@ function goList() {
 }
 
 function goNav(dir: -1 | 1) {
+  if (contentBusy.value) return
   const next = readyList.value[navIndex.value + dir]
   if (!next) return
   void router.replace({ name: 'computer-item', params: { itemId: next.id } })
@@ -131,7 +152,7 @@ function applyEditDraft() {
 }
 
 function startEdit() {
-  if (!item.value || !isAdmin.value) return
+  if (!item.value || !isAdmin.value || contentBusy.value) return
   if (String(route.query.edit ?? '') === '1') {
     applyEditDraft()
     return
@@ -164,24 +185,36 @@ function cancelEdit() {
 }
 
 async function saveEdit() {
-  if (!item.value) return
+  if (!item.value || contentBusy.value) return
   const title = draftTitle.value.trim()
   if (!title) {
     ElMessage.warning('标题不能为空')
     return
   }
+  saveAbort?.abort()
+  const controller = new AbortController()
+  saveAbort = controller
   saving.value = true
   try {
-    item.value = await updateComputerItem(item.value.id, {
-      title,
-      content: handoutHtmlForSave(draftContent.value),
-    })
+    item.value = await updateComputerItem(
+      item.value.id,
+      {
+        title,
+        content: handoutHtmlForSave(draftContent.value),
+      },
+      controller.signal,
+    )
     ElMessage.success('已保存')
     leaveEditQuery()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    if (isHandoutFormatAborted(e)) {
+      ElMessage.info('已中断，本次未保存')
+    } else {
+      ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    }
   } finally {
     saving.value = false
+    if (saveAbort === controller) saveAbort = null
   }
 }
 
@@ -218,7 +251,10 @@ function openPhoto(intent: PhotoIntent) {
   })
 }
 
-function abortFormatMatch() {
+function abortBusy() {
+  loadAbort?.abort()
+  saveAbort?.abort()
+  photoAbort?.abort()
   formatAbort?.abort()
 }
 
@@ -229,7 +265,7 @@ function formatMatchProgressText(p: { current: number; total: number; attempt: n
 }
 
 async function matchHandoutFormat() {
-  if (!editing.value || !isAdmin.value || formatBusy.value) return
+  if (!editing.value || !isAdmin.value || contentBusy.value) return
   try {
     await ElMessageBox.confirm(
       '将按讲义样式整理标题、列表和代码块，只做排版，不删节。没有标题/列表/代码的段落会按普通正文处理，不反复卡重试。可随时点「中断」停止，原文不动。',
@@ -335,22 +371,31 @@ async function onPickPhoto(ev: Event) {
 }
 
 async function finishCroppedPhotos(urls: string[]) {
+  photoAbort?.abort()
+  const controller = new AbortController()
+  photoAbort = controller
   photoBusy.value = true
   try {
     if (photoIntent.value === 'upload') {
+      if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError')
       appendHtml(urls.map((u) => `<p><img src="${u}" alt=""></p>`).join(''))
       ElMessage.success('已插入照片，可再编辑')
       leavePhoto()
       return
     }
-    const recognized = await extractComputerHandoutFromPhoto(urls)
+    const recognized = await extractComputerHandoutFromPhoto(urls, { signal: controller.signal })
     appendHtml(recognized)
     ElMessage.success('已填入识别结果，请核对')
     leavePhoto()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '识别失败')
+    if (isHandoutFormatAborted(e)) {
+      ElMessage.info('已中断，未写入编辑器')
+    } else {
+      ElMessage.error(e instanceof Error ? e.message : '识别失败')
+    }
   } finally {
     photoBusy.value = false
+    if (photoAbort === controller) photoAbort = null
   }
 }
 
@@ -409,17 +454,22 @@ async function startPhotoRecognize() {
 
 let loadSeq = 0
 onUnmounted(() => {
-  formatAbort?.abort()
+  abortBusy()
 })
 watch(
   itemId,
   async (id) => {
-    formatAbort?.abort()
+    abortBusy()
+    const controller = new AbortController()
+    loadAbort = controller
     const seq = ++loadSeq
     loading.value = true
     error.value = ''
     try {
-      const [next, tree] = await Promise.all([loadComputerBasicsItem(id), loadComputerBasicsTree()])
+      const [next, tree] = await Promise.all([
+        loadComputerBasicsItem(id, false, controller.signal),
+        loadComputerBasicsTree(false, controller.signal),
+      ])
       if (seq !== loadSeq) return
       item.value = next
       readyList.value = listReadyComputerEntries(tree)
@@ -433,12 +483,21 @@ watch(
       scrollPaperToTop()
     } catch (e) {
       if (seq !== loadSeq) return
+      if (isHandoutFormatAborted(e)) {
+        ElMessage.info('已中断')
+        if (!item.value) goList()
+        else if (item.value.id !== id) {
+          void router.replace({ name: 'computer-item', params: { itemId: item.value.id } })
+        }
+        return
+      }
       item.value = null
       error.value = e instanceof Error ? e.message : '未找到该讲义'
       ElMessage.warning(error.value)
       goList()
     } finally {
       if (seq === loadSeq) loading.value = false
+      if (loadAbort === controller) loadAbort = null
     }
   },
   { immediate: true },
@@ -479,44 +538,46 @@ watch(photoOpen, (open) => {
                 size="small"
                 circle
                 :icon="ArrowUp"
+                :disabled="contentBusy"
                 :class="{ 'is-collapsed': headCollapsed }"
                 @click="headCollapsed = !headCollapsed"
               />
             </el-tooltip>
             <el-tooltip :content="fullscreen ? '退出全屏' : '全屏'" placement="bottom">
-              <el-button size="small" circle :icon="FullScreen" @click="fullscreen = !fullscreen" />
+              <el-button size="small" circle :icon="FullScreen" :disabled="contentBusy" @click="fullscreen = !fullscreen" />
             </el-tooltip>
             <el-tooltip content="导出文档" placement="bottom">
-              <el-button size="small" circle :icon="Download" @click="openExport" />
+              <el-button size="small" circle :icon="Download" :disabled="contentBusy" @click="openExport" />
             </el-tooltip>
             <el-tooltip v-if="isAdmin && !editing" content="编辑讲义" placement="bottom">
-              <el-button size="small" circle type="primary" :icon="EditPen" @click="startEdit" />
+              <el-button size="small" circle type="primary" :icon="EditPen" :disabled="contentBusy" @click="startEdit" />
             </el-tooltip>
             <el-tooltip v-if="isAdmin && !editing" content="删除讲义" placement="bottom">
-              <el-button size="small" circle type="danger" plain :icon="Delete" @click="onDeleteCurrent" />
+              <el-button size="small" circle type="danger" plain :icon="Delete" :disabled="contentBusy" @click="onDeleteCurrent" />
             </el-tooltip>
             <el-button
               v-if="!editing"
               size="small"
               type="primary"
               plain
+              :disabled="contentBusy"
               @click="quizOpen = true"
             >
               AI 测验
             </el-button>
           </div>
           <div v-if="isAdmin && editing && !photoOpen" class="computer-detail__edit-btns">
-            <el-button size="small" @click="cancelEdit">取消</el-button>
-            <el-button size="small" type="primary" :loading="saving" @click="saveEdit">保存</el-button>
+            <el-button size="small" :disabled="contentBusy" @click="cancelEdit">取消</el-button>
+            <el-button size="small" type="primary" :disabled="contentBusy" :loading="saving" @click="saveEdit">保存</el-button>
           </div>
         </div>
       </div>
     </header>
 
     <div v-if="!editing && !quizOpen" class="computer-detail__pager">
-      <el-button size="small" text :disabled="navIndex <= 0" @click="goNav(-1)">‹ 上一条</el-button>
+      <el-button size="small" text :disabled="contentBusy || navIndex <= 0" @click="goNav(-1)">‹ 上一条</el-button>
       <span>第 {{ Math.max(navIndex, 0) + 1 }} / {{ readyList.length || 1 }} 条</span>
-      <el-button size="small" text :disabled="navIndex < 0 || navIndex >= readyList.length - 1" @click="goNav(1)">
+      <el-button size="small" text :disabled="contentBusy || navIndex < 0 || navIndex >= readyList.length - 1" @click="goNav(1)">
         下一条 ›
       </el-button>
     </div>
@@ -639,10 +700,10 @@ watch(photoOpen, (open) => {
       <template v-else-if="editing">
         <el-input v-model="draftTitle" maxlength="80" placeholder="标题" />
         <div class="computer-detail__photo-btns">
-          <el-button size="small" type="primary" plain @click="openPhoto('recognize')">拍照识别</el-button>
-          <el-button size="small" @click="openPhoto('upload')">拍照上传</el-button>
-          <el-button size="small" type="success" plain :disabled="formatBusy" @click="matchHandoutFormat">AI自动匹配格式</el-button>
-          <el-button size="small" @click="editorRef?.insertNoteTag()">备注</el-button>
+          <el-button size="small" type="primary" plain :disabled="contentBusy" @click="openPhoto('recognize')">拍照识别</el-button>
+          <el-button size="small" :disabled="contentBusy" @click="openPhoto('upload')">拍照上传</el-button>
+          <el-button size="small" type="success" plain :disabled="contentBusy" @click="matchHandoutFormat">AI自动匹配格式</el-button>
+          <el-button size="small" :disabled="contentBusy" @click="editorRef?.insertNoteTag()">备注</el-button>
         </div>
         <RichTextEditor
           ref="editorRef"
@@ -656,19 +717,20 @@ watch(photoOpen, (open) => {
       <RichTextView v-else tone="docs" :html="html" />
     </article>
     <ComputerAskPanel v-if="item && !fullscreen && !photoOpen && !quizOpen && !editing" :item="item" />
-    <div v-if="loading || saving || formatBusy" class="computer-busy-cover">
+    <div v-if="contentBusy" class="computer-busy-cover">
       <div class="computer-busy-cover__box">
         <ComputerBusyHint
-          :text="formatBusy ? (formatProgressText || aiRequestProgressText('匹配讲义格式')) : saving ? '正在保存讲义…' : '正在打开讲义…'"
-          :hint="formatBusy ? '有结构就排样式，没有就按段落处理；可随时中断' : '请稍候，马上就完成'"
+          :text="busyCoverText"
+          :hint="busyCoverHint"
         />
-        <el-button v-if="formatBusy" type="danger" plain @click="abortFormatMatch">中断</el-button>
+        <el-button type="danger" plain @click="abortBusy">中断</el-button>
       </div>
     </div>
   </section>
   <section v-else-if="loading" class="computer-detail computer-detail--boot">
     <div class="computer-busy-panel">
-      <ComputerBusyHint text="正在打开讲义…" />
+      <ComputerBusyHint text="正在打开讲义…" hint="可随时中断" />
+      <el-button type="danger" plain @click="abortBusy">中断</el-button>
     </div>
   </section>
   <section v-else class="computer-missing">
@@ -717,14 +779,16 @@ watch(photoOpen, (open) => {
 .computer-busy-panel {
   width: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 8px;
 }
 
 .computer-busy-cover {
   position: absolute;
   inset: 0;
-  z-index: 8;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -445,12 +445,14 @@ export async function createComputerItem(input: {
 export async function updateComputerItem(
   id: string,
   patch: { title?: string; content?: string; private?: boolean },
+  signal?: AbortSignal,
 ) {
   const data = await computerAdminFetch<{ item: ComputerHandoutItem; revision?: string }>(
     `/api/computer-basics/items/${encodeURIComponent(id)}`,
     {
       method: 'PATCH',
       body: JSON.stringify(patch),
+      signal,
     },
   )
   const item = {
@@ -565,7 +567,7 @@ function rememberComputerRevision(revision: string) {
   rememberHandoutRevision('computer', stamp)
 }
 
-export async function loadComputerBasicsTree(force = false): Promise<ComputerTreeNode[]> {
+export async function loadComputerBasicsTree(force = false, signal?: AbortSignal): Promise<ComputerTreeNode[]> {
   const admin = isWenguAdmin()
   if (!force && treeCache && handoutCacheFitsViewer(admin, cacheViewer)) {
     return visibleComputerTree(treeCache)
@@ -595,7 +597,7 @@ export async function loadComputerBasicsTree(force = false): Promise<ComputerTre
     }
   }
 
-  const res = await wenguApiFetch('/api/computer-basics/tree', { ...viewerAuthInit(), cacheBust: force })
+  const res = await wenguApiFetch('/api/computer-basics/tree', { ...viewerAuthInit(), cacheBust: force, signal })
   const data = await readWenguJsonResponse<{
     ok?: boolean
     tree?: ComputerTreeNode[]
@@ -739,6 +741,30 @@ export async function ensureComputerBasicsNodeLoaded(id: string, force = false):
   return run
 }
 
+export async function ensureComputerBasicsSubtreeLoaded(id: string): Promise<ComputerTreeNode> {
+  const key = String(id || '').trim()
+  if (!key) throw new Error('未找到该分类')
+  const fromFull = findComputerNode(await loadComputerBasicsTree(), key)
+  if (fromFull && fromFull.node.loaded !== false && !fromFull.node.children.some((c) => c.loaded === false)) {
+    return fromFull.node
+  }
+  let tree = await ensureComputerBasicsNodeLoaded(key)
+  const pending = [key]
+  const seen = new Set<string>()
+  while (pending.length) {
+    const nid = pending.shift()!
+    if (seen.has(nid)) continue
+    seen.add(nid)
+    tree = await ensureComputerBasicsNodeLoaded(nid)
+    const hit = findComputerNode(tree, nid)
+    if (!hit) continue
+    for (const child of hit.node.children) pending.push(child.id)
+  }
+  const hit = findComputerNode(tree, key)
+  if (!hit) throw new Error('未找到该分类')
+  return hit.node
+}
+
 export async function reloadComputerBasicsDir(expandedIds: string[]): Promise<ComputerTreeNode[]> {
   let next = await loadComputerBasicsDir(true)
   const pending = new Set(expandedIds.map((id) => String(id || '').trim()).filter(Boolean))
@@ -763,7 +789,7 @@ function guestMayUseComputerItemCache(id: string): boolean {
   return catalogContainsId(visibleComputerTree(treeCache), id)
 }
 
-export async function loadComputerBasicsItem(id: string, force = false): Promise<ComputerHandoutItem> {
+export async function loadComputerBasicsItem(id: string, force = false, signal?: AbortSignal): Promise<ComputerHandoutItem> {
   const key = String(id || '').trim()
   if (!key) throw new Error('缺少讲义编号')
 
@@ -790,9 +816,12 @@ export async function loadComputerBasicsItem(id: string, force = false): Promise
     }
   }
 
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+
   const res = await wenguApiFetch(`/api/computer-basics/items/${encodeURIComponent(key)}`, {
     ...viewerAuthInit(),
     cacheBust: force,
+    signal,
   })
   const data = await readWenguJsonResponse<{ ok?: boolean; item?: ComputerHandoutItem; message?: string }>(
     res,

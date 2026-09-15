@@ -61,7 +61,7 @@ async function exportDocx() {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <p class="handout-export__hint">
-      将「{{ title || '当前讲义' }}」保存到手机或电脑。Word 会尽量保持网页上的标题、代码高亮和正文样式。
+      将「{{ title || '当前讲义' }}」保存到手机或电脑。Word 按网页预览排版，不另加封面标题。
     </p>
     <div class="handout-export__actions">
       <el-button :loading="busy === 'md'" :disabled="!!busy && busy !== 'md'" @click="exportMd">

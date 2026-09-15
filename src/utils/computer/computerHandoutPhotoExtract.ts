@@ -53,7 +53,10 @@ function orderHint(count: number): string {
   ].join('')
 }
 
-export async function extractComputerHandoutFromPhoto(imageDataUrl: string | string[]): Promise<string> {
+export async function extractComputerHandoutFromPhoto(
+  imageDataUrl: string | string[],
+  options?: { signal?: AbortSignal },
+): Promise<string> {
   const images = asImageList(imageDataUrl)
   const raw = await aiChatCompletion(
     [
@@ -78,6 +81,7 @@ export async function extractComputerHandoutFromPhoto(imageDataUrl: string | str
       capability: 'vision',
       temperature: 0.05,
       maxTokens: 8192,
+      signal: options?.signal,
     },
   )
   const obj = parseAiJsonObjectLenient(raw)

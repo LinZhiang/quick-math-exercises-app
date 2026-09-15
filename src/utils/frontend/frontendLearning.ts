@@ -447,12 +447,14 @@ export async function createFrontendItem(input: {
 export async function updateFrontendItem(
   id: string,
   patch: { title?: string; content?: string; private?: boolean },
+  signal?: AbortSignal,
 ) {
   const data = await frontendAdminFetch<{ item: FrontendHandoutItem; revision?: string }>(
     `/api/frontend-learning/items/${encodeURIComponent(id)}`,
     {
       method: 'PATCH',
       body: JSON.stringify(patch),
+      signal,
     },
   )
   const item = {
@@ -567,7 +569,7 @@ function rememberFrontendRevision(revision: string) {
   rememberHandoutRevision('frontend', stamp)
 }
 
-export async function loadFrontendLearningTree(force = false): Promise<FrontendTreeNode[]> {
+export async function loadFrontendLearningTree(force = false, signal?: AbortSignal): Promise<FrontendTreeNode[]> {
   const admin = isWenguAdmin()
   if (!force && treeCache && handoutCacheFitsViewer(admin, cacheViewer)) {
     return visibleFrontendTree(treeCache)
@@ -597,7 +599,7 @@ export async function loadFrontendLearningTree(force = false): Promise<FrontendT
     }
   }
 
-  const res = await wenguApiFetch('/api/frontend-learning/tree', { ...viewerAuthInit(), cacheBust: force })
+  const res = await wenguApiFetch('/api/frontend-learning/tree', { ...viewerAuthInit(), cacheBust: force, signal })
   const data = await readWenguJsonResponse<{
     ok?: boolean
     tree?: FrontendTreeNode[]
@@ -744,6 +746,30 @@ export async function ensureFrontendLearningNodeLoaded(
   return run
 }
 
+export async function ensureFrontendLearningSubtreeLoaded(id: string): Promise<FrontendTreeNode> {
+  const key = String(id || '').trim()
+  if (!key) throw new Error('未找到该分类')
+  const fromFull = findFrontendNode(await loadFrontendLearningTree(), key)
+  if (fromFull && fromFull.node.loaded !== false && !fromFull.node.children.some((c) => c.loaded === false)) {
+    return fromFull.node
+  }
+  let tree = await ensureFrontendLearningNodeLoaded(key)
+  const pending = [key]
+  const seen = new Set<string>()
+  while (pending.length) {
+    const nid = pending.shift()!
+    if (seen.has(nid)) continue
+    seen.add(nid)
+    tree = await ensureFrontendLearningNodeLoaded(nid)
+    const hit = findFrontendNode(tree, nid)
+    if (!hit) continue
+    for (const child of hit.node.children) pending.push(child.id)
+  }
+  const hit = findFrontendNode(tree, key)
+  if (!hit) throw new Error('未找到该分类')
+  return hit.node
+}
+
 export async function reloadFrontendLearningDir(expandedIds: string[]): Promise<FrontendTreeNode[]> {
   let next = await loadFrontendLearningDir(true)
   const pending = new Set(expandedIds.map((id) => String(id || '').trim()).filter(Boolean))
@@ -768,7 +794,7 @@ function guestMayUseFrontendItemCache(id: string): boolean {
   return catalogContainsId(visibleFrontendTree(treeCache), id)
 }
 
-export async function loadFrontendLearningItem(id: string, force = false): Promise<FrontendHandoutItem> {
+export async function loadFrontendLearningItem(id: string, force = false, signal?: AbortSignal): Promise<FrontendHandoutItem> {
   const key = String(id || '').trim()
   if (!key) throw new Error('缺少讲义编号')
 
@@ -795,9 +821,12 @@ export async function loadFrontendLearningItem(id: string, force = false): Promi
     }
   }
 
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+
   const res = await wenguApiFetch(`/api/frontend-learning/items/${encodeURIComponent(key)}`, {
     ...viewerAuthInit(),
     cacheBust: force,
+    signal,
   })
   const data = await readWenguJsonResponse<{ ok?: boolean; item?: FrontendHandoutItem; message?: string }>(
     res,
