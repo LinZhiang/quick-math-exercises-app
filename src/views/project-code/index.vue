@@ -112,7 +112,7 @@ onMounted(load)
           批量下载
         </el-button>
       </div>
-      <p class="pc-page__lead">仅管理员可查阅。点文件查看源码；下载会整理成 Word，每个源文件另起一页。</p>
+      <p class="pc-page__lead">仅管理员可查阅。点文件查看源码；下载会整理成 Word，每个源文件另起一页。源码不进 Git，云端看之前需同步一次。</p>
       <p v-if="busy" class="pc-page__stats">{{ busy }}</p>
       <p v-else-if="count" class="pc-page__stats">共 {{ count }} 个文件</p>
     </header>

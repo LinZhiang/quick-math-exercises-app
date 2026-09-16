@@ -63,7 +63,12 @@ export function attachProjectCodeRoutes(app) {
     try {
       noStore(res)
       if (!fs.existsSync(ROOT)) {
-        res.json({ ok: true, tree: [], count: 0, message: '本机还没有同步源码，请运行 npm run sync:project-code' })
+        res.json({
+          ok: true,
+          tree: [],
+          count: 0,
+          message: '还没有源码。本机先 npm run sync:project-code；要在网页上查看再 npm run sync:cf-project-code。',
+        })
         return
       }
       const tree = listDir(ROOT, '')

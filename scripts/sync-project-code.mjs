@@ -92,6 +92,7 @@ export function syncProjectCode() {
   const count = copyTree(SOURCE, DEST)
   pruneEmpty(DEST)
   console.log(`[sync:project-code] ${count} 个文件 → ${path.relative(root, DEST)}`)
+  console.log('[sync:project-code] 要在 pages.dev 查阅，请再执行 npm run sync:cf-project-code')
   return count
 }
 
