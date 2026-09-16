@@ -349,7 +349,7 @@ function onEditorKeydown(e: KeyboardEvent) {
 
 .dsa-lab__intro {
   margin: 0 0 12px;
-  max-width: 46rem;
+  max-width: 72rem;
   font-size: 14px;
   line-height: 1.75;
   color: #cbd5e1;
@@ -494,5 +494,25 @@ function onEditorKeydown(e: KeyboardEvent) {
 .dsa-cases__err {
   color: #fca5a5;
   font-weight: 500;
+}
+
+@media (min-width: 901px) {
+  .dsa-lab {
+    padding: 24px 40px calc(48px + var(--app-safe-bottom, 0px));
+  }
+
+  .dsa-lab__title,
+  .dsa-lab__counts,
+  .dsa-lab__intro,
+  .dsa-lab__stats,
+  .dsa-lab__langs,
+  .dsa-code,
+  .dsa-lab__actions,
+  .dsa-answer,
+  .dsa-cases {
+    width: 100%;
+    max-width: 80rem;
+    margin-inline: auto;
+  }
 }
 </style>

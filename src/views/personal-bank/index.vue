@@ -2149,4 +2149,17 @@ async function confirmMoveQuestion() {
     justify-content: flex-end;
   }
 }
+
+@media (min-width: 901px) {
+  .personal-bank-bar {
+    padding: 12px 28px;
+  }
+
+  .personal-bank-body {
+    padding: 20px 40px 32px;
+    max-width: 88rem;
+    width: 100%;
+    margin: 0 auto;
+  }
+}
 </style>

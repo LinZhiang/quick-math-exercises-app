@@ -1,8 +1,11 @@
-import { ITERATION_PROBLEMS } from '@/utils/dsa/problems/iteration'
-import { RECURSION_PROBLEMS } from '@/utils/dsa/problems/recursion'
+import { pickGlobExport } from '@/utils/app/loadOptionalModule'
 import type { DsaCategory, DsaProblem, DsaSubCategory, DsaTestCase } from '@/utils/dsa/dsaTypes'
 
 export type { DsaCategory, DsaProblem, DsaSubCategory, DsaTestCase }
+
+const packed = import.meta.glob('./problems/*.ts', { eager: true })
+const ITERATION_PROBLEMS = pickGlobExport<DsaProblem[]>(packed, 'ITERATION_PROBLEMS', [])
+const RECURSION_PROBLEMS = pickGlobExport<DsaProblem[]>(packed, 'RECURSION_PROBLEMS', [])
 
 export const DSA_CATEGORIES: DsaCategory[] = [
   {

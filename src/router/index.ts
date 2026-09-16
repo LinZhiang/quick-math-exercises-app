@@ -5,6 +5,7 @@
 import { createRouter, createWebHistory, type RouteLocationNormalized, type RouteLocationRaw } from 'vue-router'
 import { isTrainHubSectionId } from '@/constants/practice-hub-sections'
 import HomeHub from '@/views/home/HomeHub.vue'
+import ProjectIntroPage from '@/views/home/ProjectIntroPage.vue'
 import MentalMathView from '@/views/tools/mental-math/index.vue'
 import PersonalBankView from '@/views/personal-bank/index.vue'
 import DsaIndex from '@/views/dsa/index.vue'
@@ -24,12 +25,20 @@ import FrontendStudyLogPage from '@/views/frontend-learning/FrontendStudyLogPage
 import CsVocabView from '@/views/cs-vocab/CsVocabView.vue'
 import InstallSettingsPage from '@/views/common/InstallSettingsPage.vue'
 import LoginPage from '@/views/common/LoginPage.vue'
+import ProjectCodeView from '@/views/project-code/index.vue'
+import ProjectCodeFilePage from '@/views/project-code/ProjectCodeFilePage.vue'
+import { isWenguAdmin } from '@/utils/computer/wenguAuthStore'
+
+function requireAdminRoute() {
+  if (!isWenguAdmin()) return { name: 'home', replace: true }
+  return true
+}
 
 function legacyHomeRedirect(to: RouteLocationNormalized): RouteLocationRaw | true {
   const hash = to.hash.replace('#', '')
   const q = to.query.section
   const sec = hash || (typeof q === 'string' ? q : Array.isArray(q) ? String(q[0] ?? '') : '')
-  if (sec === 'install' || sec === 'settings' || sec === 'login') return { name: sec }
+  if (sec === 'install' || sec === 'settings' || sec === 'login' || sec === 'about') return { name: sec }
   if (sec === 'chinese-idiom' || sec === 'chinese-key') {
     return { name: 'train', params: { section: 'chinese' } }
   }
@@ -120,6 +129,12 @@ const router = createRouter({
       meta: { title: '登录', chrome: 'app' },
     },
     {
+      path: '/about',
+      name: 'about',
+      component: ProjectIntroPage,
+      meta: { title: '项目介绍', chrome: 'app' },
+    },
+    {
       path: '/computer',
       name: 'computer',
       component: ComputerBasicsView,
@@ -194,6 +209,25 @@ const router = createRouter({
       name: 'cs-vocab',
       component: CsVocabView,
       meta: { title: '计算机单词和语法', chrome: 'app' },
+    },
+    {
+      path: '/project-code',
+      name: 'project-code',
+      component: ProjectCodeView,
+      meta: { title: '项目管理', chrome: 'app' },
+      beforeEnter: requireAdminRoute,
+    },
+    {
+      path: '/project-code/file',
+      name: 'project-code-file',
+      component: ProjectCodeFilePage,
+      meta: { title: '项目管理', chrome: 'app' },
+      beforeEnter: (to) => {
+        const gate = requireAdminRoute()
+        if (gate !== true) return gate
+        if (!String(to.query.p ?? '').trim()) return { name: 'project-code', replace: true }
+        return true
+      },
     },
     { path: '/personal-bank', redirect: { name: 'bank' } },
     { path: '/graphic', redirect: { name: 'train', params: { section: 'graphic' } } },

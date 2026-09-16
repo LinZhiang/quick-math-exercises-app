@@ -69,16 +69,23 @@ function openSub(categoryId: string, subId: string) {
 
 <style scoped>
 .dsa-page {
-  padding: 14px 12px 24px;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 14px 12px 16px;
 }
 
 .dsa-page__head {
+  flex-shrink: 0;
   display: flex;
   justify-content: flex-end;
   margin-bottom: 10px;
 }
 
 .dsa-lead {
+  flex-shrink: 0;
   margin: 0 0 10px;
   font-size: 14px;
   line-height: 1.55;
@@ -86,6 +93,7 @@ function openSub(categoryId: string, subId: string) {
 }
 
 .dsa-page__stats {
+  flex-shrink: 0;
   margin: 0 0 14px;
   font-size: 13px;
   line-height: 1.5;
@@ -93,7 +101,13 @@ function openSub(categoryId: string, subId: string) {
 }
 
 .pb-nav {
-  overflow: hidden;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
   border: 1px solid #e8eef5;
   border-radius: 14px;
   background: #fff;
@@ -205,5 +219,14 @@ function openSub(categoryId: string, subId: string) {
   font-size: 12px;
   font-weight: 750;
   text-align: center;
+}
+
+@media (min-width: 901px) {
+  .dsa-page {
+    max-width: 88rem;
+    width: 100%;
+    margin: 0 auto;
+    padding: 24px 40px 24px;
+  }
 }
 </style>

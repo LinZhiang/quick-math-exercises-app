@@ -32,7 +32,7 @@
   flex: 1;
   min-height: 420px;
   display: grid;
-  grid-template-columns: minmax(148px, 188px) minmax(0, 1fr);
+  grid-template-columns: minmax(168px, 220px) minmax(0, 1fr);
   gap: 0;
   border: none;
   border-top: 1px solid var(--app-border-soft);
@@ -1073,6 +1073,16 @@
 
 .page-subtitle--compact {
   display: none;
+}
+
+@media (min-width: 901px) {
+  .page-hero {
+    padding: 16px 28px 12px;
+  }
+
+  .practice-main {
+    padding: 20px 28px 28px;
+  }
 }
 
 @media (max-width: 900px) {

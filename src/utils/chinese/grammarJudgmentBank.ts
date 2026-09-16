@@ -1,6 +1,6 @@
 /** 口算·语法判断：句子成分题库（主/谓/宾/定/状/补） */
 
-import { HARD } from './grammarJudgmentBankHard'
+import { pickGlobExport } from '@/utils/app/loadOptionalModule'
 
 export type GrammarRole =
   | 'subject'
@@ -41,6 +41,12 @@ export const ALL_GRAMMAR_ROLES: GrammarRole[] = [
   'adverbial',
   'complement',
 ]
+
+const HARD = pickGlobExport<GrammarSentence[]>(
+  import.meta.glob('./grammarJudgmentBankHard.ts', { eager: true }),
+  'HARD',
+  [],
+)
 
 /** 标点等不计入覆盖率 */
 const COVERAGE_SKIP = new Set(

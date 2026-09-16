@@ -1,11 +1,5 @@
-/** 时政识记题库入口 */
+/** 时政识记题库入口：分期正文用 glob 加载，材料不进公开仓库。 */
 
-import { DEC_EARLY_ARTICLES } from '@/data/currentAffairs/decEarly'
-import { DEC_LATE_ARTICLES } from '@/data/currentAffairs/decLate'
-import { NOV_EARLY_ARTICLES } from '@/data/currentAffairs/novEarly'
-import { NOV_LATE_ARTICLES } from '@/data/currentAffairs/novLate'
-import { OCT_EARLY_ARTICLES } from '@/data/currentAffairs/octEarly'
-import { OCT_LATE_ARTICLES } from '@/data/currentAffairs/octLate'
 import {
   CURRENT_AFFAIRS_CATEGORIES,
   CURRENT_AFFAIRS_PERIODS,
@@ -14,14 +8,19 @@ import {
   type CurrentAffairsPeriodId,
 } from '@/utils/chinese/currentAffairsTypes'
 
-export const CURRENT_AFFAIRS_BANK: CurrentAffairsArticle[] = [
-  ...OCT_EARLY_ARTICLES,
-  ...OCT_LATE_ARTICLES,
-  ...NOV_EARLY_ARTICLES,
-  ...NOV_LATE_ARTICLES,
-  ...DEC_EARLY_ARTICLES,
-  ...DEC_LATE_ARTICLES,
-]
+const packed = import.meta.glob(['./*.ts', '!./bank.ts'], { eager: true })
+
+function isArticle(value: unknown): value is CurrentAffairsArticle {
+  if (!value || typeof value !== 'object') return false
+  const row = value as Record<string, unknown>
+  return typeof row.id === 'string' && typeof row.periodId === 'string' && typeof row.category === 'string'
+}
+
+export const CURRENT_AFFAIRS_BANK: CurrentAffairsArticle[] = Object.values(packed).flatMap((mod) =>
+  Object.entries(mod as Record<string, unknown>)
+    .filter(([key, value]) => key.endsWith('_ARTICLES') && Array.isArray(value))
+    .flatMap(([, value]) => (value as unknown[]).filter(isArticle)),
+)
 
 export function articlesForPeriod(
   periodId: CurrentAffairsPeriodId,

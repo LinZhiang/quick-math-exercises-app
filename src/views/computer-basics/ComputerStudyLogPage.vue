@@ -57,13 +57,13 @@ import ComputerStudyLogPanel from './ComputerStudyLogPanel.vue'
 
 @media (min-width: 901px) {
   .computer-page {
-    padding: 22px 32px 20px;
+    padding: 24px 40px 24px;
   }
 
   .computer-page__head,
   .computer-tree-card {
     width: 100%;
-    max-width: 64rem;
+    max-width: 80rem;
     margin-inline: auto;
   }
 }

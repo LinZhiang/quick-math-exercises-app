@@ -17,6 +17,7 @@
     "sync:cf-computer": "node scripts/push-cf-computer.mjs",
     "sync:cf-frontend": "node scripts/push-cf-frontend.mjs",
     "sync:cf-cs-vocab": "node scripts/publish-cf-cs-vocab.mjs",
+    "sync:project-code": "node scripts/sync-project-code.mjs",
     "setup:cf-storage": "node scripts/setup-cf-storage.mjs",
     "serve:install": "node scripts/family-start.mjs",
     "serve:public": "node scripts/family-public.mjs",

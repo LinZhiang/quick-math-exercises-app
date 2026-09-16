@@ -1,9 +1,10 @@
 <!-- 根壳：顶栏返回/标题；安装、登录与设置按钮只在首页出现。 -->
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import { RouterView, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 import { appChromeTitleOverride } from '@/composables/app/useAppChrome'
-import { goBackOr, omitQueryKey } from '@/utils/app/appNavigation'
+import { goBackOr } from '@/utils/app/appNavigation'
+import { chromeBackFallback } from '@/utils/app/chromeBackFallback'
 import JsonTransferButtons from '@/components/JsonTransferButtons.vue'
 import { hydrateUserJsonStore } from '@/utils/app/syncedUserJson'
 import { hydrateCsVocabBank } from '@/utils/cs-vocab/csVocabBank'
@@ -38,89 +39,6 @@ watch(
   { immediate: true },
 )
 
-function chromeFallback(): RouteLocationRaw {
-  const name = String(route.name ?? '')
-  if (name === 'train' && route.query.play === '1') {
-    return {
-      name: 'train',
-      params: route.params,
-      query: omitQueryKey(route.query, 'play'),
-    }
-  }
-  if (name === 'bank-sub') {
-    const view = String(route.query.view ?? '')
-    const photoTarget = String(route.query.photoTarget ?? 'full')
-    const photoIntent = String(route.query.photoIntent ?? 'recognize')
-    if (view === 'photo' && (photoTarget !== 'full' || photoIntent === 'upload')) {
-      const qid = route.query.qid
-      return {
-        name: 'bank-sub',
-        params: route.params,
-        query: qid ? { view: 'edit', qid: String(qid) } : { view: 'new' },
-      }
-    }
-    if (view) {
-      return { name: 'bank-sub', params: route.params }
-    }
-    return { name: 'bank' }
-  }
-  if (name === 'computer-item') {
-    const photo = String(route.query.photo ?? '')
-    if (photo === 'recognize' || photo === 'upload') {
-      return {
-        name: 'computer-item',
-        params: route.params,
-        query: omitQueryKey(route.query, 'photo'),
-      }
-    }
-    if (route.query.edit === '1') {
-      return { name: 'computer-item', params: route.params }
-    }
-    return { name: 'computer' }
-  }
-  if (name === 'computer-book-node') {
-    return { name: 'computer-book' }
-  }
-  if (name === 'computer-book' || name === 'computer-log') {
-    return { name: 'computer' }
-  }
-  if (name === 'frontend-item') {
-    const photo = String(route.query.photo ?? '')
-    if (photo === 'recognize' || photo === 'upload') {
-      return {
-        name: 'frontend-item',
-        params: route.params,
-        query: omitQueryKey(route.query, 'photo'),
-      }
-    }
-    if (route.query.edit === '1') {
-      return { name: 'frontend-item', params: route.params }
-    }
-    return { name: 'frontend' }
-  }
-  if (name === 'frontend-book-node') {
-    return { name: 'frontend-book' }
-  }
-  if (name === 'frontend-book' || name === 'frontend-log') {
-    return { name: 'frontend' }
-  }
-  if (name === 'dsa-problem') {
-    return {
-      name: 'dsa-sub',
-      params: {
-        categoryId: String(route.params.categoryId ?? ''),
-        subId: String(route.params.subId ?? ''),
-      },
-    }
-  }
-  if (name === 'dsa-log') return { name: 'dsa' }
-  if (name === 'dsa-sub') return { name: 'dsa' }
-  if (name === 'train' || name === 'bank' || name === 'install' || name === 'settings' || name === 'login' || name === 'computer' || name === 'frontend' || name === 'dsa' || name === 'cs-vocab') {
-    return { name: 'home' }
-  }
-  return { name: 'home' }
-}
-
 function goChrome(name: 'install' | 'settings' | 'login') {
   if (route.name === name) return
   void router.push({ name })
@@ -133,7 +51,7 @@ const loginButtonLabel = computed(() => {
 })
 
 function onChromeBack() {
-  goBackOr(router, chromeFallback())
+  goBackOr(router, chromeBackFallback(route))
 }
 
 watch(
@@ -261,13 +179,13 @@ watch(
 
 @media (min-width: 901px) {
   .app-chrome {
-    padding: 10px 24px;
+    padding: 10px 40px;
     gap: 12px;
     grid-template-columns: minmax(6rem, auto) minmax(0, 1fr) minmax(6rem, auto);
   }
 
   .app-chrome__title {
-    max-width: min(70vw, 42rem);
+    max-width: min(70vw, 56rem);
     font-size: 1.2rem;
   }
 }

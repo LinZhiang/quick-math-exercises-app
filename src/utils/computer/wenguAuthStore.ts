@@ -1,5 +1,5 @@
 /**
- * 温故口算 — 服务端登录会话（AI 功能需要）
+ * 登录会话（AI、讲义管理需要）
  * - 管理员：localStorage + 服务端 Token 默认 7 天
  * - 成员：localStorage + 服务端 Token 默认 2 小时（手机/电脑可同时登录，互不挤下）
  * - 真正失效：Token 过期、主动登出、管理员禁用/改密（sessionEpoch）

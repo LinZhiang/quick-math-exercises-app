@@ -6,12 +6,18 @@ import { ElMessage } from 'element-plus'
 import { HOME_HUB_MODULES } from '@/constants/home-hub-modules'
 import { isHomeHubModuleVisible } from '@/utils/app/homeHubMenu'
 import { userJsonEpoch } from '@/utils/app/syncedUserJson'
+import { isWenguAdmin, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 
 const router = useRouter()
 
 const modules = computed(() => {
   void userJsonEpoch.value
   return HOME_HUB_MODULES.filter((mod) => isHomeHubModuleVisible(mod.id))
+})
+
+const showProjectCode = computed(() => {
+  void wenguAuthTick.value
+  return isWenguAdmin()
 })
 
 function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
@@ -29,6 +35,21 @@ function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
       <p class="home-hub__lead">选择一个模块开始。安装、登录与设置在右上角。首页卡片可在设置「菜单管理」里开关。</p>
     </header>
     <div class="home-hub__grid">
+      <button type="button" class="home-hub__card" @click="router.push({ name: 'about' })">
+        <h2 class="home-hub__card-title">项目介绍</h2>
+        <p class="home-hub__card-desc">功能说明，只覆盖当前首页开放的模块。</p>
+        <span class="home-hub__card-cta">查阅</span>
+      </button>
+      <button
+        v-if="showProjectCode"
+        type="button"
+        class="home-hub__card"
+        @click="router.push({ name: 'project-code' })"
+      >
+        <h2 class="home-hub__card-title">项目管理</h2>
+        <p class="home-hub__card-desc">源码目录查阅与下载，仅管理员可见。</p>
+        <span class="home-hub__card-cta">进入</span>
+      </button>
       <button
         v-for="mod in modules"
         :key="mod.id"
@@ -51,13 +72,13 @@ function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: auto;
-  padding: 20px 16px 28px;
+  overflow: hidden;
+  padding: 20px 16px 20px;
   gap: 18px;
 }
 
 .home-hub__intro {
-  max-width: 40rem;
+  flex-shrink: 0;
 }
 
 .home-hub__lead {
@@ -67,9 +88,17 @@ function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
 }
 
 .home-hub__grid {
+  flex: 1 1 0;
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  align-content: start;
   gap: 12px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
 }
 
 .home-hub__card {
@@ -125,12 +154,12 @@ function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
   }
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 901px) {
   .home-hub {
-    max-width: 76rem;
+    max-width: 92rem;
     width: 100%;
     margin: 0 auto;
-    padding: 32px 36px 40px;
+    padding: 32px 40px 44px;
     gap: 22px;
   }
 

@@ -57,4 +57,17 @@ useAppChromeTitle('刷题日志')
   background: #fff;
   box-shadow: 0 8px 28px rgb(15 23 42 / 5%);
 }
+
+@media (min-width: 901px) {
+  .dsa-log-page {
+    padding: 24px 40px 24px;
+  }
+
+  .dsa-log-page__head,
+  .dsa-log-page__card {
+    width: 100%;
+    max-width: 80rem;
+    margin-inline: auto;
+  }
+}
 </style>

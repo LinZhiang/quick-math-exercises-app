@@ -55,10 +55,16 @@ function openProblem(problemId: string) {
 
 <style scoped>
 .dsa-page {
-  padding: 14px 12px 24px;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 14px 12px 16px;
 }
 
 .dsa-lead {
+  flex-shrink: 0;
   margin: 0 0 14px;
   font-size: 14px;
   line-height: 1.55;
@@ -66,10 +72,16 @@ function openProblem(problemId: string) {
 }
 
 .dsa-list {
+  flex: 1 1 0;
+  min-height: 0;
   margin: 0;
   padding: 0;
   list-style: none;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
   border: 1px solid #e8eef5;
   border-radius: 14px;
   background: #fff;
@@ -120,5 +132,14 @@ function openProblem(problemId: string) {
 
 .dsa-list__btn .el-icon {
   color: #94a3b8;
+}
+
+@media (min-width: 901px) {
+  .dsa-page {
+    max-width: 88rem;
+    width: 100%;
+    margin: 0 auto;
+    padding: 24px 40px 24px;
+  }
 }
 </style>

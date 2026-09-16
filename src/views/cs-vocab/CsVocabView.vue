@@ -70,19 +70,37 @@ function openDeepen() {
   flex: 1 1 0;
   min-height: 0;
   min-width: 0;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   -webkit-overflow-scrolling: touch;
-  padding: 16px 14px 24px;
+  padding: 16px 14px 16px;
 }
 
 .cs-vocab-page.is-deepen {
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
   padding: 8px 10px 12px;
 }
 
+.cs-vocab-page:not(.is-deepen) .mode-section {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
 .cs-vocab-grid {
   grid-template-columns: minmax(0, 1fr) !important;
+}
+
+@media (min-width: 901px) {
+  .cs-vocab-page:not(.is-deepen) {
+    max-width: 88rem;
+    width: 100%;
+    margin: 0 auto;
+    padding: 24px 40px 40px;
+  }
 }
 </style>

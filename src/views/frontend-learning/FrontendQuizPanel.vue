@@ -668,7 +668,7 @@ const quizAskQuestion = computed((): FrontendAskQuestionContext | null => {
 
 @media (min-width: 901px) {
   .cb-quiz {
-    max-width: 52rem;
+    max-width: 72rem;
     width: 100%;
     margin: 0 auto;
     padding: 10px 12px 16px;

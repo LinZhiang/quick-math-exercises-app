@@ -14,12 +14,27 @@ server/node_modules
 server/.env
 server/logs
 server/certs
-# 本机讲义库（含正文、插图）
+# 本机讲义库、项目管理源码（含正文、插图）
 server/data
 server/seeds/
 
-# 计算机单词生成脚本只留本机；题库正文打进 public/cs-vocab，随构建共享
+# 计算机单词生成脚本只留本机
 scripts/cs-vocab-bank.mjs
+
+# 题库正文 / 错题 / 私密练习数据：本机保留，不进公开仓库
+public/cs-vocab/bank.json
+src/utils/cs-vocab/bank.generated.json
+src/utils/chinese/*.content.ts
+src/utils/chinese/*BankHard.ts
+src/utils/dsa/problems/*.ts
+src/data/poetOverview/*.ts
+!src/data/poetOverview/bank.ts
+!src/data/poetOverview/tangGuide.ts
+!src/data/poetOverview/songGuide.ts
+!src/data/poetOverview/otherGuide.ts
+src/data/currentAffairs/*.ts
+!src/data/currentAffairs/bank.ts
+
 
 # 讲义静态快照：只留本机，不进仓库、不打进 Pages 包
 public/fl-data/

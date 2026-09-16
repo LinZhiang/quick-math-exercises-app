@@ -1051,26 +1051,26 @@ watch(photoOpen, (open) => {
 
 @media (min-width: 901px) {
   .computer-detail {
-    padding: 18px 32px 20px;
+    padding: 20px 40px 24px;
     gap: 12px;
   }
 
   .computer-detail__top,
   .computer-detail__pager {
     width: 100%;
-    max-width: 56rem;
+    max-width: 72rem;
     margin-inline: auto;
   }
 
   .computer-detail__paper {
     width: 100%;
-    max-width: 56rem;
+    max-width: 72rem;
     margin-inline: auto;
-    padding: 28px 40px 80px;
+    padding: 32px 48px 88px;
   }
 
   .computer-detail__quiz {
-    max-width: 64rem;
+    max-width: 80rem;
     padding: 16px 20px 18px;
   }
 
@@ -1106,7 +1106,7 @@ watch(photoOpen, (open) => {
   }
 
   .computer-detail.is-full .computer-detail__paper {
-    max-width: 64rem;
+    max-width: 80rem;
   }
 }
 </style>
