@@ -1,5 +1,5 @@
 /**
- * 温故口算 — 服务端登录会话（仅语文 AI 需要）
+ * 温故口算 — 服务端登录会话（AI 功能需要）
  * - 管理员：localStorage + 服务端 Token 默认 7 天
  * - 成员：localStorage + 服务端 Token 默认 2 小时（手机/电脑可同时登录，互不挤下）
  * - 真正失效：Token 过期、主动登出、管理员禁用/改密（sessionEpoch）
@@ -33,7 +33,7 @@ let memorySession: StoredSession | null = null
 let hydratePromise: Promise<void> | null = null
 
 export const WENGU_LOGIN_REQUIRED_HINT =
-  '未登录：请到右上角「设置」登录后，再使用语文 AI 功能'
+  '未登录：请到右上角「登录」后再使用 AI 功能'
 
 export { probeWenguAuthServer, usesRemoteWenguApi, type WenguServerProbe } from '@/utils/computer/wenguApiFetch'
 
@@ -264,7 +264,7 @@ export async function logoutWengu(): Promise<void> {
 }
 
 /**
- * @deprecated 不再因离开语文区清登录；保留空实现以免旧调用报错。
+ * @deprecated 不再因离开练习页清登录；保留空实现以免旧调用报错。
  * 手机/电脑可同时保持登录，互不影响。
  */
 export function clearWenguSessionOnAiLeave(): void {

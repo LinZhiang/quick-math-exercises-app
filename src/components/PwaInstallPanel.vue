@@ -2,7 +2,6 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { usePwaInstall } from '@/composables/app/usePwaInstall'
-import DeepseekApiAuthPanel from '@/components/DeepseekApiAuthPanel.vue'
 import JsonTransferButtons from '@/components/JsonTransferButtons.vue'
 import { showAppUpdatingMask, hideAppUpdatingMask } from '@/utils/app/appUpdateMask'
 import { wipeHandoutDiskCache } from '@/utils/app/handoutDiskCache'
@@ -18,7 +17,7 @@ import { userJsonEpoch } from '@/utils/app/syncedUserJson'
 
 const props = withDefaults(
   defineProps<{
-    /** install：仅 PWA 安装；settings：登录、界面与备份 */
+    /** install：仅 PWA 安装；settings：界面与备份 */
     panel?: 'install' | 'settings'
   }>(),
   { panel: 'install' },
@@ -126,7 +125,7 @@ async function updateAppContent() {
     <section class="mode-section install-panel" id="practice-settings">
       <h3 class="mode-section__title">设置</h3>
       <p class="mode-section__hint">
-        登录账号、界面偏好。练习数据请在「知识训练 / 题库整理」右上角导入导出，也可在下方操作。
+        界面偏好。练习数据请在「知识训练 / 题库整理」右上角导入导出，也可在下方操作。
       </p>
 
       <div class="install-card settings-card">
@@ -177,8 +176,6 @@ async function updateAppContent() {
         </div>
       </div>
     </section>
-
-    <DeepseekApiAuthPanel />
   </template>
 </template>
 

@@ -9,7 +9,7 @@ import {
 } from '@/constants/home-hub-modules'
 import { readUserJson, userJsonEpoch, writeUserJson } from '@/utils/app/syncedUserJson'
 
-export const HOME_HUB_MENU_KEY = 'home-hub-menu-v1'
+export const HOME_HUB_MENU_KEY = 'home-hub-menu-v2'
 
 export type HomeHubMenuState = {
   hidden: HomeHubModuleId[]

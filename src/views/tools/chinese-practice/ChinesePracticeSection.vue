@@ -228,7 +228,7 @@ defineExpose({
       <p class="chinese-practice-section__auth-text">{{ DEEPSEEK_NOT_CONFIGURED_HINT }}</p>
       <a
         class="chinese-practice-section__auth-link"
-        href="#settings"
+        href="#login"
         @click.prevent="emit('go-install')"
       >去登录</a>
     </div>

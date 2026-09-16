@@ -187,7 +187,7 @@ async function onLogin() {
       showAdvancedApi.value = true
       syncApiDraftFromStore()
       if (!isMemberCustomApiOriginValid()) {
-        ElMessage.warning('成员须填写自己的 API 地址后，才能使用语文 AI')
+        ElMessage.warning('成员须填写自己的 API 地址后，才能使用 AI 功能')
       }
     }
   } catch (e) {
@@ -199,7 +199,7 @@ async function onLogin() {
 
 async function onLogout() {
   try {
-    await ElMessageBox.confirm('退出后语文 AI 功能将不可用，确定退出？', '退出登录', {
+    await ElMessageBox.confirm('退出后将无法使用需要账号的 AI 功能，确定退出？', '退出登录', {
       type: 'warning',
       confirmButtonText: '退出',
       cancelButtonText: '取消',
@@ -311,10 +311,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="mode-section wengu-auth" id="practice-deepseek-auth" aria-label="语文 AI 登录">
-    <h3 class="mode-section__title">语文 AI 登录</h3>
+  <section class="mode-section wengu-auth" id="practice-deepseek-auth" aria-label="账号登录">
+    <h3 class="mode-section__title">账号登录</h3>
     <p class="mode-section__hint">
-      口算无需登录。语文 AI 在此登录即可。
+      口算练习不必登录。生成题目、讲解或讲义问答时，在此登录即可。
       <strong>公网推荐</strong>：家人打开同一个 <code>pages.dev</code> 地址，登录后出门也能用（云端服务，无需开家里电脑、无需填隧道）。
       管理员账号与电脑端相同（Cloudflare Secrets / <code>server/.env</code>）。
     </p>
@@ -359,7 +359,7 @@ onMounted(() => {
         v-if="!isAdmin && !memberApiReady"
         class="install-card__text wengu-auth__note wengu-auth__warn"
       >
-        尚未配置可用的自定义 API，语文 AI 暂不可用。请在下方填写你自己的服务地址。
+        尚未配置可用的自定义 API，AI 功能暂不可用。请在下方填写你自己的服务地址。
       </p>
       <div class="wengu-auth__actions">
         <el-button type="danger" plain size="small" @click="onLogout">退出登录</el-button>

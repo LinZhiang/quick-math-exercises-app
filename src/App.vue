@@ -1,4 +1,4 @@
-<!-- 根壳：顶栏返回/标题；安装与设置按钮只在首页（chrome=home）出现。 -->
+<!-- 根壳：顶栏返回/标题；安装、登录与设置按钮只在首页出现。 -->
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import { RouterView, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
@@ -7,7 +7,7 @@ import { goBackOr, omitQueryKey } from '@/utils/app/appNavigation'
 import JsonTransferButtons from '@/components/JsonTransferButtons.vue'
 import { hydrateUserJsonStore } from '@/utils/app/syncedUserJson'
 import { hydrateCsVocabBank } from '@/utils/cs-vocab/csVocabBank'
-import { wenguAuthTick } from '@/utils/computer/wenguAuthStore'
+import { getWenguUser, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 
 const route = useRoute()
 const router = useRouter()
@@ -115,16 +115,22 @@ function chromeFallback(): RouteLocationRaw {
   }
   if (name === 'dsa-log') return { name: 'dsa' }
   if (name === 'dsa-sub') return { name: 'dsa' }
-  if (name === 'train' || name === 'bank' || name === 'install' || name === 'settings' || name === 'computer' || name === 'frontend' || name === 'dsa' || name === 'cs-vocab') {
+  if (name === 'train' || name === 'bank' || name === 'install' || name === 'settings' || name === 'login' || name === 'computer' || name === 'frontend' || name === 'dsa' || name === 'cs-vocab') {
     return { name: 'home' }
   }
   return { name: 'home' }
 }
 
-function goChrome(name: 'install' | 'settings') {
+function goChrome(name: 'install' | 'settings' | 'login') {
   if (route.name === name) return
   void router.push({ name })
 }
+
+const loginButtonLabel = computed(() => {
+  void wenguAuthTick.value
+  const user = getWenguUser()
+  return user ? user.username : '登录'
+})
 
 function onChromeBack() {
   goBackOr(router, chromeFallback())
@@ -167,6 +173,14 @@ watch(
           @click="goChrome('settings')"
         >
           设置
+        </el-button>
+        <el-button
+          v-if="isHome"
+          size="small"
+          :type="route.name === 'login' ? 'primary' : 'default'"
+          @click="goChrome('login')"
+        >
+          {{ loginButtonLabel }}
         </el-button>
       </div>
     </header>

@@ -435,6 +435,7 @@ export async function createComputerItem(input: {
         title: item.title,
         ready: true,
         type: item.type,
+        private: true,
       })
     }
     return tree

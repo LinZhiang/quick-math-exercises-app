@@ -2,7 +2,7 @@
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowUp, Delete, Download, EditPen, FullScreen } from '@element-plus/icons-vue'
+import { ArrowUp, Delete, Download, EditPen, FullScreen, Lock } from '@element-plus/icons-vue'
 import { useAppChromeTitle } from '@/composables/app/useAppChrome'
 import { goBackOr, omitQueryKey } from '@/utils/app/appNavigation'
 import ImageCropPanel from '@/components/ImageCropPanel.vue'
@@ -12,9 +12,11 @@ import {
   frontendContentToEditorHtml,
   frontendContentToHtml,
   deleteFrontendItem,
+  findFrontendEntry,
   listReadyFrontendEntries,
   loadFrontendLearningItem,
   loadFrontendLearningTree,
+  setFrontendItemPrivate,
   updateFrontendItem,
   type FrontendHandoutItem,
   type FrontendTreeEntry,
@@ -59,6 +61,8 @@ const editing = ref(false)
 const draftTitle = ref('')
 const draftContent = ref('')
 const saving = ref(false)
+const privacyBusy = ref(false)
+const itemPrivate = ref(true)
 const formatBusy = ref(false)
 const formatProgressText = ref('')
 let formatAbort: AbortController | null = null
@@ -132,6 +136,11 @@ function goList() {
   goBackOr(router, { name: 'frontend' })
 }
 
+function openExport() {
+  if (!item.value) return
+  exportOpen.value = true
+}
+
 function goNav(dir: -1 | 1) {
   if (contentBusy.value) return
   const next = readyList.value[navIndex.value + dir]
@@ -139,9 +148,19 @@ function goNav(dir: -1 | 1) {
   void router.replace({ name: 'frontend-item', params: { itemId: next.id } })
 }
 
-function openExport() {
-  if (!item.value) return
-  exportOpen.value = true
+async function onTogglePrivate() {
+  if (!item.value || !isAdmin.value || contentBusy.value || privacyBusy.value) return
+  const next = !itemPrivate.value
+  privacyBusy.value = true
+  try {
+    await setFrontendItemPrivate(item.value.id, next)
+    itemPrivate.value = next
+    ElMessage.success(next ? '已设为私密，仅管理员可见' : '已对外公开')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '设置失败')
+  } finally {
+    privacyBusy.value = false
+  }
 }
 
 function applyEditDraft() {
@@ -473,6 +492,7 @@ watch(
       if (seq !== loadSeq) return
       item.value = next
       readyList.value = listReadyFrontendEntries(tree)
+      itemPrivate.value = Boolean(findFrontendEntry(tree, id)?.entry.private)
       logFrontendHandoutView({
         itemId: next.id,
         itemTitle: next.title,
@@ -555,6 +575,18 @@ watch(photoOpen, (open) => {
             <el-tooltip v-if="isAdmin && !editing" content="删除讲义" placement="bottom">
               <el-button size="small" circle type="danger" plain :icon="Delete" :disabled="contentBusy" @click="onDeleteCurrent" />
             </el-tooltip>
+            <el-button
+              v-if="isAdmin && !editing"
+              size="small"
+              :type="itemPrivate ? 'warning' : 'default'"
+              :plain="!itemPrivate"
+              :icon="Lock"
+              :disabled="contentBusy || privacyBusy"
+              :loading="privacyBusy"
+              @click="onTogglePrivate"
+            >
+              {{ itemPrivate ? '设为公开' : '设为私密' }}
+            </el-button>
             <el-button
               v-if="!editing"
               size="small"

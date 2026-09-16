@@ -4317,7 +4317,7 @@ onBeforeUnmount(() => {
           </p>
           <ChinesePracticeSection
             ref="chinesePracticeRef"
-            @go-install="router.push({ name: 'settings' })"
+            @go-install="router.push({ name: 'login' })"
             @tab-change="chineseActiveTab = $event"
           />
         </section>

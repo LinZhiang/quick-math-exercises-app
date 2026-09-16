@@ -26,7 +26,7 @@ function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
 <template>
   <section class="home-hub">
     <header class="home-hub__intro">
-      <p class="home-hub__lead">选择一个模块开始。安装与登录在右上角。首页卡片可在设置「菜单管理」里开关。</p>
+      <p class="home-hub__lead">选择一个模块开始。安装、登录与设置在右上角。首页卡片可在设置「菜单管理」里开关。</p>
     </header>
     <div class="home-hub__grid">
       <button

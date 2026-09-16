@@ -1,6 +1,6 @@
 /**
  * 路由：首页模块 + 知识训练 /train/:section + 数据结构与算法 + 题库 + 计算机基础 + 前端学习 + 计算机单词和语法 + 安装/设置。
- * chrome: 'home' 才显示安装/设置按钮（见 App.vue）。
+ * chrome: 'home' 才显示安装/登录/设置按钮（见 App.vue）。
  */
 import { createRouter, createWebHistory, type RouteLocationNormalized, type RouteLocationRaw } from 'vue-router'
 import { isTrainHubSectionId } from '@/constants/practice-hub-sections'
@@ -23,12 +23,13 @@ import FrontendQuizBookNodePage from '@/views/frontend-learning/FrontendQuizBook
 import FrontendStudyLogPage from '@/views/frontend-learning/FrontendStudyLogPage.vue'
 import CsVocabView from '@/views/cs-vocab/CsVocabView.vue'
 import InstallSettingsPage from '@/views/common/InstallSettingsPage.vue'
+import LoginPage from '@/views/common/LoginPage.vue'
 
 function legacyHomeRedirect(to: RouteLocationNormalized): RouteLocationRaw | true {
   const hash = to.hash.replace('#', '')
   const q = to.query.section
   const sec = hash || (typeof q === 'string' ? q : Array.isArray(q) ? String(q[0] ?? '') : '')
-  if (sec === 'install' || sec === 'settings') return { name: sec }
+  if (sec === 'install' || sec === 'settings' || sec === 'login') return { name: sec }
   if (sec === 'chinese-idiom' || sec === 'chinese-key') {
     return { name: 'train', params: { section: 'chinese' } }
   }
@@ -57,7 +58,7 @@ const router = createRouter({
       meta: { title: '知识训练', chrome: 'app' },
       beforeEnter: (to) => {
         const section = String(to.params.section ?? '')
-        if (section === 'install' || section === 'settings') return { name: section }
+        if (section === 'install' || section === 'settings' || section === 'login') return { name: section }
         if (!isTrainHubSectionId(section)) {
           return { name: 'train', params: { section: 'log' }, query: to.query }
         }
@@ -111,6 +112,12 @@ const router = createRouter({
       name: 'settings',
       component: InstallSettingsPage,
       meta: { title: '设置', chrome: 'app' },
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: LoginPage,
+      meta: { title: '登录', chrome: 'app' },
     },
     {
       path: '/computer',

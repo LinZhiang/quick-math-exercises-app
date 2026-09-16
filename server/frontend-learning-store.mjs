@@ -1164,7 +1164,7 @@ export function attachFrontendLearningRoutes(app) {
         content,
       }
       writeItemRecord(id, item)
-      hit.node.entries.push({ id, title, ready: true, type })
+      hit.node.entries.push({ id, title, ready: true, type, private: true })
       writeCatalog(catalog.tree)
       res.json({ ok: true, item, ...readFrontendLearningRevision() })
     } catch (e) {

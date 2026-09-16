@@ -17,7 +17,7 @@ import { aiChatCompletion, type AiMessage } from '@/services/ai'
 import { aiRequestProgressText, getAiProvider, type AiProvider } from '@/utils/app/aiProviderStore'
 import { parseAiJsonArrayLenient, parseAiJsonObjectLenient, stripAiJsonFence } from '@/utils/app/aiJsonParse'
 
-/** 是否可使用语文 AI（已登录走服务端代理；成员须自备 API；开发环境可回退本机 Key） */
+/** 是否可使用 AI（已登录走服务端代理；成员须自备 API；开发环境可回退本机 Key） */
 export function isAiChatConfigured(): boolean {
   void wenguAuthTick.value
   if (isWenguLoggedIn()) return isWenguApiReadyForCurrentUser()

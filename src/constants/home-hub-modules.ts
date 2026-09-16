@@ -12,8 +12,8 @@ export type HomeHubModuleId = (typeof HOME_HUB_MODULE_IDS)[number]
 
 export const HOME_HUB_PINNED_ID: HomeHubModuleId = 'bank'
 
-/** 默认隐藏知识训练，其余显示 */
-export const HOME_HUB_DEFAULT_HIDDEN: HomeHubModuleId[] = ['train']
+/** 默认隐藏知识训练、计算机单词和语法，其余显示 */
+export const HOME_HUB_DEFAULT_HIDDEN: HomeHubModuleId[] = ['train', 'cs-vocab']
 
 export type HomeHubModule = {
   id: HomeHubModuleId

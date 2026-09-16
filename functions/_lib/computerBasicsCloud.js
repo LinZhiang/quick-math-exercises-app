@@ -653,7 +653,7 @@ async function handleCreateItem(env, request) {
     content,
   }
   await putItemRecord(env, id, item)
-  hit.node.entries.push({ id, title, ready: true, type })
+  hit.node.entries.push({ id, title, ready: true, type, private: true })
   await writeCatalog(env, catalog.tree)
   return json({ ok: true, item })
 }
