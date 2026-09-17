@@ -8,6 +8,13 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* 跟系统字号走，并禁止 Android 在排版后再把字撑爆导致卡片叠字 */
+html {
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 html.app-theme-light,
 body.app-theme-light {
   color: #1f2937;

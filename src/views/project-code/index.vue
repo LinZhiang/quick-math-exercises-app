@@ -112,7 +112,7 @@ onMounted(load)
           批量下载
         </el-button>
       </div>
-      <p class="pc-page__lead">仅管理员可查阅。点文件查看源码；下载会整理成 Word，每个源文件另起一页。源码不进 Git，云端看之前需同步一次。</p>
+      <p class="pc-page__lead">仅管理员可查阅。点文件查看源码；下载会整理成 Word，每个源文件另起一页。正文保存在云端，手机和其他设备登录后即可打开。</p>
       <p v-if="busy" class="pc-page__stats">{{ busy }}</p>
       <p v-else-if="count" class="pc-page__stats">共 {{ count }} 个文件</p>
     </header>
@@ -198,6 +198,7 @@ onMounted(load)
 
 .pc-page__title-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -206,15 +207,19 @@ onMounted(load)
 
 .pc-page__title {
   margin: 0;
+  flex: 1 1 8rem;
   font-size: 1.28rem;
   font-weight: 800;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .pc-page__lead,
 .pc-page__stats {
   margin: 0;
-  font-size: 13px;
+  font-size: 0.85rem;
   line-height: 1.55;
+  overflow-wrap: anywhere;
   color: var(--app-text-muted);
 }
 
@@ -280,10 +285,10 @@ onMounted(load)
 
 .pc-tree__main {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 2px;
-  min-height: 40px;
-  padding: 2px 8px 2px calc(6px + var(--tree-depth, 0) * 18px);
+  min-height: 2.6em;
+  padding: 6px 8px 6px calc(6px + var(--tree-depth, 0) * 18px);
   border-radius: 10px;
 }
 
@@ -293,9 +298,10 @@ onMounted(load)
 
 .pc-tree__caret,
 .pc-tree__dl {
-  flex: 0 0 22px;
-  width: 22px;
-  height: 22px;
+  flex: 0 0 1.6em;
+  width: 1.6em;
+  height: 1.6em;
+  margin-top: 0.15em;
   margin: 0;
   padding: 0;
   border: none;
@@ -337,11 +343,12 @@ onMounted(load)
 
 .pc-tree__name {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 14px;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
   font-weight: 650;
+  line-height: 1.35;
 }
 
 .pc-tree__file {

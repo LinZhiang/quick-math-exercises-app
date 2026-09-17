@@ -125,8 +125,8 @@ watch(
 
 .app-chrome {
   flex-shrink: 0;
-  display: grid;
-  grid-template-columns: minmax(4.5rem, auto) minmax(0, 1fr) minmax(0, auto);
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
@@ -142,25 +142,29 @@ watch(
 }
 
 .app-chrome__side--left {
+  flex: 0 1 auto;
   justify-content: flex-start;
 }
 
 .app-chrome__side--right {
   position: relative;
+  flex: 1 1 auto;
   justify-content: flex-end;
   flex-wrap: wrap;
 }
 
 .app-chrome__title {
   margin: 0;
-  min-width: 0;
-  max-width: min(58vw, 22rem);
+  flex: 1 1 7rem;
+  min-width: 4.5rem;
+  max-width: none;
   font-size: 1.12rem;
   font-weight: 800;
+  line-height: 1.3;
   text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .app-body {
@@ -181,11 +185,9 @@ watch(
   .app-chrome {
     padding: 10px 40px;
     gap: 12px;
-    grid-template-columns: minmax(6rem, auto) minmax(0, 1fr) minmax(6rem, auto);
   }
 
   .app-chrome__title {
-    max-width: min(70vw, 56rem);
     font-size: 1.2rem;
   }
 }

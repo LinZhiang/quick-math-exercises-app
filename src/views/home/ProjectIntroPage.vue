@@ -171,10 +171,11 @@ function toggleLeaf(sectionId: string, index: number) {
 }
 
 .intro-item__row {
-  min-height: 48px;
+  min-height: 3em;
   padding: 12px 14px;
   font-size: 15px;
   font-weight: 700;
+  align-items: flex-start;
 }
 
 .intro-item__row.is-open {
@@ -196,6 +197,8 @@ function toggleLeaf(sectionId: string, index: number) {
 
 .intro-item__name {
   min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
 }
 
 .intro-item__summary {

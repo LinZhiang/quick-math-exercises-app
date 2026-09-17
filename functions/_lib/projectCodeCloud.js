@@ -108,7 +108,7 @@ async function handleTree(kv) {
       ok: true,
       tree: [],
       count: 0,
-      message: '云端还没有源码。本机先 npm run sync:project-code，再 npm run sync:cf-project-code。',
+      message: '云端还没有源码。在已同步过 0521 的电脑上执行 npm run sync:cf-project-code，手机刷新即可查阅。',
     })
   }
   return json({ ok: true, tree, count })

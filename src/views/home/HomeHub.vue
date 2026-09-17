@@ -83,7 +83,9 @@ function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
 
 .home-hub__lead {
   margin: 0;
-  font-size: 14px;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
   color: var(--app-text-muted);
 }
 
@@ -108,8 +110,11 @@ function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
-  min-height: 7.25rem;
+  min-height: 0;
+  height: auto;
   padding: 16px 14px 14px;
+  gap: 0.45em;
+  overflow: visible;
   border: 1px solid var(--app-border-soft);
   border-radius: 16px;
   background: var(--app-surface);
@@ -127,22 +132,25 @@ function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
 }
 
 .home-hub__card-title {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 1.15rem;
   font-weight: 800;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .home-hub__card-desc {
   margin: 0;
-  flex: 1;
-  font-size: 13px;
+  flex: 0 1 auto;
+  font-size: 0.85rem;
   line-height: 1.5;
+  overflow-wrap: anywhere;
   color: var(--app-text-muted);
 }
 
 .home-hub__card-cta {
-  margin-top: 12px;
-  font-size: 13px;
+  margin-top: 0.35em;
+  font-size: 0.85rem;
   font-weight: 700;
   color: var(--app-primary);
 }
@@ -169,7 +177,7 @@ function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
   }
 
   .home-hub__card {
-    min-height: 8.5rem;
+    min-height: 0;
     padding: 20px 18px 16px;
   }
 
@@ -183,7 +191,7 @@ function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
     padding: 14px 12px 20px;
   }
   .home-hub__card {
-    min-height: 6.6rem;
+    min-height: 0;
     padding: 14px 12px 12px;
   }
 }
