@@ -196,8 +196,6 @@ function toggleLeaf(sectionId: string, index: number) {
 }
 
 .intro-item__name {
-  min-width: 0;
-  overflow-wrap: anywhere;
   line-height: 1.35;
 }
 

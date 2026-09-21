@@ -207,11 +207,10 @@ onMounted(load)
 
 .pc-page__title {
   margin: 0;
-  flex: 1 1 8rem;
+  flex: none;
   font-size: 1.28rem;
   font-weight: 800;
-  line-height: 1.3;
-  overflow-wrap: anywhere;
+  line-height: 1.35;
 }
 
 .pc-page__lead,
@@ -219,7 +218,6 @@ onMounted(load)
   margin: 0;
   font-size: 0.85rem;
   line-height: 1.55;
-  overflow-wrap: anywhere;
   color: var(--app-text-muted);
 }
 
@@ -329,7 +327,7 @@ onMounted(load)
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   margin: 0;
   padding: 6px 4px;
@@ -342,10 +340,6 @@ onMounted(load)
 }
 
 .pc-tree__name {
-  min-width: 0;
-  overflow: visible;
-  white-space: normal;
-  overflow-wrap: anywhere;
   font-size: 0.9rem;
   font-weight: 650;
   line-height: 1.35;

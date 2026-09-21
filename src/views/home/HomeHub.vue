@@ -85,15 +85,15 @@ function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
   margin: 0;
   font-size: 0.9rem;
   line-height: 1.55;
-  overflow-wrap: anywhere;
   color: var(--app-text-muted);
 }
 
 .home-hub__grid {
   flex: 1 1 0;
   min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   align-content: start;
   gap: 12px;
   overflow: auto;
@@ -108,10 +108,11 @@ function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
   -webkit-appearance: none;
   display: flex;
   flex-direction: column;
+  flex: none;
   align-items: flex-start;
   text-align: left;
-  min-height: 0;
   height: auto;
+  min-height: auto;
   padding: 16px 14px 14px;
   gap: 0.45em;
   overflow: visible;
@@ -131,20 +132,23 @@ function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
   opacity: 0.78;
 }
 
+.home-hub__card-title,
+.home-hub__card-desc,
+.home-hub__card-cta {
+  flex: none;
+}
+
 .home-hub__card-title {
   margin: 0;
   font-size: 1.15rem;
   font-weight: 800;
-  line-height: 1.3;
-  overflow-wrap: anywhere;
+  line-height: 1.35;
 }
 
 .home-hub__card-desc {
   margin: 0;
-  flex: 0 1 auto;
   font-size: 0.85rem;
   line-height: 1.5;
-  overflow-wrap: anywhere;
   color: var(--app-text-muted);
 }
 
@@ -157,7 +161,9 @@ function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
 
 @media (min-width: 640px) {
   .home-hub__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    align-content: start;
     gap: 14px;
   }
 }
@@ -172,12 +178,11 @@ function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
   }
 
   .home-hub__grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
     gap: 16px;
   }
 
   .home-hub__card {
-    min-height: 0;
     padding: 20px 18px 16px;
   }
 
@@ -191,7 +196,6 @@ function openModule(mod: (typeof HOME_HUB_MODULES)[number]) {
     padding: 14px 12px 20px;
   }
   .home-hub__card {
-    min-height: 0;
     padding: 14px 12px 12px;
   }
 }

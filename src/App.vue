@@ -29,6 +29,9 @@ const showDataTransfer = computed(() => {
   const name = String(route.name ?? '')
   return (name === 'train' || name === 'bank' || name === 'bank-sub') && route.query.play !== '1'
 })
+const showChromeTools = computed(
+  () => !hideBack.value || isHome.value || showDataTransfer.value,
+)
 
 watch(
   wenguAuthTick,
@@ -66,41 +69,43 @@ watch(
 <template>
   <div class="app-root">
     <header class="app-chrome">
-      <div class="app-chrome__side app-chrome__side--left">
-        <el-button v-if="!hideBack" size="small" @click="onChromeBack">返回</el-button>
+      <div v-if="showChromeTools" class="app-chrome__tools">
+        <div class="app-chrome__side app-chrome__side--left">
+          <el-button v-if="!hideBack" size="small" @click="onChromeBack">返回</el-button>
+        </div>
+        <div class="app-chrome__side app-chrome__side--right">
+          <JsonTransferButtons
+            v-if="showDataTransfer"
+            :kind="dataTransferKind"
+            variant="chrome"
+          />
+          <el-button
+            v-if="isHome"
+            size="small"
+            :type="route.name === 'install' ? 'primary' : 'default'"
+            @click="goChrome('install')"
+          >
+            安装
+          </el-button>
+          <el-button
+            v-if="isHome"
+            size="small"
+            :type="route.name === 'settings' ? 'primary' : 'default'"
+            @click="goChrome('settings')"
+          >
+            设置
+          </el-button>
+          <el-button
+            v-if="isHome"
+            size="small"
+            :type="route.name === 'login' ? 'primary' : 'default'"
+            @click="goChrome('login')"
+          >
+            {{ loginButtonLabel }}
+          </el-button>
+        </div>
       </div>
       <h1 class="app-chrome__title">{{ chromeTitle }}</h1>
-      <div class="app-chrome__side app-chrome__side--right">
-        <JsonTransferButtons
-          v-if="showDataTransfer"
-          :kind="dataTransferKind"
-          variant="chrome"
-        />
-        <el-button
-          v-if="isHome"
-          size="small"
-          :type="route.name === 'install' ? 'primary' : 'default'"
-          @click="goChrome('install')"
-        >
-          安装
-        </el-button>
-        <el-button
-          v-if="isHome"
-          size="small"
-          :type="route.name === 'settings' ? 'primary' : 'default'"
-          @click="goChrome('settings')"
-        >
-          设置
-        </el-button>
-        <el-button
-          v-if="isHome"
-          size="small"
-          :type="route.name === 'login' ? 'primary' : 'default'"
-          @click="goChrome('login')"
-        >
-          {{ loginButtonLabel }}
-        </el-button>
-      </div>
     </header>
     <div class="app-body">
       <RouterView />
@@ -126,45 +131,48 @@ watch(
 .app-chrome {
   flex-shrink: 0;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--app-border-soft);
   background: var(--app-surface);
 }
 
+.app-chrome__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .app-chrome__side {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  min-width: 0;
   gap: 6px;
 }
 
 .app-chrome__side--left {
-  flex: 0 1 auto;
   justify-content: flex-start;
 }
 
 .app-chrome__side--right {
-  position: relative;
-  flex: 1 1 auto;
+  margin-left: auto;
   justify-content: flex-end;
-  flex-wrap: wrap;
 }
 
 .app-chrome__title {
   margin: 0;
-  flex: 1 1 7rem;
-  min-width: 4.5rem;
-  max-width: none;
+  flex: none;
+  width: 100%;
   font-size: 1.12rem;
   font-weight: 800;
-  line-height: 1.3;
+  line-height: 1.35;
   text-align: center;
   overflow: visible;
   white-space: normal;
-  overflow-wrap: anywhere;
 }
 
 .app-body {

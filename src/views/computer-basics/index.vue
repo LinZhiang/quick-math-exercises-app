@@ -1308,8 +1308,6 @@ onBeforeUnmount(() => {
 .computer-tree__name {
   min-width: 0;
   flex: 1 1 auto;
-  overflow-wrap: anywhere;
-  word-break: break-word;
   white-space: normal;
   font-weight: 700;
   line-height: 1.35;
@@ -1332,8 +1330,6 @@ onBeforeUnmount(() => {
 .computer-tree__leaf-title {
   min-width: 0;
   flex: 1 1 auto;
-  overflow-wrap: anywhere;
-  word-break: break-word;
   white-space: normal;
   font-weight: 500;
   line-height: 1.35;

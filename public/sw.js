@@ -1,4 +1,4 @@
-const CACHE = 'quick-math-v9'
+const CACHE = 'quick-math-v10'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
