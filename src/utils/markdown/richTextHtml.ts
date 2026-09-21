@@ -40,8 +40,8 @@ export function sanitizeRichHtml(raw: string): string {
 }
 
 function isEmptyRichElement(el: Element): boolean {
-  if (el.matches('aside, .cb-handout-note')) return false
-  if (el.querySelector('img, table, video, canvas, iframe, aside, .cb-handout-note')) return false
+  if (el.matches('aside, .cb-handout-note, hr, img, table')) return false
+  if (el.querySelector('img, table, video, canvas, iframe, aside, .cb-handout-note, hr')) return false
   return !(el.textContent || '').replace(/\u00a0/g, ' ').trim()
 }
 

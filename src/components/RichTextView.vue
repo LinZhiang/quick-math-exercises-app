@@ -274,8 +274,27 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
 }
 
 .rich-text-view :deep(del),
-.rich-text-view :deep(s) {
-  text-decoration: none;
+.rich-text-view :deep(s),
+.rich-text-view :deep(strike) {
+  text-decoration: line-through;
+}
+
+.rich-text-view :deep(a) {
+  color: #2563eb;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.rich-text-view :deep(hr) {
+  margin: 0.7em 0;
+  border: none;
+  border-top: 1px solid #cbd5e1;
+}
+
+.rich-text-view :deep(sup),
+.rich-text-view :deep(sub) {
+  font-size: 0.75em;
+  line-height: 0;
 }
 
 .rich-text-view :deep(p:last-child) {

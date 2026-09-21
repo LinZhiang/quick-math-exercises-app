@@ -5,6 +5,7 @@ import HandoutNoteDialog from '@/components/HandoutNoteDialog.vue'
 import {
   buildHandoutNoteHtml,
   compactTrailingEmptyHtml,
+  escapeHtmlText,
   plainTextToRichHtml,
   richHtmlIsEmpty,
 } from '@/utils/markdown/richTextHtml'
@@ -37,6 +38,8 @@ const fileRef = ref<HTMLInputElement | null>(null)
 const focused = ref(false)
 const showPlaceholder = computed(() => richHtmlIsEmpty(props.modelValue))
 const headingTag = ref('p')
+const fontSizeTag = ref('')
+const cmdOn = ref<Record<string, boolean>>({})
 const noteOpen = ref(false)
 const noteEditable = ref(false)
 const noteTitle = ref('')
@@ -153,14 +156,45 @@ function syncHeadingTag() {
   const sel = document.getSelection()
   const node = sel?.anchorNode
   const el = node instanceof Element ? node : node?.parentElement
-  const block = el?.closest?.('h1,h2,h3,h4,p,div,li')
+  const block = el?.closest?.('h1,h2,h3,h4,p,div,li,blockquote')
   const tag = block?.tagName.toLowerCase() ?? 'p'
   headingTag.value = tag === 'h2' || tag === 'h3' || tag === 'h4' ? tag : 'p'
+  const sized = el?.closest?.('span[style], font')
+  const px = sized instanceof HTMLElement ? sized.style.fontSize : ''
+  fontSizeTag.value = px || ''
+}
+
+function syncToolbar() {
+  syncHeadingTag()
+  const cmds = [
+    'bold',
+    'italic',
+    'underline',
+    'strikeThrough',
+    'superscript',
+    'subscript',
+    'justifyLeft',
+    'justifyCenter',
+    'justifyRight',
+    'justifyFull',
+    'insertUnorderedList',
+    'insertOrderedList',
+  ]
+  const next: Record<string, boolean> = {}
+  for (const c of cmds) {
+    try {
+      next[c] = document.queryCommandState(c)
+    } catch {
+      next[c] = false
+    }
+  }
+  cmdOn.value = next
 }
 
 function isEmptyBlock(el: Element): boolean {
   if (el.matches('aside, .cb-handout-note')) return false
-  if (el.querySelector('img, table, video, canvas, iframe, aside, .cb-handout-note')) return false
+  if (el.matches('hr, img, table')) return false
+  if (el.querySelector('img, table, video, canvas, iframe, aside, .cb-handout-note, hr')) return false
   return !(el.textContent || '').replace(/\u00a0/g, ' ').trim()
 }
 
@@ -238,14 +272,20 @@ watch(
 function run(command: string, value?: string) {
   restoreSelection()
   pushUndo(editorRef.value?.innerHTML ?? '')
+  try {
+    document.execCommand('styleWithCSS', false, 'true')
+  } catch {
+    /* ignore */
+  }
   document.execCommand(command, false, value)
   decorateNotes()
   emitHtml()
   pushUndo(editorRef.value?.innerHTML ?? '')
+  syncToolbar()
 }
 
 function setHeading(tag: string) {
-  headingTag.value = tag
+  if (tag === 'h2' || tag === 'h3' || tag === 'h4' || tag === 'p') headingTag.value = tag
   restoreSelection()
   pushUndo(editorRef.value?.innerHTML ?? '')
   const ok = document.execCommand('formatBlock', false, tag)
@@ -253,6 +293,7 @@ function setHeading(tag: string) {
   decorateNotes()
   emitHtml()
   pushUndo(editorRef.value?.innerHTML ?? '')
+  syncToolbar()
 }
 
 function onInput() {
@@ -276,7 +317,7 @@ function onKeydown(ev: KeyboardEvent) {
 
 function onKeyup(ev: KeyboardEvent) {
   saveSelection()
-  syncHeadingTag()
+  syncToolbar()
   if (ev.key === 'Backspace' || ev.key === 'Delete') emitHtml()
 }
 
@@ -353,6 +394,136 @@ function onHeadingChange(ev: Event) {
   setHeading(tag)
 }
 
+function onFontSizeChange(ev: Event) {
+  const size = (ev.target as HTMLSelectElement).value
+  fontSizeTag.value = size
+  if (!size) return
+  restoreSelection()
+  pushUndo(editorRef.value?.innerHTML ?? '')
+  try {
+    document.execCommand('styleWithCSS', false, 'true')
+  } catch {
+    /* ignore */
+  }
+  document.execCommand('fontSize', false, '7')
+  const root = editorRef.value
+  if (root) {
+    for (const span of root.querySelectorAll('span')) {
+      if (span.style.fontSize === 'xxx-large' || span.style.fontSize === 'x-large') {
+        span.style.fontSize = size
+      }
+    }
+    for (const font of root.querySelectorAll('font[size="7"]')) {
+      const span = document.createElement('span')
+      span.style.fontSize = size
+      span.innerHTML = font.innerHTML
+      font.replaceWith(span)
+    }
+  }
+  decorateNotes()
+  emitHtml()
+  pushUndo(editorRef.value?.innerHTML ?? '')
+}
+
+function onForeColor(ev: Event) {
+  run('foreColor', (ev.target as HTMLInputElement).value)
+}
+
+function onHiliteColor(ev: Event) {
+  const color = (ev.target as HTMLInputElement).value
+  try {
+    document.execCommand('styleWithCSS', false, 'true')
+  } catch {
+    /* ignore */
+  }
+  restoreSelection()
+  pushUndo(editorRef.value?.innerHTML ?? '')
+  const ok = document.execCommand('hiliteColor', false, color)
+  if (!ok) document.execCommand('backColor', false, color)
+  decorateNotes()
+  emitHtml()
+  pushUndo(editorRef.value?.innerHTML ?? '')
+  syncToolbar()
+}
+
+async function insertLink() {
+  saveSelection()
+  let raw = 'https://'
+  try {
+    const { value } = await ElMessageBox.prompt('网址，留空则去掉所选链接。', '插入链接', {
+      inputValue: 'https://',
+      inputPlaceholder: 'https://',
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+    })
+    raw = String(value ?? '').trim()
+  } catch {
+    return
+  }
+  if (!raw) {
+    run('unlink')
+    return
+  }
+  const href = /^https?:\/\//i.test(raw) || raw.startsWith('/') || raw.startsWith('#') ? raw : `https://${raw}`
+  run('createLink', href)
+  editorRef.value?.querySelectorAll('a[href]').forEach((a) => {
+    a.setAttribute('target', '_blank')
+    a.setAttribute('rel', 'noopener noreferrer')
+  })
+}
+
+async function insertTable() {
+  saveSelection()
+  let spec = '3x3'
+  try {
+    const { value } = await ElMessageBox.prompt('表格大小，例如 3x4', '插入表格', {
+      inputValue: '3x3',
+      confirmButtonText: '插入',
+      cancelButtonText: '取消',
+      inputValidator: (v) => {
+        const m = String(v ?? '')
+          .trim()
+          .match(/^(\d+)\s*[xX×,，]\s*(\d+)$/)
+        if (!m) return '请填写 行x列，例如 3x3'
+        const r = Number(m[1])
+        const c = Number(m[2])
+        if (r < 1 || c < 1 || r > 20 || c > 10) return '行 1–20，列 1–10'
+        return true
+      },
+    })
+    spec = String(value ?? '3x3')
+  } catch {
+    return
+  }
+  const m = spec.trim().match(/^(\d+)\s*[xX×,，]\s*(\d+)$/)
+  const rows = Math.min(20, Math.max(1, Number(m?.[1] || 3)))
+  const cols = Math.min(10, Math.max(1, Number(m?.[2] || 3)))
+  const cell = '<td><br></td>'
+  const tr = `<tr>${cell.repeat(cols)}</tr>`
+  insertHtml(`<table><tbody>${tr.repeat(rows)}</tbody></table><p></p>`)
+}
+
+function toggleInlineCode() {
+  restoreSelection()
+  const sel = document.getSelection()
+  if (!sel || sel.rangeCount === 0 || !editorRef.value) return
+  const node = sel.anchorNode
+  const el = node instanceof Element ? node : node?.parentElement
+  const code = el?.closest('code')
+  if (code instanceof HTMLElement && editorRef.value.contains(code) && !code.closest('pre')) {
+    pushUndo(editorRef.value.innerHTML)
+    const parent = code.parentNode
+    while (code.firstChild) parent?.insertBefore(code.firstChild, code)
+    code.remove()
+    decorateNotes()
+    emitHtml()
+    pushUndo(editorRef.value.innerHTML)
+    return
+  }
+  const text = sel.toString()
+  insertHtml(`<code>${escapeHtmlText(text || 'code')}</code>&nbsp;`)
+}
+
 async function onFileChange(ev: Event) {
   const input = ev.target as HTMLInputElement
   const file = input.files?.[0]
@@ -407,7 +578,7 @@ function onEditorMouseDown(ev: MouseEvent) {
 
 function onEditorMouseUp() {
   saveSelection()
-  syncHeadingTag()
+  syncToolbar()
 }
 
 async function insertNoteTag() {
@@ -562,20 +733,60 @@ defineExpose({ insertHtml, insertNoteTag })
           <option value="h3">二</option>
           <option value="h4">三</option>
         </select>
+        <select
+          class="rte__heading rte__size"
+          :value="fontSizeTag"
+          title="字号"
+          aria-label="字号"
+          @mousedown="saveSelection"
+          @change="onFontSizeChange"
+        >
+          <option value="">字号</option>
+          <option value="12px">12</option>
+          <option value="14px">14</option>
+          <option value="16px">16</option>
+          <option value="18px">18</option>
+          <option value="22px">22</option>
+          <option value="28px">28</option>
+        </select>
       </div>
       <div class="rte__group">
-        <button type="button" title="粗体" aria-label="粗体" @mousedown.prevent="run('bold')">
+        <button type="button" title="粗体" aria-label="粗体" :class="{ 'is-on': cmdOn.bold }" @mousedown.prevent="run('bold')">
           <span class="rte__ico rte__ico--b">B</span>
         </button>
-        <button type="button" title="斜体" aria-label="斜体" @mousedown.prevent="run('italic')">
+        <button type="button" title="斜体" aria-label="斜体" :class="{ 'is-on': cmdOn.italic }" @mousedown.prevent="run('italic')">
           <span class="rte__ico rte__ico--i">I</span>
         </button>
-        <button type="button" title="下划线" aria-label="下划线" @mousedown.prevent="run('underline')">
+        <button type="button" title="下划线" aria-label="下划线" :class="{ 'is-on': cmdOn.underline }" @mousedown.prevent="run('underline')">
           <span class="rte__ico rte__ico--u">U</span>
+        </button>
+        <button type="button" title="删除线" aria-label="删除线" :class="{ 'is-on': cmdOn.strikeThrough }" @mousedown.prevent="run('strikeThrough')">
+          <span class="rte__ico rte__ico--s">S</span>
+        </button>
+        <button type="button" title="上标" aria-label="上标" :class="{ 'is-on': cmdOn.superscript }" @mousedown.prevent="run('superscript')">
+          <span class="rte__ico rte__ico--sup">x²</span>
+        </button>
+        <button type="button" title="下标" aria-label="下标" :class="{ 'is-on': cmdOn.subscript }" @mousedown.prevent="run('subscript')">
+          <span class="rte__ico rte__ico--sub">x₂</span>
         </button>
       </div>
       <div class="rte__group">
-        <button type="button" title="无序列表" aria-label="无序列表" @mousedown.prevent="run('insertUnorderedList')">
+        <label class="rte__color" title="文字颜色">
+          <span class="rte__ico rte__ico--b">A</span>
+          <span class="rte__color-bar" style="background:#dc2626" />
+          <input type="color" value="#dc2626" aria-label="文字颜色" @mousedown="saveSelection" @input="onForeColor">
+        </label>
+        <label class="rte__color" title="背景色">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <path d="M4.2 11.6 9.4 3.4c.4-.6 1.2-.6 1.6 0l1.4 2.1c.4.6.2 1.3-.3 1.7L6.8 13.2c-.4.3-1 .3-1.3 0L3.8 11.8c-.4-.4-.3-1 .4-1.2z" fill="currentColor" />
+            <rect x="3" y="13.2" width="7.4" height="1.5" rx="0.5" fill="#facc15" />
+          </svg>
+          <span class="rte__color-bar" style="background:#facc15" />
+          <input type="color" value="#facc15" aria-label="背景色" @mousedown="saveSelection" @input="onHiliteColor">
+        </label>
+      </div>
+      <div class="rte__group">
+        <button type="button" title="无序列表" aria-label="无序列表" :class="{ 'is-on': cmdOn.insertUnorderedList }" @mousedown.prevent="run('insertUnorderedList')">
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
             <circle cx="3" cy="4" r="1.2" fill="currentColor" />
             <circle cx="3" cy="8" r="1.2" fill="currentColor" />
@@ -585,7 +796,7 @@ defineExpose({ insertHtml, insertNoteTag })
             <rect x="6" y="11.2" width="8" height="1.6" rx="0.6" fill="currentColor" />
           </svg>
         </button>
-        <button type="button" title="有序列表" aria-label="有序列表" @mousedown.prevent="run('insertOrderedList')">
+        <button type="button" title="有序列表" aria-label="有序列表" :class="{ 'is-on': cmdOn.insertOrderedList }" @mousedown.prevent="run('insertOrderedList')">
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
             <text x="1" y="5.5" font-size="5.5" font-weight="700" fill="currentColor">1</text>
             <text x="1" y="9.6" font-size="5.5" font-weight="700" fill="currentColor">2</text>
@@ -594,6 +805,86 @@ defineExpose({ insertHtml, insertNoteTag })
             <rect x="6" y="7.2" width="8" height="1.6" rx="0.6" fill="currentColor" />
             <rect x="6" y="11.2" width="8" height="1.6" rx="0.6" fill="currentColor" />
           </svg>
+        </button>
+        <button type="button" title="减少缩进" aria-label="减少缩进" @mousedown.prevent="run('outdent')">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <path d="M7 8H2.8M4.6 5.8 2.6 8l2 2.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="8.2" y="3.2" width="6" height="1.5" rx="0.6" fill="currentColor" />
+            <rect x="8.2" y="7.25" width="6" height="1.5" rx="0.6" fill="currentColor" />
+            <rect x="8.2" y="11.3" width="6" height="1.5" rx="0.6" fill="currentColor" />
+          </svg>
+        </button>
+        <button type="button" title="增加缩进" aria-label="增加缩进" @mousedown.prevent="run('indent')">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <path d="M2.6 8H6.8M5 5.8 7 8l-2 2.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+            <rect x="8.2" y="3.2" width="6" height="1.5" rx="0.6" fill="currentColor" />
+            <rect x="8.2" y="7.25" width="6" height="1.5" rx="0.6" fill="currentColor" />
+            <rect x="8.2" y="11.3" width="6" height="1.5" rx="0.6" fill="currentColor" />
+          </svg>
+        </button>
+      </div>
+      <div class="rte__group">
+        <button type="button" title="左对齐" aria-label="左对齐" :class="{ 'is-on': cmdOn.justifyLeft }" @mousedown.prevent="run('justifyLeft')">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <rect x="2" y="3.2" width="12" height="1.5" rx="0.6" fill="currentColor" />
+            <rect x="2" y="7.25" width="8" height="1.5" rx="0.6" fill="currentColor" />
+            <rect x="2" y="11.3" width="11" height="1.5" rx="0.6" fill="currentColor" />
+          </svg>
+        </button>
+        <button type="button" title="居中" aria-label="居中" :class="{ 'is-on': cmdOn.justifyCenter }" @mousedown.prevent="run('justifyCenter')">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <rect x="2" y="3.2" width="12" height="1.5" rx="0.6" fill="currentColor" />
+            <rect x="4" y="7.25" width="8" height="1.5" rx="0.6" fill="currentColor" />
+            <rect x="2.5" y="11.3" width="11" height="1.5" rx="0.6" fill="currentColor" />
+          </svg>
+        </button>
+        <button type="button" title="右对齐" aria-label="右对齐" :class="{ 'is-on': cmdOn.justifyRight }" @mousedown.prevent="run('justifyRight')">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <rect x="2" y="3.2" width="12" height="1.5" rx="0.6" fill="currentColor" />
+            <rect x="6" y="7.25" width="8" height="1.5" rx="0.6" fill="currentColor" />
+            <rect x="3" y="11.3" width="11" height="1.5" rx="0.6" fill="currentColor" />
+          </svg>
+        </button>
+        <button type="button" title="两端对齐" aria-label="两端对齐" :class="{ 'is-on': cmdOn.justifyFull }" @mousedown.prevent="run('justifyFull')">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <rect x="2" y="3.2" width="12" height="1.5" rx="0.6" fill="currentColor" />
+            <rect x="2" y="7.25" width="12" height="1.5" rx="0.6" fill="currentColor" />
+            <rect x="2" y="11.3" width="12" height="1.5" rx="0.6" fill="currentColor" />
+          </svg>
+        </button>
+      </div>
+      <div class="rte__group">
+        <button type="button" title="插入链接" aria-label="插入链接" @mousedown.prevent="insertLink">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <path d="M6.2 9.8 9.8 6.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+            <path d="M7.2 4.4 8.6 3a3 3 0 0 1 4.2 4.2L11.4 8.8M8.8 11.6 7.4 13A3 3 0 1 1 3.2 8.8L4.6 7.4" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" />
+          </svg>
+        </button>
+        <button type="button" title="取消链接" aria-label="取消链接" @mousedown.prevent="run('unlink')">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <path d="M6.2 9.8 9.8 6.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+            <path d="M7.2 4.4 8.6 3a3 3 0 0 1 4.2 4.2L11.4 8.8M8.8 11.6 7.4 13A3 3 0 1 1 3.2 8.8L4.6 7.4" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" />
+            <path d="M3 13 13 3" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" />
+          </svg>
+        </button>
+        <button type="button" title="插入表格" aria-label="插入表格" @mousedown.prevent="insertTable">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <rect x="2" y="2.5" width="12" height="11" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.3" />
+            <path d="M2 6.4h12M2 10.1h12M6.2 2.5v11M9.8 2.5v11" fill="none" stroke="currentColor" stroke-width="1.2" />
+          </svg>
+        </button>
+        <button type="button" title="分割线" aria-label="分割线" @mousedown.prevent="run('insertHorizontalRule')">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <rect x="2" y="7.2" width="12" height="1.6" rx="0.8" fill="currentColor" />
+          </svg>
+        </button>
+        <button type="button" title="引用" aria-label="引用" @mousedown.prevent="setHeading('blockquote')">
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <path d="M3.2 12.2c1.8 0 3.2-1.4 3.2-3.4V4.8H2.8v3.8h1.7c0 1.2-.7 2-1.8 2.4l.5 1.2zm6.4 0c1.8 0 3.2-1.4 3.2-3.4V4.8H9.2v3.8h1.7c0 1.2-.7 2-1.8 2.4l.5 1.2z" fill="currentColor" />
+          </svg>
+        </button>
+        <button type="button" title="行内代码" aria-label="行内代码" @mousedown.prevent="toggleInlineCode">
+          <span class="rte__ico rte__ico--js">&lt;/&gt;</span>
         </button>
       </div>
       <div class="rte__group">
@@ -606,6 +897,9 @@ defineExpose({ insertHtml, insertNoteTag })
         </button>
         <button type="button" title="JS 代码" aria-label="JS 代码" @mousedown.prevent="openJsFromToolbar">
           <span class="rte__ico rte__ico--js">{ }</span>
+        </button>
+        <button v-if="notes" type="button" title="插入备注" aria-label="插入备注" @mousedown.prevent="insertNoteTag">
+          <span class="rte__ico rte__ico--note">注</span>
         </button>
         <button type="button" title="清除格式" aria-label="清除格式" @mousedown.prevent="run('removeFormat')">
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
@@ -702,19 +996,12 @@ defineExpose({ insertHtml, insertNoteTag })
 .rte__bar {
   flex-shrink: 0;
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   padding: 4px 6px;
   border-bottom: 1px solid #eef2f6;
   background: #f8fafc;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-}
-
-.rte__bar::-webkit-scrollbar {
-  display: none;
 }
 
 .rte__group {
@@ -750,6 +1037,12 @@ defineExpose({ insertHtml, insertNoteTag })
   color: #0f172a;
 }
 
+.rte__bar button.is-on {
+  background: #fff;
+  color: #1d4ed8;
+  box-shadow: inset 0 0 0 1px #bfdbfe;
+}
+
 .rte__heading {
   height: 26px;
   width: 3.4rem;
@@ -765,10 +1058,48 @@ defineExpose({ insertHtml, insertNoteTag })
   cursor: pointer;
 }
 
+.rte__size {
+  width: 3.6rem;
+  min-width: 3.6rem;
+}
+
 .rte__heading:hover,
 .rte__heading:focus {
   background: #fff;
   outline: none;
+}
+
+.rte__color {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border-radius: 6px;
+  color: #475569;
+  cursor: pointer;
+}
+
+.rte__color:hover {
+  background: #fff;
+  color: #0f172a;
+}
+
+.rte__color input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.rte__color-bar {
+  display: block;
+  width: 14px;
+  height: 3px;
+  border-radius: 1px;
 }
 
 .rte__ico {
@@ -790,6 +1121,26 @@ defineExpose({ insertHtml, insertNoteTag })
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.rte__ico--s {
+  font-weight: 700;
+  text-decoration: line-through;
+}
+
+.rte__ico--sup,
+.rte__ico--sub {
+  font-size: 11px;
+  font-weight: 700;
+  font-style: normal;
+  font-family: inherit;
+}
+
+.rte__ico--note {
+  font-size: 11px;
+  font-weight: 800;
+  font-style: normal;
+  font-family: inherit;
 }
 
 .rte__ico--js {
@@ -893,6 +1244,38 @@ defineExpose({ insertHtml, insertNoteTag })
 .rte__editor :deep(h4) {
   font-size: 1.02em;
   font-weight: 750;
+}
+
+.rte__editor :deep(blockquote) {
+  margin: 0.45em 0;
+  padding: 4px 10px;
+  border-left: 3px solid #cbd5e1;
+  color: #64748b;
+}
+
+.rte__editor :deep(hr) {
+  margin: 0.7em 0;
+  border: none;
+  border-top: 1px solid #cbd5e1;
+}
+
+.rte__editor :deep(a) {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.rte__editor :deep(sup),
+.rte__editor :deep(sub) {
+  font-size: 0.75em;
+  line-height: 0;
+}
+
+.rte__editor :deep(:not(pre) > code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
+  font-size: 0.92em;
+  padding: 0.08em 0.28em;
+  border-radius: 4px;
+  background: #f1f5f9;
 }
 
 .rte__editor :deep(.cb-handout-note) {
