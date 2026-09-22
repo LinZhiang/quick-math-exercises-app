@@ -9,7 +9,7 @@ useAppChromeTitle('刷题日志')
   <section class="dsa-log-page">
     <header class="dsa-log-page__head">
       <h2 class="dsa-log-page__title">刷题日志</h2>
-      <p class="dsa-log-page__lead">记录保存在这台设备。顶栏返回可回到数据结构与算法。</p>
+      <p class="dsa-log-page__lead">记录保存在这台设备。顶栏返回可回到编程题练习。</p>
     </header>
     <div class="dsa-log-page__card">
       <DsaStudyLogPanel />

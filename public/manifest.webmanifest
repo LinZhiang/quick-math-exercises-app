@@ -2,7 +2,7 @@
   "id": "/",
   "name": "学习App",
   "short_name": "学习App",
-  "description": "口算、图形推理与语文练习",
+  "description": "学习专用：讲义、题库与编程练习",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

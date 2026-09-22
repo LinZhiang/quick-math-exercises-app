@@ -61,8 +61,8 @@ export const HOME_HUB_MODULES: HomeHubModule[] = [
   },
   {
     id: 'dsa',
-    title: '数据结构与算法',
-    desc: '编程练习：先看题，再补全 JavaScript 并测试执行结果',
+    title: '编程题练习',
+    desc: '补全 TypeScript 函数并跑测试：迭代、递归等编程练习',
     ready: true,
     to: { name: 'dsa' },
   },

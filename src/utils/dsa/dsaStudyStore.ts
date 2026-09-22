@@ -1,5 +1,5 @@
 /**
- * 数据结构与算法：刷题次数 / 正确次数，以及打开题目、测试日志。只存在本机。
+ * 编程题练习：刷题次数 / 正确次数，以及打开题目、测试日志。只存在本机。
  */
 import { ref } from 'vue'
 import { formatLogDuration, localDateKey } from '@/utils/app/practiceSessionLog'

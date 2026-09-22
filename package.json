@@ -17,6 +17,7 @@
     "sync:cf-computer": "node scripts/push-cf-computer.mjs",
     "sync:cf-frontend": "node scripts/push-cf-frontend.mjs",
     "sync:cf-cs-vocab": "node scripts/publish-cf-cs-vocab.mjs",
+    "sync:cf-dsa": "node scripts/push-cf-dsa.mjs",
     "sync:project-code": "node scripts/sync-project-code.mjs",
     "sync:cf-project-code": "node scripts/push-cf-project-code.mjs",
     "setup:cf-storage": "node scripts/setup-cf-storage.mjs",

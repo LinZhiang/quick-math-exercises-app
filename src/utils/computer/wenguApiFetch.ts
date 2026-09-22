@@ -77,6 +77,13 @@ function nonJsonMessage(res: Response, text: string): string {
         '）。请先部署带 Functions 的版本；题库正文在 public/cs-vocab/bank.json，随页面一起发布。'
       )
     }
+    if (path.includes('/api/dsa')) {
+      return (
+        '云端编程题接口返回了网页而不是数据（HTTP ' +
+        res.status +
+        '）。请先部署带 Functions 的版本，再在本机执行 npm run sync:cf-dsa。'
+      )
+    }
     return `接口返回了网页而不是数据（${path || `HTTP ${res.status}`}）。${offlineHint()}`
   }
   return `服务器返回了非 JSON（HTTP ${res.status}）。${offlineHint()}`

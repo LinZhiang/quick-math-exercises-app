@@ -2,15 +2,20 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowRight, Notebook } from '@element-plus/icons-vue'
-import { DSA_CATEGORIES } from '@/utils/dsa/dsaCatalog'
+import { DSA_CATEGORIES, DSA_MODULE_TITLE, dsaCatalogHint, dsaCatalogReady, dsaCatalogTick, hydrateDsaCatalog } from '@/utils/dsa/dsaCatalog'
 import { dsaStudyTick, summarizeDsaStudy } from '@/utils/dsa/dsaStudyStore'
 import { useAppChromeTitle } from '@/composables/app/useAppChrome'
 
-useAppChromeTitle('数据结构与算法')
+useAppChromeTitle(DSA_MODULE_TITLE)
 const router = useRouter()
 const openCategoryId = ref(DSA_CATEGORIES[0]?.id ?? '')
 
-const categories = computed(() => DSA_CATEGORIES)
+void hydrateDsaCatalog()
+
+const categories = computed(() => {
+  void dsaCatalogTick.value
+  return DSA_CATEGORIES
+})
 const quizStats = computed(() => {
   void dsaStudyTick.value
   return summarizeDsaStudy()
@@ -32,7 +37,11 @@ function openSub(categoryId: string, subId: string) {
         日志
       </el-button>
     </header>
-    <p class="dsa-lead">目前只练 TypeScript。先选大类再选小类：迭代练循环，递归练自己调用自己。每题编辑区只留函数签名和目的，方法体请自己写。</p>
+    <p class="dsa-lead">目前只练 TypeScript。先选大类再选小类：迭代练循环，递归练自己调用自己。每题编辑区只留函数签名和目的，方法体请自己写。题目从云端拉取，换设备打开同一站点就能练。</p>
+    <p v-if="!dsaCatalogReady && !categories.some((c) => c.subs.some((s) => s.problems.length))" class="dsa-page__stats">
+      正在读取题目…
+    </p>
+    <p v-else-if="dsaCatalogHint" class="dsa-page__stats">{{ dsaCatalogHint }}</p>
     <p v-if="quizStats.lifetimeAttempts" class="dsa-page__stats">
       累计测试 {{ quizStats.lifetimeAttempts }} 次，通过 {{ quizStats.lifetimeCorrects }}。
       <template v-if="quizStats.todayAttempts">
@@ -40,7 +49,7 @@ function openSub(categoryId: string, subId: string) {
       </template>
       <template v-else>今天还没有测试。</template>
     </p>
-    <nav class="pb-nav" aria-label="数据结构与算法分类">
+    <nav class="pb-nav" aria-label="编程题练习分类">
       <div
         v-for="cat in categories"
         :key="cat.id"

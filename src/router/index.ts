@@ -1,5 +1,5 @@
 /**
- * 路由：首页模块 + 知识训练 /train/:section + 数据结构与算法 + 题库 + 计算机基础 + 前端学习 + 计算机单词和语法 + 安装/设置。
+ * 路由：首页模块 + 知识训练 /train/:section + 编程题练习 + 题库 + 计算机基础 + 前端学习 + 计算机单词和语法 + 安装/设置。
  * chrome: 'home' 才显示安装/登录/设置按钮（见 App.vue）。
  */
 import { createRouter, createWebHistory, type RouteLocationNormalized, type RouteLocationRaw } from 'vue-router'
@@ -78,7 +78,7 @@ const router = createRouter({
       path: '/dsa',
       name: 'dsa',
       component: DsaIndex,
-      meta: { title: '数据结构与算法', chrome: 'app' },
+      meta: { title: '编程题练习', chrome: 'app' },
     },
     {
       path: '/dsa/log',
@@ -90,13 +90,13 @@ const router = createRouter({
       path: '/dsa/:categoryId/:subId',
       name: 'dsa-sub',
       component: DsaSubPage,
-      meta: { title: '数据结构与算法', chrome: 'app' },
+      meta: { title: '编程题练习', chrome: 'app' },
     },
     {
       path: '/dsa/:categoryId/:subId/:problemId',
       name: 'dsa-problem',
       component: DsaProblemPage,
-      meta: { title: '数据结构与算法', chrome: 'app' },
+      meta: { title: '编程题练习', chrome: 'app' },
     },
     {
       path: '/bank',

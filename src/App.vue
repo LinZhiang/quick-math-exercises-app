@@ -8,6 +8,7 @@ import { chromeBackFallback } from '@/utils/app/chromeBackFallback'
 import JsonTransferButtons from '@/components/JsonTransferButtons.vue'
 import { hydrateUserJsonStore } from '@/utils/app/syncedUserJson'
 import { hydrateCsVocabBank } from '@/utils/cs-vocab/csVocabBank'
+import { hydrateDsaCatalog } from '@/utils/dsa/dsaCatalog'
 import { getWenguUser, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 
 const route = useRoute()
@@ -38,6 +39,7 @@ watch(
   () => {
     void hydrateUserJsonStore()
     void hydrateCsVocabBank()
+    void hydrateDsaCatalog()
   },
   { immediate: true },
 )

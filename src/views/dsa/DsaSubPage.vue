@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowRight } from '@element-plus/icons-vue'
-import { findDsaSub } from '@/utils/dsa/dsaCatalog'
+import { DSA_MODULE_TITLE, findDsaSub, hydrateDsaCatalog } from '@/utils/dsa/dsaCatalog'
 import { dsaStudyTick, getDsaProblemStats } from '@/utils/dsa/dsaStudyStore'
 import { useAppChromeTitle } from '@/composables/app/useAppChrome'
 
@@ -11,8 +11,10 @@ const router = useRouter()
 const hit = computed(() =>
   findDsaSub(String(route.params.categoryId ?? ''), String(route.params.subId ?? '')),
 )
-const title = computed(() => hit.value?.sub.name ?? '数据结构与算法')
+const title = computed(() => hit.value?.sub.name ?? DSA_MODULE_TITLE)
 useAppChromeTitle(title)
+
+void hydrateDsaCatalog()
 
 const problemStats = computed(() => {
   void dsaStudyTick.value

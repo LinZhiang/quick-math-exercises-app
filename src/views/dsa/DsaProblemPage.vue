@@ -5,7 +5,7 @@ import { CircleCheck, CircleClose, CopyDocument } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import DsaComplexityView from '@/components/DsaComplexityView.vue'
 import DsaHighlightedCode from '@/components/DsaHighlightedCode.vue'
-import { findDsaProblem } from '@/utils/dsa/dsaCatalog'
+import { findDsaProblem, hydrateDsaCatalog } from '@/utils/dsa/dsaCatalog'
 import { DSA_BODY_INDENT, starterBodyCursor } from '@/utils/dsa/buildDsaProblem'
 import {
   dsaStudyTick,
@@ -30,6 +30,8 @@ const title = computed(() =>
   problem.value ? `${problem.value.index}. ${problem.value.title}` : '编程题',
 )
 useAppChromeTitle(title)
+
+void hydrateDsaCatalog()
 
 const code = ref('')
 const running = ref(false)

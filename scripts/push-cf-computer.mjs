@@ -125,6 +125,12 @@ async function main() {
   } catch (e) {
     console.warn('[sync:cf-computer] 计算机单词题库未同步：', e instanceof Error ? e.message : e)
   }
+  try {
+    const { publishDsaBank } = await import('./push-cf-dsa.mjs')
+    await publishDsaBank(HOST, login.token)
+  } catch (e) {
+    console.warn('[sync:cf-computer] 编程题未同步：', e instanceof Error ? e.message : e)
+  }
   console.log(`手机打开 ${HOST} → 计算机基础 即可看到。若仍是旧页，请强刷或去掉主屏幕旧图标后重开。`)
 }
 
