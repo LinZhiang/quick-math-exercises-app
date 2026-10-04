@@ -86,18 +86,70 @@ export type HandoutFolderExportItem = {
   html: string
 }
 
-/** 多篇连在一起导出：不另加标题/目录。上一篇结束后换页，不插空白页。 */
+function commonPathPrefix(paths: string[][]): string[] {
+  if (!paths.length) return []
+  const first = paths[0] ?? []
+  let n = first.length
+  for (const path of paths) {
+    let i = 0
+    while (i < n && i < path.length && path[i] === first[i]) i += 1
+    n = i
+    if (!n) break
+  }
+  return first.slice(0, n)
+}
+
+function pathAfterPrefix(path: string[], prefix: string[]): string[] {
+  const same = prefix.every((seg, i) => path[i] === seg)
+  return same ? path.slice(prefix.length) : path
+}
+
+/** 进入新的子目录时，按层级补上尚未出现过的目录名。 */
+function nestedFolderHeadings(prev: string[], next: string[]): string[] {
+  for (let i = 0; i < next.length; i += 1) {
+    if (prev[i] !== next[i]) return next.slice(i).filter(Boolean)
+  }
+  return []
+}
+
+function folderBannerParagraph(name: string, pageBreak: boolean): Paragraph {
+  return new Paragraph({
+    pageBreakBefore: pageBreak,
+    spacing: { before: pageBreak ? 0 : 200, after: 160, line: 360 },
+    children: [
+      textRun(name, {
+        bold: true,
+        color: 'DC2626',
+        size: 64,
+        font: 'Microsoft YaHei',
+      }),
+    ],
+  })
+}
+
+/** 多篇连在一起导出：不另加讲义名。非顶层下载目录的子文件夹，在该目录第一篇前加大号红标题。 */
 export async function exportHandoutFolderDocx(title: string, items: HandoutFolderExportItem[]): Promise<void> {
   const list = items.filter((it) => it.html.trim() || it.title.trim())
   if (!list.length) throw new Error('没有可下载的讲义')
+  const prefix = commonPathPrefix(list.map((it) => it.path))
   const children: FileChild[] = []
+  let prevTail: string[] = []
   for (let i = 0; i < list.length; i += 1) {
-    const html = list[i]?.html.trim() ?? ''
+    const item = list[i]!
+    const tail = pathAfterPrefix(item.path, prefix)
+    const banners = nestedFolderHeadings(prevTail, tail)
+    prevTail = tail
+    let pageBroken = false
+    for (const name of banners) {
+      children.push(folderBannerParagraph(name, i > 0 && !pageBroken))
+      if (i > 0) pageBroken = true
+    }
+    const html = item.html.trim()
     const body = html
-      ? await htmlToDocxBlocks(html, { handout: true, pageBreakFirst: i > 0 })
+      ? await htmlToDocxBlocks(html, { handout: true, pageBreakFirst: i > 0 && !pageBroken })
       : [
           new Paragraph({
-            pageBreakBefore: i > 0,
+            pageBreakBefore: i > 0 && !pageBroken,
             spacing: { before: 0, after: 80, line: 276 },
             children: [textRun('（本文暂无正文）')],
           }),

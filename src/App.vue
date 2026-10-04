@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
-import { appChromeTitleOverride } from '@/composables/app/useAppChrome'
+import { appChromeCompact, appChromeHidden, appChromeTitleOverride } from '@/composables/app/useAppChrome'
 import { goBackOr } from '@/utils/app/appNavigation'
 import { chromeBackFallback } from '@/utils/app/chromeBackFallback'
 import JsonTransferButtons from '@/components/JsonTransferButtons.vue'
@@ -70,7 +70,7 @@ watch(
 
 <template>
   <div class="app-root">
-    <header class="app-chrome">
+    <header v-if="!appChromeHidden" class="app-chrome" :class="{ 'is-compact': appChromeCompact }">
       <div v-if="showChromeTools" class="app-chrome__tools">
         <div class="app-chrome__side app-chrome__side--left">
           <el-button v-if="!hideBack" size="small" @click="onChromeBack">返回</el-button>
@@ -175,6 +175,34 @@ watch(
   text-align: center;
   overflow: visible;
   white-space: normal;
+}
+
+.app-chrome.is-compact {
+  flex-direction: row;
+  align-items: center;
+  position: relative;
+  min-height: 2.5rem;
+  gap: 0;
+}
+
+.app-chrome.is-compact .app-chrome__tools {
+  width: 100%;
+  position: relative;
+  z-index: 1;
+  flex-wrap: nowrap;
+}
+
+.app-chrome.is-compact .app-chrome__title {
+  position: absolute;
+  left: 4.8rem;
+  right: 4.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
 }
 
 .app-body {

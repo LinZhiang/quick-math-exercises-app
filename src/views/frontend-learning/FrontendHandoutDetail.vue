@@ -3,7 +3,7 @@ import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowUp, Delete, Download, EditPen, FullScreen, Lock } from '@element-plus/icons-vue'
-import { useAppChromeTitle } from '@/composables/app/useAppChrome'
+import { useAppChromeCompact, useAppChromeHidden, useAppChromeTitle } from '@/composables/app/useAppChrome'
 import { goBackOr, omitQueryKey } from '@/utils/app/appNavigation'
 import ImageCropPanel from '@/components/ImageCropPanel.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
@@ -129,6 +129,8 @@ useAppChromeTitle(
     return item.value?.title || '前端学习'
   }),
 )
+useAppChromeCompact(true)
+useAppChromeHidden(headCollapsed)
 
 const html = computed(() => (item.value ? frontendContentToHtml(item.value.content) : ''))
 
@@ -550,10 +552,9 @@ watch(photoOpen, (open) => {
         {{ item.learningPath.join(' / ') }}
       </p>
       <div class="computer-detail__title-row">
-        <h2 v-if="!headCollapsed" class="computer-detail__title">{{ item.title }}</h2>
         <div class="computer-detail__actions">
           <div class="computer-detail__tools">
-            <el-tooltip :content="headCollapsed ? '展开标题' : '收起标题'" placement="bottom">
+            <el-tooltip :content="headCollapsed ? '展开顶栏' : '收起顶栏'" placement="bottom">
               <el-button
                 size="small"
                 circle
@@ -852,6 +853,9 @@ watch(photoOpen, (open) => {
 
 .computer-detail__crumb {
   margin: 0 0 4px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-size: 12px;
   color: var(--app-text-muted);
 }
