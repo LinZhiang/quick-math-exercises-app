@@ -3,7 +3,7 @@ import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowUp, Delete, Download, EditPen, FullScreen, Lock } from '@element-plus/icons-vue'
-import { useAppChromeCompact, useAppChromeHidden, useAppChromeTitle } from '@/composables/app/useAppChrome'
+import { useAppChromeHidden, useAppChromeTitle } from '@/composables/app/useAppChrome'
 import { goBackOr, omitQueryKey } from '@/utils/app/appNavigation'
 import ImageCropPanel from '@/components/ImageCropPanel.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
@@ -129,7 +129,6 @@ useAppChromeTitle(
     return item.value?.title || '前端学习'
   }),
 )
-useAppChromeCompact(true)
 useAppChromeHidden(headCollapsed)
 
 const html = computed(() => (item.value ? frontendContentToHtml(item.value.content) : ''))

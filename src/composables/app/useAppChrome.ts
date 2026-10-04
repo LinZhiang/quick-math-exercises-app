@@ -2,11 +2,9 @@ import { computed, onUnmounted, ref, watch, type MaybeRefOrGetter, toValue } fro
 
 const overrideTitle = ref('')
 const chromeHidden = ref(false)
-const chromeCompact = ref(false)
 
 export const appChromeTitleOverride = computed(() => overrideTitle.value)
 export const appChromeHidden = computed(() => chromeHidden.value)
-export const appChromeCompact = computed(() => chromeCompact.value)
 
 export function setAppChromeTitle(title: string) {
   overrideTitle.value = title
@@ -35,18 +33,5 @@ export function useAppChromeHidden(hidden: MaybeRefOrGetter<boolean>) {
   )
   onUnmounted(() => {
     chromeHidden.value = false
-  })
-}
-
-export function useAppChromeCompact(compact: MaybeRefOrGetter<boolean> = true) {
-  watch(
-    () => toValue(compact),
-    (next) => {
-      chromeCompact.value = Boolean(next)
-    },
-    { immediate: true },
-  )
-  onUnmounted(() => {
-    chromeCompact.value = false
   })
 }

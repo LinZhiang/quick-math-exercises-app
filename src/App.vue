@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
-import { appChromeCompact, appChromeHidden, appChromeTitleOverride } from '@/composables/app/useAppChrome'
+import { appChromeHidden, appChromeTitleOverride } from '@/composables/app/useAppChrome'
 import { goBackOr } from '@/utils/app/appNavigation'
 import { chromeBackFallback } from '@/utils/app/chromeBackFallback'
 import JsonTransferButtons from '@/components/JsonTransferButtons.vue'
@@ -30,9 +30,6 @@ const showDataTransfer = computed(() => {
   const name = String(route.name ?? '')
   return (name === 'train' || name === 'bank' || name === 'bank-sub') && route.query.play !== '1'
 })
-const showChromeTools = computed(
-  () => !hideBack.value || isHome.value || showDataTransfer.value,
-)
 
 watch(
   wenguAuthTick,
@@ -70,44 +67,42 @@ watch(
 
 <template>
   <div class="app-root">
-    <header v-if="!appChromeHidden" class="app-chrome" :class="{ 'is-compact': appChromeCompact }">
-      <div v-if="showChromeTools" class="app-chrome__tools">
-        <div class="app-chrome__side app-chrome__side--left">
-          <el-button v-if="!hideBack" size="small" @click="onChromeBack">返回</el-button>
-        </div>
-        <div class="app-chrome__side app-chrome__side--right">
-          <JsonTransferButtons
-            v-if="showDataTransfer"
-            :kind="dataTransferKind"
-            variant="chrome"
-          />
-          <el-button
-            v-if="isHome"
-            size="small"
-            :type="route.name === 'install' ? 'primary' : 'default'"
-            @click="goChrome('install')"
-          >
-            安装
-          </el-button>
-          <el-button
-            v-if="isHome"
-            size="small"
-            :type="route.name === 'settings' ? 'primary' : 'default'"
-            @click="goChrome('settings')"
-          >
-            设置
-          </el-button>
-          <el-button
-            v-if="isHome"
-            size="small"
-            :type="route.name === 'login' ? 'primary' : 'default'"
-            @click="goChrome('login')"
-          >
-            {{ loginButtonLabel }}
-          </el-button>
-        </div>
+    <header v-if="!appChromeHidden" class="app-chrome">
+      <div class="app-chrome__side app-chrome__side--left">
+        <el-button v-if="!hideBack" size="small" @click="onChromeBack">返回</el-button>
       </div>
       <h1 class="app-chrome__title">{{ chromeTitle }}</h1>
+      <div class="app-chrome__side app-chrome__side--right">
+        <JsonTransferButtons
+          v-if="showDataTransfer"
+          :kind="dataTransferKind"
+          variant="chrome"
+        />
+        <el-button
+          v-if="isHome"
+          size="small"
+          :type="route.name === 'install' ? 'primary' : 'default'"
+          @click="goChrome('install')"
+        >
+          安装
+        </el-button>
+        <el-button
+          v-if="isHome"
+          size="small"
+          :type="route.name === 'settings' ? 'primary' : 'default'"
+          @click="goChrome('settings')"
+        >
+          设置
+        </el-button>
+        <el-button
+          v-if="isHome"
+          size="small"
+          :type="route.name === 'login' ? 'primary' : 'default'"
+          @click="goChrome('login')"
+        >
+          {{ loginButtonLabel }}
+        </el-button>
+      </div>
     </header>
     <div class="app-body">
       <RouterView />
@@ -132,77 +127,45 @@ watch(
 
 .app-chrome {
   flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  min-height: 2.5rem;
   padding: 8px 12px;
   border-bottom: 1px solid var(--app-border-soft);
   background: var(--app-surface);
 }
 
-.app-chrome__tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
 .app-chrome__side {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
+  min-width: 0;
 }
 
 .app-chrome__side--left {
+  justify-self: start;
   justify-content: flex-start;
 }
 
 .app-chrome__side--right {
-  margin-left: auto;
+  justify-self: end;
   justify-content: flex-end;
 }
 
 .app-chrome__title {
   margin: 0;
-  flex: none;
-  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   font-size: 1.12rem;
   font-weight: 800;
   line-height: 1.35;
   text-align: center;
-  overflow: visible;
-  white-space: normal;
-}
-
-.app-chrome.is-compact {
-  flex-direction: row;
-  align-items: center;
-  position: relative;
-  min-height: 2.5rem;
-  gap: 0;
-}
-
-.app-chrome.is-compact .app-chrome__tools {
-  width: 100%;
-  position: relative;
-  z-index: 1;
-  flex-wrap: nowrap;
-}
-
-.app-chrome.is-compact .app-chrome__title {
-  position: absolute;
-  left: 4.8rem;
-  right: 4.8rem;
-  top: 50%;
-  transform: translateY(-50%);
-  width: auto;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  pointer-events: none;
 }
 
 .app-body {
@@ -222,7 +185,6 @@ watch(
 @media (min-width: 901px) {
   .app-chrome {
     padding: 10px 40px;
-    gap: 12px;
   }
 
   .app-chrome__title {
