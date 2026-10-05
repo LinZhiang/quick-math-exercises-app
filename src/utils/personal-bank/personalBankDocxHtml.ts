@@ -41,6 +41,7 @@ type RunStyle = {
   shadingFill?: string
   inPre?: boolean
   handout?: boolean
+  codeBg?: string
 }
 
 const HANDOUT_FONT = 'Microsoft YaHei'
@@ -60,6 +61,75 @@ const TOK_COLOR: Record<string, string> = {
 
 const CODE_BG = '1E1E1E'
 const CODE_FG = 'E5E7EB'
+const MONO_FONT_RE = /consolas|menlo|monaco|courier|monospace|fira|cascadia|jetbrains|source code|ui-monospace/i
+
+function cssColorToHex(raw: string): string | undefined {
+  const s = String(raw ?? '').trim()
+  if (!s) return undefined
+  const hex = /#([0-9a-f]{3,8})\b/i.exec(s)
+  if (hex) {
+    let h = hex[1]
+    if (h.length === 3 || h.length === 4) h = `${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}`
+    return h.slice(0, 6).toUpperCase()
+  }
+  const rgb = /rgba?\(\s*(\d+)\s*[,\s/]\s*(\d+)\s*[,\s/]\s*(\d+)/i.exec(s)
+  if (!rgb) return undefined
+  const n = (x: string) => Math.max(0, Math.min(255, Number(x))).toString(16).padStart(2, '0')
+  return `${n(rgb[1])}${n(rgb[2])}${n(rgb[3])}`.toUpperCase()
+}
+
+function hexLum(hex: string): number {
+  const r = parseInt(hex.slice(0, 2), 16)
+  const g = parseInt(hex.slice(2, 4), 16)
+  const b = parseInt(hex.slice(4, 6), 16)
+  if ([r, g, b].some((n) => Number.isNaN(n))) return 255
+  return (r * 299 + g * 587 + b * 114) / 1000
+}
+
+function styleMap(el: Element): Record<string, string> {
+  const s = el.getAttribute('style') || ''
+  const out: Record<string, string> = {}
+  for (const part of s.split(';')) {
+    const i = part.indexOf(':')
+    if (i < 0) continue
+    out[part.slice(0, i).trim().toLowerCase()] = part.slice(i + 1).trim()
+  }
+  return out
+}
+
+function inlineStyleOf(el: Element): Pick<RunStyle, 'color' | 'bold' | 'italics' | 'font' | 'codeBg'> {
+  const st = styleMap(el)
+  const color = cssColorToHex(st.color || '')
+  const bg = cssColorToHex(st['background-color'] || st.background || '')
+  const weight = (st['font-weight'] || '').toLowerCase()
+  const font = st['font-family'] || ''
+  return {
+    color,
+    bold: weight === 'bold' || Number(weight) >= 600 || undefined,
+    italics: (st['font-style'] || '').toLowerCase() === 'italic' || undefined,
+    font: MONO_FONT_RE.test(font) ? 'Consolas' : undefined,
+    codeBg: bg && hexLum(bg) < 80 ? bg : undefined,
+  }
+}
+
+/** Cursor / VS Code 复制过来的代码：黑底 + 彩色 span，不能当普通正文。 */
+function looksLikeCursorCode(el: Element): boolean {
+  const name = tagName(el)
+  if (name === 'pre' || el.classList.contains('hl-code')) return true
+  if (!/^(div|section|article|figure)$/.test(name)) return false
+  const cls = el.getAttribute('class') || ''
+  if (/\b(monaco-editor|view-lines|hl-code|rte-js-pre)\b/i.test(cls)) return true
+  if (el.querySelector('h1, h2, h3, h4, h5, h6, table, ul, ol, aside, .cb-handout-note, img')) return false
+  const st = styleMap(el)
+  const bg = cssColorToHex(st['background-color'] || st.background || '')
+  const font = `${st['font-family'] || ''} ${cls}`
+  const mono = MONO_FONT_RE.test(font)
+  const preWrap = /pre/i.test(st['white-space'] || '')
+  const colored = el.querySelectorAll('span[style*="color" i], font[color]').length
+  if (bg && hexLum(bg) < 80 && (mono || preWrap || colored >= 2)) return true
+  if ((mono || preWrap) && colored >= 2) return true
+  return false
+}
 
 const MAX_IMG_PX = 520
 const CONTENT_DXA = 9638
@@ -137,6 +207,7 @@ function styledRun(text: string, style: RunStyle): TextRun | null {
     font: bodyFont(style),
     size: style.size || (style.inPre ? 20 : 24),
     color: style.color,
+    noProof: style.inPre || undefined,
     shading: style.shadingFill
       ? { type: ShadingType.CLEAR, fill: style.shadingFill }
       : undefined,
@@ -160,14 +231,23 @@ function childStyle(name: string, style: RunStyle, el?: Element): RunStyle {
     shadingFill: style.shadingFill,
     inPre: style.inPre,
     handout: style.handout,
+    codeBg: style.codeBg,
   }
   if (el) {
+    const inline = inlineStyleOf(el)
+    if (inline.color) next.color = inline.color
+    if (inline.bold) next.bold = true
+    if (inline.italics) next.italics = true
+    if (inline.font) next.font = inline.font
+    if (inline.codeBg) next.codeBg = inline.codeBg
     const tok = tokenColorOf(el)
     if (tok) {
       next.color = tok
       next.italics = next.italics || el.classList.contains('tok-cmt')
       next.bold = next.bold || el.classList.contains('tok-kw')
     }
+    const attrColor = cssColorToHex(el.getAttribute('color') || '')
+    if (attrColor) next.color = attrColor
   }
   if (name === 'code' && !style.inPre) {
     next.font = 'Consolas'
@@ -180,7 +260,7 @@ function childStyle(name: string, style: RunStyle, el?: Element): RunStyle {
     next.font = 'Consolas'
     next.size = 20
     next.color = next.color || CODE_FG
-    next.shadingFill = undefined
+    next.shadingFill = next.codeBg || style.codeBg || CODE_BG
   }
   return next
 }
@@ -380,15 +460,26 @@ const codeBoxBorder = {
   color: CODE_BG,
 }
 
-function codeBlockTable(lines: ParagraphChild[][], pageBreakBefore = false): Table {
+function codeBlockTable(lines: ParagraphChild[][], pageBreakBefore = false, bg = CODE_BG): Table {
+  const fill = bg || CODE_BG
   const paras = lines.map(
     (children, i) =>
       new Paragraph({
         pageBreakBefore: pageBreakBefore && i === 0,
         spacing: { before: 0, after: 0, line: 276 },
+        shading: { type: ShadingType.CLEAR, fill },
         children: children.length
           ? children
-          : [new TextRun({ text: ' ', font: 'Consolas', size: 20, color: CODE_FG })],
+          : [
+              new TextRun({
+                text: ' ',
+                font: 'Consolas',
+                size: 20,
+                color: CODE_FG,
+                noProof: true,
+                shading: { type: ShadingType.CLEAR, fill },
+              }),
+            ],
       }),
   )
   return new Table({
@@ -400,7 +491,7 @@ function codeBlockTable(lines: ParagraphChild[][], pageBreakBefore = false): Tab
         children: [
           new TableCell({
             width: { size: CONTENT_DXA, type: WidthType.DXA },
-            shading: { type: ShadingType.CLEAR, fill: CODE_BG },
+            shading: { type: ShadingType.CLEAR, fill },
             margins: { top: 100, bottom: 100, left: 140, right: 140 },
             borders: {
               top: codeBoxBorder,
@@ -426,6 +517,7 @@ function codeBlockTable(lines: ParagraphChild[][], pageBreakBefore = false): Tab
 
 function isEmptyExportBlock(el: Element): boolean {
   if (el.querySelector('img, table, pre, ul, ol, hr, video, .cb-handout-note')) return false
+  if (looksLikeCursorCode(el)) return false
   return !collapseText(el.textContent ?? '').trim()
 }
 
@@ -449,12 +541,22 @@ function looksLikeSubheading(el: Element): boolean {
 }
 
 function splitPreLines(pre: Element, images: Map<string, PreparedImage>): ParagraphChild[][] {
-  const code = pre.querySelector('code') ?? pre
+  const code = pre.querySelector(':scope > code') ?? pre
   const lines: ParagraphChild[][] = [[]]
+  let blockLineStarted = false
   const pushLine = () => {
     if (lines[lines.length - 1]) lines.push([])
   }
   const current = () => lines[lines.length - 1]!
+  const hostStyle = inlineStyleOf(pre)
+  const base: RunStyle = {
+    inPre: true,
+    font: 'Consolas',
+    size: 20,
+    color: hostStyle.color || CODE_FG,
+    codeBg: hostStyle.codeBg || CODE_BG,
+    shadingFill: hostStyle.codeBg || CODE_BG,
+  }
   const walk = (node: Node, style: RunStyle) => {
     if (node.nodeType === Node.TEXT_NODE) {
       const parts = String(node.textContent ?? '').replace(/\r\n/g, '\n').split('\n')
@@ -471,6 +573,13 @@ function splitPreLines(pre: Element, images: Map<string, PreparedImage>): Paragr
       pushLine()
       return
     }
+    if (name === 'div' || name === 'p') {
+      if (blockLineStarted) pushLine()
+      blockLineStarted = true
+      const next = childStyle(name, style, node)
+      for (const child of [...node.childNodes]) walk(child, next)
+      return
+    }
     if (name === 'img') {
       current().push(...imageChild(node.getAttribute('src') ?? '', images))
       return
@@ -478,7 +587,8 @@ function splitPreLines(pre: Element, images: Map<string, PreparedImage>): Paragr
     const next = childStyle(name, style, node)
     for (const child of [...node.childNodes]) walk(child, next)
   }
-  walk(code, { inPre: true, font: 'Consolas', size: 20, color: CODE_FG })
+  const inherited = childStyle(tagName(code), base, code)
+  for (const child of [...code.childNodes]) walk(child, inherited)
   return lines.length ? lines : [[]]
 }
 
@@ -512,7 +622,7 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, ha
       out.push({ kind: 'table', table: tableFromElement(node, images) })
       return
     }
-    if (name === 'pre') {
+    if (name === 'pre' || looksLikeCursorCode(node)) {
       flush()
       const lines = splitPreLines(node, images)
       if (handout) {
@@ -522,7 +632,7 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, ha
       lines.forEach((children, i) => {
         out.push({
           kind: 'p',
-          children: children.length ? children : [new TextRun({ text: ' ', font: 'Consolas', size: 20, color: CODE_FG })],
+          children: children.length ? children : [new TextRun({ text: ' ', font: 'Consolas', size: 20, color: CODE_FG, noProof: true })],
           extra: codeLineExtra(i === 0, i === lines.length - 1),
         })
       })
