@@ -12,7 +12,7 @@ export const PROJECT_INTRO_STACK: ProjectIntroSection = {
     },
     {
       title: '安装',
-      text: '按 PWA 安装：manifest 和 Service Worker，浏览器里打开后可以装到手机或桌面主屏，和网页共用同一套页面。',
+      text: '按 PWA 安装：manifest 和 Service Worker。安卓用 Chrome 安装应用；iPad 用 Safari 添加到主屏幕。装好后和网页共用同一套页面。',
     },
     {
       title: '讲义与导出',

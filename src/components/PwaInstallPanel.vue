@@ -23,8 +23,9 @@ const props = withDefaults(
   { panel: 'install' },
 )
 
-const { canInstall, showIosHint, installed, promptInstall } = usePwaInstall()
+const { canInstall, installed, isIpad, isIosSafari, pageOrigin, promptInstall } = usePwaInstall()
 const updatingApp = ref(false)
+const ipadGuideOpen = ref(false)
 
 const pullToRefreshOn = computed({
   get() {
@@ -56,11 +57,25 @@ onMounted(() => {
   applyPullToRefreshPreference()
 })
 
-async function onInstall() {
+async function onInstallAndroid() {
   const r = await promptInstall()
   if (r === 'accepted') ElMessage.success('已安装，出门有网也能用')
   else if (r === 'dismissed') ElMessage.info('已取消')
-  else ElMessage.info('Chrome 菜单 → 安装应用 / 添加到主屏幕')
+  else ElMessage.info('请用安卓 Chrome 打开本页，再点地址栏或菜单里的「安装应用 / 添加到主屏幕」。微信里请先选「在浏览器打开」。')
+}
+
+function onInstallIpad() {
+  ipadGuideOpen.value = true
+}
+
+async function copyInstallUrl() {
+  const url = pageOrigin.value || window.location.origin
+  try {
+    await navigator.clipboard.writeText(window.location.href || url)
+    ElMessage.success('已复制本页地址，到 iPad 的 Safari 粘贴打开')
+  } catch {
+    ElMessage.info(window.location.href || url)
+  }
 }
 
 async function updateAppContent() {
@@ -91,26 +106,60 @@ async function updateAppContent() {
     class="mode-section install-panel"
     id="practice-install"
   >
-    <h3 class="mode-section__title">安装到手机</h3>
+    <h3 class="mode-section__title">安装到设备</h3>
     <p class="mode-section__hint">
-      手机 Chrome 打开本页（Cloudflare 公网地址）→ 安装应用。装好后有手机网络就能练。
+      安卓手机用 Chrome 安装应用；苹果 iPad 必须用 Safari「添加到主屏幕」，系统不提供 Chrome 那种安装提示。
     </p>
 
     <div v-if="installed" class="install-card install-card--ok">
-      <p class="install-card__title">已安装</p>
-      <p class="install-card__text">从主屏幕打开即可，无需电脑在线。</p>
+      <p class="install-card__title">此设备已安装</p>
+      <p class="install-card__text">从主屏幕打开即可。若还要装到另一台设备，用下面对应按钮。</p>
     </div>
 
-    <template v-else>
-      <div class="install-card">
-        <el-button type="primary" :disabled="!canInstall" @click="onInstall">
-          {{ canInstall ? '安装到主屏幕' : '请用 Chrome 打开本页' }}
-        </el-button>
-      </div>
-      <div v-if="showIosHint" class="install-card">
-        <p class="install-card__text">iPhone：Safari → 分享 → 添加到主屏幕</p>
-      </div>
-    </template>
+    <div class="install-card">
+      <p class="install-card__title">安卓手机</p>
+      <p class="install-card__text">
+        用 Chrome 打开本页后点下面按钮。若按钮没弹出安装框，到 Chrome 菜单里选「安装应用」。微信内请先「在浏览器打开」。
+      </p>
+      <el-button type="primary" @click="onInstallAndroid">
+        {{ canInstall ? '安卓手机安装' : '安卓手机安装（需 Chrome）' }}
+      </el-button>
+    </div>
+
+    <div class="install-card">
+      <p class="install-card__title">苹果 iPad</p>
+      <p class="install-card__text">
+        iPad 不能用安卓那套一键安装。请用 Safari 打开本页，再按分享 → 添加到主屏幕。
+      </p>
+      <el-button type="primary" plain @click="onInstallIpad">苹果 iPad 安装</el-button>
+    </div>
+
+    <el-dialog
+      v-model="ipadGuideOpen"
+      title="安装到 iPad"
+      width="min(92vw, 420px)"
+      append-to-body
+    >
+      <p v-if="isIpad && isIosSafari" class="install-card__text">
+        当前就是 iPad Safari。按下面几步即可装到主屏幕。
+      </p>
+      <p v-else-if="isIpad" class="install-card__text">
+        当前不是 Safari。请复制地址，改用 Safari 打开后再添加。Chrome / 微信里加不到主屏幕。
+      </p>
+      <p v-else class="install-card__text">
+        请在 iPad 上用 Safari 打开本页（不要用 Chrome 或微信），再按下面做。
+      </p>
+      <ol class="install-steps">
+        <li>Safari 打开本页。</li>
+        <li>点工具栏「分享」（方框加向上箭头）。横屏时多在顶部。</li>
+        <li>滑到「添加到主屏幕」→ 添加。</li>
+        <li>回主屏幕点「学习App」图标打开。</li>
+      </ol>
+      <template #footer>
+        <el-button @click="copyInstallUrl">复制本页地址</el-button>
+        <el-button type="primary" @click="ipadGuideOpen = false">知道了</el-button>
+      </template>
+    </el-dialog>
 
     <div class="install-card">
       <p class="install-card__title">更新 App 内容</p>
@@ -204,6 +253,21 @@ async function updateAppContent() {
   font-size: 13px;
   line-height: 1.55;
   color: var(--app-text-muted);
+}
+
+.install-card .el-button {
+  margin-top: 10px;
+}
+
+.install-steps {
+  margin: 12px 0 0;
+  padding-left: 1.3em;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.install-steps li + li {
+  margin-top: 6px;
 }
 
 .settings-card {
