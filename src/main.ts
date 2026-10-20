@@ -5,6 +5,7 @@ import 'element-plus/dist/index.css'
 import App from './App.vue'
 import router from './router'
 import './style.css'
+import { abortPageRequests, revivePageRequests } from '@/utils/app/appRequest'
 import { applyPullToRefreshPreference } from '@/utils/app/appUiSettings'
 import { hideAppUpdatingMask } from '@/utils/app/appUpdateMask'
 
@@ -35,3 +36,8 @@ if ('serviceWorker' in navigator) {
 
 createApp(App).use(router).use(ElementPlus).mount('#app')
 hideAppUpdatingMask()
+window.addEventListener('pageshow', (ev) => {
+  hideAppUpdatingMask()
+  if (ev.persisted) revivePageRequests()
+})
+window.addEventListener('pagehide', abortPageRequests)

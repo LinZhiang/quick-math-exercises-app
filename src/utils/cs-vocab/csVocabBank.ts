@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import type { CsVocabBankItem } from '@/utils/cs-vocab/csVocabBankTypes'
 import empty from '@/utils/cs-vocab/bank.empty.json'
+import { appFetchSignal } from '@/utils/app/appRequest'
 import { readWenguJsonResponse, wenguApiFetch } from '@/utils/computer/wenguApiFetch'
 
 type Pack = { items?: CsVocabBankItem[]; revision?: string; ok?: boolean }
@@ -104,7 +105,10 @@ async function writeCache(row: CacheRow): Promise<void> {
 
 async function loadStaticBank(): Promise<CsVocabBankItem[]> {
   try {
-    const res = await fetch('/cs-vocab/bank.json', { cache: 'no-store' })
+    const res = await fetch('/cs-vocab/bank.json', {
+      cache: 'no-store',
+      signal: appFetchSignal(),
+    })
     if (!res.ok) return []
     return normalizeItems(await res.json())
   } catch {

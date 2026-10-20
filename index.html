@@ -50,6 +50,16 @@
         font-size: 14px;
         color: #4b5563;
       }
+      #app-update-mask-cancel {
+        margin-top: 8px;
+        padding: 6px 14px;
+        border: 1px solid #94a3b8;
+        border-radius: 8px;
+        background: #fff;
+        color: #111827;
+        font-size: 14px;
+        cursor: pointer;
+      }
       @keyframes app-update-spin {
         to {
           transform: rotate(360deg);
@@ -62,14 +72,24 @@
       <div class="spin" aria-hidden="true"></div>
       <p class="title">正在更新 App</p>
       <p class="hint">请稍候，马上更新完成</p>
+      <button type="button" id="app-update-mask-cancel">取消</button>
     </div>
     <div id="app"></div>
     <script>
-      try {
-        if (sessionStorage.getItem('qmea-app-updating') === '1') {
-          document.getElementById('app-update-mask').classList.add('is-on')
+      (function () {
+        var KEY = 'qmea-app-updating'
+        var el = document.getElementById('app-update-mask')
+        function hideMask() {
+          try { sessionStorage.removeItem(KEY) } catch (e) {}
+          if (el) el.classList.remove('is-on')
         }
-      } catch (e) {}
+        try {
+          if (sessionStorage.getItem(KEY) === '1') el.classList.add('is-on')
+        } catch (e) {}
+        var btn = document.getElementById('app-update-mask-cancel')
+        if (btn) btn.addEventListener('click', hideMask)
+        setTimeout(hideMask, 10000)
+      })()
     </script>
     <script type="module" src="/src/main.ts"></script>
   </body>

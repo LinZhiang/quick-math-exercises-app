@@ -1,4 +1,4 @@
-const CACHE = 'quick-math-v11'
+const CACHE = 'quick-math-v12'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -48,6 +48,12 @@ function shouldBypassCache(url) {
   )
 }
 
+function fetchWithTimeout(request, ms) {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), ms)
+  return fetch(request, { signal: ctrl.signal }).finally(() => clearTimeout(timer))
+}
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
   const url = new URL(event.request.url)
@@ -56,15 +62,16 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     (async () => {
+      const cached = await caches.match(event.request)
       try {
-        const network = await fetch(event.request)
+        const wait = event.request.mode === 'navigate' ? 6000 : 8000
+        const network = await fetchWithTimeout(event.request, wait)
         if (network.ok && url.protocol.startsWith('http')) {
           const cache = await caches.open(CACHE)
           void cache.put(event.request, network.clone())
         }
         return network
       } catch {
-        const cached = await caches.match(event.request)
         if (cached) return cached
         if (event.request.mode === 'navigate') {
           const fallback = await caches.match('/index.html')

@@ -7,6 +7,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowRight, Collection, Document, Download, Folder, FolderOpened, Lock, MoreFilled, Notebook, Plus, Refresh, Share } from '@element-plus/icons-vue'
+import { beginAmbientAbort, cancelAmbientAbort, isAbortError, runWithAmbientAbort } from '@/utils/app/appRequest'
 import {
   buildComputerRangeQuizItem,
   collectReadyEntriesUnder,
@@ -165,11 +166,12 @@ async function toggle(id: string, expandable: boolean) {
   const node = findComputerNode(tree.value, id)?.node
   if (node?.loaded === false) {
     loadingNodeId.value = id
+    beginAmbientAbort()
     try {
       tree.value = await ensureComputerBasicsNodeLoaded(id, true)
     } catch (e) {
       expanded.value = { ...expanded.value, [id]: false }
-      ElMessage.error(e instanceof Error ? e.message : '加载分类失败')
+      if (!isPromptCancel(e)) ElMessage.error(e instanceof Error ? e.message : '加载分类失败')
       loadingNodeId.value = ''
       return
     }
@@ -242,6 +244,7 @@ async function startFolderQuiz(nodeId: string, name: string) {
       adminOpenId.value = ''
     })
   } catch (e) {
+    if (isPromptCancel(e)) return
     ElMessage.error(e instanceof Error ? e.message : '打开测验失败')
   }
 }
@@ -259,6 +262,7 @@ async function startEntryQuiz(entry: ComputerTreeEntry) {
       adminOpenId.value = ''
     })
   } catch (e) {
+    if (isPromptCancel(e)) return
     ElMessage.error(e instanceof Error ? e.message : '打开测验失败')
   }
 }
@@ -315,6 +319,7 @@ async function onDownloadRow(row: ComputerTreeRow) {
     })
     ElMessage.success('已导出 Word')
   } catch (e) {
+    if (isPromptCancel(e)) return
     ElMessage.error(e instanceof Error ? e.message : '导出失败')
   }
 }
@@ -345,6 +350,7 @@ async function onBatchDownload(ids: string[]) {
     })
     ElMessage.success('已导出 Word')
   } catch (e) {
+    if (isPromptCancel(e)) return
     ElMessage.error(e instanceof Error ? e.message : '导出失败')
   }
 }
@@ -376,12 +382,21 @@ async function promptName(title: string, initial = '') {
   return String(value ?? '').trim()
 }
 
+function abortCatalogJob() {
+  catalogLoadGen += 1
+  cancelAmbientAbort()
+  loading.value = false
+  busyText.value = ''
+  loadingNodeId.value = ''
+}
+
 async function withBusy<T>(text: string, fn: () => Promise<T>): Promise<T> {
+  const signal = beginAmbientAbort()
   busyText.value = text
   try {
-    return await fn()
+    return await runWithAmbientAbort(signal, fn)
   } finally {
-    busyText.value = ''
+    if (!signal.aborted) busyText.value = ''
   }
 }
 
@@ -482,6 +497,7 @@ async function onTogglePrivate(row: ComputerTreeRow) {
     })
     ElMessage.success(next ? '已设为私密，仅管理员可见' : '已对外公开')
   } catch (e) {
+    if (isPromptCancel(e)) return
     ElMessage.error(e instanceof Error ? e.message : '设置失败')
   }
 }
@@ -523,7 +539,12 @@ async function onDeleteEntry(entry: ComputerTreeEntry) {
 }
 
 function isPromptCancel(e: unknown) {
-  return e === 'cancel' || e === 'close' || (typeof e === 'string' && e.toLowerCase().includes('cancel'))
+  return (
+    isAbortError(e) ||
+    e === 'cancel' ||
+    e === 'close' ||
+    (typeof e === 'string' && e.toLowerCase().includes('cancel'))
+  )
 }
 
 function startMove(id: string, kind: 'branch' | 'entry', name: string) {
@@ -551,6 +572,7 @@ async function onMoveNode(id: string, delta: number) {
     })
     ElMessage.success('已调整顺序')
   } catch (e) {
+    if (isPromptCancel(e)) return
     ElMessage.error(e instanceof Error ? e.message : '移动失败')
   }
 }
@@ -571,6 +593,7 @@ async function onMoveEntry(id: string, delta: number) {
     })
     ElMessage.success('已调整顺序')
   } catch (e) {
+    if (isPromptCancel(e)) return
     ElMessage.error(e instanceof Error ? e.message : '移动失败')
   }
 }
@@ -604,6 +627,7 @@ async function confirmMove(target: string) {
     movePickId.value = ''
     ElMessage.success('已移动到新位置')
   } catch (e) {
+    if (isPromptCancel(e)) return
     ElMessage.error(e instanceof Error ? e.message : '移动失败')
   }
 }
@@ -638,23 +662,24 @@ async function pullCloudInBackground(gen: number) {
     tree.value = next
     ElMessage.success(`已从云端并入 ${pulled.wrote} 篇`)
   } catch (e) {
-    if (gen !== catalogLoadGen) return
+    if (gen !== catalogLoadGen || isAbortError(e)) return
     ElMessage.warning(e instanceof Error ? `云端同步失败：${e.message}` : '云端同步失败，先显示本机目录')
   }
 }
 
 async function load(force = false) {
   const gen = ++catalogLoadGen
+  const signal = beginAmbientAbort()
   error.value = ''
   if (tree.value.length) busyText.value = '正在刷新目录…'
   else loading.value = true
   try {
-    const next = await loadComputerBasicsTree(force)
+    const next = await runWithAmbientAbort(signal, () => loadComputerBasicsTree(force, signal))
     if (gen !== catalogLoadGen) return
     tree.value = next
     void pullCloudInBackground(gen)
   } catch (e) {
-    if (gen !== catalogLoadGen) return
+    if (gen !== catalogLoadGen || isAbortError(e)) return
     error.value = e instanceof Error ? e.message : '读取目录失败'
   } finally {
     if (gen === catalogLoadGen) {
@@ -666,6 +691,7 @@ async function load(force = false) {
 
 async function forceRefreshCatalog() {
   const gen = ++catalogLoadGen
+  beginAmbientAbort()
   error.value = ''
   const keep = { ...expanded.value }
   tree.value = []
@@ -678,7 +704,7 @@ async function forceRefreshCatalog() {
     try {
       pulled = await syncCloudIfLocalAdmin(true)
     } catch (e) {
-      if (gen !== catalogLoadGen) return
+      if (gen !== catalogLoadGen || isAbortError(e)) return
       ElMessage.warning(e instanceof Error ? `云端同步失败：${e.message}` : '云端同步失败，先显示本机目录')
     }
     if (gen !== catalogLoadGen) return
@@ -702,7 +728,7 @@ async function forceRefreshCatalog() {
     const extra = pulled?.wrote ? `，并从云端并入 ${pulled.wrote} 篇` : ''
     ElMessage.success(`已清除缓存并重新加载，共 ${count} 篇${extra}`)
   } catch (e) {
-    if (gen !== catalogLoadGen) return
+    if (gen !== catalogLoadGen || isAbortError(e)) return
     error.value = e instanceof Error ? e.message : '刷新失败'
     ElMessage.error(error.value)
   } finally {
@@ -744,6 +770,7 @@ watch(moveOpen, async (on) => {
 
 onBeforeUnmount(() => {
   window.clearTimeout(flashTimer)
+  abortCatalogJob()
 })
 </script>
 
@@ -813,7 +840,8 @@ onBeforeUnmount(() => {
         <span v-if="!loading && !error" class="computer-tree-head__count">{{ entryCount }} 篇</span>
       </div>
       <div v-if="loading && !rows.length" class="computer-busy-panel">
-        <ComputerBusyHint text="正在读取目录…" />
+        <ComputerBusyHint text="正在读取目录…" hint="可取消后重试；刷新页面也会停掉未完成的请求。" />
+        <el-button type="danger" plain @click="abortCatalogJob">取消加载</el-button>
       </div>
       <p v-else-if="error" class="computer-tree__status computer-tree__status--error">
         {{ error }}
@@ -975,7 +1003,10 @@ onBeforeUnmount(() => {
         </li>
       </ul>
       <div v-if="busyText" class="computer-busy-cover">
-        <ComputerBusyHint :text="busyText" />
+        <div class="computer-busy-cover__box">
+          <ComputerBusyHint :text="busyText" hint="可随时取消，不必等接口自己结束。" />
+          <el-button type="danger" plain @click="abortCatalogJob">取消加载</el-button>
+        </div>
       </div>
     </div>
     <ComputerMoveDialog
@@ -1071,8 +1102,10 @@ onBeforeUnmount(() => {
   flex: 1 1 0;
   min-height: 160px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 10px;
 }
 
 .computer-busy-cover {
@@ -1083,6 +1116,15 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   background: rgb(255 255 255 / 82%);
+}
+
+.computer-busy-cover__box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 20px;
+  max-width: min(22rem, calc(100% - 24px));
 }
 
 .computer-tree-head {

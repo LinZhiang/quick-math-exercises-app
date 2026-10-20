@@ -2,6 +2,13 @@
  * 登录 / AI 相关 API 请求（默认同源：Pages Functions 或家庭 Node）
  */
 import {
+  ambientAbortSignal,
+  isAbortError,
+  mergeAbortSignals,
+  pageAbortSignal,
+  timeoutAbortSignal,
+} from '@/utils/app/appRequest'
+import {
   describeWenguApiTarget,
   getWenguApiOrigin,
   resolveWenguApiUrl,
@@ -101,13 +108,35 @@ export async function readWenguJsonResponse<T>(res: Response): Promise<T> {
   }
 }
 
-export async function wenguApiFetch(path: string, init?: RequestInit & { cacheBust?: boolean }): Promise<Response> {
-  const { cacheBust, ...rest } = (init ?? {}) as RequestInit & { cacheBust?: boolean }
+export async function wenguApiFetch(
+  path: string,
+  init?: RequestInit & { cacheBust?: boolean; timeoutMs?: number },
+): Promise<Response> {
+  const { cacheBust, timeoutMs, ...rest } = (init ?? {}) as RequestInit & {
+    cacheBust?: boolean
+    timeoutMs?: number
+  }
   const urlPath = cacheBust ? `${path}${path.includes('?') ? '&' : '?'}_=${Date.now()}` : path
   const url = resolveWenguApiUrl(urlPath)
+  const method = String(rest.method || 'GET').toUpperCase()
+  const ai = path.includes('/api/ai/')
+  const wait = timeoutMs === 0 ? 0 : timeoutMs ?? (ai ? 180000 : method === 'GET' ? 25000 : 60000)
+  let timedOut = false
+  const timeout = wait > 0 ? timeoutAbortSignal(wait) : undefined
+  if (timeout) {
+    timeout.addEventListener(
+      'abort',
+      () => {
+        timedOut = true
+      },
+      { once: true },
+    )
+  }
+  const signal = mergeAbortSignals([pageAbortSignal(), ambientAbortSignal(), rest.signal, timeout])
   try {
     return await fetch(url, {
       ...rest,
+      signal,
       cache: 'no-store',
       headers: {
         'X-Wengu-Client': 'app',
@@ -115,11 +144,13 @@ export async function wenguApiFetch(path: string, init?: RequestInit & { cacheBu
       },
     })
   } catch (e) {
-    if (
-      rest.signal?.aborted ||
-      (e instanceof DOMException && e.name === 'AbortError') ||
-      (e instanceof Error && e.name === 'AbortError')
-    ) {
+    if (rest.signal?.aborted || (isAbortError(e) && !timedOut)) {
+      throw e instanceof Error ? e : new DOMException('Aborted', 'AbortError')
+    }
+    if (timedOut) {
+      throw new WenguApiError('请求超时，已停止等待。可取消后重试。', 408)
+    }
+    if (isAbortError(e) || signal?.aborted) {
       throw e instanceof Error ? e : new DOMException('Aborted', 'AbortError')
     }
     throw new WenguApiError(offlineHint())
