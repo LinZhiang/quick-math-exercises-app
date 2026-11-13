@@ -6,6 +6,7 @@
 import { json, peekIsAdmin, requireAdmin } from './wenguCloudAuth.js'
 import { applyPrivacyFlag, filterPublicCatalog, guestMayReadCatalogId } from './handoutVisibility.js'
 import { kvMissingMessage } from './kvBinding.js'
+import { kvPut, KV_QUOTA_MESSAGE } from './kvWrite.js'
 import {
   getFlStore,
   hydrateFlStoreFromAssets,
@@ -174,11 +175,14 @@ async function writeCatalog(env, tree) {
   if (!store) throw new Error('云端存储不可用')
   const prev = await store.get(CATALOG_KEY, { type: 'json' })
   const base = prev && typeof prev === 'object' ? prev : {}
-  if (prev && typeof prev === 'object' && Array.isArray(prev.tree) && prev.tree.length) {
-    await store.put(`${CATALOG_KEY}:bak`, JSON.stringify(prev))
-  }
   const nextTree = stripCatalogClientFlags(Array.isArray(tree) ? tree : [])
-  await store.put(
+  const prevTree = stripCatalogClientFlags(Array.isArray(base.tree) ? base.tree : [])
+  if (JSON.stringify(prevTree) === JSON.stringify(nextTree)) {
+    if (!base.userOwned) await markFlStoreUserOwned(store)
+    return
+  }
+  await kvPut(
+    store,
     CATALOG_KEY,
     JSON.stringify({ ...base, tree: nextTree, updatedAt: new Date().toISOString(), userOwned: true }),
   )
@@ -221,13 +225,28 @@ async function putItemRecord(env, id, item) {
     }
   }
   assertHandoutNotTooLarge(item.content)
-  await putRecord(env, itemKey(id), JSON.stringify(stampItem(item, id)))
+  const next = stampItem(item, id)
+  if (prevRaw) {
+    try {
+      const prev = JSON.parse(prevRaw)
+      if (
+        String(prev.content ?? '') === String(next.content ?? '') &&
+        String(prev.title ?? '') === String(next.title ?? '') &&
+        Boolean(prev.private) === Boolean(next.private)
+      ) {
+        return
+      }
+    } catch {
+      /* 旧稿解析失败就覆盖写 */
+    }
+  }
+  await putRecord(env, itemKey(id), JSON.stringify(next))
 }
 
 async function putRecord(env, key, value, opts) {
   const store = getStore(env)
   if (!store) throw new Error('云端存储不可用')
-  await store.put(key, value, opts)
+  await kvPut(store, key, value, opts)
 }
 
 async function itemExists(env, id) {
@@ -361,7 +380,7 @@ async function writeMediaFile(env, itemId, index, mime, b64) {
   const contentType = EXT_TO_MIME[ext] || 'application/octet-stream'
   const store = getStore(env)
   if (!store) throw new Error('云端存储不可用')
-  await store.put(mediaKey(file), b64ToBytes(b64), { metadata: { mime: contentType } })
+  await kvPut(store, mediaKey(file), b64ToBytes(b64), { metadata: { mime: contentType } })
   return `/api/media/frontend-learning/${file}`
 }
 
@@ -503,7 +522,14 @@ export async function handleFrontendLearning(env, request, pathParam) {
         503,
       )
     }
-    return json({ ok: false, message: e instanceof Error ? e.message : '前端学习接口失败' }, 500)
+    if (e?.code === 'KV_QUOTA') {
+      return json({ ok: false, message: e.message || KV_QUOTA_MESSAGE }, 429)
+    }
+    const raw = e instanceof Error ? e.message : ''
+    if (/put\(\) limit exceeded|limit exceeded for the day/i.test(raw)) {
+      return json({ ok: false, message: KV_QUOTA_MESSAGE }, 429)
+    }
+    return json({ ok: false, message: raw || '前端学习接口失败' }, 500)
   }
 }
 
@@ -561,7 +587,7 @@ async function handleImport(env, request) {
   for (const [file, b64] of Object.entries(media)) {
     const name = safeId(file)
     if (!name || !b64) continue
-    await store.put(mediaKey(name), b64ToBytes(String(b64)), { metadata: { mime: guessMime(name) } })
+    await kvPut(store, mediaKey(name), b64ToBytes(String(b64)), { metadata: { mime: guessMime(name) } })
   }
   await writeCatalog(env, tree)
   return json({

@@ -1,5 +1,6 @@
 import { json, requireAuth } from './wenguCloudAuth.js'
 import { getWenguKv } from './kvBinding.js'
+import { kvPutIfChanged, KV_QUOTA_MESSAGE } from './kvWrite.js'
 
 const ALLOWED = new Set([
   'mental-math-wrong-book-v1',
@@ -83,10 +84,15 @@ export async function handleUserKv(env, request, path) {
       return json({ ok: false, message: 'entries 必须是对象' }, 400)
     }
     let wrote = 0
-    for (const [key, value] of Object.entries(pack)) {
-      if (!ALLOWED.has(key)) continue
-      await kv.put(kvKey(username, key), JSON.stringify(value))
-      wrote += 1
+    try {
+      for (const [key, value] of Object.entries(pack)) {
+        if (!ALLOWED.has(key)) continue
+        const changed = await kvPutIfChanged(kv, kvKey(username, key), JSON.stringify(value))
+        if (changed) wrote += 1
+      }
+    } catch (e) {
+      const message = e?.code === 'KV_QUOTA' ? e.message || KV_QUOTA_MESSAGE : e instanceof Error ? e.message : '保存失败'
+      return json({ ok: false, message }, e?.code === 'KV_QUOTA' ? 429 : 500)
     }
     return json({ ok: true, wrote })
   }
@@ -104,8 +110,13 @@ export async function handleUserKv(env, request, path) {
     if (!body || !Object.prototype.hasOwnProperty.call(body, 'value')) {
       return json({ ok: false, message: '缺少 value' }, 400)
     }
-    await kv.put(kvKey(username, key), JSON.stringify(body.value))
-    return json({ ok: true })
+    try {
+      const changed = await kvPutIfChanged(kv, kvKey(username, key), JSON.stringify(body.value))
+      return json({ ok: true, wrote: changed ? 1 : 0 })
+    } catch (e) {
+      const message = e?.code === 'KV_QUOTA' ? e.message || KV_QUOTA_MESSAGE : e instanceof Error ? e.message : '保存失败'
+      return json({ ok: false, message }, e?.code === 'KV_QUOTA' ? 429 : 500)
+    }
   }
 
   return json({ ok: false, message: '方法不允许' }, 405)

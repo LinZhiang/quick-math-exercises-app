@@ -46,6 +46,13 @@ function looksLikeHtml(text: string): boolean {
   return head.startsWith('<!doctype') || head.startsWith('<html') || head.startsWith('<head')
 }
 
+export function explainWenguMessage(message: string): string {
+  if (/KV put\(\) limit exceeded|limit exceeded for the day/i.test(message)) {
+    return '今天云端写入次数已用完。已有讲义还能看；新增、修改请等到明天（UTC 0 点）再保存。请先别连续点保存或刷新。'
+  }
+  return message
+}
+
 function nonJsonMessage(res: Response, text: string): string {
   if (looksLikeHtml(text)) {
     let path = ''

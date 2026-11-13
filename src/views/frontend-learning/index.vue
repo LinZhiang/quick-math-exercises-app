@@ -694,9 +694,7 @@ async function forceRefreshCatalog() {
   beginAmbientAbort()
   error.value = ''
   const keep = { ...expanded.value }
-  tree.value = []
-  expanded.value = {}
-  folderTree.value = []
+  const previous = tree.value
   loading.value = true
   busyText.value = '正在清除缓存并重新加载目录…'
   try {
@@ -714,7 +712,8 @@ async function forceRefreshCatalog() {
     let next: FrontendTreeNode[]
     try {
       next = await loadFrontendLearningTree(true)
-    } catch {
+    } catch (e) {
+      if (previous.length) throw e
       next = await reloadFrontendLearningDir(Object.keys(keep).filter((id) => keep[id]))
     }
     if (gen !== catalogLoadGen) return
@@ -729,6 +728,7 @@ async function forceRefreshCatalog() {
     ElMessage.success(`已清除缓存并重新加载，共 ${count} 篇${extra}`)
   } catch (e) {
     if (gen !== catalogLoadGen || isAbortError(e)) return
+    if (previous.length) tree.value = previous
     error.value = e instanceof Error ? e.message : '刷新失败'
     ElMessage.error(error.value)
   } finally {

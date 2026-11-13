@@ -4,6 +4,7 @@
  * 未绑定 KV 时，讲义只读构建快照；增删改请用本机 Node（npm run dev:full）。
  */
 import { getWenguKv } from './kvBinding.js'
+import { kvPutIfChanged } from './kvWrite.js'
 
 const USER_OWNED_KEY = 'fl:user-owned'
 
@@ -47,40 +48,31 @@ export async function hydrateFlStoreFromAssets(store, env, request, helpers) {
   const snap = await helpers.readJsonAsset(env, request, '/fl-data/catalog.json')
   if (!snap || !Array.isArray(snap.tree) || !snap.tree.length) return
 
-  await store.put(
-    helpers.catalogKey,
-    JSON.stringify({ ...snap, updatedAt: new Date().toISOString(), userOwned: false }),
-  )
-
-  const ids = []
-  const walk = (nodes) => {
-    for (const node of nodes || []) {
-      for (const entry of node.entries || []) {
-        if (entry?.id) ids.push(String(entry.id))
-      }
-      walk(node.children)
-    }
-  }
-  walk(snap.tree)
-
-  for (const id of ids) {
-    try {
-      const item = await helpers.readJsonAsset(env, request, `/fl-data/items/${id}.json`)
-      if (!item || typeof item !== 'object') continue
-      const had = await store.get(helpers.itemKey(id))
-      if (had) continue
-      await store.put(helpers.itemKey(id), JSON.stringify({ ...item, id }))
-    } catch {
-      /* 单篇失败不影响目录 */
-    }
+  // 只写目录一份。正文按需从静态快照读，禁止在这里把每一篇都 put 进 KV。
+  try {
+    await kvPutIfChanged(
+      store,
+      helpers.catalogKey,
+      JSON.stringify({ ...snap, updatedAt: new Date().toISOString(), userOwned: false }),
+    )
+  } catch {
+    /* 额度用尽时继续读静态快照，不要把打开页面变成失败 */
   }
 }
 
+let ownedMarked = false
+
 export async function markFlStoreUserOwned(store) {
-  if (!store) return
+  if (!store || ownedMarked) return
   try {
-    await store.put(USER_OWNED_KEY, '1')
-  } catch {
-    /* KV 写入失败时仍以 catalog.userOwned 为准 */
+    const had = await store.get(USER_OWNED_KEY)
+    if (had) {
+      ownedMarked = true
+      return
+    }
+    await kvPutIfChanged(store, USER_OWNED_KEY, '1')
+    ownedMarked = true
+  } catch (e) {
+    if (e?.code === 'KV_QUOTA') throw e
   }
 }

@@ -11,7 +11,7 @@ import {
 import { markdownToDisplaySafeHtml } from '@/utils/markdown/markdownToHtml'
 import { highlightHandoutCodeHtml } from '@/utils/markdown/highlightHandoutCode'
 import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
-import { readWenguJsonResponse, wenguApiFetch } from '@/utils/computer/wenguApiFetch'
+import { readWenguJsonResponse, wenguApiFetch, explainWenguMessage } from '@/utils/computer/wenguApiFetch'
 import { resolveWenguApiUrl } from '@/utils/computer/wenguApiOrigin'
 import { catalogContainsId, catalogRowLocked, filterPublicCatalog } from '@/utils/app/handoutVisibility'
 import { catalogNodeHasBody, mergeCatalogLayer, snapshotCatalogNodes } from '@/utils/app/catalogLayer'
@@ -311,7 +311,7 @@ async function frontendAdminFetch<T>(path: string, init?: RequestInit): Promise<
     error?: { message?: string }
   } & T>(res)
   if (!res.ok || data.ok === false) {
-    throw new Error(data.message || data.error?.message || `请求失败（${res.status}）`)
+    throw new Error(explainWenguMessage(data.message || data.error?.message || `请求失败（${res.status}）`))
   }
   return data
 }
@@ -618,7 +618,7 @@ export async function loadFrontendLearningTree(force = false, signal?: AbortSign
         return visibleFrontendTree(treeCache)
       }
     }
-    throw new Error(data.message || `读取目录失败（HTTP ${res.status}）`)
+    throw new Error(explainWenguMessage(data.message || `读取目录失败（HTTP ${res.status}）`))
   }
   let revision = String(data.revision || '').trim()
   if (!revision) {
@@ -660,7 +660,7 @@ async function fetchFrontendLayer(parentId: string): Promise<{
     message?: string
   }>(res)
   if (!res.ok || !data.ok || !Array.isArray(data.tree)) {
-    throw new Error(data.message || `读取目录失败（HTTP ${res.status}）`)
+    throw new Error(explainWenguMessage(data.message || `读取目录失败（HTTP ${res.status}）`))
   }
   return {
     tree: data.tree,
@@ -834,7 +834,7 @@ export async function loadFrontendLearningItem(id: string, force = false, signal
   )
   if (!res.ok || !data.ok || !data.item) {
     if (res.status === 404 && !isWenguAdmin()) {
-      throw new Error(data.message || '未找到该讲义')
+      throw new Error(explainWenguMessage(data.message || '未找到该讲义'))
     }
     if (!force) {
       const cached = itemCache.get(key)
@@ -846,7 +846,7 @@ export async function loadFrontendLearningItem(id: string, force = false, signal
         return disk.item
       }
     }
-    throw new Error(data.message || `读取讲义失败（HTTP ${res.status}）`)
+    throw new Error(explainWenguMessage(data.message || `读取讲义失败（HTTP ${res.status}）`))
   }
   const item = {
     ...data.item,
