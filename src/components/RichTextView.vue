@@ -180,6 +180,7 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   overflow-wrap: normal;
   word-wrap: normal;
   hyphens: none;
+  font-weight: 700;
 }
 
 .rich-text-view :deep(pre) {
@@ -190,6 +191,7 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
   color: #e5e7eb;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
   font-size: 14px;
+  font-weight: 700;
   line-height: 1.7;
   width: 100%;
   min-width: 0;
@@ -242,7 +244,7 @@ onBeforeUnmount(() => overflowObserver?.disconnect())
 
 .rich-text-view :deep(.tok-kw) {
   color: #f472b6;
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .rich-text-view :deep(.tok-fn) {

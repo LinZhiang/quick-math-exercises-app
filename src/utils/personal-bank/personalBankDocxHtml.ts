@@ -259,6 +259,7 @@ function childStyle(name: string, style: RunStyle, el?: Element): RunStyle {
   if (style.inPre) {
     next.font = 'Consolas'
     next.size = 20
+    next.bold = true
     next.color = next.color || CODE_FG
     next.shadingFill = next.codeBg || style.codeBg || CODE_BG
   }
@@ -475,6 +476,7 @@ function codeBlockTable(lines: ParagraphChild[][], pageBreakBefore = false, bg =
                 text: ' ',
                 font: 'Consolas',
                 size: 20,
+                bold: true,
                 color: CODE_FG,
                 noProof: true,
                 shading: { type: ShadingType.CLEAR, fill },
@@ -632,7 +634,7 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, ha
       lines.forEach((children, i) => {
         out.push({
           kind: 'p',
-          children: children.length ? children : [new TextRun({ text: ' ', font: 'Consolas', size: 20, color: CODE_FG, noProof: true })],
+          children: children.length ? children : [new TextRun({ text: ' ', font: 'Consolas', size: 20, bold: true, color: CODE_FG, noProof: true })],
           extra: codeLineExtra(i === 0, i === lines.length - 1),
         })
       })
