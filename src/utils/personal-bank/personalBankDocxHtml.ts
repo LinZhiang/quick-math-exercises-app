@@ -1,4 +1,5 @@
 import {
+  AlignmentType,
   BorderStyle,
   ImageRun,
   Math as DocxMath,
@@ -8,6 +9,7 @@ import {
   ShadingType,
   Table,
   TableCell,
+  TableLayoutType,
   TableRow,
   TextRun,
   VerticalAlignTable,
@@ -128,11 +130,18 @@ function looksLikeCursorCode(el: Element): boolean {
   const colored = el.querySelectorAll('span[style*="color" i], font[color]').length
   if (bg && hexLum(bg) < 80 && (mono || preWrap || colored >= 2)) return true
   if ((mono || preWrap) && colored >= 2) return true
+  const breaks = el.querySelectorAll('br').length
+  if ((mono || preWrap) && (breaks >= 1 || /\n/.test(el.textContent || ''))) return true
   return false
 }
 
-const MAX_IMG_PX = 520
+/** 页面内容宽约 6.7 英寸，按 96dpi 显示；嵌入像素另算，避免 Word 把小图拉糊。 */
+const PAGE_IMG_W = 640
+const PAGE_IMG_H = 880
+const EMBED_MAX_PX = 2400
 const CONTENT_DXA = 9638
+/** Consolas 10pt 粗体大约一个空格的宽度，用来还原代码行首缩进。 */
+const CODE_CHAR_DXA = 120
 
 const thinBorder = {
   style: BorderStyle.SINGLE,
@@ -204,7 +213,9 @@ function styledRun(text: string, style: RunStyle): TextRun | null {
     italics: style.italics,
     superScript: style.superScript,
     subScript: style.subScript,
-    font: bodyFont(style),
+    font: style.inPre
+      ? { ascii: 'Consolas', hAnsi: 'Consolas', cs: 'Consolas', eastAsia: 'Microsoft YaHei' }
+      : bodyFont(style),
     size: style.size || (style.inPre ? 20 : 24),
     color: style.color,
     noProof: style.inPre || undefined,
@@ -303,6 +314,54 @@ function mathFromFrac(el: Element): DocxMath {
   })
 }
 
+function displaySize(natW: number, natH: number): { width: number; height: number } {
+  const scale = Math.min(1, PAGE_IMG_W / natW, PAGE_IMG_H / natH)
+  return {
+    width: Math.max(1, Math.round(natW * scale)),
+    height: Math.max(1, Math.round(natH * scale)),
+  }
+}
+
+function sniffImage(data: Uint8Array): ImageKind | null {
+  if (data.length >= 3 && data[0] === 0xff && data[1] === 0xd8) return 'jpg'
+  if (data.length >= 8 && data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47) return 'png'
+  if (data.length >= 6 && data[0] === 0x47 && data[1] === 0x49 && data[2] === 0x46) return 'gif'
+  if (data.length >= 2 && data[0] === 0x42 && data[1] === 0x4d) return 'bmp'
+  return null
+}
+
+function bytesFromDataUrl(url: string): Uint8Array | null {
+  const comma = url.indexOf(',')
+  if (comma < 0) return null
+  if (/;base64/i.test(url.slice(0, comma))) {
+    const bin = atob(url.slice(comma + 1).replace(/\s/g, ''))
+    const data = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i += 1) data[i] = bin.charCodeAt(i)
+    return data
+  }
+  const text = decodeURIComponent(url.slice(comma + 1))
+  return new TextEncoder().encode(text)
+}
+
+async function rasterizeImage(img: HTMLImageElement, maxEdge: number): Promise<Uint8Array | null> {
+  const natW = Math.max(1, img.naturalWidth || 1)
+  const natH = Math.max(1, img.naturalHeight || 1)
+  const scale = Math.min(1, maxEdge / natW, maxEdge / natH)
+  const width = Math.max(1, Math.round(natW * scale))
+  const height = Math.max(1, Math.round(natH * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(img, 0, 0, width, height)
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+  if (!blob) return null
+  return new Uint8Array(await blob.arrayBuffer())
+}
+
 async function loadImage(src: string): Promise<PreparedImage | null> {
   const url = String(src ?? '').trim()
   if (!url || url.startsWith('blob:')) return null
@@ -316,39 +375,21 @@ async function loadImage(src: string): Promise<PreparedImage | null> {
     })
     const natW = Math.max(1, img.naturalWidth || 1)
     const natH = Math.max(1, img.naturalHeight || 1)
-    const scale = Math.min(1, MAX_IMG_PX / natW, MAX_IMG_PX / natH)
-    const width = Math.max(24, Math.round(natW * scale))
-    const height = Math.max(24, Math.round(natH * scale))
+    const shown = displaySize(natW, natH)
+    const oversized = natW > EMBED_MAX_PX || natH > EMBED_MAX_PX
 
-    const mimeMatch = /^data:(image\/[a-zA-Z0-9.+-]+);base64,/i.exec(url)
-    const mime = (mimeMatch?.[1] ?? '').toLowerCase()
-    const kind: ImageKind | null = mime.includes('png')
-      ? 'png'
-      : mime.includes('jpeg') || mime.includes('jpg')
-        ? 'jpg'
-        : mime.includes('gif')
-          ? 'gif'
-          : mime.includes('bmp')
-            ? 'bmp'
-            : null
-
-    if (url.startsWith('data:') && kind) {
-      const b64 = url.slice(url.indexOf(',') + 1)
-      const bin = atob(b64)
-      const data = new Uint8Array(bin.length)
-      for (let i = 0; i < bin.length; i += 1) data[i] = bin.charCodeAt(i)
-      return { type: kind, data, width, height }
+    let data: Uint8Array | null = null
+    if (url.startsWith('data:')) data = bytesFromDataUrl(url)
+    else {
+      const res = await fetch(url)
+      if (res.ok) data = new Uint8Array(await res.arrayBuffer())
     }
+    const kind = data ? sniffImage(data) : null
+    if (data && kind && !oversized) return { type: kind, data, ...shown }
 
-    const canvas = document.createElement('canvas')
-    canvas.width = width
-    canvas.height = height
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return null
-    ctx.drawImage(img, 0, 0, width, height)
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
-    if (!blob) return null
-    return { type: 'png', data: new Uint8Array(await blob.arrayBuffer()), width, height }
+    const raster = await rasterizeImage(img, EMBED_MAX_PX)
+    if (!raster) return null
+    return { type: 'png', data: raster, ...shown }
   } catch {
     return null
   }
@@ -407,10 +448,12 @@ function flattenInline(root: ParentNode, images: Map<string, PreparedImage>, sty
   return out
 }
 
+type CodeLine = { children: ParagraphChild[]; pad: number }
+
 type HtmlBlock =
   | { kind: 'p'; children: ParagraphChild[]; extra?: Omit<IParagraphOptions, 'children'> }
   | { kind: 'table'; table: Table }
-  | { kind: 'code'; lines: ParagraphChild[][] }
+  | { kind: 'code'; lines: CodeLine[]; inset?: number }
 
 function tableFromElement(tableEl: Element, images: Map<string, PreparedImage>, pageBreakBefore = false): Table {
   const rows = [...tableEl.querySelectorAll(':scope > tr, :scope > thead > tr, :scope > tbody > tr, :scope > tfoot > tr')]
@@ -447,11 +490,11 @@ function tableFromElement(tableEl: Element, images: Map<string, PreparedImage>, 
   })
 }
 
-function codeLineExtra(isFirst: boolean, isLast: boolean): Omit<IParagraphOptions, 'children'> {
+function codeLineExtra(isFirst: boolean, isLast: boolean, pad = 0): Omit<IParagraphOptions, 'children'> {
   return {
     shading: { type: ShadingType.CLEAR, fill: CODE_BG },
     spacing: { before: isFirst ? 160 : 0, after: isLast ? 200 : 0, line: 276 },
-    indent: { left: 140, right: 140 },
+    indent: { left: 140 + pad * CODE_CHAR_DXA, right: 140 },
   }
 }
 
@@ -461,31 +504,36 @@ const codeBoxBorder = {
   color: CODE_BG,
 }
 
-function codeBlockTable(lines: ParagraphChild[][], pageBreakBefore = false, bg = CODE_BG): Table {
+function emptyCodeRun(fill: string): TextRun {
+  return new TextRun({
+    text: ' ',
+    font: { ascii: 'Consolas', hAnsi: 'Consolas', cs: 'Consolas', eastAsia: 'Microsoft YaHei' },
+    size: 20,
+    bold: true,
+    color: CODE_FG,
+    noProof: true,
+    shading: { type: ShadingType.CLEAR, fill },
+  })
+}
+
+function codeBlockTable(lines: CodeLine[], pageBreakBefore = false, bg = CODE_BG, inset = 0): Table {
   const fill = bg || CODE_BG
   const paras = lines.map(
-    (children, i) =>
+    (line, i) =>
       new Paragraph({
+        alignment: AlignmentType.LEFT,
         pageBreakBefore: pageBreakBefore && i === 0,
-        spacing: { before: 0, after: 0, line: 276 },
+        spacing: { before: 0, after: 0, line: 276, lineRule: 'auto' },
         shading: { type: ShadingType.CLEAR, fill },
-        children: children.length
-          ? children
-          : [
-              new TextRun({
-                text: ' ',
-                font: 'Consolas',
-                size: 20,
-                bold: true,
-                color: CODE_FG,
-                noProof: true,
-                shading: { type: ShadingType.CLEAR, fill },
-              }),
-            ],
+        indent: line.pad > 0 || inset > 0 ? { left: line.pad * CODE_CHAR_DXA + inset } : undefined,
+        autoSpaceEastAsianText: false,
+        children: line.children.length ? line.children : [emptyCodeRun(fill)],
       }),
   )
   return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
+    layout: TableLayoutType.FIXED,
+    alignment: AlignmentType.LEFT,
+    width: { size: CONTENT_DXA, type: WidthType.DXA },
     columnWidths: [CONTENT_DXA],
     rows: [
       new TableRow({
@@ -542,12 +590,41 @@ function looksLikeSubheading(el: Element): boolean {
   })
 }
 
-function splitPreLines(pre: Element, images: Map<string, PreparedImage>): ParagraphChild[][] {
+type CodePiece = { text: string; style: RunStyle } | { child: ParagraphChild }
+
+function finalizeCodeLine(pieces: CodePiece[]): CodeLine {
+  let pad = 0
+  let skipping = true
+  const children: ParagraphChild[] = []
+  for (const piece of pieces) {
+    if ('child' in piece) {
+      skipping = false
+      children.push(piece.child)
+      continue
+    }
+    const text = piece.text.replace(/\t/g, '  ').replace(/\u00a0/g, ' ')
+    if (!skipping) {
+      const run = styledRun(text, piece.style)
+      if (run) children.push(run)
+      continue
+    }
+    const lead = /^ */.exec(text)?.[0].length ?? 0
+    pad += lead
+    const rest = text.slice(lead)
+    if (!rest) continue
+    skipping = false
+    const run = styledRun(rest, piece.style)
+    if (run) children.push(run)
+  }
+  return { children, pad }
+}
+
+function splitPreLines(pre: Element, images: Map<string, PreparedImage>): CodeLine[] {
   const code = pre.querySelector(':scope > code') ?? pre
-  const lines: ParagraphChild[][] = [[]]
+  const lines: CodePiece[][] = [[]]
   let blockLineStarted = false
   const pushLine = () => {
-    if (lines[lines.length - 1]) lines.push([])
+    lines.push([])
   }
   const current = () => lines[lines.length - 1]!
   const hostStyle = inlineStyleOf(pre)
@@ -561,11 +638,18 @@ function splitPreLines(pre: Element, images: Map<string, PreparedImage>): Paragr
   }
   const walk = (node: Node, style: RunStyle) => {
     if (node.nodeType === Node.TEXT_NODE) {
-      const parts = String(node.textContent ?? '').replace(/\r\n/g, '\n').split('\n')
+      const raw = String(node.textContent ?? '')
+      const parent = node.parentElement
+      const parentName = parent ? tagName(parent) : ''
+      const betweenBlocks =
+        parentName !== 'pre' &&
+        parentName !== 'code' &&
+        Boolean(parent?.querySelector(':scope > div, :scope > p'))
+      if (betweenBlocks && !raw.replace(/\u00a0/g, ' ').trim()) return
+      const parts = raw.replace(/\r\n/g, '\n').split('\n')
       parts.forEach((part, i) => {
         if (i > 0) pushLine()
-        const run = styledRun(part, style)
-        if (run && (part.length || style.inPre)) current().push(run)
+        if (part.length) current().push({ text: part, style })
       })
       return
     }
@@ -583,7 +667,7 @@ function splitPreLines(pre: Element, images: Map<string, PreparedImage>): Paragr
       return
     }
     if (name === 'img') {
-      current().push(...imageChild(node.getAttribute('src') ?? '', images))
+      current().push(...imageChild(node.getAttribute('src') ?? '', images).map((child) => ({ child })))
       return
     }
     const next = childStyle(name, style, node)
@@ -591,12 +675,98 @@ function splitPreLines(pre: Element, images: Map<string, PreparedImage>): Paragr
   }
   const inherited = childStyle(tagName(code), base, code)
   for (const child of [...code.childNodes]) walk(child, inherited)
-  return lines.length ? lines : [[]]
+  const built = (lines.length ? lines : [[]]).map(finalizeCodeLine)
+  while (built.length > 1 && !built[built.length - 1]!.children.length && built[built.length - 1]!.pad === 0) built.pop()
+  return built.length ? built : [{ children: [], pad: 0 }]
+}
+
+function cssPx(raw: string): number {
+  const n = Number.parseFloat(raw)
+  if (!Number.isFinite(n) || n <= 0) return 0
+  if (/mm$/i.test(raw)) return (n * 96) / 25.4
+  if (/cm$/i.test(raw)) return (n * 96) / 2.54
+  if (/in$/i.test(raw)) return n * 96
+  if (/em$/i.test(raw)) return n * 16
+  return n
+}
+
+function insetDxa(el: Element): number {
+  const st = styleMap(el)
+  return Math.round((cssPx(st['margin-left'] || '') + cssPx(st['padding-left'] || '')) * 15)
+}
+
+function plainLines(el: Element): string[] {
+  const lines: string[] = []
+  let buf = ''
+  const flushLine = () => {
+    lines.push(buf.replace(/\u00a0/g, ' '))
+    buf = ''
+  }
+  const walk = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      buf += node.textContent ?? ''
+      return
+    }
+    if (!isElement(node)) return
+    const name = tagName(node)
+    if (name === 'br') {
+      flushLine()
+      return
+    }
+    if (name === 'div' || name === 'p' || name === 'li' || name === 'blockquote') {
+      if (buf.trim()) flushLine()
+      else buf = ''
+      for (const child of [...node.childNodes]) walk(child)
+      flushLine()
+      return
+    }
+    for (const child of [...node.childNodes]) walk(child)
+  }
+  for (const child of [...el.childNodes]) walk(child)
+  if (buf) flushLine()
+  return lines
+}
+
+function codeSample(lines: string[]): boolean {
+  const meaningful = lines.filter((l) => l.trim())
+  if (meaningful.length < 2) return false
+  const src = meaningful.join('\n')
+  const indented = meaningful.filter((l) => /^[ \t]{2,}\S/.test(l)).length
+  const codey = /[{};]|=>|\b(?:function|const|let|var|return|if|for|while|class|import|export|async)\b/.test(src)
+  if (indented >= 1 && codey) return true
+  if (indented >= 2) return true
+  if (codey && /[{}]/.test(src) && meaningful.length >= 3) return true
+  return false
+}
+
+/** 缩进命令把 pre 拆成普通段落 / br 之后，仍按代码块导出。 */
+function looksLikeBrokenCodeBlock(el: Element): boolean {
+  if (tagName(el) === 'pre' || looksLikeCursorCode(el)) return false
+  if (el.querySelector('pre, table, img, ul, ol, h1, h2, h3, h4, h5, h6, aside, .cb-handout-note')) return false
+  return codeSample(plainLines(el))
+}
+
+function consumeCodeGroup(start: Element): Element[] | null {
+  const name0 = tagName(start)
+  if (name0 !== 'div' && name0 !== 'p') return null
+  const group: Element[] = []
+  let el: Element | null = start
+  while (el && (tagName(el) === 'div' || tagName(el) === 'p')) {
+    if (el.querySelector('pre, table, img, ul, ol, h1, h2, h3, h4, h5, h6, aside, .cb-handout-note, div, p, blockquote')) break
+    const lines = plainLines(el)
+    if (lines.filter((l) => l.trim()).length > 1) break
+    if (!lines.some((l) => l.trim())) break
+    group.push(el)
+    el = el.nextElementSibling
+  }
+  if (group.length < 2) return null
+  return codeSample(group.map((g) => plainLines(g).join(''))) ? group : null
 }
 
 function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, handout = false): HtmlBlock[] {
   const out: HtmlBlock[] = []
   let pending: ParagraphChild[] = []
+  const skip = new WeakSet<Element>()
 
   const flush = () => {
     if (!pending.length) return
@@ -604,7 +774,27 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, ha
     pending = []
   }
 
+  const emitCode = (el: Element, lines: CodeLine[]) => {
+    flush()
+    const inset = insetDxa(el)
+    if (handout) {
+      out.push({ kind: 'code', lines, inset })
+      return
+    }
+    lines.forEach((line, i) => {
+      out.push({
+        kind: 'p',
+        children: line.children.length ? line.children : [emptyCodeRun(CODE_BG)],
+        extra: {
+          ...codeLineExtra(i === 0, i === lines.length - 1, line.pad),
+          indent: { left: 140 + line.pad * CODE_CHAR_DXA + inset, right: 140 },
+        },
+      })
+    })
+  }
+
   const walk = (node: Node) => {
+    if (isElement(node) && skip.has(node)) return
     if (node.nodeType === Node.TEXT_NODE) {
       const run = styledRun(node.textContent ?? '', handoutBase(handout))
       if (run) pending.push(run)
@@ -625,20 +815,20 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, ha
       return
     }
     if (name === 'pre' || looksLikeCursorCode(node)) {
-      flush()
-      const lines = splitPreLines(node, images)
-      if (handout) {
-        out.push({ kind: 'code', lines })
+      emitCode(node, splitPreLines(node, images))
+      return
+    }
+    if ((name === 'div' || name === 'p' || name === 'blockquote') && looksLikeBrokenCodeBlock(node)) {
+      emitCode(node, splitPreLines(node, images))
+      return
+    }
+    if (name === 'div' || name === 'p') {
+      const group = consumeCodeGroup(node)
+      if (group) {
+        for (const item of group.slice(1)) skip.add(item)
+        emitCode(node, group.flatMap((item) => splitPreLines(item, images)))
         return
       }
-      lines.forEach((children, i) => {
-        out.push({
-          kind: 'p',
-          children: children.length ? children : [new TextRun({ text: ' ', font: 'Consolas', size: 20, bold: true, color: CODE_FG, noProof: true })],
-          extra: codeLineExtra(i === 0, i === lines.length - 1),
-        })
-      })
-      return
     }
     if (node.classList.contains('cb-handout-note') || (name === 'aside' && node.classList.contains('cb-handout-note'))) {
       flush()
@@ -717,8 +907,11 @@ function blocksFromNode(root: ParentNode, images: Map<string, PreparedImage>, ha
     }
     if (name === 'blockquote') {
       flush()
+      const quoteInset = insetDxa(node)
       for (const block of blocksFromNode(node, images, handout)) {
-        if (block.kind === 'p') {
+        if (block.kind === 'code') {
+          out.push({ ...block, inset: (block.inset || 0) + quoteInset })
+        } else if (block.kind === 'p') {
           out.push({
             ...block,
             extra: {
@@ -859,7 +1052,7 @@ function toFileChild(
   afterCode = false,
   pageBreak = false,
 ): FileChild {
-  if (block.kind === 'code') return codeBlockTable(block.lines, pageBreak)
+  if (block.kind === 'code') return codeBlockTable(block.lines, pageBreak, CODE_BG, block.inset ?? 0)
   if (block.kind === 'table') return block.table
   const { spacing: _ignored, pageBreakBefore: extraBreak, ...rest } = block.extra ?? {}
   return bodyParagraph(block.children, {

@@ -269,8 +269,47 @@ watch(
   },
 )
 
+function selectedPres(): HTMLElement[] {
+  const root = editorRef.value
+  const sel = document.getSelection()
+  if (!root || !sel || sel.rangeCount === 0) return []
+  const range = sel.getRangeAt(0)
+  if (!root.contains(range.commonAncestorContainer)) return []
+  const found: HTMLElement[] = []
+  for (const pre of root.querySelectorAll('pre')) {
+    if (!(pre instanceof HTMLElement)) continue
+    try {
+      if (range.intersectsNode(pre)) found.push(pre)
+    } catch {
+      /* 选区不在同一文档时忽略 */
+    }
+  }
+  return found
+}
+
+/** 代码块在块内缩进，避免浏览器 indent 把 pre 拆成普通文字。 */
+function shiftPreIndent(delta: number): boolean {
+  const root = editorRef.value
+  const pres = selectedPres()
+  if (!root || !pres.length) return false
+  pushUndo(root.innerHTML)
+  for (const pre of pres) {
+    const current = Number.parseFloat(pre.style.paddingLeft || '0') || 0
+    const next = Math.max(0, Math.min(240, current + delta))
+    pre.style.paddingLeft = next ? `${Math.round(next)}px` : ''
+  }
+  decorateNotes()
+  emitHtml()
+  pushUndo(root.innerHTML)
+  return true
+}
+
 function run(command: string, value?: string) {
   restoreSelection()
+  if ((command === 'indent' || command === 'outdent') && shiftPreIndent(command === 'indent' ? 40 : -40)) {
+    syncToolbar()
+    return
+  }
   pushUndo(editorRef.value?.innerHTML ?? '')
   try {
     document.execCommand('styleWithCSS', false, 'true')
