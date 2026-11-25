@@ -5,7 +5,7 @@
  */
 import { readWenguJsonResponse, wenguApiFetch } from '@/utils/computer/wenguApiFetch'
 
-export type HandoutCacheScope = 'frontend' | 'computer'
+export type HandoutCacheScope = 'frontend' | 'computer' | 'history'
 
 export type HandoutRevisionPeek =
   | { status: 'ok'; revision: string }
@@ -30,6 +30,7 @@ const STORE_ITEMS = 'items'
 const REVISION_PATH: Record<HandoutCacheScope, string> = {
   frontend: '/api/frontend-learning/revision',
   computer: '/api/computer-basics/revision',
+  history: '/api/history-notes/revision',
 }
 
 const REVISION_MEMO_MS = 2500

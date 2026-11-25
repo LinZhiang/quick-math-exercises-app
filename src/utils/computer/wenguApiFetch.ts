@@ -77,6 +77,13 @@ function nonJsonMessage(res: Response, text: string): string {
         '）。先确认开的是 pages.dev 本站，不要填错自定义 API。这与 DEEPSEEK_API_KEY 无关。'
       )
     }
+    if (path.includes('history-notes') || path.includes('/api/media/history-notes')) {
+      return (
+        '云端历史整理接口返回了网页而不是数据（HTTP ' +
+        res.status +
+        '）。先确认开的是 pages.dev 本站，不要填错自定义 API。这与 DEEPSEEK_API_KEY 无关。'
+      )
+    }
     if (path.includes('frontend-learning') || path.includes('/api/media/frontend-learning')) {
       return (
         '云端前端学习接口返回了网页而不是数据（HTTP ' +

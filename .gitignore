@@ -39,6 +39,7 @@ src/data/currentAffairs/*.ts
 # 讲义静态快照：只留本机，不进仓库、不打进 Pages 包
 public/fl-data/
 public/cb-data/
+public/hn-data/
 .tmp-handout-public/
 
 # Word 解压稿、原始讲义文档

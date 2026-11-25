@@ -15,6 +15,7 @@ import {
   requireAuth,
 } from './auth-core.mjs'
 import { attachComputerBasicsRoutes } from './computer-basics-store.mjs'
+import { attachHistoryNotesRoutes } from './history-notes-store.mjs'
 import { attachFrontendLearningRoutes } from './frontend-learning-store.mjs'
 import { attachCsVocabRoutes } from './cs-vocab-store.mjs'
 import { attachUserKvRoutes } from './user-kv-store.mjs'
@@ -107,6 +108,7 @@ export function createAiProxyApp() {
 
   attachAuthRoutes(app)
   attachComputerBasicsRoutes(app)
+  attachHistoryNotesRoutes(app)
   attachFrontendLearningRoutes(app)
   attachCsVocabRoutes(app)
   attachUserKvRoutes(app)

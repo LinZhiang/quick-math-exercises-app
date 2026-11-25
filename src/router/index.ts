@@ -170,6 +170,29 @@ const router = createRouter({
       meta: { title: '学习日志', chrome: 'app' },
     },
     {
+      path: '/history',
+      name: 'history',
+      component: ComputerBasicsView,
+      meta: { title: '历史整理', chrome: 'app' },
+    },
+    {
+      path: '/history/item/:itemId',
+      name: 'history-item',
+      component: ComputerHandoutDetail,
+      meta: { title: '历史整理', chrome: 'app' },
+      beforeEnter: (to) => {
+        const itemId = String(to.params.itemId ?? '').trim()
+        if (!itemId) return { name: 'history', replace: true }
+        return true
+      },
+    },
+    {
+      path: '/history/log',
+      name: 'history-log',
+      component: ComputerStudyLogPage,
+      meta: { title: '学习日志', chrome: 'app' },
+    },
+    {
       path: '/frontend',
       name: 'frontend',
       component: FrontendLearningView,

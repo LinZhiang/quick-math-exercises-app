@@ -18,6 +18,7 @@ import {
   loadComputerBasicsTree,
   setComputerItemPrivate,
   updateComputerItem,
+  bindComputerHandoutScope,
   type ComputerHandoutItem,
   type ComputerTreeEntry,
 } from '@/utils/computer/computerBasics'
@@ -43,6 +44,16 @@ type PhotoIntent = 'recognize' | 'upload'
 
 const route = useRoute()
 const router = useRouter()
+const isHistory = computed(() => String(route.name || '').startsWith('history'))
+bindComputerHandoutScope(isHistory.value ? 'history' : 'computer')
+
+function itemRouteName() {
+  return isHistory.value ? 'history-item' : 'computer-item'
+}
+
+function itemPath(id: string) {
+  return `${isHistory.value ? '/history/item/' : '/computer/item/'}${id}`
+}
 const fullscreen = ref(false)
 const quizOpen = ref(false)
 const exportOpen = ref(false)
@@ -126,7 +137,7 @@ useAppChromeTitle(
   computed(() => {
     if (photoIntent.value === 'upload') return '拍照上传'
     if (photoIntent.value === 'recognize') return '拍照识别'
-    return item.value?.title || '计算机基础'
+    return item.value?.title || (isHistory.value ? '历史整理' : '计算机基础')
   }),
 )
 useAppChromeHidden(headCollapsed)
@@ -134,7 +145,7 @@ useAppChromeHidden(headCollapsed)
 const html = computed(() => (item.value ? computerContentToHtml(item.value.content) : ''))
 
 function goList() {
-  goBackOr(router, { name: 'computer' })
+  goBackOr(router, { name: isHistory.value ? 'history' : 'computer' })
 }
 
 function openExport() {
@@ -146,7 +157,7 @@ function goNav(dir: -1 | 1) {
   if (contentBusy.value) return
   const next = readyList.value[navIndex.value + dir]
   if (!next) return
-  void router.replace({ name: 'computer-item', params: { itemId: next.id } })
+  void router.replace({ name: itemRouteName(), params: { itemId: next.id } })
 }
 
 async function onTogglePrivate() {
@@ -178,7 +189,7 @@ function startEdit() {
     return
   }
   void router.push({
-    name: 'computer-item',
+    name: itemRouteName(),
     params: { itemId: itemId.value },
     query: { edit: '1' },
   })
@@ -191,13 +202,12 @@ function leaveEditQuery() {
   }
   const back = typeof window !== 'undefined' ? window.history.state?.back : null
   const backUrl = typeof back === 'string' ? back : ''
-  const itemPath = `/computer/item/${itemId.value}`
   const backPath = backUrl.split('?')[0]
-  if (backPath.endsWith(itemPath) && !/[?&]edit=/.test(backUrl) && !/[?&]photo=/.test(backUrl)) {
+  if (backPath.endsWith(itemPath(itemId.value)) && !/[?&]edit=/.test(backUrl) && !/[?&]photo=/.test(backUrl)) {
     router.back()
     return
   }
-  void router.replace({ name: 'computer-item', params: { itemId: itemId.value } })
+  void router.replace({ name: itemRouteName(), params: { itemId: itemId.value } })
 }
 
 function cancelEdit() {
@@ -265,7 +275,7 @@ function openPhoto(intent: PhotoIntent) {
   if (!editing.value || !isAdmin.value) return
   resetPhotoQueue()
   void router.push({
-    name: 'computer-item',
+    name: itemRouteName(),
     params: { itemId: itemId.value },
     query: { edit: '1', photo: intent },
   })
@@ -325,14 +335,13 @@ function leavePhoto() {
   const query = omitQueryKey(route.query, 'photo')
   const back = typeof window !== 'undefined' ? window.history.state?.back : null
   const backUrl = typeof back === 'string' ? back : ''
-  const itemPath = `/computer/item/${itemId.value}`
   const backPath = backUrl.split('?')[0]
-  if (backPath.endsWith(itemPath) && /[?&]edit=/.test(backUrl) && !/[?&]photo=/.test(backUrl)) {
+  if (backPath.endsWith(itemPath(itemId.value)) && /[?&]edit=/.test(backUrl) && !/[?&]photo=/.test(backUrl)) {
     router.back()
     return
   }
   void router.replace({
-    name: 'computer-item',
+    name: itemRouteName(),
     params: { itemId: itemId.value },
     query,
   })
@@ -477,8 +486,9 @@ onUnmounted(() => {
   abortBusy()
 })
 watch(
-  itemId,
-  async (id) => {
+  () => [itemId.value, String(route.name || '')] as const,
+  async ([id]) => {
+    bindComputerHandoutScope(String(route.name || '').startsWith('history') ? 'history' : 'computer')
     abortBusy()
     const controller = new AbortController()
     loadAbort = controller
@@ -508,7 +518,7 @@ watch(
         ElMessage.info('已中断')
         if (!item.value) goList()
         else if (item.value.id !== id) {
-          void router.replace({ name: 'computer-item', params: { itemId: item.value.id } })
+          void router.replace({ name: itemRouteName(), params: { itemId: item.value.id } })
         }
         return
       }
@@ -588,7 +598,7 @@ watch(photoOpen, (open) => {
               {{ itemPrivate ? '设为公开' : '设为私密' }}
             </el-button>
             <el-button
-              v-if="!editing"
+              v-if="!isHistory && !editing"
               size="small"
               type="primary"
               plain
@@ -615,7 +625,7 @@ watch(photoOpen, (open) => {
     </div>
 
     <div
-      v-if="quizOpen && !editing && !photoOpen"
+      v-if="!isHistory && quizOpen && !editing && !photoOpen"
       ref="paperRef"
       class="computer-detail__paper computer-detail__quiz"
     >
@@ -748,7 +758,7 @@ watch(photoOpen, (open) => {
       </template>
       <RichTextView v-else tone="docs" :html="html" />
     </article>
-    <ComputerAskPanel v-if="item && !fullscreen && !photoOpen && !quizOpen && !editing" :item="item" />
+    <ComputerAskPanel v-if="!isHistory && item && !fullscreen && !photoOpen && !quizOpen && !editing" :item="item" />
     <div v-if="contentBusy" class="computer-busy-cover">
       <div class="computer-busy-cover__box">
         <ComputerBusyHint

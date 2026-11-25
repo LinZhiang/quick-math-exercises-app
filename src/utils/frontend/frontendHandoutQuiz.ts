@@ -3,6 +3,7 @@ import { highlightHandoutCodeHtml, isJsOnlySnippet, jsSourceLooksLikeProse, shou
 import { neutralizeMarkdownRangeMarks } from '@/utils/markdown/markdownNormalize'
 import { repairSameLineFenceOpeners, normalizeJsMarkdownFences, tidyJsFencesInMarkdown, repairAndPrettyQuizJs, quizJsLooksIncomplete } from '@/utils/markdown/tidyJsCode'
 import { judgeExplanationConflictsCorrect, explanationContradictsCorrect, judgeOverclaimMarkedTrue } from '@/utils/quiz/handoutQuizConsistency'
+import { quizStemTooCloseToSeen } from '@/utils/quiz/handoutQuizDiversity'
 import { stripLeadingAnswerEcho } from '@/utils/quiz/stripAnswerEcho'
 import {
   detectHandoutJsProbe,
@@ -139,7 +140,7 @@ export function frontendQuizTooSimilar(
   }
   const term = String(q.term || '').replace(/\s+/g, '')
   if (term && bag.has(`term:${q.kind}:${term}`)) return true
-  return false
+  return quizStemTooCloseToSeen(q.stem, seen)
 }
 
 function asText(v: unknown): string {
@@ -377,6 +378,7 @@ export function extractFrontendHandoutQuizFocus(
   material: string,
   total: number,
 ): { cores: string[]; others: string[]; minPerCore: number; promptBlock: string } {
+  void total
   const s = String(material || '')
   const headings = extractHandoutHeadings(s)
   const cores: string[] = headings.filter((h) => isCoreJsTopicTitle(h))
@@ -401,16 +403,14 @@ export function extractFrontendHandoutQuizFocus(
     if (mentionCount(s, term) >= 3) cores.push(term)
   }
   const others = headings.filter((h) => !cores.some((c) => c === h || c.includes(h) || h.includes(c)))
-  const minPerCore =
-    cores.length === 0 ? 0 : total >= cores.length * 3 + Math.min(2, others.length) ? 3 : 2
+  const minPerCore = cores.length === 0 ? 0 : 1
   const coreLines = cores.map((p, i) => {
-    const n = minPerCore
-    return `${i + 1}. ${p} → 至少 ${n} 题：①定义/形成条件（选择或判断，禁止只用编程题）②特点/作用/易混对比③有示例再加看代码，且③不能替代①②`
+    return `${i + 1}. ${p} → 只出 1 题，定义、易混、看代码三选一，禁止换个说法再出第二题`
   })
   const otherLines = others.slice(0, 20).map((p, i) => `${i + 1}. ${p}`)
   const promptBlock = [
     cores.length
-      ? `【核心专节·必须加码】\n${coreLines.join('\n')}\n同一核心换问法重复考是正确做法，禁止「这个点已经出过一道就跳过」。`
+      ? `【核心专节·各出一题】\n${coreLines.join('\n')}\n每个核心只保留问法明显不同的一题，换词、换变量名都算重复。`
       : '',
     otherLines.length ? `【其它专节·各至少 1 题】\n${otherLines.join('\n')}` : '',
     cores.length

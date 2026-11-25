@@ -4,9 +4,9 @@
 -->
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowRight, Collection, Document, Download, Folder, FolderOpened, Lock, MoreFilled, Notebook, Plus, Refresh, Share } from '@element-plus/icons-vue'
+import { ArrowRight, Collection, Document, Download, Folder, FolderOpened, Lock, MoreFilled, Notebook, Plus, Refresh, Share, Upload } from '@element-plus/icons-vue'
 import { beginAmbientAbort, cancelAmbientAbort, isAbortError, runWithAmbientAbort } from '@/utils/app/appRequest'
 import {
   buildComputerRangeQuizItem,
@@ -30,6 +30,8 @@ import {
   renameComputerNode,
   setComputerItemPrivate,
   setComputerNodePrivate,
+  bindComputerHandoutScope,
+  computerHandoutCacheScope,
   clearComputerBasicsCache,
   computerContentToHtml,
   type ComputerHandoutItem,
@@ -40,6 +42,8 @@ import {
 import { isWenguAdmin, wenguAuthTick } from '@/utils/computer/wenguAuthStore'
 import { isLocalNodeWenguApi } from '@/utils/computer/wenguApiOrigin'
 import { wipeHandoutDiskCacheScope } from '@/utils/app/handoutDiskCache'
+import { readTreeOpenIds, readTreeScroll, writeTreeOpenState } from '@/utils/app/treeOpenCache'
+import { handoutFromUploadFile } from '@/utils/markdown/importHandoutFile'
 import {
   batchHandoutExportTitle,
   collectHandoutExportRefs,
@@ -48,6 +52,7 @@ import {
   pickHandoutExportRefs,
 } from '@/utils/markdown/handoutExport'
 import HandoutBatchDownloadDialog from '@/components/HandoutBatchDownloadDialog.vue'
+import HandoutUploadDialog from '@/components/HandoutUploadDialog.vue'
 import ComputerBusyHint from './ComputerBusyHint.vue'
 import ComputerCategoryMapDialog from './ComputerCategoryMapDialog.vue'
 import ComputerMoveDialog from './ComputerMoveDialog.vue'
@@ -57,7 +62,11 @@ import {
   summarizeComputerQuizLogs,
 } from '@/utils/computer/computerStudyLog'
 
+const route = useRoute()
 const router = useRouter()
+const isHistory = computed(() => route.name === 'history')
+bindComputerHandoutScope(isHistory.value ? 'history' : 'computer')
+const treeScope = computed(() => (isHistory.value ? 'history' : 'computer'))
 const tree = ref<ComputerTreeNode[]>([])
 const treeEl = ref<HTMLElement | null>(null)
 const loading = ref(true)
@@ -74,6 +83,12 @@ const moveKind = ref<'branch' | 'entry'>('branch')
 const moveName = ref('')
 const moveOpen = ref(false)
 const batchOpen = ref(false)
+const uploadOpen = ref(false)
+const uploadBusy = ref(false)
+const dragKind = ref<'branch' | 'entry' | ''>('')
+const dragId = ref('')
+const dropHint = ref<{ id: string; place: 'before' | 'after' } | null>(null)
+let treePersist = false
 const quizItem = ref<ComputerHandoutItem | null>(null)
 const quizScopeLabel = ref('')
 let flashTimer = 0
@@ -364,7 +379,10 @@ function openEntry(entry: ComputerTreeEntry, edit = false) {
 }
 
 function openComputerItem(itemId: string, edit = false) {
-  const loc = { name: 'computer-item' as const, params: { itemId } }
+  const loc = {
+    name: (isHistory.value ? 'history-item' : 'computer-item') as 'history-item' | 'computer-item',
+    params: { itemId },
+  }
   void router.push(loc).then(() => {
     if (!edit) return
     void router.push({ ...loc, query: { edit: '1' } })
@@ -555,46 +573,123 @@ function startMove(id: string, kind: 'branch' | 'entry', name: string) {
   moveOpen.value = true
 }
 
-async function onMoveNode(id: string, delta: number) {
-  const pos = findComputerNode(tree.value, id)
-  if (!pos) return
-  const next = pos.index + delta
-  if (next < 0 || next >= pos.siblings.length) {
-    ElMessage.info(delta < 0 ? '已经在最上面' : '已经在最下面')
+function rememberTreeOpen() {
+  if (!treePersist) return
+  writeTreeOpenState(treeScope.value, expanded.value, treeEl.value?.scrollTop ?? 0)
+}
+
+function onTreeScroll() {
+  rememberTreeOpen()
+}
+
+const uploadFolders = computed(() => {
+  const out: { id: string; label: string }[] = []
+  const walk = (nodes: ComputerTreeNode[], prefix: string) => {
+    for (const node of nodes) {
+      const label = prefix ? `${prefix} / ${node.name}` : node.name
+      out.push({ id: node.id, label })
+      if (node.children.length) walk(node.children, label)
+    }
+  }
+  walk(tree.value, '')
+  return out
+})
+
+function onRowDragStart(e: DragEvent, row: ComputerTreeRow) {
+  if (!isAdmin.value) return
+  const target = e.target as HTMLElement | null
+  if (target?.closest('.computer-tree__more, .computer-tree__admin, .computer-tree__caret-btn')) {
+    e.preventDefault()
     return
   }
-  const parentId = pos.parent?.id ?? null
+  dragKind.value = row.kind
+  dragId.value = row.id
+  e.dataTransfer?.setData('text/plain', row.id)
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+}
+
+function siblingDrop(kind: 'branch' | 'entry', sourceId: string, targetId: string) {
+  if (kind === 'branch') {
+    const src = findComputerNode(tree.value, sourceId)
+    const dst = findComputerNode(tree.value, targetId)
+    if (!src || !dst) return null
+    if ((src.parent?.id ?? null) !== (dst.parent?.id ?? null)) return null
+    return { srcIndex: src.index, dstIndex: dst.index, parentId: src.parent?.id ?? null }
+  }
+  const src = findComputerEntry(tree.value, sourceId)
+  const dst = findComputerEntry(tree.value, targetId)
+  if (!src || !dst || src.node.id !== dst.node.id) return null
+  return { srcIndex: src.index, dstIndex: dst.index, parentId: src.node.id }
+}
+
+function onRowDragOver(e: DragEvent, row: ComputerTreeRow) {
+  if (!dragId.value || dragKind.value !== row.kind || dragId.value === row.id) return
+  if (!siblingDrop(dragKind.value, dragId.value, row.id)) return
+  e.preventDefault()
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  const place = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+  dropHint.value = { id: row.id, place }
+}
+
+function onRowDragEnd() {
+  dragKind.value = ''
+  dragId.value = ''
+  dropHint.value = null
+}
+
+async function onRowDrop(e: DragEvent, row: ComputerTreeRow) {
+  e.preventDefault()
+  const kind = dragKind.value
+  const sourceId = dragId.value
+  const hint = dropHint.value
+  onRowDragEnd()
+  if (!kind || !sourceId || kind !== row.kind || sourceId === row.id) return
+  const pos = siblingDrop(kind, sourceId, row.id)
+  if (!pos) {
+    ElMessage.info('拖拽只调整同一层的顺序，换文件夹请用「移动位置」')
+    return
+  }
+  const place = hint?.id === row.id ? hint.place : 'after'
+  let index = pos.dstIndex + (place === 'after' ? 1 : 0)
+  if (pos.srcIndex < index) index -= 1
+  if (index === pos.srcIndex) return
   try {
     await withBusy('正在调整位置…', async () => {
-      await moveComputerNode(id, { parentId, index: next })
-      if (parentId) expanded.value = { ...expanded.value, [parentId]: true }
-      await reloadKeepExpand({ focusId: id, parentId })
+      if (kind === 'branch') await moveComputerNode(sourceId, { parentId: pos.parentId, index })
+      else if (pos.parentId) await moveComputerItem(sourceId, { parentId: pos.parentId, index })
+      if (pos.parentId) expanded.value = { ...expanded.value, [pos.parentId]: true }
+      await reloadKeepExpand({ focusId: sourceId, parentId: pos.parentId })
     })
-    ElMessage.success('已调整顺序')
-  } catch (e) {
-    if (isPromptCancel(e)) return
-    ElMessage.error(e instanceof Error ? e.message : '移动失败')
+  } catch (err) {
+    if (isPromptCancel(err)) return
+    ElMessage.error(err instanceof Error ? err.message : '移动失败')
   }
 }
 
-async function onMoveEntry(id: string, delta: number) {
-  const pos = findComputerEntry(tree.value, id)
-  if (!pos) return
-  const next = pos.index + delta
-  if (next < 0 || next >= pos.node.entries.length) {
-    ElMessage.info(delta < 0 ? '已经在最上面' : '已经在最下面')
-    return
-  }
+async function onUploadConfirm(payload: { parentId: string; files: File[] }) {
+  uploadBusy.value = true
+  let ok = 0
+  const fails: string[] = []
   try {
-    await withBusy('正在调整位置…', async () => {
-      await moveComputerItem(id, { parentId: pos.node.id, index: next })
-      expanded.value = { ...expanded.value, [pos.node.id]: true }
-      await reloadKeepExpand({ focusId: id, parentId: pos.node.id })
-    })
-    ElMessage.success('已调整顺序')
-  } catch (e) {
-    if (isPromptCancel(e)) return
-    ElMessage.error(e instanceof Error ? e.message : '移动失败')
+    for (const file of payload.files) {
+      try {
+        const imported = await handoutFromUploadFile(file)
+        await createComputerItem({ parentId: payload.parentId, title: imported.title, content: imported.html })
+        ok += 1
+      } catch (err) {
+        fails.push(`${file.name}：${err instanceof Error ? err.message : '上传失败'}`)
+      }
+    }
+    if (ok) {
+      expanded.value = { ...expanded.value, [payload.parentId]: true }
+      await reloadKeepExpand({ parentId: payload.parentId })
+      uploadOpen.value = false
+    }
+    if (fails.length) ElMessage.warning(ok ? `已上传 ${ok} 篇，还有 ${fails.length} 个失败。${fails[0]}` : fails[0] || '上传失败')
+    else ElMessage.success(`已上传 ${ok} 篇`)
+  } finally {
+    uploadBusy.value = false
   }
 }
 
@@ -667,20 +762,47 @@ async function pullCloudInBackground(gen: number) {
   }
 }
 
+async function restoreOpened(next: ComputerTreeNode[], gen: number) {
+  const saved = readTreeOpenIds(treeScope.value)
+  let shown = next
+  const needsLayers = saved.some((id) => findComputerNode(shown, id)?.node.loaded === false)
+  if (needsLayers) {
+    try {
+      shown = await reloadComputerBasicsDir(saved)
+    } catch {
+      /* 展开层读失败时仍显示已有目录 */
+    }
+  }
+  if (gen !== catalogLoadGen) return
+  tree.value = shown
+  const restored: Record<string, boolean> = {}
+  for (const id of saved) {
+    if (treeHasId(shown, id)) restored[id] = true
+  }
+  treePersist = true
+  expanded.value = restored
+  const scroll = readTreeScroll(treeScope.value)
+  afterLayout(() => {
+    if (treeEl.value && scroll) treeEl.value.scrollTop = scroll
+  })
+}
+
 async function load(force = false) {
   const gen = ++catalogLoadGen
   const signal = beginAmbientAbort()
   error.value = ''
+  treePersist = false
   if (tree.value.length) busyText.value = '正在刷新目录…'
   else loading.value = true
   try {
     const next = await runWithAmbientAbort(signal, () => loadComputerBasicsTree(force, signal))
     if (gen !== catalogLoadGen) return
-    tree.value = next
+    await restoreOpened(next, gen)
     void pullCloudInBackground(gen)
   } catch (e) {
     if (gen !== catalogLoadGen || isAbortError(e)) return
     error.value = e instanceof Error ? e.message : '读取目录失败'
+    treePersist = true
   } finally {
     if (gen === catalogLoadGen) {
       loading.value = false
@@ -707,7 +829,7 @@ async function forceRefreshCatalog() {
     }
     if (gen !== catalogLoadGen) return
     clearComputerBasicsCache()
-    await wipeHandoutDiskCacheScope('computer')
+    await wipeHandoutDiskCacheScope(computerHandoutCacheScope())
     if (gen !== catalogLoadGen) return
     let next: ComputerTreeNode[]
     try {
@@ -746,9 +868,24 @@ onMounted(() => {
 watch(isAdmin, () => {
   clearComputerBasicsCache()
   folderTree.value = []
-  expanded.value = {}
   void load()
 })
+
+watch(expanded, rememberTreeOpen, { deep: true })
+
+watch(
+  () => route.name,
+  (name) => {
+    if (name !== 'computer' && name !== 'history') return
+    bindComputerHandoutScope(name === 'history' ? 'history' : 'computer')
+    treePersist = false
+    tree.value = []
+    expanded.value = {}
+    quizItem.value = null
+    cloudPullOnce = false
+    void load()
+  },
+)
 
 watch(mapOpen, async (on) => {
   if (!on) return
@@ -769,6 +906,7 @@ watch(moveOpen, async (on) => {
 })
 
 onBeforeUnmount(() => {
+  rememberTreeOpen()
   window.clearTimeout(flashTimer)
   abortCatalogJob()
 })
@@ -780,8 +918,18 @@ onBeforeUnmount(() => {
       <div class="computer-page__title-row">
         <el-button-group class="computer-page__nav-btns">
           <el-button size="small" :icon="Download" title="批量下载讲义" @click="batchOpen = true">批量下载</el-button>
+          <el-button
+            v-if="isAdmin"
+            size="small"
+            :icon="Upload"
+            title="上传 docx 或 md"
+            @click="uploadOpen = true"
+          >
+            上传
+          </el-button>
           <el-button size="small" :icon="Share" title="查看知识分布" @click="mapOpen = true">分布</el-button>
           <el-button
+            v-if="!isHistory"
             size="small"
             :icon="Collection"
             title="AI 题目整理"
@@ -793,7 +941,7 @@ onBeforeUnmount(() => {
             size="small"
             :icon="Notebook"
             title="学习日志"
-            @click="router.push({ name: 'computer-log' })"
+            @click="router.push({ name: isHistory ? 'history-log' : 'computer-log' })"
           >
             日志
           </el-button>
@@ -811,9 +959,14 @@ onBeforeUnmount(() => {
         </el-tooltip>
       </div>
       <p class="computer-page__lead">
-        分类是树形结构，大类下可叠多层小类。管理员登录后可直接新增、改名。电脑本机打开时会把手机云端新增的讲义并回来；「检查并更新」只刷新应用，不会清空目录。
+        <template v-if="isHistory">
+          分类是树形结构。管理员可上传 docx、md，或直接新增讲义。同一层可以拖拽排序。看完一篇再返回，目录会停在刚才展开的位置。
+        </template>
+        <template v-else>
+          分类是树形结构，大类下可叠多层小类。管理员登录后可直接新增、改名。电脑本机打开时会把手机云端新增的讲义并回来；「检查并更新」只刷新应用，不会清空目录。
+        </template>
       </p>
-      <p v-if="quizStats.lifetimeTotal" class="computer-page__stats">
+      <p v-if="!isHistory && quizStats.lifetimeTotal" class="computer-page__stats">
         累计测验 {{ quizStats.lifetimeTotal }} 题，答对 {{ quizStats.lifetimeCorrect }}。
         <template v-if="quizStats.todayTotal">
           今天测了
@@ -853,6 +1006,7 @@ onBeforeUnmount(() => {
         class="computer-tree"
         role="tree"
         @pointerdown="onTreePointerDown"
+        @scroll="onTreeScroll"
       >
         <li
           v-for="row in rows"
@@ -864,11 +1018,19 @@ onBeforeUnmount(() => {
             'is-root': row.kind === 'branch' && row.depth === 0,
             'is-empty': row.kind === 'branch' && !row.expandable,
             'is-flash': flashId === row.id,
+            'is-draggable': isAdmin,
+            'is-drop-before': dropHint?.id === row.id && dropHint.place === 'before',
+            'is-drop-after': dropHint?.id === row.id && dropHint.place === 'after',
           }"
           :data-tree-id="row.id"
           :style="{ '--tree-depth': row.depth }"
           role="treeitem"
+          :draggable="isAdmin"
           :aria-expanded="row.kind === 'branch' ? Boolean(expanded[row.id]) : undefined"
+          @dragstart="onRowDragStart($event, row)"
+          @dragover="onRowDragOver($event, row)"
+          @drop="onRowDrop($event, row)"
+          @dragend="onRowDragEnd"
         >
           <div
             class="computer-tree__line"
@@ -917,6 +1079,8 @@ onBeforeUnmount(() => {
                 type="button"
                 class="computer-tree__leaf"
                 :class="{ 'is-ready': row.entry.ready }"
+                :draggable="isAdmin"
+                @dragstart.stop="onRowDragStart($event, row)"
                 @click="openEntry(row.entry)"
               >
                 <el-icon class="computer-tree__kind computer-tree__kind--doc" :size="16">
@@ -948,7 +1112,7 @@ onBeforeUnmount(() => {
               @pointerdown.stop
             >
               <template v-if="row.kind === 'branch'">
-                <button type="button" class="computer-tree__icon" @click.stop="startFolderQuiz(row.id, row.name)">AI测验</button>
+                <button v-if="!isHistory" type="button" class="computer-tree__icon" @click.stop="startFolderQuiz(row.id, row.name)">AI测验</button>
                 <button
                   v-if="canDownloadRow(row)"
                   type="button"
@@ -965,14 +1129,12 @@ onBeforeUnmount(() => {
                     {{ row.ownPrivate ? '对外公开' : '设为私密' }}
                   </button>
                   <button type="button" class="computer-tree__icon" @click.stop="startMove(row.id, 'branch', row.name)">移动位置</button>
-                  <button type="button" class="computer-tree__icon" @click.stop="onMoveNode(row.id, -1)">上移</button>
-                  <button type="button" class="computer-tree__icon" @click.stop="onMoveNode(row.id, 1)">下移</button>
                   <button type="button" class="computer-tree__icon is-danger" @click.stop="onDeleteNode(row.id, row.name)">删除</button>
                 </template>
               </template>
               <template v-else>
                 <button
-                  v-if="row.entry.ready"
+                  v-if="!isHistory && row.entry.ready"
                   type="button"
                   class="computer-tree__icon"
                   @click.stop="startEntryQuiz(row.entry)"
@@ -993,8 +1155,6 @@ onBeforeUnmount(() => {
                     {{ row.ownPrivate ? '对外公开' : '设为私密' }}
                   </button>
                   <button type="button" class="computer-tree__icon" @click.stop="startMove(row.id, 'entry', row.entry.title)">移动位置</button>
-                  <button type="button" class="computer-tree__icon" @click.stop="onMoveEntry(row.id, -1)">上移</button>
-                  <button type="button" class="computer-tree__icon" @click.stop="onMoveEntry(row.id, 1)">下移</button>
                   <button type="button" class="computer-tree__icon is-danger" @click.stop="onDeleteEntry(row.entry)">删除</button>
                 </template>
               </template>
@@ -1017,13 +1177,23 @@ onBeforeUnmount(() => {
       :moving-name="moveName"
       @confirm="confirmMove"
     />
-    <ComputerCategoryMapDialog v-model="mapOpen" :tree="folderTree.length ? folderTree : tree" />
+    <ComputerCategoryMapDialog
+      v-model="mapOpen"
+      :tree="folderTree.length ? folderTree : tree"
+      :root-name="isHistory ? '历史整理' : '计算机基础'"
+    />
     <HandoutBatchDownloadDialog
       v-model="batchOpen"
       :tree="tree"
       :admin="isAdmin"
       :busy="Boolean(busyText)"
       @confirm="onBatchDownload"
+    />
+    <HandoutUploadDialog
+      v-model="uploadOpen"
+      :folders="uploadFolders"
+      :busy="uploadBusy"
+      @confirm="onUploadConfirm"
     />
   </section>
 </template>
@@ -1183,6 +1353,18 @@ onBeforeUnmount(() => {
 .computer-tree__row {
   position: relative;
   scroll-margin: 12px;
+}
+
+.computer-tree__row.is-draggable {
+  cursor: grab;
+}
+
+.computer-tree__row.is-drop-before .computer-tree__main {
+  box-shadow: inset 0 2px 0 var(--app-primary);
+}
+
+.computer-tree__row.is-drop-after .computer-tree__main {
+  box-shadow: inset 0 -2px 0 var(--app-primary);
 }
 
 .computer-tree__row.is-flash .computer-tree__main {

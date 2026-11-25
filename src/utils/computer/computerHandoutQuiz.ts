@@ -1,4 +1,5 @@
 import { judgeExplanationConflictsCorrect, explanationContradictsCorrect, judgeOverclaimMarkedTrue } from '@/utils/quiz/handoutQuizConsistency'
+import { quizStemTooCloseToSeen } from '@/utils/quiz/handoutQuizDiversity'
 import { stripLeadingAnswerEcho } from '@/utils/quiz/stripAnswerEcho'
 
 export type ComputerQuizKind = 'choice' | 'judge' | 'calc' | 'short'
@@ -99,7 +100,8 @@ export function computerQuizTooSimilar(
   const ask = computerQuizAskPattern(q.stem)
   if (ask && bag.has(`ask:${q.kind}:${ask}`)) return true
   const stem = q.stem.replace(/```[\s\S]*?```/g, '').replace(/\s+/g, '').slice(0, 48)
-  return Boolean(stem && bag.has(`stem:${q.kind}:${stem}`))
+  if (stem && bag.has(`stem:${q.kind}:${stem}`)) return true
+  return quizStemTooCloseToSeen(q.stem, seen)
 }
 
 function asText(v: unknown): string {

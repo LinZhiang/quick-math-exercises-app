@@ -3,6 +3,7 @@
  * 页面请继续从 `@/services/deepseek` 引入；不要直接依赖本文件里的未导出细节。
  */
 import { normalizeQuizAvoidText } from '@/utils/quiz/handoutJsQuizRuntime'
+import { quizNearKey } from '@/utils/quiz/handoutQuizDiversity'
 import { filterHandoutQuizFactConflicts } from '@/utils/quiz/handoutQuizConsistency'
 import { CHINESE_MCQ_CORRECTNESS_RULES } from '@/utils/chinese/chineseMcqAiFields'
 import { hasStoredDeepSeekApiKey } from '@/utils/app/deepseekApiKeyStore'
@@ -96,9 +97,11 @@ function subtractHandoutQuizCounts(
 function splitHandoutQuizWork(remaining: HandoutQuizKindCounts): HandoutQuizKindCounts[] {
   const total = totalHandoutQuizCounts(remaining)
   if (total <= 0) return []
-  if (total < HANDOUT_QUIZ_PARALLEL_AT) return [{ ...remaining }]
-  const first = takeHandoutQuizBatch(remaining, Math.ceil(total / 2))
-  const second = subtractHandoutQuizCounts(remaining, first)
+  const cap = 4
+  if (total <= cap) return [{ ...remaining }]
+  const first = takeHandoutQuizBatch(remaining, Math.min(cap, Math.ceil(total / 2)))
+  const rest = subtractHandoutQuizCounts(remaining, first)
+  const second = takeHandoutQuizBatch(rest, cap)
   return [first, second].filter((c) => totalHandoutQuizCounts(c) > 0)
 }
 
@@ -144,6 +147,20 @@ const HANDOUT_QUIZ_SPEED_HINT =
 const HANDOUT_QUIZ_CONSISTENCY_HINT =
   '标答和解析必须同一结论：解析写「正确答案是X」则 correct 必须是 X，禁止解析否定标答。判断题不要把「继承后直接拥有全部属性/方法」这类过绝对句子标成正确。代码块必须完整可运行：调用要写出括号和参数，禁止只写 history.pushState、location.href 这种残缺 API 名。题干说「执行下列代码」却没有完整语句的，这题作废重出。JS 按教程体例：一条语句一行，写完再换行；禁止把赋值拆成 href 一行、= 一行，也禁止把多条语句挤成一行。'
 
+async function askHandoutQuizBatch<T>(
+  ask: () => Promise<T[]>,
+): Promise<{ items: T[]; error: unknown }> {
+  try {
+    return { items: await ask(), error: null }
+  } catch (first) {
+    try {
+      return { items: await ask(), error: null }
+    } catch (second) {
+      return { items: [], error: second ?? first }
+    }
+  }
+}
+
 async function collectHandoutQuizRounds<T extends { kind: string }>(input: {
   total: number
   counts: HandoutQuizKindCounts
@@ -152,6 +169,7 @@ async function collectHandoutQuizRounds<T extends { kind: string }>(input: {
   absorb: (have: T[], extra: T[]) => T[]
 }): Promise<T[]> {
   let out: T[] = []
+  let lastError: unknown = null
   for (let round = 0; round < HANDOUT_QUIZ_MAX_ROUNDS; round += 1) {
     const remain = remainingHandoutQuizCounts(input.counts, out)
     const remainN = totalHandoutQuizCounts(remain)
@@ -167,25 +185,25 @@ async function collectHandoutQuizRounds<T extends { kind: string }>(input: {
     const splitHints =
       parts.length > 1
         ? [
-            '本批优先覆盖讲义前半的核心定义与划分。',
-            '本批优先覆盖讲义后半、易混对比，不要与前半示例扎堆。',
+            '本批优先覆盖讲义前半还没考过的定义与划分，禁止换词重复已出题。',
+            '本批优先覆盖讲义后半和易混对比，不要与前半、也不要与已出题扎堆。',
           ]
-        : ['']
+        : ['每题换一个专节或易混点，禁止同一问法只改几个字。']
     const chunks = await Promise.all(
       parts.map(async (p, i) => {
-        try {
-          return await input.ask(p, splitHints[i] ?? '', out)
-        } catch (e) {
-          if (parts.length === 1) throw e
-          return [] as T[]
-        }
+        const result = await askHandoutQuizBatch(() => input.ask(p, splitHints[i] ?? '', out))
+        if (result.error) lastError = result.error
+        return result.items
       }),
     )
+    const before = out.length
     for (const extra of chunks) out = takeUpToCounts(input.absorb(out, extra), input.counts)
+    if (before === out.length && lastError && round > 0) break
   }
   out = takeUpToCounts(out, input.counts)
-  if (out.length < input.total) {
-    throw new Error(`未能凑满 ${input.total} 道题（仅 ${out.length} 道），请稍后重试`)
+  if (!out.length) {
+    if (lastError instanceof Error && lastError.message) throw lastError
+    throw new Error('出题失败，请稍后重试')
   }
   return out
 }
@@ -292,7 +310,7 @@ export async function requestComputerHandoutQuiz(input: {
     HANDOUT_QUIZ_SPEED_HINT,
     HANDOUT_QUIZ_CONSISTENCY_HINT,
     '出题前必须把讲义全部看完，按专节标题出题，不要只盯开头几段、也不要丢掉后半自己整理的章节。',
-    '优先考讲义重点（定义、划分标准、最主要特点、原理、易混概念）。',
+    '优先考讲义重点（定义、划分标准、最主要特点、原理、易混概念）。每题必须换一个考点或问法，禁止高度雷同。',
     '解析必须与 correct 一致。英文缩写在题干和选项里只写缩写；全称放 explanation。',
     '数值范围写成 1-12 或 1～12。题干和选项里不要夹带解析。',
   ].join('\n')
@@ -308,7 +326,7 @@ export async function requestComputerHandoutQuiz(input: {
       : '',
     '【计算题 calc】correct 只写最终结果短串。【简答题 short】correct 写参考要点。',
     '选择题 correct 必须是 options 里某一项的原文；判断题 correct 写「正确」或「错误」。',
-    '【选题】必须覆盖讲义里的专节标题与加粗定义。同一 term 在本轮只能出现一次。禁止整轮都压在开头示例上。干扰项尽量用讲义里相邻/易混表述。同一问法、同一代码骨架只出一题。',
+    '【选题】必须覆盖讲义里不同的专节标题与加粗定义。同一 term、同一问法在本轮只能出现一次。只改几个字、换一个例子仍算同一题，不要出。禁止整轮都压在开头示例上。干扰项尽量用讲义里相邻/易混表述。',
     '选择题 correct 写选项全文，不要写 A/B/C/D。解析不要重复正确答案原文。缩写中文提示只放 explanation。',
     avoidHint,
     '仅返回 JSON 数组。',
@@ -337,6 +355,7 @@ export async function requestComputerHandoutQuiz(input: {
       if (q.term) seen.add(termKey)
       if (askKey) seen.add(askKey)
       if (stemKey) seen.add(stemKey)
+      seen.add(quizNearKey(q.stem))
       out.push(q)
     }
     return out
@@ -365,6 +384,7 @@ export async function requestComputerHandoutQuiz(input: {
       for (const q of have) {
         seen.add(q.fingerprint)
         seen.add(normalizeQuizAvoidText(q.stem))
+        seen.add(quizNearKey(q.stem))
         if (q.term) seen.add(`term:${q.kind}:${String(q.term || '').replace(/\s+/g, '')}`)
       }
       const next = [...have]
@@ -373,6 +393,7 @@ export async function requestComputerHandoutQuiz(input: {
           continue
         }
         seen.add(q.fingerprint)
+        seen.add(quizNearKey(q.stem))
         if (q.term) seen.add(`term:${q.kind}:${String(q.term || '').replace(/\s+/g, '')}`)
         next.push(q)
       }
@@ -422,7 +443,7 @@ export async function requestFrontendHandoutQuiz(input: {
     '只输出合法 JSON 数组，不要 markdown 围栏，不要其它说明。',
     HANDOUT_QUIZ_SPEED_HINT,
     HANDOUT_QUIZ_CONSISTENCY_HINT,
-    '出题前必须把讲义全部看完，先按专节标题出题，不要只盯开头几段示例，也不要丢掉后半自己整理的章节。',
+    '出题前必须把讲义全部看完，先按专节标题出题，不要只盯开头几段示例，也不要丢掉后半自己整理的章节。每题换一个考点，禁止把同一题换个说法再出一遍。',
     '禁止 falsy/truthy，写成假值/真值或具体值。完整代码用 ```js 代码块；短关键字用行内反引号。',
     '问运行结果时 stem 里必须带完整代码。解析用中文，不要把整段解析放进代码块。',
   ].join('\n')
@@ -438,7 +459,7 @@ export async function requestFrontendHandoutQuiz(input: {
       ? '范围测验时每题必须带 sourceId，等于该题所考那篇【讲义ID:xxx｜标题】里的 xxx。'
       : '',
     '选择题 correct 必须是 options 里某一项的原文；判断题 correct 写「正确」或「错误」。计算题 correct 只写结果短串。',
-    '【选题】先按上面的核心专节加码，再覆盖其它专节；禁止把整轮题都压在开头几段示例上。同一 term 本轮不要重复。',
+    '【选题】核心专节和其它专节都要覆盖，但每个考点只出一题。禁止把同一题换词、换变量名后再出。不要整轮都压在开头几段示例上。',
     codingHeavy
       ? [
           '【编程题】大约三分之一到一半即可，先保证定义/易混题。',
@@ -471,6 +492,7 @@ export async function requestFrontendHandoutQuiz(input: {
       seen.add(q.fingerprint)
       if (q.term) seen.add(termKey)
       for (const t of frontendQuizAvoidTokens(q)) seen.add(t)
+      seen.add(quizNearKey(q.stem))
       rawOut.push(q)
     }
     return filterHandoutQuizFactConflicts(rawOut, (q) => ({
@@ -507,6 +529,7 @@ export async function requestFrontendHandoutQuiz(input: {
         seen.add(q.fingerprint)
         if (q.term) seen.add(`term:${q.kind}:${String(q.term || '').replace(/\s+/g, '')}`)
         for (const t of frontendQuizAvoidTokens(q)) seen.add(t)
+        seen.add(quizNearKey(q.stem))
       }
       const next = [...have]
       for (const q of extra) {
@@ -524,6 +547,7 @@ export async function requestFrontendHandoutQuiz(input: {
         seen.add(q.fingerprint)
         if (q.term) seen.add(termKey)
         for (const t of frontendQuizAvoidTokens(q)) seen.add(t)
+        seen.add(quizNearKey(q.stem))
         next.push(q)
       }
       return filterHandoutQuizFactConflicts(next, (q) => ({

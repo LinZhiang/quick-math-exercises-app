@@ -1,0 +1,760 @@
+/**
+ * 历史整理云端存储（与本机 Node 目录结构对齐）
+ * 读写只走 WENGU_KV；没有 KV 时 GET 读 /hn-data 快照（只读）。
+ * 禁止用边缘 Cache API 当库，否则用户新加的目录会被静态快照盖掉。
+ */
+import { json, peekIsAdmin, requireAdmin } from './wenguCloudAuth.js'
+import { applyPrivacyFlag, filterPublicCatalog, guestMayReadCatalogId } from './handoutVisibility.js'
+import { getWenguKv, kvMissingMessage } from './kvBinding.js'
+import { kvPut, kvPutIfChanged, KV_QUOTA_MESSAGE } from './kvWrite.js'
+import { sliceCatalogLayer, treeParentFromRequest, treeSkipReadyFromRequest } from './catalogLayer.js'
+import {
+  assertCatalogNotStub,
+  assertHandoutNotTruncated,
+  assertHandoutNotTooLarge,
+  graftUserCatalog,
+  stripCatalogClientFlags,
+} from './catalogProtect.js'
+
+const CATALOG_KEY = 'hn:catalog'
+const HN_USER_OWNED_KEY = 'hn:user-owned'
+let hnOwnedMarked = false
+const MIME_TO_EXT = {
+  jpeg: 'jpg',
+  jpg: 'jpg',
+  png: 'png',
+  gif: 'gif',
+  webp: 'webp',
+  'svg+xml': 'svg',
+}
+const EXT_TO_MIME = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+}
+
+function getStore(env) {
+  return getWenguKv(env)
+}
+
+async function markHnStoreUserOwned(store) {
+  if (!store || hnOwnedMarked) return
+  try {
+    const had = await store.get(HN_USER_OWNED_KEY)
+    if (had) {
+      hnOwnedMarked = true
+      return
+    }
+    await kvPutIfChanged(store, HN_USER_OWNED_KEY, '1')
+    hnOwnedMarked = true
+  } catch (e) {
+    if (e?.code === 'KV_QUOTA') throw e
+  }
+}
+
+async function ensureStore(env, request) {
+  const store = getStore(env)
+  if (!store) return null
+  try {
+    if (await store.get(HN_USER_OWNED_KEY)) return store
+    const existing = await store.get(CATALOG_KEY, { type: 'json' })
+    if (existing && (existing.userOwned || (Array.isArray(existing.tree) && existing.tree.length))) return store
+    const snap = request ? await readJsonAsset(env, request, '/hn-data/catalog.json') : null
+    if (snap && Array.isArray(snap.tree) && snap.tree.length) {
+      await kvPutIfChanged(
+        store,
+        CATALOG_KEY,
+        JSON.stringify({ ...snap, updatedAt: new Date().toISOString(), userOwned: false }),
+      )
+    }
+  } catch {
+    /* 快照灌库失败时仍允许写入 */
+  }
+  return store
+}
+
+async function fetchAsset(env, request, pathname) {
+  if (!env.ASSETS || typeof env.ASSETS.fetch !== 'function' || !request) return null
+  try {
+    const url = new URL(pathname, request.url)
+    const res = await env.ASSETS.fetch(new Request(url.toString(), { method: 'GET' }))
+    if (!res.ok) return null
+    return res
+  } catch {
+    return null
+  }
+}
+
+async function readJsonAsset(env, request, pathname) {
+  const res = await fetchAsset(env, request, pathname)
+  if (!res) return null
+  try {
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+function noStore() {
+  return json(
+    {
+      ok: false,
+      message: kvMissingMessage(),
+    },
+    503,
+  )
+}
+
+function itemKey(id) {
+  return `hn:item:${id}`
+}
+
+function mediaKey(file) {
+  return `hn:media:${file}`
+}
+
+function safeId(raw) {
+  const id = String(raw || '')
+  return /^[a-zA-Z0-9._-]+$/.test(id) ? id : ''
+}
+
+function sanitizeName(raw) {
+  const name = String(raw ?? '').trim()
+  if (!name || name.length > 80) return null
+  return name
+}
+
+function applyNodeMetaPatch(node, body) {
+  let changed = false
+  if (body.name != null) {
+    const name = sanitizeName(body.name)
+    if (!name) return { error: '名称不能为空（最多 80 字）', status: 400 }
+    node.name = name
+    changed = true
+  }
+  if (applyPrivacyFlag(node, body)) changed = true
+  if (!changed) return { error: '名称不能为空（最多 80 字）', status: 400 }
+  return { ok: true }
+}
+
+function newId(prefix) {
+  return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+}
+
+function guessMime(file) {
+  const ext = String(file).split('.').pop()?.toLowerCase() || ''
+  return EXT_TO_MIME[ext] || 'application/octet-stream'
+}
+
+function b64ToBytes(b64) {
+  const bin = atob(String(b64 || '').replace(/\s+/g, ''))
+  const out = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+  return out
+}
+
+async function readRawCatalog(env, request) {
+  const store = getStore(env)
+  if (store) {
+    const raw = await store.get(CATALOG_KEY, { type: 'json' })
+    if (raw && typeof raw === 'object' && Array.isArray(raw.tree)) {
+      return raw
+    }
+    let owned = false
+    try {
+      owned = Boolean(await store.get(HN_USER_OWNED_KEY))
+    } catch {
+      /* ignore */
+    }
+    if (owned || raw?.userOwned) {
+      const err = new Error('USER_CATALOG_UNAVAILABLE')
+      err.code = 'USER_CATALOG_UNAVAILABLE'
+      throw err
+    }
+  }
+  const snap = request ? await readJsonAsset(env, request, '/hn-data/catalog.json') : null
+  if (snap && typeof snap === 'object' && Array.isArray(snap.tree)) {
+    return { ...snap, tree: snap.tree }
+  }
+  return { tree: [] }
+}
+
+async function writeCatalog(env, tree) {
+  assertCatalogNotStub(tree)
+  const store = getStore(env)
+  if (!store) throw new Error('云端存储不可用')
+  const prev = await store.get(CATALOG_KEY, { type: 'json' })
+  const base = prev && typeof prev === 'object' ? prev : {}
+  const nextTree = stripCatalogClientFlags(Array.isArray(tree) ? tree : [])
+  const prevTree = stripCatalogClientFlags(Array.isArray(base.tree) ? base.tree : [])
+  if (JSON.stringify(prevTree) === JSON.stringify(nextTree)) {
+    if (!base.userOwned) await markHnStoreUserOwned(store)
+    return
+  }
+  await kvPut(
+    store,
+    CATALOG_KEY,
+    JSON.stringify({ ...base, tree: nextTree, updatedAt: new Date().toISOString(), userOwned: true }),
+  )
+  await markHnStoreUserOwned(store)
+}
+
+function shortHash(text) {
+  let h = 2166136261
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return (h >>> 0).toString(36)
+}
+
+function catalogRevision(raw) {
+  const at = String(raw?.updatedAt || raw?.seededAt || '').trim()
+  try {
+    const s = JSON.stringify(raw?.tree ?? [])
+    return { revision: `${at || 'snap'}|${s.length}:${shortHash(s)}`, updatedAt: at }
+  } catch {
+    return { revision: at || 'snap:0', updatedAt: at }
+  }
+}
+
+function stampItem(item, id) {
+  return { ...item, id, updatedAt: new Date().toISOString() }
+}
+
+async function putItemRecord(env, id, item) {
+  const store = getStore(env)
+  if (!store) throw new Error('云端存储不可用')
+  const prevRaw = await store.get(itemKey(id), { type: 'text' })
+  if (prevRaw) {
+    try {
+      const prev = JSON.parse(prevRaw)
+      assertHandoutNotTruncated(prev.content, item.content, id)
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('拒绝用过短正文')) throw e
+    }
+  }
+  assertHandoutNotTooLarge(item.content)
+  const next = stampItem(item, id)
+  if (prevRaw) {
+    try {
+      const prev = JSON.parse(prevRaw)
+      if (
+        String(prev.content ?? '') === String(next.content ?? '') &&
+        String(prev.title ?? '') === String(next.title ?? '') &&
+        Boolean(prev.private) === Boolean(next.private)
+      ) {
+        return
+      }
+    } catch {
+      /* 旧稿解析失败就覆盖写 */
+    }
+  }
+  await putRecord(env, itemKey(id), JSON.stringify(next))
+}
+
+async function putRecord(env, key, value, opts) {
+  const store = getStore(env)
+  if (!store) throw new Error('云端存储不可用')
+  await kvPut(store, key, value, opts)
+}
+
+async function itemExists(env, id) {
+  const store = getStore(env)
+  if (!store) return false
+  const hit = await store.get(itemKey(id))
+  return Boolean(hit)
+}
+
+async function applyReadyFlagsToEntries(env, entries) {
+  for (const entry of entries || []) {
+    if (entry?.ready) continue
+    if (await itemExists(env, String(entry.id))) entry.ready = true
+  }
+  return entries
+}
+
+function findNode(nodes, id, parent = null) {
+  for (const node of nodes) {
+    if (node.id === id) return { node, parent, siblings: nodes }
+    const hit = findNode(node.children || [], id, node)
+    if (hit) return hit
+  }
+  return null
+}
+
+function findEntry(nodes, id) {
+  for (const node of nodes) {
+    const list = node.entries || []
+    const idx = list.findIndex((e) => e.id === id)
+    if (idx >= 0) return { node, idx, entry: list[idx] }
+    const hit = findEntry(node.children || [], id)
+    if (hit) return hit
+  }
+  return null
+}
+
+function pathNamesTo(nodes, id, acc = []) {
+  for (const node of nodes) {
+    const next = [...acc, node.name]
+    if (node.id === id) return next
+    const hit = pathNamesTo(node.children || [], id, next)
+    if (hit) return hit
+  }
+  return null
+}
+
+function collectNodeIds(node, out = []) {
+  out.push(node.id)
+  for (const child of node.children || []) collectNodeIds(child, out)
+  return out
+}
+
+function clampIndex(index, len) {
+  const n = Number(index)
+  if (!Number.isFinite(n)) return len
+  return Math.max(0, Math.min(Math.round(n), len))
+}
+
+function moveNodeInTree(tree, id, parentId, index) {
+  const hit = findNode(tree, id)
+  if (!hit) return { error: '未找到该分类', status: 404 }
+  const desc = collectNodeIds(hit.node)
+  if (parentId && (parentId === id || desc.includes(parentId))) {
+    return { error: '不能挪到自己或下属分类里', status: 400 }
+  }
+  const fromIdx = hit.siblings.findIndex((n) => n.id === hit.node.id)
+  if (fromIdx < 0) return { error: '目录结构异常', status: 500 }
+  hit.siblings.splice(fromIdx, 1)
+  let dest
+  if (parentId == null || parentId === '') dest = tree
+  else {
+    const p = findNode(tree, parentId)
+    if (!p) {
+      hit.siblings.splice(fromIdx, 0, hit.node)
+      return { error: '未找到目标分类', status: 404 }
+    }
+    dest = p.node.children
+  }
+  dest.splice(clampIndex(index, dest.length), 0, hit.node)
+  return { ok: true, node: hit.node }
+}
+
+function moveEntryInTree(tree, id, parentId, index) {
+  const hit = findEntry(tree, id)
+  if (!hit) return { error: '未找到该讲义', status: 404 }
+  const p = findNode(tree, parentId)
+  if (!p) return { error: '未找到目标分类', status: 404 }
+  const entry = hit.entry
+  hit.node.entries.splice(hit.idx, 1)
+  p.node.entries.splice(clampIndex(index, p.node.entries.length), 0, entry)
+  return { ok: true, entry, parent: p.node }
+}
+
+function collectEntryIds(node, out = []) {
+  for (const e of node.entries || []) out.push(e.id)
+  for (const child of node.children || []) collectEntryIds(child, out)
+  return out
+}
+
+async function rewriteLearningPath(env, request, tree, itemId) {
+  const rec = await readItem(env, itemId, request)
+  if (!rec) return
+  const hit = findEntry(tree, itemId)
+  rec.learningPath = hit ? pathNamesTo(tree, hit.node.id) ?? [hit.node.name] : rec.learningPath
+  await putItemRecord(env, itemId, rec)
+}
+
+async function nextMediaIndex(env, itemId) {
+  const store = getStore(env)
+  if (!store) return 0
+  const listed = await store.list({ prefix: mediaKey(`${itemId}-`) })
+  let index = 0
+  for (const k of listed.keys) {
+    const name = String(k.name).slice('hn:media:'.length)
+    const m = name.match(new RegExp(`^${itemId}-(\\d+)\\.`))
+    if (m) index = Math.max(index, Number(m[1]))
+  }
+  return index
+}
+
+async function writeMediaFile(env, itemId, index, mime, b64) {
+  const ext = MIME_TO_EXT[String(mime || '').toLowerCase()] || 'bin'
+  const file = `${itemId}-${index}.${ext}`
+  const contentType = EXT_TO_MIME[ext] || 'application/octet-stream'
+  const store = getStore(env)
+  if (!store) throw new Error('云端存储不可用')
+  await kvPut(store, mediaKey(file), b64ToBytes(b64), { metadata: { mime: contentType } })
+  return `/api/media/history-notes/${file}`
+}
+
+async function extractDataImages(env, content, itemId) {
+  let out = String(content || '')
+  if (!out.includes('data:image')) return out
+  let index = await nextMediaIndex(env, itemId)
+  const mdRe = /!\[([^\]]*)]\(data:image\/([a-zA-Z0-9.+-]+);base64,([^)]+)\)/g
+  const mdHits = [...out.matchAll(mdRe)]
+  for (const hit of mdHits) {
+    index += 1
+    const url = await writeMediaFile(env, itemId, index, hit[2], hit[3])
+    out = out.replace(hit[0], `![${hit[1]}](${url})`)
+  }
+  const htmlRe = /<img\b([^>]*?)src=(["'])data:image\/([a-zA-Z0-9.+-]+);base64,([^"']+)\2([^>]*)>/gi
+  const htmlHits = [...out.matchAll(htmlRe)]
+  for (const hit of htmlHits) {
+    index += 1
+    const url = await writeMediaFile(env, itemId, index, hit[3], hit[4])
+    out = out.replace(hit[0], `<img${hit[1]}src="${url}"${hit[5]}>`)
+  }
+  return out
+}
+
+async function deleteItemFiles(env, id) {
+  const store = getStore(env)
+  if (!store) return
+  await store.delete(itemKey(id))
+  const listed = await store.list({ prefix: mediaKey(`${id}-`) })
+  await Promise.all(listed.keys.map((k) => store.delete(k.name)))
+}
+
+async function readItem(env, id, request) {
+  const safe = safeId(id)
+  if (!safe) return null
+  const store = getStore(env)
+  if (store) {
+    const rec = await store.get(itemKey(safe), { type: 'json' })
+    if (rec && typeof rec === 'object') return rec
+  }
+  const snap = await readJsonAsset(env, request, `/hn-data/items/${safe}.json`)
+  if (snap && typeof snap === 'object') return snap
+  return null
+}
+
+function pathSegs(pathParam) {
+  if (pathParam == null) return []
+  if (Array.isArray(pathParam)) return pathParam.map(String).filter(Boolean)
+  return String(pathParam)
+    .split('/')
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
+export async function handleHistoryNotes(env, request, pathParam) {
+  const segs = pathSegs(pathParam)
+  const method = request.method.toUpperCase()
+  try {
+    if (method === 'GET' && segs[0] === 'revision' && segs.length === 1) {
+      await ensureStore(env, request)
+      const raw = await readRawCatalog(env, request)
+      return json({ ok: true, ...catalogRevision(raw) })
+    }
+
+    if (method === 'GET' && segs[0] === 'tree' && segs.length === 1) {
+      await ensureStore(env, request)
+      const raw = await readRawCatalog(env, request)
+      const tree = Array.isArray(raw.tree) ? raw.tree : []
+      const stamped = catalogRevision(raw)
+      const admin = await peekIsAdmin(env, request)
+      const parent = treeParentFromRequest(request)
+      if (parent != null) {
+        const layer = sliceCatalogLayer(tree, parent)
+        if (!layer) return json({ ok: false, message: '未找到该分类' }, 404)
+        if (getStore(env) && !treeSkipReadyFromRequest(request)) {
+          await applyReadyFlagsToEntries(env, layer.entries)
+        }
+        const visibleTree = admin ? layer.tree : filterPublicCatalog(layer.tree)
+        const visibleEntries = admin
+          ? layer.entries
+          : (layer.entries || []).filter((entry) => entry?.private !== true)
+        return json({
+          ok: true,
+          parentId: layer.parentId,
+          tree: visibleTree,
+          entries: visibleEntries,
+          ...stamped,
+        })
+      }
+      const visible = admin ? tree : filterPublicCatalog(tree)
+      return json({ ok: true, tree: visible, ...stamped })
+    }
+
+    if (method === 'GET' && segs[0] === 'items' && segs.length === 2) {
+      await ensureStore(env, request)
+      const item = await readItem(env, segs[1], request)
+      if (!item) return json({ ok: false, message: '未找到该讲义' }, 404)
+      const catalog = await readRawCatalog(env, request)
+      const admin = await peekIsAdmin(env, request)
+      if (!guestMayReadCatalogId(catalog.tree, item.id, admin)) {
+        return json({ ok: false, message: '未找到该讲义' }, 404)
+      }
+      return json({ ok: true, item })
+    }
+
+    if (method === 'POST' && segs[0] === 'import' && segs.length === 1) {
+      return handleImport(env, request)
+    }
+
+    if (method === 'POST' && segs[0] === 'nodes' && segs.length === 1) {
+      return handleCreateNode(env, request)
+    }
+    if ((method === 'PATCH' || method === 'DELETE') && segs[0] === 'nodes' && segs.length === 2) {
+      return method === 'PATCH' ? handleRenameNode(env, request, segs[1]) : handleDeleteNode(env, segs[1], request)
+    }
+
+    if (method === 'POST' && segs[0] === 'items' && segs.length === 1) {
+      return handleCreateItem(env, request)
+    }
+    if ((method === 'PATCH' || method === 'DELETE') && segs[0] === 'items' && segs.length === 2) {
+      return method === 'PATCH' ? handlePatchItem(env, request, segs[1]) : handleDeleteItem(env, segs[1], request)
+    }
+
+    return json({ ok: false, message: '未找到该接口' }, 404)
+  } catch (e) {
+    if (e?.code === 'HANDOUT_TOO_LARGE') {
+      return json({ ok: false, message: e.message }, 413)
+    }
+    if (e?.code === 'USER_CATALOG_UNAVAILABLE') {
+      return json(
+        {
+          ok: false,
+          message: '用户目录暂时读不到，已拒绝用旧快照覆盖。请稍后重试，以免新加的分类消失。',
+        },
+        503,
+      )
+    }
+    if (e?.code === 'KV_QUOTA') {
+      return json({ ok: false, message: e.message || KV_QUOTA_MESSAGE }, 429)
+    }
+    const raw = e instanceof Error ? e.message : ''
+    if (/put\(\) limit exceeded|limit exceeded for the day/i.test(raw)) {
+      return json({ ok: false, message: KV_QUOTA_MESSAGE }, 429)
+    }
+    return json({ ok: false, message: raw || '历史整理接口失败' }, 500)
+  }
+}
+
+export async function handleHistoryNotesMedia(env, fileName, request) {
+  const name = safeId(fileName)
+  if (!name) return new Response('not found', { status: 404 })
+  const store = getStore(env)
+  if (store) {
+    const rec = await store.getWithMetadata(mediaKey(name), { type: 'arrayBuffer' })
+    if (rec.value) {
+      const mime = rec.metadata?.mime || guessMime(name)
+      return new Response(rec.value, {
+        headers: {
+          'content-type': mime,
+          'cache-control': 'public, max-age=86400',
+        },
+      })
+    }
+  }
+  const asset = await fetchAsset(env, request, `/hn-data/media/${name}`)
+  if (asset) {
+    return new Response(asset.body, {
+      headers: {
+        'content-type': guessMime(name),
+        'cache-control': 'public, max-age=86400',
+      },
+    })
+  }
+  return new Response('not found', { status: 404 })
+}
+
+async function handleImport(env, request) {
+  const gate = await requireAdmin(env, request)
+  if (gate.error) return gate.error
+  const store = await ensureStore(env, request)
+  if (!store) return noStore()
+  const body = await request.json().catch(() => ({}))
+  const incoming = Array.isArray(body.tree) ? body.tree : []
+  let prevTree = []
+  try {
+    const catalog = await readRawCatalog(env, request)
+    if (Array.isArray(catalog.tree)) prevTree = catalog.tree
+  } catch {
+    prevTree = []
+  }
+  const tree = graftUserCatalog(incoming, prevTree)
+  const items = body.items && typeof body.items === 'object' ? body.items : {}
+  const media = body.media && typeof body.media === 'object' ? body.media : {}
+  for (const [id, item] of Object.entries(items)) {
+    const safe = safeId(id)
+    if (!safe || !item || typeof item !== 'object') continue
+    await putItemRecord(env, safe, { ...item, id: safe })
+  }
+  for (const [file, b64] of Object.entries(media)) {
+    const name = safeId(file)
+    if (!name || !b64) continue
+    await kvPut(store, mediaKey(name), b64ToBytes(String(b64)), { metadata: { mime: guessMime(name) } })
+  }
+  await writeCatalog(env, tree)
+  return json({
+    ok: true,
+    items: Object.keys(items).length,
+    media: Object.keys(media).length,
+  })
+}
+
+async function handleCreateNode(env, request) {
+  const gate = await requireAdmin(env, request)
+  if (gate.error) return gate.error
+  if (!(await ensureStore(env, request))) return noStore()
+  const body = await request.json().catch(() => ({}))
+  const name = sanitizeName(body.name)
+  if (!name) return json({ ok: false, message: '名称不能为空（最多 80 字）' }, 400)
+  const catalog = await readRawCatalog(env, request)
+  const parentId = body.parentId == null || body.parentId === '' ? null : String(body.parentId)
+  const node = { id: newId('n'), name, children: [], entries: [] }
+  if (!parentId) {
+    catalog.tree.push(node)
+  } else {
+    const hit = findNode(catalog.tree, parentId)
+    if (!hit) return json({ ok: false, message: '未找到父分类' }, 404)
+    hit.node.children.push(node)
+  }
+  await writeCatalog(env, catalog.tree)
+  return json({ ok: true, node })
+}
+
+async function handleRenameNode(env, request, id) {
+  const gate = await requireAdmin(env, request)
+  if (gate.error) return gate.error
+  if (!(await ensureStore(env, request))) return noStore()
+  const body = await request.json().catch(() => ({}))
+  const catalog = await readRawCatalog(env, request)
+  const moving = Object.prototype.hasOwnProperty.call(body, 'parentId') || body.index != null
+  if (moving) {
+    const parentId = body.parentId == null || body.parentId === '' ? null : String(body.parentId)
+    const moved = moveNodeInTree(catalog.tree, String(id), parentId, body.index)
+    if (moved.error) return json({ ok: false, message: moved.error }, moved.status || 400)
+    if (body.name != null) {
+      const name = sanitizeName(body.name)
+      if (!name) return json({ ok: false, message: '名称不能为空（最多 80 字）' }, 400)
+      moved.node.name = name
+    }
+    applyPrivacyFlag(moved.node, body)
+    await writeCatalog(env, catalog.tree)
+    for (const entryId of collectEntryIds(moved.node)) {
+      await rewriteLearningPath(env, request, catalog.tree, entryId)
+    }
+    return json({ ok: true, node: moved.node })
+  }
+  const hit = findNode(catalog.tree, String(id))
+  if (!hit) return json({ ok: false, message: '未找到该分类' }, 404)
+  const patched = applyNodeMetaPatch(hit.node, body)
+  if (patched.error) return json({ ok: false, message: patched.error }, patched.status || 400)
+  await writeCatalog(env, catalog.tree)
+  return json({ ok: true, node: hit.node })
+}
+
+async function handleDeleteNode(env, id, request) {
+  const gate = await requireAdmin(env, request)
+  if (gate.error) return gate.error
+  if (!(await ensureStore(env, request))) return noStore()
+  const catalog = await readRawCatalog(env, request)
+  const hit = findNode(catalog.tree, String(id))
+  if (!hit) return json({ ok: false, message: '未找到该分类' }, 404)
+  for (const entryId of collectEntryIds(hit.node)) await deleteItemFiles(env, entryId)
+  const idx = hit.siblings.findIndex((n) => n.id === hit.node.id)
+  if (idx >= 0) hit.siblings.splice(idx, 1)
+  await writeCatalog(env, catalog.tree)
+  return json({ ok: true })
+}
+
+async function handleCreateItem(env, request) {
+  const gate = await requireAdmin(env, request)
+  if (gate.error) return gate.error
+  if (!(await ensureStore(env, request))) return noStore()
+  const body = await request.json().catch(() => ({}))
+  const title = sanitizeName(body.title)
+  const parentId = String(body.parentId ?? '')
+  if (!title) return json({ ok: false, message: '标题不能为空（最多 80 字）' }, 400)
+  if (!parentId) return json({ ok: false, message: '请选择所属分类' }, 400)
+  const catalog = await readRawCatalog(env, request)
+  const hit = findNode(catalog.tree, parentId)
+  if (!hit) return json({ ok: false, message: '未找到所属分类' }, 404)
+  const id = newId('q')
+  const learningPath = pathNamesTo(catalog.tree, parentId) ?? [hit.node.name]
+  const type = String(body.type || 'handout')
+  const content = await extractDataImages(env, String(body.content ?? ''), id)
+  const item = {
+    id,
+    title,
+    type,
+    learningPath,
+    tags: Array.isArray(body.tags) ? body.tags.map(String) : ['讲义', hit.node.name],
+    content,
+  }
+  await putItemRecord(env, id, item)
+  hit.node.entries.push({ id, title, ready: true, type, private: true })
+  await writeCatalog(env, catalog.tree)
+  return json({ ok: true, item })
+}
+
+async function handlePatchItem(env, request, idRaw) {
+  const gate = await requireAdmin(env, request)
+  if (gate.error) return gate.error
+  if (!(await ensureStore(env, request))) return noStore()
+  const id = String(idRaw)
+  const current = await readItem(env, id, request)
+  if (!current) return json({ ok: false, message: '未找到该讲义' }, 404)
+  const body = await request.json().catch(() => ({}))
+  const moving = Object.prototype.hasOwnProperty.call(body, 'parentId') || body.index != null
+  if (moving && body.parentId) {
+    const catalog = await readRawCatalog(env, request)
+    const moved = moveEntryInTree(catalog.tree, id, String(body.parentId), body.index)
+    if (moved.error) return json({ ok: false, message: moved.error }, moved.status || 400)
+    if (body.title != null) {
+      const title = sanitizeName(body.title)
+      if (!title) return json({ ok: false, message: '标题不能为空（最多 80 字）' }, 400)
+      moved.entry.title = title
+    }
+    applyPrivacyFlag(moved.entry, body)
+    await writeCatalog(env, catalog.tree)
+    await rewriteLearningPath(env, request, catalog.tree, id)
+    const item = await readItem(env, id, request)
+    if (!item) return json({ ok: false, message: '未找到该讲义' }, 404)
+    return json({ ok: true, item })
+  }
+  const title = body.title == null ? current.title : sanitizeName(body.title)
+  if (!title) return json({ ok: false, message: '标题不能为空（最多 80 字）' }, 400)
+  const content =
+    body.content == null ? current.content : await extractDataImages(env, String(body.content), id)
+  const item = {
+    ...current,
+    title,
+    content,
+    tags: Array.isArray(body.tags) ? body.tags.map(String) : current.tags,
+  }
+  await putItemRecord(env, id, item)
+  const catalog = await readRawCatalog(env, request)
+  const hit = findEntry(catalog.tree, id)
+  if (hit) {
+    hit.entry.title = title
+    hit.entry.ready = true
+    applyPrivacyFlag(hit.entry, body)
+    await writeCatalog(env, catalog.tree)
+  }
+  return json({ ok: true, item })
+}
+
+async function handleDeleteItem(env, idRaw, request) {
+  const gate = await requireAdmin(env, request)
+  if (gate.error) return gate.error
+  if (!(await ensureStore(env, request))) return noStore()
+  const id = String(idRaw)
+  const catalog = await readRawCatalog(env, request)
+  const hit = findEntry(catalog.tree, id)
+  if (!hit) {
+    await deleteItemFiles(env, id)
+    return json({ ok: false, message: '未找到该讲义' }, 404)
+  }
+  hit.node.entries.splice(hit.idx, 1)
+  await deleteItemFiles(env, id)
+  await writeCatalog(env, catalog.tree)
+  return json({ ok: true })
+}

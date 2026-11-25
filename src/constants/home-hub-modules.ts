@@ -3,6 +3,7 @@ export const HOME_HUB_MODULE_IDS = [
   'train',
   'bank',
   'computer',
+  'history',
   'frontend',
   'cs-vocab',
   'dsa',
@@ -44,6 +45,13 @@ export const HOME_HUB_MODULES: HomeHubModule[] = [
     desc: '讲义树形分类；已开放「计算机概述」',
     ready: true,
     to: { name: 'computer' },
+  },
+  {
+    id: 'history',
+    title: '历史整理',
+    desc: '讲义树形分类；可上传、下载与阅读，不含 AI 测验',
+    ready: true,
+    to: { name: 'history' },
   },
   {
     id: 'frontend',

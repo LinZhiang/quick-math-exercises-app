@@ -52,6 +52,25 @@ export const PROJECT_INTRO_BY_MODULE: Record<HomeHubModuleId, ProjectIntroSectio
       },
     ],
   },
+  history: {
+    id: 'history',
+    title: '历史整理',
+    summary: '和计算机基础同一套讲义目录：阅读、上传、导出。不带 AI 测验和问答。',
+    leaves: [
+      {
+        title: '目录',
+        text: '可折叠的分类树。展开状态会记在这台设备上，看完一篇返回后还停在原来的分类。',
+      },
+      {
+        title: '上传与导出',
+        text: '管理员可把 docx、md 放进某个分类。单篇或批量都可以下载 Word。',
+      },
+      {
+        title: '管理',
+        text: '管理员可增删改分类和讲义。同一层用拖拽调整顺序，换文件夹用「移动位置」。',
+      },
+    ],
+  },
   frontend: {
     id: 'frontend',
     title: '前端学习',

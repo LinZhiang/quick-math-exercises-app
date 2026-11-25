@@ -1,0 +1,1082 @@
+/**
+ * 历史整理：Node 本地为真相源。
+ * 目录/正文在 server/data/history-notes，插图拆成 media 文件，讲义用 /api/media/... 引用。
+ */
+import { peekIsAdmin, requireAdmin } from './auth-core.mjs'
+import { applyPrivacyFlag, filterPublicCatalog, guestMayReadCatalogId } from './handout-visibility.mjs'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { fetchCloudHandoutPack } from './pull-cloud-handouts.mjs'
+import { sliceCatalogLayer, treeParentFromQuery } from '../functions/_lib/catalogLayer.js'
+import {
+  assertCatalogNotStub,
+  assertHandoutNotTruncated,
+  assertHandoutNotTooLarge,
+  graftUserCatalog,
+  preserveUserSubtree,
+  stripCatalogClientFlags,
+} from '../functions/_lib/catalogProtect.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const ROOT = path.join(__dirname, 'data', 'history-notes')
+const CATALOG_FILE = path.join(ROOT, 'catalog.json')
+const ITEMS_DIR = path.join(ROOT, 'items')
+const MEDIA_DIR = path.join(ROOT, 'media')
+const PUBLIC_MIRROR = path.join(__dirname, '..', 'public', 'hn-data')
+const CATALOG_BACKUP_DIR = path.join(__dirname, 'data', 'handout-catalog-backups', 'history-notes')
+
+const MIME_TO_EXT = {
+  jpeg: 'jpg',
+  jpg: 'jpg',
+  png: 'png',
+  gif: 'gif',
+  webp: 'webp',
+  'svg+xml': 'svg',
+}
+
+const EXT_TO_MIME = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+}
+
+function ensureDirs() {
+  fs.mkdirSync(ITEMS_DIR, { recursive: true })
+  fs.mkdirSync(MEDIA_DIR, { recursive: true })
+}
+
+function extFromMime(mime) {
+  const key = String(mime || '').toLowerCase()
+  return MIME_TO_EXT[key] || 'bin'
+}
+
+function nextMediaIndex(itemId) {
+  if (!fs.existsSync(MEDIA_DIR)) return 0
+  let index = 0
+  for (const f of fs.readdirSync(MEDIA_DIR)) {
+    const m = f.match(new RegExp(`^${itemId}-(\\d+)\\.`))
+    if (m) index = Math.max(index, Number(m[1]))
+  }
+  return index
+}
+
+function writeMediaFile(itemId, index, mime, b64) {
+  const ext = extFromMime(mime)
+  const file = `${itemId}-${index}.${ext}`
+  const abs = path.join(MEDIA_DIR, file)
+  fs.writeFileSync(abs, Buffer.from(b64, 'base64'))
+  mirrorPublicFile(abs, `media/${file}`)
+  return `/api/media/history-notes/${file}`
+}
+
+function extractDataImages(content, itemId) {
+  let out = String(content || '')
+  if (!out.includes('data:image')) return out
+  let index = nextMediaIndex(itemId)
+  out = out.replace(
+    /!\[([^\]]*)]\(data:image\/([a-zA-Z0-9.+-]+);base64,([^)]+)\)/g,
+    (_all, alt, mime, b64) => {
+      index += 1
+      return `![${alt}](${writeMediaFile(itemId, index, mime, b64)})`
+    },
+  )
+  out = out.replace(
+    /<img\b([^>]*?)src=(["'])data:image\/([a-zA-Z0-9.+-]+);base64,([^"']+)\2([^>]*)>/gi,
+    (_all, pre, _q, mime, b64, post) => {
+      index += 1
+      const src = writeMediaFile(itemId, index, mime, b64)
+      return `<img${pre}src="${src}"${post}>`
+    },
+  )
+  return out
+}
+
+function itemFile(id) {
+  return path.join(ITEMS_DIR, `${id}.json`)
+}
+
+function listLocalItemIds() {
+  ensureDirs()
+  try {
+    return fs
+      .readdirSync(ITEMS_DIR)
+      .filter((name) => name.endsWith('.json'))
+      .map((name) => name.slice(0, -'.json'.length))
+  } catch {
+    return []
+  }
+}
+
+function listLocalMediaNames() {
+  ensureDirs()
+  try {
+    return fs.readdirSync(MEDIA_DIR).filter((name) => /^[a-zA-Z0-9._-]+$/.test(name))
+  } catch {
+    return []
+  }
+}
+
+function writeItemRecord(id, rec) {
+  ensureDirs()
+  const file = itemFile(id)
+  if (fs.existsSync(file)) {
+    try {
+      const prev = JSON.parse(fs.readFileSync(file, 'utf8'))
+      assertHandoutNotTruncated(prev.content, rec.content, id)
+      fs.copyFileSync(file, `${file}.bak`)
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('拒绝用过短正文')) throw e
+    }
+  }
+  const content = stripDangerousHtml(rec.content)
+  assertHandoutNotTooLarge(content)
+  atomicWriteFile(
+    file,
+    `${JSON.stringify({ ...rec, content, id, updatedAt: new Date().toISOString() }, null, 2)}\n`,
+  )
+}
+
+function applyReadyFlags(tree) {
+  const walk = (nodes) => {
+    for (const node of nodes) {
+      if (!Array.isArray(node.entries)) node.entries = []
+      if (!Array.isArray(node.children)) node.children = []
+      for (const entry of node.entries) {
+        entry.ready = entry.ready !== false
+      }
+      walk(node.children)
+    }
+  }
+  walk(tree)
+  return tree
+}
+
+function applyNodeMetaPatch(node, body) {
+  let changed = false
+  if (body.name != null) {
+    const name = sanitizeName(body.name)
+    if (!name) return { error: '名称不能为空（最多 80 字）', status: 400 }
+    node.name = name
+    changed = true
+  }
+  if (applyPrivacyFlag(node, body)) changed = true
+  if (!changed) return { error: '名称不能为空（最多 80 字）', status: 400 }
+  return { ok: true }
+}
+
+function seedFromFrontendJson() {
+  ensureDirs()
+  const catalog = { tree: [], seededAt: new Date().toISOString() }
+  fs.writeFileSync(CATALOG_FILE, `${JSON.stringify(catalog, null, 2)}\n`, 'utf8')
+  mirrorToPublic()
+}
+
+let seeded = false
+
+export function ensureHistoryNotesStore() {
+  if (seeded && fs.existsSync(CATALOG_FILE)) return
+  ensureDirs()
+  // 只在本机目录还不存在时灌种子；绝不要用 public/hn-data 覆盖 server/data
+  if (!fs.existsSync(CATALOG_FILE)) seedFromFrontendJson()
+  seeded = true
+}
+
+export function readHistoryNotesCatalog() {
+  ensureHistoryNotesStore()
+  const raw = JSON.parse(fs.readFileSync(CATALOG_FILE, 'utf8'))
+  const tree = applyReadyFlags(Array.isArray(raw.tree) ? raw.tree : [])
+  return { tree }
+}
+
+function shortHash(text) {
+  let h = 2166136261
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return (h >>> 0).toString(36)
+}
+
+export function readHistoryNotesRevision() {
+  ensureHistoryNotesStore()
+  const raw = readRawCatalog()
+  const catalogAt = String(raw.updatedAt || raw.seededAt || '')
+  const generation = Number(raw.generation || 0)
+  let mtime = 0
+  try {
+    if (fs.existsSync(CATALOG_FILE)) mtime = fs.statSync(CATALOG_FILE).mtimeMs
+  } catch {
+    /* ignore */
+  }
+  return {
+    revision: `${generation}|${catalogAt}|${mtime}`,
+    updatedAt: catalogAt || (mtime ? new Date(mtime).toISOString() : ''),
+  }
+}
+
+export function readHistoryNotesItem(id) {
+  ensureHistoryNotesStore()
+  const safeId = String(id || '')
+  if (!/^[a-zA-Z0-9._-]+$/.test(safeId)) return null
+  const file = itemFile(safeId)
+  if (!fs.existsSync(file)) return null
+  return JSON.parse(fs.readFileSync(file, 'utf8'))
+}
+
+export function resolveHistoryNotesMedia(fileName) {
+  ensureHistoryNotesStore()
+  const name = String(fileName || '')
+  if (!/^[a-zA-Z0-9._-]+$/.test(name)) return null
+  const root = path.resolve(MEDIA_DIR)
+  const full = path.resolve(MEDIA_DIR, name)
+  const prefix = root.endsWith(path.sep) ? root : `${root}${path.sep}`
+  if (!full.startsWith(prefix) || !fs.existsSync(full) || !fs.statSync(full).isFile()) return null
+  const ext = path.extname(name).slice(1).toLowerCase()
+  return { full, mime: EXT_TO_MIME[ext] || 'application/octet-stream' }
+}
+
+function readRawCatalog() {
+  ensureHistoryNotesStore()
+  const raw = JSON.parse(fs.readFileSync(CATALOG_FILE, 'utf8'))
+  if (!Array.isArray(raw.tree)) raw.tree = []
+  return raw
+}
+
+function atomicWriteFile(file, text) {
+  const tmp = `${file}.${process.pid}.tmp`
+  fs.writeFileSync(tmp, text, 'utf8')
+  try {
+    fs.renameSync(tmp, file)
+  } catch {
+    fs.copyFileSync(tmp, file)
+    fs.unlinkSync(tmp)
+  }
+}
+
+let lastCatalogBackupAt = 0
+
+function rotateCatalogBackup(prevRaw) {
+  try {
+    const now = Date.now()
+    if (now - lastCatalogBackupAt < 20_000) return
+    lastCatalogBackupAt = now
+    fs.mkdirSync(CATALOG_BACKUP_DIR, { recursive: true })
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+    fs.writeFileSync(
+      path.join(CATALOG_BACKUP_DIR, `catalog-${stamp}.json`),
+      `${JSON.stringify(prevRaw)}\n`,
+      'utf8',
+    )
+    const files = fs
+      .readdirSync(CATALOG_BACKUP_DIR)
+      .filter((f) => f.startsWith('catalog-') && f.endsWith('.json'))
+      .sort()
+    while (files.length > 8) {
+      const old = files.shift()
+      if (old) fs.unlinkSync(path.join(CATALOG_BACKUP_DIR, old))
+    }
+  } catch (e) {
+    console.warn('[history-notes] 目录备份失败：', e instanceof Error ? e.message : e)
+  }
+}
+
+function writeCatalog(tree) {
+  assertCatalogNotStub(tree)
+  const prev = fs.existsSync(CATALOG_FILE) ? JSON.parse(fs.readFileSync(CATALOG_FILE, 'utf8')) : {}
+  if (prev && Array.isArray(prev.tree) && prev.tree.length) rotateCatalogBackup(prev)
+  const nextTree = stripCatalogClientFlags(Array.isArray(tree) ? tree : [])
+  const generation = Number(prev.generation || 0) + 1
+  atomicWriteFile(
+    CATALOG_FILE,
+    `${JSON.stringify({
+      ...prev,
+      tree: nextTree,
+      generation,
+      updatedAt: new Date().toISOString(),
+      userOwned: true,
+    })}\n`,
+  )
+}
+
+function mirrorPublicFile(absSrc, rel) {
+  try {
+    if (!fs.existsSync(absSrc)) return
+    const dest = path.join(PUBLIC_MIRROR, rel)
+    fs.mkdirSync(path.dirname(dest), { recursive: true })
+    fs.copyFileSync(absSrc, dest)
+  } catch (e) {
+    console.warn('[history-notes] 同步 public/hn-data 失败：', e instanceof Error ? e.message : e)
+  }
+}
+
+/** 构建/pages.dev 只读这份快照；不要反过来覆盖 Node 目录。 */
+function mirrorToPublic() {
+  try {
+    if (!fs.existsSync(CATALOG_FILE)) return
+    fs.mkdirSync(PUBLIC_MIRROR, { recursive: true })
+    fs.cpSync(ROOT, PUBLIC_MIRROR, { recursive: true })
+  } catch (e) {
+    console.warn('[history-notes] 同步 public/hn-data 失败：', e instanceof Error ? e.message : e)
+  }
+}
+
+function newId(prefix) {
+  return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+}
+
+function sanitizeName(raw) {
+  const name = String(raw ?? '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .replace(/[<>]/g, '')
+    .trim()
+  if (!name || name.length > 80) return null
+  return name
+}
+
+function stripDangerousHtml(html) {
+  return String(html ?? '')
+    .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+    .replace(/<iframe\b[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<object\b[\s\S]*?<\/object>/gi, '')
+    .replace(/<embed\b[^>]*>/gi, '')
+    .replace(/<link\b[^>]*>/gi, '')
+    .replace(/<meta\b[^>]*>/gi, '')
+    .replace(/<base\b[^>]*>/gi, '')
+    .replace(/<form\b[\s\S]*?<\/form>/gi, '')
+    .replace(/\son\w+\s*=\s*(['"]).*?\1/gi, '')
+    .replace(/\son\w+\s*=\s*[^\s>]+/gi, '')
+    .replace(/\s(?:href|src|xlink:href|action)\s*=\s*(['"])\s*javascript:[\s\S]*?\1/gi, '')
+    .replace(/javascript:/gi, '')
+    .replace(/\ssrcdoc\s*=\s*(['"]).*?\1/gi, '')
+}
+
+function findNode(nodes, id, parent = null) {
+  for (const node of nodes) {
+    if (node.id === id) return { node, parent, siblings: nodes }
+    const hit = findNode(node.children || [], id, node)
+    if (hit) return hit
+  }
+  return null
+}
+
+function findEntry(nodes, id) {
+  for (const node of nodes) {
+    const list = node.entries || []
+    const idx = list.findIndex((e) => e.id === id)
+    if (idx >= 0) return { node, idx, entry: list[idx] }
+    const hit = findEntry(node.children || [], id)
+    if (hit) return hit
+  }
+  return null
+}
+
+function copyPrivateFlags(fromNode, toNode) {
+  if (!fromNode || !toNode) return toNode
+  const map = new Map()
+  const collect = (n) => {
+    if (!n) return
+    if (n.private) map.set(`n:${n.id}`, true)
+    for (const e of n.entries || []) {
+      if (e.private) map.set(`e:${e.id}`, true)
+    }
+    for (const c of n.children || []) collect(c)
+  }
+  const apply = (n) => {
+    if (!n) return
+    if (map.get(`n:${n.id}`)) n.private = true
+    for (const e of n.entries || []) {
+      if (map.get(`e:${e.id}`)) e.private = true
+    }
+    for (const c of n.children || []) apply(c)
+  }
+  collect(fromNode)
+  apply(toNode)
+  return toNode
+}
+
+/**
+ * 写入一整棵分支（大类 + 若干小类 + 讲义）。parentId 为空表示挂到根目录。
+ * 先落全部 item 文件，再改 catalog，并校验每篇 ready。不会整表覆盖其它大类。
+ * entries 挂在大类下（单篇不必再套一层小类）；children 仍是小类。
+ */
+export function upsertHistoryNotesBranch({
+  id,
+  name,
+  parentId = null,
+  afterId = null,
+  children,
+  entries,
+}) {
+  ensureHistoryNotesStore()
+  ensureDirs()
+  const branchId = String(id || '')
+  const branchName = String(name || '').trim()
+  const groups = Array.isArray(children) ? children : []
+  const direct = Array.isArray(entries) ? entries : []
+  if (!branchId || !branchName) throw new Error('缺少大类 id/名称')
+  if (!groups.length && !direct.length) throw new Error('没有要写入的讲义')
+
+  const catalog = readRawCatalog()
+  let siblings = catalog.tree
+  if (parentId) {
+    const parent = findNode(catalog.tree, String(parentId))
+    if (!parent) throw new Error(`找不到父分类 ${parentId}，拒绝写入`)
+    if (!Array.isArray(parent.node.children)) parent.node.children = []
+    siblings = parent.node.children
+  }
+
+  const written = []
+  const writeOne = (raw) => {
+    const itemId = String(raw.id || '')
+    if (!/^[a-zA-Z0-9._-]+$/.test(itemId)) throw new Error(`非法讲义 id：${itemId}`)
+    const content = extractDataImages(String(raw.content ?? ''), itemId)
+    writeItemRecord(itemId, {
+      id: itemId,
+      title: String(raw.title || itemId),
+      type: String(raw.type || 'handout'),
+      learningPath: Array.isArray(raw.learningPath) ? raw.learningPath.map(String) : [],
+      tags: Array.isArray(raw.tags) ? raw.tags.map(String) : [],
+      content,
+    })
+    if (!fs.existsSync(itemFile(itemId))) {
+      throw new Error(`讲义未落到 Node 目录：${itemFile(itemId)}`)
+    }
+    written.push(itemId)
+  }
+  for (const raw of direct) writeOne(raw)
+  for (const group of groups) {
+    const list = Array.isArray(group.items) ? group.items : []
+    if (!list.length) throw new Error(`小类 ${group.name || group.id} 没有讲义`)
+    for (const raw of list) writeOne(raw)
+  }
+
+  const toEntry = (raw) => ({
+    id: String(raw.id),
+    title: String(raw.title || raw.id),
+    type: String(raw.type || 'handout'),
+    ready: true,
+  })
+
+  const nextNode = {
+    id: branchId,
+    name: branchName,
+    entries: direct.map(toEntry),
+    children: groups.map((group) => ({
+      id: String(group.id),
+      name: String(group.name),
+      children: [],
+      entries: (group.items || []).map(toEntry),
+    })),
+  }
+
+  const existing = siblings.findIndex((n) => n.id === branchId)
+  const oldBranch = existing >= 0 ? siblings[existing] : null
+  copyPrivateFlags(oldBranch, nextNode)
+  preserveUserSubtree(nextNode, oldBranch)
+  if (existing >= 0) {
+    siblings[existing] = nextNode
+  } else {
+    const after = afterId ? siblings.findIndex((n) => n.id === String(afterId)) : -1
+    if (after >= 0) siblings.splice(after + 1, 0, nextNode)
+    else siblings.push(nextNode)
+  }
+
+  writeCatalog(catalog.tree)
+
+  const verified = readHistoryNotesCatalog()
+  const hit = findNode(verified.tree, branchId)
+  if (!hit) throw new Error('写入后目录里找不到新大类（catalog 未生效）')
+  const missing = []
+  for (const entry of hit.node.entries || []) {
+    if (!entry.ready) missing.push(entry.id)
+  }
+  for (const child of hit.node.children) {
+    for (const entry of child.entries || []) {
+      if (!entry.ready) missing.push(entry.id)
+    }
+  }
+  if (missing.length) throw new Error(`写入后仍未就绪：${missing.join('、')}`)
+  return { branch: hit.node, itemCount: written.length }
+}
+
+function pathNamesTo(nodes, id, acc = []) {
+  for (const node of nodes) {
+    const next = [...acc, node.name]
+    if (node.id === id) return next
+    const hit = pathNamesTo(node.children || [], id, next)
+    if (hit) return hit
+  }
+  return null
+}
+
+function collectEntryIds(node, out = []) {
+  for (const e of node.entries || []) out.push(e.id)
+  for (const child of node.children || []) collectEntryIds(child, out)
+  return out
+}
+
+function collectNodeIds(node, out = []) {
+  out.push(node.id)
+  for (const child of node.children || []) collectNodeIds(child, out)
+  return out
+}
+
+function clampIndex(index, len) {
+  const n = Number(index)
+  if (!Number.isFinite(n)) return len
+  return Math.max(0, Math.min(Math.round(n), len))
+}
+
+function moveNodeInTree(tree, id, parentId, index) {
+  const hit = findNode(tree, id)
+  if (!hit) return { error: '未找到该分类', status: 404 }
+  const desc = collectNodeIds(hit.node)
+  if (parentId && (parentId === id || desc.includes(parentId))) {
+    return { error: '不能挪到自己或下属分类里', status: 400 }
+  }
+  const fromIdx = hit.siblings.findIndex((n) => n.id === hit.node.id)
+  if (fromIdx < 0) return { error: '目录结构异常', status: 500 }
+  hit.siblings.splice(fromIdx, 1)
+  let dest
+  if (parentId == null || parentId === '') dest = tree
+  else {
+    const p = findNode(tree, parentId)
+    if (!p) {
+      hit.siblings.splice(fromIdx, 0, hit.node)
+      return { error: '未找到目标分类', status: 404 }
+    }
+    dest = p.node.children
+  }
+  dest.splice(clampIndex(index, dest.length), 0, hit.node)
+  return { ok: true, node: hit.node }
+}
+
+function moveEntryInTree(tree, id, parentId, index) {
+  const hit = findEntry(tree, id)
+  if (!hit) return { error: '未找到该讲义', status: 404 }
+  const p = findNode(tree, parentId)
+  if (!p) return { error: '未找到目标分类', status: 404 }
+  const entry = hit.entry
+  hit.node.entries.splice(hit.idx, 1)
+  p.node.entries.splice(clampIndex(index, p.node.entries.length), 0, entry)
+  return { ok: true, entry, parent: p.node }
+}
+
+function rewriteLearningPath(tree, itemId) {
+  const rec = readHistoryNotesItem(itemId)
+  if (!rec) return
+  const hit = findEntry(tree, itemId)
+  rec.learningPath = hit ? pathNamesTo(tree, hit.node.id) ?? [hit.node.name] : rec.learningPath
+  writeItemRecord(itemId, rec)
+}
+
+function deletePublicFile(rel) {
+  try {
+    const dest = path.join(PUBLIC_MIRROR, rel)
+    if (fs.existsSync(dest)) fs.unlinkSync(dest)
+  } catch {
+    /* ignore */
+  }
+}
+
+function deleteItemFiles(id) {
+  const file = itemFile(id)
+  if (fs.existsSync(file)) fs.unlinkSync(file)
+  const bak = `${file}.bak`
+  if (fs.existsSync(bak)) fs.unlinkSync(bak)
+  deletePublicFile(`items/${id}.json`)
+  if (!fs.existsSync(MEDIA_DIR)) return
+  for (const name of fs.readdirSync(MEDIA_DIR)) {
+    if (name.startsWith(`${id}-`)) {
+      fs.unlinkSync(path.join(MEDIA_DIR, name))
+      deletePublicFile(`media/${name}`)
+    }
+  }
+}
+
+function sendStoreError(res, e, fallback) {
+  res.status(500).json({
+    ok: false,
+    message: e instanceof Error ? e.message : fallback,
+  })
+}
+
+const BANK_TYPE_NODE_IDS = {
+  12: 'part-1',
+  13: 'app-basics',
+  14: 'security',
+  15: 'part-2',
+  16: 'win10',
+  17: 'excel',
+  18: 'word',
+  19: 'ppt',
+}
+
+const BANK_ITEM_IDS = {
+  20: 'overview',
+}
+
+function bankNodeId(typeId) {
+  return BANK_TYPE_NODE_IDS[typeId] || `t-${typeId}`
+}
+
+function bankItemId(questionId) {
+  return BANK_ITEM_IDS[questionId] || `q-${questionId}`
+}
+
+/**
+ * 从题库包导入「计算机专业知识」整棵树（第一部分 + 第二部分 WIN10/Excel）。
+ * 已存在的讲义默认跳过，避免重复拆图。
+ */
+export function importHistoryNotesFromBankPack(packPath, { skipExisting = true } = {}) {
+  if (!fs.existsSync(packPath)) {
+    throw new Error(`找不到题库包：${packPath}`)
+  }
+  const pack = JSON.parse(fs.readFileSync(packPath, 'utf8'))
+  const types = Array.isArray(pack?.data?.learningTypes) ? pack.data.learningTypes : []
+  const banks = Array.isArray(pack?.data?.questionBanks) ? pack.data.questionBanks : []
+  const rootTypeId = 10
+  const childTypes = types
+    .filter((t) => t.parentId === rootTypeId)
+    .sort((a, b) => (a.sortOrder ?? a.id) - (b.sortOrder ?? b.id))
+
+  const buildNode = (type) => {
+    const kids = types
+      .filter((t) => t.parentId === type.id)
+      .sort((a, b) => (a.sortOrder ?? a.id) - (b.sortOrder ?? b.id))
+    const qs = banks
+      .filter((q) => q.learningTypeId === type.id)
+      .sort((a, b) => (a.sortOrder ?? a.id) - (b.sortOrder ?? b.id))
+    return {
+      id: bankNodeId(type.id),
+      name: String(type.name),
+      children: kids.map(buildNode),
+      entries: qs.map((q) => ({
+        id: bankItemId(q.id),
+        title: String(q.title || q.id),
+        ready: true,
+        type: String(q.type || 'handout'),
+      })),
+    }
+  }
+
+  let prevTree = []
+  if (fs.existsSync(CATALOG_FILE)) {
+    try {
+      const prev = JSON.parse(fs.readFileSync(CATALOG_FILE, 'utf8'))
+      if (Array.isArray(prev.tree)) prevTree = prev.tree
+    } catch {
+      /* 旧目录读失败时仍导入题库包，不要整库停掉 */
+    }
+  }
+  const tree = graftUserCatalog(childTypes.map(buildNode), prevTree)
+  ensureDirs()
+
+  const byId = new Map(types.map((t) => [t.id, t]))
+  const pathOf = (typeId) => {
+    const names = []
+    let cur = byId.get(typeId)
+    while (cur && cur.id !== rootTypeId) {
+      names.unshift(String(cur.name))
+      cur = cur.parentId != null ? byId.get(cur.parentId) : null
+    }
+    return names
+  }
+
+  let wrote = 0
+  let skipped = 0
+  let imageCount = 0
+  const computerQs = banks.filter((q) => {
+    let cur = byId.get(q.learningTypeId)
+    while (cur) {
+      if (cur.id === rootTypeId || cur.parentId === rootTypeId) return true
+      cur = cur.parentId != null ? byId.get(cur.parentId) : null
+    }
+    return false
+  })
+
+  for (const q of computerQs) {
+    const id = bankItemId(q.id)
+    const file = itemFile(id)
+    if (skipExisting && fs.existsSync(file)) {
+      skipped += 1
+      continue
+    }
+    const before = String(q.content ?? '')
+    const content = extractDataImages(before, id)
+    imageCount += (before.match(/!\[[^\]]*]\(data:image\//g) || []).length
+    imageCount += (before.match(/<img\b[^>]*src=["']data:image\//gi) || []).length
+    const item = {
+      id,
+      title: String(q.title || id),
+      type: String(q.type || 'handout'),
+      learningPath: pathOf(q.learningTypeId),
+      tags: ['讲义', String(byId.get(q.learningTypeId)?.name || '')].filter(Boolean),
+      content,
+    }
+    writeItemRecord(id, item)
+    wrote += 1
+  }
+
+  writeCatalog(tree)
+  mirrorToPublic()
+  seeded = true
+  // eslint-disable-next-line no-console
+  console.log(
+    `[history-notes] 已导入计算机专业知识：新增 ${wrote} 条，跳过 ${skipped} 条，拆出约 ${imageCount} 张插图`,
+  )
+  return { wrote, skipped, imageCount, tree }
+}
+
+export async function pullHistoryNotesFromCloud() {
+  ensureHistoryNotesStore()
+  ensureDirs()
+  const pack = await fetchCloudHandoutPack({
+    apiPrefix: '/api/history-notes',
+    mediaPrefix: '/api/media/history-notes',
+    skipItemIds: listLocalItemIds(),
+    skipMediaNames: listLocalMediaNames(),
+  })
+  const prev = readRawCatalog()
+  const remoteTree = stripCatalogClientFlags(JSON.parse(JSON.stringify(pack.tree || [])))
+  if (!remoteTree.length && !Object.keys(pack.items || {}).length) {
+    throw new Error('云端目录是空的，取消合并以免冲掉本机讲义')
+  }
+  const merged = stripCatalogClientFlags(graftUserCatalog(remoteTree, prev.tree))
+  let wrote = 0
+  let skipped = 0
+  for (const [id, item] of Object.entries(pack.items || {})) {
+    if (!id || !item || typeof item !== 'object') continue
+    if (fs.existsSync(itemFile(id))) {
+      skipped += 1
+      continue
+    }
+    writeItemRecord(id, {
+      id,
+      title: String(item.title || id),
+      type: String(item.type || 'handout'),
+      learningPath: Array.isArray(item.learningPath) ? item.learningPath.map(String) : [],
+      tags: Array.isArray(item.tags) ? item.tags.map(String) : [],
+      content: extractDataImages(String(item.content ?? ''), id),
+    })
+    wrote += 1
+  }
+  for (const [name, buf] of Object.entries(pack.media || {})) {
+    if (!/^[a-zA-Z0-9._-]+$/.test(name) || !buf) continue
+    const abs = path.join(MEDIA_DIR, name)
+    if (fs.existsSync(abs)) continue
+    fs.writeFileSync(abs, buf)
+    mirrorPublicFile(abs, `media/${name}`)
+  }
+  writeCatalog(merged)
+  mirrorToPublic()
+  return { wrote, skipped, remoteCount: pack.remoteCount, host: pack.host }
+}
+
+export function attachHistoryNotesRoutes(app) {
+  app.get('/api/history-notes/revision', (_req, res) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+      res.json({ ok: true, ...readHistoryNotesRevision() })
+    } catch (e) {
+      res.status(500).json({
+        ok: false,
+        message: e instanceof Error ? e.message : '读取历史整理修订号失败',
+      })
+    }
+  })
+
+  app.post('/api/history-notes/pull-cloud', requireAdmin, async (req, res) => {
+    try {
+      const result = await pullHistoryNotesFromCloud()
+      res.json({ ok: true, ...result })
+    } catch (e) {
+      sendStoreError(res, e, '从云端拉取讲义失败')
+    }
+  })
+
+  app.get('/api/history-notes/tree', (req, res) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+      const catalog = readHistoryNotesCatalog()
+      const admin = peekIsAdmin(req)
+      const parent = treeParentFromQuery(req.query)
+      if (parent != null) {
+        const layer = sliceCatalogLayer(catalog.tree, parent)
+        if (!layer) {
+          res.status(404).json({ ok: false, message: '未找到该分类' })
+          return
+        }
+        const tree = admin ? layer.tree : filterPublicCatalog(layer.tree)
+        const entries = admin
+          ? layer.entries
+          : (layer.entries || []).filter((entry) => entry?.private !== true)
+        res.json({
+          ok: true,
+          parentId: layer.parentId,
+          tree,
+          entries,
+          ...readHistoryNotesRevision(),
+        })
+        return
+      }
+      const tree = admin ? catalog.tree : filterPublicCatalog(catalog.tree)
+      res.json({
+        ok: true,
+        tree,
+        ...readHistoryNotesRevision(),
+      })
+    } catch (e) {
+      res.status(500).json({
+        ok: false,
+        message: e instanceof Error ? e.message : '读取历史整理目录失败',
+      })
+    }
+  })
+
+  app.get('/api/history-notes/items/:id', (req, res) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+      const item = readHistoryNotesItem(req.params.id)
+      if (!item) {
+        res.status(404).json({ ok: false, message: '未找到该讲义' })
+        return
+      }
+      if (!guestMayReadCatalogId(readHistoryNotesCatalog().tree, item.id, peekIsAdmin(req))) {
+        res.status(404).json({ ok: false, message: '未找到该讲义' })
+        return
+      }
+      res.json({ ok: true, item, ...readHistoryNotesRevision() })
+    } catch (e) {
+      res.status(500).json({
+        ok: false,
+        message: e instanceof Error ? e.message : '读取讲义失败',
+      })
+    }
+  })
+
+  app.get('/api/media/history-notes/:file', (req, res) => {
+    try {
+      const media = resolveHistoryNotesMedia(req.params.file)
+      if (!media) {
+        res.status(404).type('text/plain').send('not found')
+        return
+      }
+      res.setHeader('Cache-Control', 'public, max-age=86400')
+      res.type(media.mime).sendFile(media.full)
+    } catch (e) {
+      sendStoreError(res, e, '读取插图失败')
+    }
+  })
+
+  app.post('/api/history-notes/nodes', requireAdmin, (req, res) => {
+    try {
+      const name = sanitizeName(req.body?.name)
+      if (!name) {
+        res.status(400).json({ ok: false, message: '名称不能为空（最多 80 字）' })
+        return
+      }
+      const catalog = readRawCatalog()
+      const parentId = req.body?.parentId == null || req.body?.parentId === '' ? null : String(req.body.parentId)
+      const node = { id: newId('n'), name, children: [], entries: [] }
+      if (!parentId) {
+        catalog.tree.push(node)
+      } else {
+        const hit = findNode(catalog.tree, parentId)
+        if (!hit) {
+          res.status(404).json({ ok: false, message: '未找到父分类' })
+          return
+        }
+        hit.node.children.push(node)
+      }
+      writeCatalog(catalog.tree)
+      res.json({ ok: true, node, ...readHistoryNotesRevision() })
+    } catch (e) {
+      sendStoreError(res, e, '新增分类失败')
+    }
+  })
+
+  app.patch('/api/history-notes/nodes/:id', requireAdmin, (req, res) => {
+    try {
+      const catalog = readRawCatalog()
+      const body = req.body || {}
+      const moving = Object.prototype.hasOwnProperty.call(body, 'parentId') || body.index != null
+      if (moving) {
+        const parentId = body.parentId == null || body.parentId === '' ? null : String(body.parentId)
+        const moved = moveNodeInTree(catalog.tree, String(req.params.id), parentId, body.index)
+        if (moved.error) {
+          res.status(moved.status || 400).json({ ok: false, message: moved.error })
+          return
+        }
+        if (body.name != null) {
+          const name = sanitizeName(body.name)
+          if (!name) {
+            res.status(400).json({ ok: false, message: '名称不能为空（最多 80 字）' })
+            return
+          }
+          moved.node.name = name
+        }
+        applyPrivacyFlag(moved.node, body)
+        writeCatalog(catalog.tree)
+        for (const entryId of collectEntryIds(moved.node)) rewriteLearningPath(catalog.tree, entryId)
+        res.json({ ok: true, node: moved.node, ...readHistoryNotesRevision() })
+        return
+      }
+      const hit = findNode(catalog.tree, String(req.params.id))
+      if (!hit) {
+        res.status(404).json({ ok: false, message: '未找到该分类' })
+        return
+      }
+      const patched = applyNodeMetaPatch(hit.node, body)
+      if (patched.error) {
+        res.status(patched.status || 400).json({ ok: false, message: patched.error })
+        return
+      }
+      writeCatalog(catalog.tree)
+      res.json({ ok: true, node: hit.node, ...readHistoryNotesRevision() })
+    } catch (e) {
+      sendStoreError(res, e, '重命名失败')
+    }
+  })
+
+  app.delete('/api/history-notes/nodes/:id', requireAdmin, (req, res) => {
+    try {
+      const catalog = readRawCatalog()
+      const hit = findNode(catalog.tree, String(req.params.id))
+      if (!hit) {
+        res.status(404).json({ ok: false, message: '未找到该分类' })
+        return
+      }
+      for (const entryId of collectEntryIds(hit.node)) deleteItemFiles(entryId)
+      const idx = hit.siblings.findIndex((n) => n.id === hit.node.id)
+      if (idx >= 0) hit.siblings.splice(idx, 1)
+      writeCatalog(catalog.tree)
+      res.json({ ok: true, ...readHistoryNotesRevision() })
+    } catch (e) {
+      sendStoreError(res, e, '删除分类失败')
+    }
+  })
+
+  app.post('/api/history-notes/items', requireAdmin, (req, res) => {
+    try {
+      const title = sanitizeName(req.body?.title)
+      const parentId = String(req.body?.parentId ?? '')
+      if (!title) {
+        res.status(400).json({ ok: false, message: '标题不能为空（最多 80 字）' })
+        return
+      }
+      if (!parentId) {
+        res.status(400).json({ ok: false, message: '请选择所属分类' })
+        return
+      }
+      const catalog = readRawCatalog()
+      const hit = findNode(catalog.tree, parentId)
+      if (!hit) {
+        res.status(404).json({ ok: false, message: '未找到所属分类' })
+        return
+      }
+      const id = newId('q')
+      const learningPath = pathNamesTo(catalog.tree, parentId) ?? [hit.node.name]
+      const type = String(req.body?.type || 'handout')
+      const content = extractDataImages(String(req.body?.content ?? ''), id)
+      const item = {
+        id,
+        title,
+        type,
+        learningPath,
+        tags: Array.isArray(req.body?.tags) ? req.body.tags.map(String) : ['讲义', hit.node.name],
+        content,
+      }
+      writeItemRecord(id, item)
+      hit.node.entries.push({ id, title, ready: true, type, private: true })
+      writeCatalog(catalog.tree)
+      res.json({ ok: true, item, ...readHistoryNotesRevision() })
+    } catch (e) {
+      sendStoreError(res, e, '新增讲义失败')
+    }
+  })
+
+  app.patch('/api/history-notes/items/:id', requireAdmin, (req, res) => {
+    try {
+      const id = String(req.params.id)
+      const current = readHistoryNotesItem(id)
+      if (!current) {
+        res.status(404).json({ ok: false, message: '未找到该讲义' })
+        return
+      }
+      const body = req.body || {}
+      const moving = Object.prototype.hasOwnProperty.call(body, 'parentId') || body.index != null
+      if (moving && body.parentId) {
+        const catalog = readRawCatalog()
+        const moved = moveEntryInTree(catalog.tree, id, String(body.parentId), body.index)
+        if (moved.error) {
+          res.status(moved.status || 400).json({ ok: false, message: moved.error })
+          return
+        }
+        if (body.title != null) {
+          const title = sanitizeName(body.title)
+          if (!title) {
+            res.status(400).json({ ok: false, message: '标题不能为空（最多 80 字）' })
+            return
+          }
+          moved.entry.title = title
+        }
+        applyPrivacyFlag(moved.entry, body)
+        writeCatalog(catalog.tree)
+        rewriteLearningPath(catalog.tree, id)
+        const item = readHistoryNotesItem(id)
+        res.json({ ok: true, item, ...readHistoryNotesRevision() })
+        return
+      }
+      const title = body.title == null ? current.title : sanitizeName(body.title)
+      if (!title) {
+        res.status(400).json({ ok: false, message: '标题不能为空（最多 80 字）' })
+        return
+      }
+      const content =
+        body.content == null ? current.content : extractDataImages(String(body.content), id)
+      const item = {
+        ...current,
+        title,
+        content,
+        tags: Array.isArray(body.tags) ? body.tags.map(String) : current.tags,
+      }
+      writeItemRecord(id, item)
+      const catalog = readRawCatalog()
+      const hit = findEntry(catalog.tree, id)
+      if (hit) {
+        hit.entry.title = title
+        hit.entry.ready = true
+        applyPrivacyFlag(hit.entry, body)
+        writeCatalog(catalog.tree)
+      }
+      res.json({ ok: true, item, ...readHistoryNotesRevision() })
+    } catch (e) {
+      sendStoreError(res, e, '保存讲义失败')
+    }
+  })
+
+  app.delete('/api/history-notes/items/:id', requireAdmin, (req, res) => {
+    try {
+      const id = String(req.params.id)
+      const catalog = readRawCatalog()
+      const hit = findEntry(catalog.tree, id)
+      if (!hit) {
+        deleteItemFiles(id)
+        res.status(404).json({ ok: false, message: '未找到该讲义' })
+        return
+      }
+      hit.node.entries.splice(hit.idx, 1)
+      deleteItemFiles(id)
+      writeCatalog(catalog.tree)
+      res.json({ ok: true, ...readHistoryNotesRevision() })
+    } catch (e) {
+      sendStoreError(res, e, '删除讲义失败')
+    }
+  })
+}

@@ -16,6 +16,38 @@ import { resolveWenguApiUrl } from '@/utils/computer/wenguApiOrigin'
 import { catalogContainsId, catalogRowLocked, filterPublicCatalog } from '@/utils/app/handoutVisibility'
 import { catalogNodeHasBody, mergeCatalogLayer, snapshotCatalogNodes } from '@/utils/app/catalogLayer'
 import { getWenguAuthToken, isWenguAdmin } from '@/utils/computer/wenguAuthStore'
+import { bindComputerStudyLogScope } from '@/utils/computer/computerStudyLog'
+import type { HandoutCacheScope } from '@/utils/app/handoutDiskCache'
+
+export type ComputerHandoutScope = 'computer' | 'history'
+
+const activeHandoutScope: { current: ComputerHandoutScope } = { current: 'computer' }
+
+export function bindComputerHandoutScope(scope: ComputerHandoutScope) {
+  bindComputerStudyLogScope(scope)
+  if (activeHandoutScope.current === scope) return
+  activeHandoutScope.current = scope
+  treeCache = null
+  dirTree = null
+  itemCache.clear()
+  sessionRevision = ''
+  cacheViewer = ''
+  dirViewer = ''
+  layerInflight.clear()
+}
+
+export function computerHandoutCacheScope(): HandoutCacheScope {
+  return activeHandoutScope.current === 'history' ? 'history' : 'computer'
+}
+
+function cacheScope(): HandoutCacheScope {
+  return computerHandoutCacheScope()
+}
+
+function handoutApi(path: string): string {
+  const base = activeHandoutScope.current === 'history' ? '/api/history-notes' : '/api/computer-basics'
+  return `${base}${path}`
+}
 
 export type ComputerEntryType = 'handout' | 'mindmap' | 'general' | 'choice' | 'group' | 'material-group'
 
@@ -238,7 +270,7 @@ export function clearComputerBasicsCache() {
   cacheViewer = ''
   dirViewer = ''
   layerInflight.clear()
-  invalidateHandoutRevisionMemo('computer')
+  invalidateHandoutRevisionMemo(cacheScope())
 }
 
 function viewerAuthInit(): RequestInit {
@@ -257,7 +289,7 @@ function rememberComputerTree(tree: ComputerTreeNode[], revision?: string, viewe
   cacheViewer = viewer || (isWenguAdmin() ? 'admin' : 'public')
   if (revision) {
     rememberComputerRevision(revision)
-    writeHandoutCachedTree('computer', revision, tree, cacheViewer)
+    writeHandoutCachedTree(cacheScope(), revision, tree, cacheViewer)
   }
 }
 
@@ -317,14 +349,14 @@ async function computerAdminFetch<T>(path: string, init?: RequestInit): Promise<
 
 export async function pullComputerBasicsFromCloud() {
   return computerAdminFetch<{ wrote: number; skipped: number; remoteCount: number }>(
-    '/api/computer-basics/pull-cloud',
+    handoutApi('/pull-cloud'),
     { method: 'POST', body: '{}' },
   )
 }
 
 export async function createComputerNode(input: { name: string; parentId?: string | null }) {
   const data = await computerAdminFetch<{ node: ComputerTreeNode; revision?: string }>(
-    '/api/computer-basics/nodes',
+    handoutApi('/nodes'),
     {
       method: 'POST',
       body: JSON.stringify(input),
@@ -350,7 +382,7 @@ export async function createComputerNode(input: { name: string; parentId?: strin
 
 export async function renameComputerNode(id: string, name: string) {
   const data = await computerAdminFetch<{ revision?: string }>(
-    `/api/computer-basics/nodes/${encodeURIComponent(id)}`,
+    handoutApi(`/nodes/${encodeURIComponent(id)}`),
     {
       method: 'PATCH',
       body: JSON.stringify({ name }),
@@ -365,7 +397,7 @@ export async function renameComputerNode(id: string, name: string) {
 
 export async function setComputerNodePrivate(id: string, isPrivate: boolean) {
   const data = await computerAdminFetch<{ revision?: string }>(
-    `/api/computer-basics/nodes/${encodeURIComponent(id)}`,
+    handoutApi(`/nodes/${encodeURIComponent(id)}`),
     {
       method: 'PATCH',
       body: JSON.stringify({ private: isPrivate }),
@@ -383,7 +415,7 @@ export async function setComputerNodePrivate(id: string, isPrivate: boolean) {
 
 export async function setComputerItemPrivate(id: string, isPrivate: boolean) {
   const data = await computerAdminFetch<{ revision?: string }>(
-    `/api/computer-basics/items/${encodeURIComponent(id)}`,
+    handoutApi(`/items/${encodeURIComponent(id)}`),
     {
       method: 'PATCH',
       body: JSON.stringify({ private: isPrivate }),
@@ -401,7 +433,7 @@ export async function setComputerItemPrivate(id: string, isPrivate: boolean) {
 
 export async function deleteComputerNode(id: string) {
   const data = await computerAdminFetch<{ revision?: string }>(
-    `/api/computer-basics/nodes/${encodeURIComponent(id)}`,
+    handoutApi(`/nodes/${encodeURIComponent(id)}`),
     { method: 'DELETE' },
   )
   patchComputerCatalog(data.revision, (tree) => removeComputerNodeById(tree, id))
@@ -414,7 +446,7 @@ export async function createComputerItem(input: {
   type?: string
 }) {
   const data = await computerAdminFetch<{ item: ComputerHandoutItem; revision?: string }>(
-    '/api/computer-basics/items',
+    handoutApi('/items'),
     {
       method: 'POST',
       body: JSON.stringify(input),
@@ -426,7 +458,7 @@ export async function createComputerItem(input: {
   }
   if (data.revision) rememberComputerRevision(data.revision)
   itemCache.set(item.id, item)
-  if (data.revision) writeHandoutCachedItem('computer', item.id, data.revision, item)
+  if (data.revision) writeHandoutCachedItem(cacheScope(), item.id, data.revision, item)
   patchComputerCatalog(data.revision, (tree) => {
     const hit = findComputerNode(tree, input.parentId)
     if (hit) {
@@ -449,7 +481,7 @@ export async function updateComputerItem(
   signal?: AbortSignal,
 ) {
   const data = await computerAdminFetch<{ item: ComputerHandoutItem; revision?: string }>(
-    `/api/computer-basics/items/${encodeURIComponent(id)}`,
+    handoutApi(`/items/${encodeURIComponent(id)}`),
     {
       method: 'PATCH',
       body: JSON.stringify(patch),
@@ -462,7 +494,7 @@ export async function updateComputerItem(
   }
   if (data.revision) rememberComputerRevision(data.revision)
   itemCache.set(id, item)
-  if (data.revision) writeHandoutCachedItem('computer', id, data.revision, item)
+  if (data.revision) writeHandoutCachedItem(cacheScope(), id, data.revision, item)
   patchComputerCatalog(data.revision, (tree) => {
     const hit = findComputerEntry(tree, id)
     if (hit) {
@@ -477,7 +509,7 @@ export async function updateComputerItem(
 
 export async function deleteComputerItem(id: string) {
   const data = await computerAdminFetch<{ revision?: string }>(
-    `/api/computer-basics/items/${encodeURIComponent(id)}`,
+    handoutApi(`/items/${encodeURIComponent(id)}`),
     { method: 'DELETE' },
   )
   itemCache.delete(id)
@@ -545,7 +577,7 @@ export function findComputerEntry(
 }
 
 export async function moveComputerNode(id: string, input: { parentId: string | null; index: number }) {
-  await computerAdminFetch(`/api/computer-basics/nodes/${encodeURIComponent(id)}`, {
+  await computerAdminFetch(handoutApi(`/nodes/${encodeURIComponent(id)}`), {
     method: 'PATCH',
     body: JSON.stringify(input),
   })
@@ -553,7 +585,7 @@ export async function moveComputerNode(id: string, input: { parentId: string | n
 }
 
 export async function moveComputerItem(id: string, input: { parentId: string; index: number }) {
-  await computerAdminFetch(`/api/computer-basics/items/${encodeURIComponent(id)}`, {
+  await computerAdminFetch(handoutApi(`/items/${encodeURIComponent(id)}`), {
     method: 'PATCH',
     body: JSON.stringify(input),
   })
@@ -565,7 +597,7 @@ function rememberComputerRevision(revision: string) {
   if (!stamp) return
   if (sessionRevision && sessionRevision !== stamp) itemCache.clear()
   sessionRevision = stamp
-  rememberHandoutRevision('computer', stamp)
+  rememberHandoutRevision(cacheScope(), stamp)
 }
 
 export async function loadComputerBasicsTree(force = false, signal?: AbortSignal): Promise<ComputerTreeNode[]> {
@@ -574,12 +606,12 @@ export async function loadComputerBasicsTree(force = false, signal?: AbortSignal
     return visibleComputerTree(treeCache)
   }
   if (!force) {
-    const remote = await peekHandoutRevision('computer')
+    const remote = await peekHandoutRevision(cacheScope())
     if (remote.status === 'ok') {
       if (treeCache && sessionRevision === remote.revision && handoutCacheFitsViewer(admin, cacheViewer)) {
         return visibleComputerTree(treeCache)
       }
-      const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer')
+      const disk = await readHandoutCachedTree<ComputerTreeNode[]>(cacheScope())
       if (disk && disk.revision === remote.revision && handoutCacheFitsViewer(admin, disk.viewer)) {
         treeCache = disk.tree
         cacheViewer = disk.viewer || 'public'
@@ -588,7 +620,7 @@ export async function loadComputerBasicsTree(force = false, signal?: AbortSignal
       }
     } else if (remote.status === 'offline') {
       if (treeCache && handoutCacheFitsViewer(admin, cacheViewer)) return visibleComputerTree(treeCache)
-      const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer')
+      const disk = await readHandoutCachedTree<ComputerTreeNode[]>(cacheScope())
       if (disk && handoutCacheFitsViewer(admin, disk.viewer)) {
         treeCache = disk.tree
         cacheViewer = disk.viewer || 'public'
@@ -598,7 +630,7 @@ export async function loadComputerBasicsTree(force = false, signal?: AbortSignal
     }
   }
 
-  const res = await wenguApiFetch('/api/computer-basics/tree', { ...viewerAuthInit(), cacheBust: force, signal })
+  const res = await wenguApiFetch(handoutApi('/tree'), { ...viewerAuthInit(), cacheBust: force, signal })
   const data = await readWenguJsonResponse<{
     ok?: boolean
     tree?: ComputerTreeNode[]
@@ -608,7 +640,7 @@ export async function loadComputerBasicsTree(force = false, signal?: AbortSignal
   if (!res.ok || !data.ok || !Array.isArray(data.tree)) {
     if (!force) {
       if (treeCache && handoutCacheFitsViewer(admin, cacheViewer)) return visibleComputerTree(treeCache)
-      const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer')
+      const disk = await readHandoutCachedTree<ComputerTreeNode[]>(cacheScope())
       if (disk && handoutCacheFitsViewer(admin, disk.viewer)) {
         treeCache = disk.tree
         cacheViewer = disk.viewer || 'public'
@@ -620,7 +652,7 @@ export async function loadComputerBasicsTree(force = false, signal?: AbortSignal
   }
   let revision = String(data.revision || '').trim()
   if (!revision) {
-    const peek = await peekHandoutRevision('computer')
+    const peek = await peekHandoutRevision(cacheScope())
     if (peek.status === 'ok') revision = peek.revision
   }
   rememberComputerTree(data.tree, revision)
@@ -632,7 +664,7 @@ function rememberComputerDir(tree: ComputerTreeNode[], revision?: string, viewer
   dirViewer = viewer || (isWenguAdmin() ? 'admin' : 'public')
   if (revision) {
     rememberComputerRevision(revision)
-    writeHandoutCachedTree('computer', revision, tree, dirViewer, 'dir')
+    writeHandoutCachedTree(cacheScope(), revision, tree, dirViewer, 'dir')
   }
 }
 
@@ -646,7 +678,7 @@ async function fetchComputerLayer(parentId: string): Promise<{
   revision: string
 }> {
   const q = encodeURIComponent(parentId || '__root__')
-  const res = await wenguApiFetch(`/api/computer-basics/tree?parent=${q}`, {
+  const res = await wenguApiFetch(handoutApi(`/tree?parent=${q}`), {
     ...viewerAuthInit(),
     cacheBust: true,
   })
@@ -673,9 +705,9 @@ export async function loadComputerBasicsDir(force = false): Promise<ComputerTree
     return snapshotComputerDir()
   }
   if (!force) {
-    const remote = await peekHandoutRevision('computer')
+    const remote = await peekHandoutRevision(cacheScope())
     if (remote.status === 'ok') {
-      const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer', 'dir')
+      const disk = await readHandoutCachedTree<ComputerTreeNode[]>(cacheScope(), 'dir')
       if (disk && disk.revision === remote.revision && handoutCacheFitsViewer(admin, disk.viewer)) {
         dirTree = disk.tree
         dirViewer = disk.viewer || 'public'
@@ -684,7 +716,7 @@ export async function loadComputerBasicsDir(force = false): Promise<ComputerTree
       }
     } else if (remote.status === 'offline') {
       if (dirTree && handoutCacheFitsViewer(admin, dirViewer)) return snapshotComputerDir()
-      const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer', 'dir')
+      const disk = await readHandoutCachedTree<ComputerTreeNode[]>(cacheScope(), 'dir')
       if (disk && handoutCacheFitsViewer(admin, disk.viewer)) {
         dirTree = disk.tree
         dirViewer = disk.viewer || 'public'
@@ -699,7 +731,7 @@ export async function loadComputerBasicsDir(force = false): Promise<ComputerTree
     const next = mergeCatalogLayer<ComputerTreeNode>([], '', layer.tree, [])
     let revision = layer.revision
     if (!revision) {
-      const peek = await peekHandoutRevision('computer')
+      const peek = await peekHandoutRevision(cacheScope())
       if (peek.status === 'ok') revision = peek.revision
     }
     rememberComputerDir(next, revision)
@@ -707,7 +739,7 @@ export async function loadComputerBasicsDir(force = false): Promise<ComputerTree
   } catch (e) {
     if (!force) {
       if (dirTree && handoutCacheFitsViewer(admin, dirViewer)) return snapshotComputerDir()
-      const disk = await readHandoutCachedTree<ComputerTreeNode[]>('computer', 'dir')
+      const disk = await readHandoutCachedTree<ComputerTreeNode[]>(cacheScope(), 'dir')
       if (disk && handoutCacheFitsViewer(admin, disk.viewer)) {
         dirTree = disk.tree
         dirViewer = disk.viewer || 'public'
@@ -795,11 +827,11 @@ export async function loadComputerBasicsItem(id: string, force = false, signal?:
   if (!key) throw new Error('缺少讲义编号')
 
   if (!force) {
-    const remote = await peekHandoutRevision('computer')
+    const remote = await peekHandoutRevision(cacheScope())
     if (remote.status === 'ok') {
       const cached = itemCache.get(key)
       if (cached && sessionRevision === remote.revision && guestMayUseComputerItemCache(key)) return cached
-      const disk = await readHandoutCachedItem<ComputerHandoutItem>('computer', key)
+      const disk = await readHandoutCachedItem<ComputerHandoutItem>(cacheScope(), key)
       if (disk && disk.revision === remote.revision && guestMayUseComputerItemCache(key)) {
         rememberComputerRevision(remote.revision)
         itemCache.set(key, disk.item)
@@ -808,7 +840,7 @@ export async function loadComputerBasicsItem(id: string, force = false, signal?:
     } else if (remote.status === 'offline') {
       const cached = itemCache.get(key)
       if (cached && guestMayUseComputerItemCache(key)) return cached
-      const disk = await readHandoutCachedItem<ComputerHandoutItem>('computer', key)
+      const disk = await readHandoutCachedItem<ComputerHandoutItem>(cacheScope(), key)
       if (disk && guestMayUseComputerItemCache(key)) {
         rememberComputerRevision(disk.revision)
         itemCache.set(key, disk.item)
@@ -819,7 +851,7 @@ export async function loadComputerBasicsItem(id: string, force = false, signal?:
 
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
 
-  const res = await wenguApiFetch(`/api/computer-basics/items/${encodeURIComponent(key)}`, {
+  const res = await wenguApiFetch(handoutApi(`/items/${encodeURIComponent(key)}`), {
     ...viewerAuthInit(),
     cacheBust: force,
     signal,
@@ -834,7 +866,7 @@ export async function loadComputerBasicsItem(id: string, force = false, signal?:
     if (!force) {
       const cached = itemCache.get(key)
       if (cached && guestMayUseComputerItemCache(key)) return cached
-      const disk = await readHandoutCachedItem<ComputerHandoutItem>('computer', key)
+      const disk = await readHandoutCachedItem<ComputerHandoutItem>(cacheScope(), key)
       if (disk && guestMayUseComputerItemCache(key)) {
         rememberComputerRevision(disk.revision)
         itemCache.set(key, disk.item)
@@ -848,11 +880,11 @@ export async function loadComputerBasicsItem(id: string, force = false, signal?:
     content: rewriteComputerMediaUrls(data.item.content ?? ''),
   }
   itemCache.set(key, item)
-  const peek = await peekHandoutRevision('computer')
+  const peek = await peekHandoutRevision(cacheScope())
   const stamp = peek.status === 'ok' ? peek.revision : sessionRevision
   if (stamp) {
     rememberComputerRevision(stamp)
-    writeHandoutCachedItem('computer', key, stamp, item)
+    writeHandoutCachedItem(cacheScope(), key, stamp, item)
   }
   return item
 }

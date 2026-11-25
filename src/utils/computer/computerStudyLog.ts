@@ -5,7 +5,16 @@ import { ref } from 'vue'
 import { formatLogDuration, localDateKey } from '@/utils/app/practiceSessionLog'
 
 export const COMPUTER_STUDY_LOG_KEY = 'computer-study-log-v1'
+const HISTORY_STUDY_LOG_KEY = 'history-study-log-v1'
 const MAX_ENTRIES = 1500
+let activeLogKey = COMPUTER_STUDY_LOG_KEY
+
+export function bindComputerStudyLogScope(scope: 'computer' | 'history') {
+  const next = scope === 'history' ? HISTORY_STUDY_LOG_KEY : COMPUTER_STUDY_LOG_KEY
+  if (next === activeLogKey) return
+  activeLogKey = next
+  notify()
+}
 
 export const computerStudyLogTick = ref(0)
 
@@ -40,7 +49,7 @@ function notify() {
 
 function readLogs(): ComputerStudyLogEntry[] {
   try {
-    const raw = localStorage.getItem(COMPUTER_STUDY_LOG_KEY)
+    const raw = localStorage.getItem(activeLogKey)
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
@@ -52,7 +61,7 @@ function readLogs(): ComputerStudyLogEntry[] {
 
 function writeLogs(rows: ComputerStudyLogEntry[]) {
   try {
-    localStorage.setItem(COMPUTER_STUDY_LOG_KEY, JSON.stringify(rows.slice(0, MAX_ENTRIES)))
+    localStorage.setItem(activeLogKey, JSON.stringify(rows.slice(0, MAX_ENTRIES)))
   } catch {
     /* 配额满时忽略 */
   }

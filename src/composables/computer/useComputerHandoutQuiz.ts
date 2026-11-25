@@ -199,7 +199,9 @@ export function useComputerHandoutQuiz() {
         generated.flatMap((q) => [q.stem, q.term].filter(Boolean)),
       )
       beginRunning(item, generated)
-      ElMessage.success(`已生成 ${generated.length} 道题`)
+      const missing = totalComputerQuizCount(nextCounts) - generated.length
+      if (missing > 0) ElMessage.warning(`还缺 ${missing} 道题，已显示生成成功的 ${generated.length} 道`)
+      else ElMessage.success(`已生成 ${generated.length} 道题`)
     } catch (e) {
       phase.value = 'idle'
       ElMessage.error(e instanceof Error ? e.message : '出题失败')

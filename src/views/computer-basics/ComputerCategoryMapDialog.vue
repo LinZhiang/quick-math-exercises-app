@@ -9,6 +9,7 @@ import {
 const props = defineProps<{
   modelValue: boolean
   tree: ComputerTreeNode[]
+  rootName?: string
 }>()
 
 const emit = defineEmits<{
@@ -129,7 +130,7 @@ function toVisible(nodes: MapSource[], openMap: Record<string, boolean>): Visibl
 function layoutMindmap(tree: ComputerTreeNode[], openMap: Record<string, boolean>) {
   const source: MapSource = {
     id: ROOT_ID,
-    name: '计算机基础',
+    name: props.rootName || '计算机基础',
     expandable: tree.length > 0,
     children: tree.map(nodeSource),
   }
@@ -397,7 +398,7 @@ function onOpened() {
         :height="layout.height"
         :style="stageStyle"
         role="img"
-        aria-label="计算机基础分类思维导图"
+        :aria-label="`${props.rootName || '计算机基础'}分类思维导图`"
       >
         <path
           v-for="(fork, i) in layout.forks"

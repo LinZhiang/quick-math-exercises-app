@@ -1,12 +1,26 @@
 <script setup lang="ts">
+import { computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { bindComputerHandoutScope } from '@/utils/computer/computerBasics'
 import ComputerStudyLogPanel from './ComputerStudyLogPanel.vue'
+
+const route = useRoute()
+const isHistory = computed(() => String(route.name || '').startsWith('history'))
+
+function syncScope() {
+  bindComputerHandoutScope(isHistory.value ? 'history' : 'computer')
+}
+syncScope()
+watch(isHistory, syncScope)
 </script>
 
 <template>
   <section class="computer-page">
     <header class="computer-page__head">
       <h2 class="computer-page__title">学习日志</h2>
-      <p class="computer-page__lead">记录保存在这台设备。顶栏返回可回到计算机基础。</p>
+      <p class="computer-page__lead">
+        记录保存在这台设备。顶栏返回可回到{{ isHistory ? '历史整理' : '计算机基础' }}。
+      </p>
     </header>
     <div class="computer-tree-card">
       <ComputerStudyLogPanel />
