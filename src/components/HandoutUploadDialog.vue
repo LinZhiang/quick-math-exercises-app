@@ -52,7 +52,7 @@ function submit() {
 
 <template>
   <el-dialog v-model="open" title="上传讲义" width="440px" append-to-body>
-    <p class="handout-upload__lead">支持 .docx 和 .md，可多选。文件会变成这一类下面的讲义。</p>
+    <p class="handout-upload__lead">支持 .docx 和 .md，可多选。会尽量保留标题、加粗、颜色、列表、表格和图片。</p>
     <label class="handout-upload__label">
       放到哪个分类
       <select v-model="parentId" class="handout-upload__select">

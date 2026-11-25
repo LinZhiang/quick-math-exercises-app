@@ -2,9 +2,9 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { Folder, FolderOpened } from '@element-plus/icons-vue'
 import {
-  computerNodeExcludeSet,
   type ComputerTreeNode,
 } from '@/utils/computer/computerBasics'
+import { HANDOUT_LIBRARIES, type HandoutLibraryId } from '@/utils/app/transferHandout'
 
 const ROOT_ID = '__root__'
 
@@ -18,6 +18,9 @@ type MoveTreeNode = {
 const props = defineProps<{
   modelValue: boolean
   tree: ComputerTreeNode[]
+  trees?: Partial<Record<HandoutLibraryId, ComputerTreeNode[]>>
+  currentLibrary?: HandoutLibraryId
+  loading?: boolean
   movingId: string
   movingKind: 'branch' | 'entry'
   movingName: string
@@ -25,10 +28,11 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
-  (e: 'confirm', targetId: string): void
+  (e: 'confirm', payload: { libraryId: HandoutLibraryId; targetId: string }): void
 }>()
 
 const selectedId = ref('')
+const libraryId = ref<HandoutLibraryId>('computer')
 const treeRef = ref<{ setCurrentKey?: (key: string) => void } | null>(null)
 
 const open = computed({
@@ -36,8 +40,28 @@ const open = computed({
   set: (v: boolean) => emit('update:modelValue', v),
 })
 
+function descendantIds(nodes: ComputerTreeNode[], id: string, out = new Set<string>()): Set<string> {
+  for (const node of nodes) {
+    if (node.id === id) {
+      const mark = (current: ComputerTreeNode) => {
+        out.add(current.id)
+        current.children.forEach(mark)
+      }
+      mark(node)
+      return out
+    }
+    descendantIds(node.children, id, out)
+    if (out.size) return out
+  }
+  return out
+}
+
+const activeTree = computed(() => props.trees?.[libraryId.value] || (libraryId.value === props.currentLibrary ? props.tree : []))
+
 const excludeIds = computed(() =>
-  props.movingKind === 'branch' ? computerNodeExcludeSet(props.tree, props.movingId) : new Set<string>(),
+  props.movingKind === 'branch' && libraryId.value === (props.currentLibrary || 'computer')
+    ? descendantIds(activeTree.value, props.movingId)
+    : new Set<string>(),
 )
 
 function mapFolders(nodes: ComputerTreeNode[]): MoveTreeNode[] {
@@ -50,23 +74,30 @@ function mapFolders(nodes: ComputerTreeNode[]): MoveTreeNode[] {
 }
 
 const treeData = computed<MoveTreeNode[]>(() => {
-  const folders = mapFolders(props.tree)
+  const folders = mapFolders(activeTree.value)
   if (props.movingKind === 'branch') {
     return [{ id: ROOT_ID, label: '顶层（作为大类）', children: folders }]
   }
   return folders
 })
 
-const hint = computed(() =>
-  props.movingKind === 'branch'
-    ? '点选一个分类，当前文件夹会放到它下面。选「顶层」则变成大类。'
-    : '点选一个分类，当前讲义会放到它下面。',
+const noFolders = computed(
+  () => !props.loading && props.movingKind === 'entry' && activeTree.value.length === 0,
 )
+
+const hint = computed(() => {
+  if (props.loading) return '正在读取各个菜单的分类…'
+  if (noFolders.value) return '这个菜单还没有分类。请先到那边新建一个大类，再把讲义移过去。'
+  return props.movingKind === 'branch'
+    ? '点选一个分类。可以留在当前菜单，也可以改放到计算机基础、历史整理或前端学习。选「顶层」则变成那边的大类。'
+    : '点选一个分类。讲义可以留在当前菜单，也可以连同正文和图片搬到另一个菜单。'
+})
 
 watch(
   () => props.modelValue,
   async (on) => {
     if (!on) return
+    libraryId.value = props.currentLibrary || 'computer'
     selectedId.value = ''
     await nextTick()
     try {
@@ -76,6 +107,11 @@ watch(
     }
   },
 )
+
+function onLibrary(id: HandoutLibraryId) {
+  libraryId.value = id
+  selectedId.value = ''
+}
 
 function onNodeClick(data: MoveTreeNode) {
   if (data.disabled) return
@@ -88,7 +124,7 @@ function onCancel() {
 
 function onConfirm() {
   if (!selectedId.value) return
-  emit('confirm', selectedId.value)
+  emit('confirm', { libraryId: libraryId.value, targetId: selectedId.value })
 }
 </script>
 
@@ -101,6 +137,18 @@ function onConfirm() {
     destroy-on-close
   >
     <p class="computer-move__hint">{{ hint }}</p>
+    <div class="computer-move__libs" role="tablist">
+      <button
+        v-for="lib in HANDOUT_LIBRARIES"
+        :key="lib.id"
+        type="button"
+        class="computer-move__lib"
+        :class="{ 'is-on': libraryId === lib.id }"
+        @click="onLibrary(lib.id)"
+      >
+        {{ lib.label }}
+      </button>
+    </div>
     <el-tree
       v-if="open"
       ref="treeRef"
@@ -136,6 +184,29 @@ function onConfirm() {
   font-size: 13px;
   line-height: 1.5;
   color: var(--app-text-muted);
+}
+
+.computer-move__libs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.computer-move__lib {
+  border: 1px solid var(--app-border-soft);
+  background: #fff;
+  color: var(--app-text);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.computer-move__lib.is-on {
+  border-color: var(--app-primary);
+  color: var(--app-primary);
+  font-weight: 700;
 }
 
 .computer-move__tree {

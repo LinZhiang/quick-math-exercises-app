@@ -23,8 +23,8 @@ export type ComputerHandoutScope = 'computer' | 'history'
 
 const activeHandoutScope: { current: ComputerHandoutScope } = { current: 'computer' }
 
-export function bindComputerHandoutScope(scope: ComputerHandoutScope) {
-  bindComputerStudyLogScope(scope)
+function activateHandoutScope(scope: ComputerHandoutScope, touchLog: boolean) {
+  if (touchLog) bindComputerStudyLogScope(scope)
   if (activeHandoutScope.current === scope) return
   activeHandoutScope.current = scope
   treeCache = null
@@ -34,6 +34,24 @@ export function bindComputerHandoutScope(scope: ComputerHandoutScope) {
   cacheViewer = ''
   dirViewer = ''
   layerInflight.clear()
+}
+
+export function bindComputerHandoutScope(scope: ComputerHandoutScope) {
+  activateHandoutScope(scope, true)
+}
+
+/** 临时切到另一套讲义库读写，结束后回到原来的库，不改学习日志。 */
+export async function withComputerHandoutScope<T>(
+  scope: ComputerHandoutScope,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const prev = activeHandoutScope.current
+  activateHandoutScope(scope, false)
+  try {
+    return await fn()
+  } finally {
+    activateHandoutScope(prev, false)
+  }
 }
 
 export function computerHandoutCacheScope(): HandoutCacheScope {

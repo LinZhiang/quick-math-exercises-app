@@ -49,11 +49,13 @@ import {
   exportHandoutFolderDocx,
   pickHandoutExportRefs,
 } from '@/utils/markdown/handoutExport'
+import { HANDOUT_LIBRARIES, handoutLibraryLabel, loadHandoutLibraryTree, transferHandout, type HandoutLibraryId } from '@/utils/app/transferHandout'
+import type { ComputerTreeNode } from '@/utils/computer/computerBasics'
 import HandoutBatchDownloadDialog from '@/components/HandoutBatchDownloadDialog.vue'
 import HandoutUploadDialog from '@/components/HandoutUploadDialog.vue'
 import FrontendBusyHint from './FrontendBusyHint.vue'
 import FrontendCategoryMapDialog from './FrontendCategoryMapDialog.vue'
-import FrontendMoveDialog from './FrontendMoveDialog.vue'
+import ComputerMoveDialog from '@/views/computer-basics/ComputerMoveDialog.vue'
 import FrontendQuizPanel from './FrontendQuizPanel.vue'
 import {
   frontendStudyLogTick,
@@ -76,6 +78,9 @@ const movePickId = ref('')
 const moveKind = ref<'branch' | 'entry'>('branch')
 const moveName = ref('')
 const moveOpen = ref(false)
+const moveTrees = ref<Partial<Record<HandoutLibraryId, ComputerTreeNode[]>>>({})
+const moveTreeLoading = ref(false)
+const moveFallbackTree = computed(() => tree.value as unknown as ComputerTreeNode[])
 const batchOpen = ref(false)
 const uploadOpen = ref(false)
 const uploadBusy = ref(false)
@@ -684,14 +689,40 @@ async function onUploadConfirm(payload: { parentId: string; files: File[] }) {
   }
 }
 
-async function confirmMove(target: string) {
+async function confirmMove(payload: { libraryId: HandoutLibraryId; targetId: string }) {
   const rowId = movePickId.value
   const kind = moveKind.value
+  const target = payload.targetId
   if (!rowId || !target) {
     ElMessage.warning('请先选择要放到的位置')
     return
   }
   moveOpen.value = false
+  if (payload.libraryId !== 'frontend') {
+    try {
+      await withBusy(`正在搬到${handoutLibraryLabel(payload.libraryId)}…`, async () => {
+        const isPrivate =
+          kind === 'entry'
+            ? findFrontendEntry(tree.value, rowId)?.entry.private !== false
+            : Boolean(findFrontendNode(tree.value, rowId)?.node.private)
+        await transferHandout({
+          from: 'frontend',
+          to: payload.libraryId,
+          kind,
+          id: rowId,
+          parentId: target === '__root__' ? null : target,
+          isPrivate,
+        })
+        await reloadKeepExpand()
+      })
+      movePickId.value = ''
+      ElMessage.success(`已移动到${handoutLibraryLabel(payload.libraryId)}`)
+    } catch (e) {
+      if (isPromptCancel(e)) return
+      ElMessage.error(e instanceof Error ? e.message : '移动失败')
+    }
+    return
+  }
   try {
     await withBusy('正在移动…', async () => {
       if (kind === 'branch') {
@@ -875,10 +906,18 @@ watch(mapOpen, async (on) => {
 
 watch(moveOpen, async (on) => {
   if (!on) return
+  moveTreeLoading.value = true
   try {
-    folderTree.value = await loadFrontendLearningTree()
+    const loaded = await Promise.all(
+      HANDOUT_LIBRARIES.map(async (lib) => [lib.id, await loadHandoutLibraryTree(lib.id)] as const),
+    )
+    const next: Partial<Record<HandoutLibraryId, ComputerTreeNode[]>> = {}
+    for (const [id, nodes] of loaded) next[id] = nodes
+    moveTrees.value = next
   } catch {
-    folderTree.value = tree.value
+    moveTrees.value = { frontend: tree.value as unknown as ComputerTreeNode[] }
+  } finally {
+    moveTreeLoading.value = false
   }
 })
 
@@ -1140,9 +1179,12 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </div>
-    <FrontendMoveDialog
+    <ComputerMoveDialog
       v-model="moveOpen"
-      :tree="folderTree.length ? folderTree : tree"
+      :tree="moveFallbackTree"
+      :trees="moveTrees"
+      current-library="frontend"
+      :loading="moveTreeLoading"
       :moving-id="movePickId"
       :moving-kind="moveKind"
       :moving-name="moveName"
