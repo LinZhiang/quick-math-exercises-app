@@ -38,6 +38,23 @@ export function catalogRowLocked(
   return inherited || isPrivateFlag(own)
 }
 
+/** 分类改公开或私密时，已加载的下级分类和讲义一起改。 */
+export type CatalogPrivacyTarget = {
+  private?: boolean
+  entries?: { private?: boolean }[]
+  children?: CatalogPrivacyTarget[]
+}
+
+export function writeCatalogPrivacy(target: CatalogPrivacyTarget, isPrivate: boolean) {
+  if (isPrivate) target.private = true
+  else delete target.private
+  for (const entry of target.entries || []) {
+    if (isPrivate) entry.private = true
+    else delete entry.private
+  }
+  for (const child of target.children || []) writeCatalogPrivacy(child, isPrivate)
+}
+
 export function catalogContainsId<T extends CatalogPrivacyNode>(nodes: T[], id: string): boolean {
   for (const node of nodes) {
     if (node.id === id) return true

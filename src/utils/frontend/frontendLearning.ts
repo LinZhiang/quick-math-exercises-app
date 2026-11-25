@@ -13,7 +13,7 @@ import { highlightHandoutCodeHtml } from '@/utils/markdown/highlightHandoutCode'
 import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
 import { readWenguJsonResponse, wenguApiFetch, explainWenguMessage } from '@/utils/computer/wenguApiFetch'
 import { resolveWenguApiUrl } from '@/utils/computer/wenguApiOrigin'
-import { catalogContainsId, catalogRowLocked, filterPublicCatalog } from '@/utils/app/handoutVisibility'
+import { catalogContainsId, catalogRowLocked, filterPublicCatalog, writeCatalogPrivacy } from '@/utils/app/handoutVisibility'
 import { catalogNodeHasBody, mergeCatalogLayer, snapshotCatalogNodes } from '@/utils/app/catalogLayer'
 import { getWenguAuthToken, isWenguAdmin } from '@/utils/computer/wenguAuthStore'
 
@@ -375,10 +375,7 @@ export async function setFrontendNodePrivate(id: string, isPrivate: boolean) {
   )
   patchFrontendCatalog(data.revision, (tree) => {
     const hit = findFrontendNode(tree, id)
-    if (hit) {
-      if (isPrivate) hit.node.private = true
-      else delete hit.node.private
-    }
+    if (hit) writeCatalogPrivacy(hit.node, isPrivate)
     return tree
   })
 }

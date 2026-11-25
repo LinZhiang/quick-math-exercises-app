@@ -517,7 +517,15 @@ async function onTogglePrivate(row: ComputerTreeRow) {
       else await setComputerItemPrivate(row.id, next)
       await reloadKeepExpand({ focusId: row.id })
     })
-    ElMessage.success(next ? '已设为私密，仅管理员可见' : '已对外公开')
+    ElMessage.success(
+      row.kind === 'branch'
+        ? next
+          ? '已设为私密，下面的分类和讲义也只对管理员可见'
+          : '已对外公开，下面的分类和讲义也一并公开'
+        : next
+          ? '已设为私密，仅管理员可见'
+          : '已对外公开',
+    )
   } catch (e) {
     if (isPromptCancel(e)) return
     ElMessage.error(e instanceof Error ? e.message : '设置失败')

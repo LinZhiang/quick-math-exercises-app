@@ -1,13 +1,24 @@
-/** 讲义目录公开/私密。private=true 时仅管理员可见；子树继承父分类的私密。 */
+/** 讲义目录公开/私密。private=true 时仅管理员可见。改分类权限时，其下分类和讲义一起改。 */
 
 export function isPrivateFlag(value) {
   return value === true
 }
 
+function writePrivacy(target, isPrivate) {
+  if (!target || typeof target !== 'object') return
+  if (isPrivate) target.private = true
+  else delete target.private
+  if (Array.isArray(target.entries)) {
+    for (const entry of target.entries) writePrivacy(entry, isPrivate)
+  }
+  if (Array.isArray(target.children)) {
+    for (const child of target.children) writePrivacy(child, isPrivate)
+  }
+}
+
 export function applyPrivacyFlag(target, body) {
   if (!target || !body || !Object.prototype.hasOwnProperty.call(body, 'private')) return false
-  if (body.private) target.private = true
-  else delete target.private
+  writePrivacy(target, Boolean(body.private))
   return true
 }
 

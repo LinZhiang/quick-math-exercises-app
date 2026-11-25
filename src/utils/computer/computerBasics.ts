@@ -13,7 +13,7 @@ import { highlightHandoutCodeHtml } from '@/utils/markdown/highlightHandoutCode'
 import { sanitizeRichHtml } from '@/utils/markdown/richTextHtml'
 import { readWenguJsonResponse, wenguApiFetch, explainWenguMessage } from '@/utils/computer/wenguApiFetch'
 import { resolveWenguApiUrl } from '@/utils/computer/wenguApiOrigin'
-import { catalogContainsId, catalogRowLocked, filterPublicCatalog } from '@/utils/app/handoutVisibility'
+import { catalogContainsId, catalogRowLocked, filterPublicCatalog, writeCatalogPrivacy } from '@/utils/app/handoutVisibility'
 import { catalogNodeHasBody, mergeCatalogLayer, snapshotCatalogNodes } from '@/utils/app/catalogLayer'
 import { getWenguAuthToken, isWenguAdmin } from '@/utils/computer/wenguAuthStore'
 import { bindComputerStudyLogScope } from '@/utils/computer/computerStudyLog'
@@ -423,10 +423,7 @@ export async function setComputerNodePrivate(id: string, isPrivate: boolean) {
   )
   patchComputerCatalog(data.revision, (tree) => {
     const hit = findComputerNode(tree, id)
-    if (hit) {
-      if (isPrivate) hit.node.private = true
-      else delete hit.node.private
-    }
+    if (hit) writeCatalogPrivacy(hit.node, isPrivate)
     return tree
   })
 }
