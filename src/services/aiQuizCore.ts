@@ -142,6 +142,161 @@ function handoutQuizCountLine(total: number, counts: HandoutQuizKindCounts) {
   return `请出 ${total} 道题，数量：选择题 ${counts.choice}，判断题 ${counts.judge}（二选一：正确/错误），计算题 ${counts.calc}，简答题 ${counts.short}。`
 }
 
+function localHandoutOutline(material: string): string[] {
+  const s = String(material || '')
+  const points: string[] = []
+  const push = (raw: string) => {
+    const x = raw.replace(/<[^>]+>/g, ' ').replace(/[#*`]/g, '').replace(/\s+/g, ' ').trim()
+    if (x.length < 2 || x.length > 48) return
+    if (/^(概述|简介|引言|小结|总结|目录|前言|说明|注意|备注|示例|例子|练习|导读)$/.test(x)) return
+    if (points.some((p) => p === x || p.includes(x) || x.includes(p))) return
+    points.push(x)
+  }
+  for (const m of s.matchAll(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi)) push(m[1] || '')
+  for (const m of s.matchAll(/^#{1,4}\s+(.+)$/gm)) push(m[1] || '')
+  return points.slice(0, 40)
+}
+
+function scopeLineOf(item: unknown): string {
+  if (typeof item === 'string') return item
+  if (item && typeof item === 'object') {
+    const row = item as Record<string, unknown>
+    const name = String(row.point ?? row.name ?? row.title ?? row.term ?? '').trim()
+    const detail = String(row.detail ?? row.note ?? row.why ?? row.summary ?? '').trim()
+    if (name && detail) return `${name}：${detail}`
+    return name || detail
+  }
+  return String(item ?? '')
+}
+
+function asScopeLines(value: unknown, limit: number): string[] {
+  if (!Array.isArray(value)) return []
+  const out: string[] = []
+  for (const item of value) {
+    const s = scopeLineOf(item).replace(/\s+/g, ' ').trim()
+    if (s.length < 2 || s.length > 80) continue
+    if (out.includes(s)) continue
+    out.push(s)
+    if (out.length >= limit) break
+  }
+  return out
+}
+
+type HandoutQuizScope = {
+  outline: string[]
+  inScope: string[]
+  outOfScope: string[]
+  promptBlock: string
+}
+
+function scopePromptBlock(scope: Pick<HandoutQuizScope, 'outline' | 'inScope' | 'outOfScope'>): string {
+  const lines = [
+    scope.outline.length ? `【讲义结构】\n${scope.outline.map((p, i) => `${i + 1}. ${p}`).join('\n')}` : '',
+    scope.inScope.length
+      ? `【允许考查】只准考下面这些讲义真正展开过的点，每点最多一题，答案必须能在正文里找到：\n${scope.inScope.map((p) => `- ${p}`).join('\n')}`
+      : '【允许考查】没能列出细考点。只考正文标题下展开讲过的定义和步骤，禁止另找考点。',
+    scope.outOfScope.length
+      ? `【禁止考查】下面这些只是带过、举例提到，或讲义没有讲清楚，不要出题：\n${scope.outOfScope.map((p) => `- ${p}`).join('\n')}`
+      : '',
+    '不得考查上述范围之外的内容，也不得用讲义外的常识、面试题库来补题。',
+  ]
+  return lines.filter(Boolean).join('\n')
+}
+
+/** 先通读全文结构，划出能考和不能考的范围，再交给出题。 */
+async function analyzeHandoutQuizScope(input: {
+  title: string
+  material: string
+  subject: string
+  provider?: AiProvider
+  onProgress?: (message: string) => void
+}): Promise<HandoutQuizScope> {
+  const local = localHandoutOutline(input.material)
+  input.onProgress?.('正在通读讲义结构，划定考点范围…')
+  let outline = local
+  let inScope = [...local]
+  let outOfScope: string[] = []
+  try {
+    const raw = await deepseekChatRaw(
+      [
+        `科目：${input.subject}`,
+        `讲义标题：${input.title}`,
+        '请先完整看完下面讲义的结构，再划考点。不要出题。',
+        '规则：',
+        '1. outline 按正文出现顺序列出专节标题；后半部分的章节不能漏。',
+        '2. inScope 只写讲义用定义、划分、步骤或例子展开讲过的考点。每条写「考点：讲义里的结论」，不要写空泛词。',
+        '3. outOfScope 写一笔带过、用来对比但没展开、或正文没有依据的概念。',
+        '4. 禁止用你自己知道的常识补考点。讲义没讲的，放进 outOfScope 或直接不写。',
+        '5. 若正文含多篇【讲义ID:…｜标题】，每条 inScope 开头写所属标题，不要把 A 篇的点安到 B 篇。',
+        '只输出一个 JSON 对象：{"outline":[],"inScope":[],"outOfScope":[]}',
+        '',
+        '讲义正文：',
+        input.material,
+      ].join('\n'),
+      {
+        system: `你是${input.subject}讲义分析老师。先看完整篇结构，只划真正讲过的考点范围。只输出 JSON 对象。`,
+        temperature: 0.2,
+        maxTokens: 1800,
+        provider: input.provider,
+      },
+    )
+    const parsedRaw = parseAiJsonObjectLenient(stripAiJsonFence(raw))
+    const parsed = unwrapHandoutScope(parsedRaw)
+    const aiOutline = asScopeLines(parsed?.outline, 40)
+    const aiIn = asScopeLines(parsed?.inScope, 40)
+    outOfScope = asScopeLines(parsed?.outOfScope, 24)
+    if (aiOutline.length) outline = aiOutline
+    if (aiIn.length) inScope = [...aiIn]
+    for (const heading of local) {
+      const covered = inScope.some((p) => p.includes(heading) || heading.includes(p))
+      const banned = outOfScope.some((p) => p.includes(heading) || heading.includes(p))
+      if (!covered && !banned) inScope.push(heading)
+    }
+  } catch {
+    /* 结构分析失败时退回标题，仍然只按讲义标题出题 */
+  }
+  return { outline, inScope, outOfScope, promptBlock: scopePromptBlock({ outline, inScope, outOfScope }) }
+}
+
+function unwrapHandoutScope(parsed: unknown): {
+  outline?: unknown
+  inScope?: unknown
+  outOfScope?: unknown
+} | null {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+  const row = parsed as Record<string, unknown>
+  const hasScope = (value: Record<string, unknown>) =>
+    Array.isArray(value.outline) || Array.isArray(value.inScope) || Array.isArray(value.outOfScope)
+  if (hasScope(row)) return row
+  for (const value of Object.values(row)) {
+    if (value && typeof value === 'object' && !Array.isArray(value) && hasScope(value as Record<string, unknown>)) {
+      return value as Record<string, unknown>
+    }
+  }
+  return row
+}
+
+function quizQuestionOffScope(term: string, stem: string, scope: HandoutQuizScope): boolean {
+  if (!scope.outOfScope.length) return false
+  const norm = (s: string) => s.replace(/<[^>]+>/g, '').replace(/\s+/g, '')
+  const termN = norm(term)
+  const stemN = norm(stem).slice(0, 160)
+  const mentionsOut = scope.outOfScope.some((p) => {
+    const n = norm(p)
+    if (n.length < 2) return false
+    if (termN && (termN === n || termN.includes(n))) return true
+    if (termN.length >= 4 && n.includes(termN)) return true
+    return n.length >= 4 && stemN.includes(n)
+  })
+  if (!mentionsOut) return false
+  const blob = termN + stemN
+  const mentionsIn = scope.inScope.some((p) => {
+    const n = norm(p)
+    return n.length >= 2 && blob.includes(n)
+  })
+  return !mentionsIn
+}
+
 const HANDOUT_QUIZ_SPEED_HINT =
   '每题 explanation 写 2～3 句即可：只讲为什么、易混点；不要再复述正确答案全文（界面已经展示答案）。一次输出完整 JSON 数组。'
 const HANDOUT_QUIZ_CONSISTENCY_HINT =
@@ -297,6 +452,13 @@ export async function requestComputerHandoutQuiz(input: {
   const { parseComputerQuizAiItem, totalComputerQuizCount, extractComputerQuizSources, materialForComputerQuiz, computerQuizTooSimilar } = await import('@/utils/computer/computerHandoutQuiz')
   const total = totalComputerQuizCount(input.counts)
   if (total <= 0) throw new Error('请至少设置 1 道题')
+  const scope = await analyzeHandoutQuizScope({
+    title: input.title,
+    material: materialForComputerQuiz(input.material),
+    subject: '计算机基础',
+    provider: input.provider,
+    onProgress: input.onProgress,
+  })
   input.onProgress?.(aiRequestProgressText('计算机基础测验', input.provider))
   const avoid = (input.avoidStems ?? []).filter(Boolean).slice(-24)
   const avoidHint = avoid.length
@@ -305,28 +467,30 @@ export async function requestComputerHandoutQuiz(input: {
   const allowedSources = extractComputerQuizSources(input.material)
   const allowedSourceIds = allowedSources.map((x) => x.id)
   const system = [
-    '你是计算机基础知识命题老师，专出易错、高频考点题。只根据给定讲义出题，用简体中文。',
+    '你是计算机基础知识命题老师。只根据给定讲义和已经划定的考点范围出题，用简体中文。',
     '只输出合法 JSON 数组，不要 markdown 围栏，不要其它说明。',
     HANDOUT_QUIZ_SPEED_HINT,
     HANDOUT_QUIZ_CONSISTENCY_HINT,
-    '出题前必须把讲义全部看完，按专节标题出题，不要只盯开头几段、也不要丢掉后半自己整理的章节。',
-    '优先考讲义重点（定义、划分标准、最主要特点、原理、易混概念）。每题必须换一个考点或问法，禁止高度雷同。',
+    '考点范围已经划好。只考「允许考查」里的点，禁止考「禁止考查」和讲义没写的常识。不要因为某个词在文中出现过就单独出题。',
+    '每题必须换一个允许范围内的考点，禁止高度雷同。',
     '解析必须与 correct 一致。英文缩写在题干和选项里只写缩写；全称放 explanation。',
     '数值范围写成 1-12 或 1～12。题干和选项里不要夹带解析。',
   ].join('\n')
   const user = [
     `讲义标题：${input.title}`,
-    '讲义正文：',
+    scope.promptBlock,
+    '讲义正文（只用来核对事实，不要另找考点）：',
     materialForComputerQuiz(input.material),
     '',
     handoutQuizCountLine(total, input.counts),
     '字段：kind(choice|judge|calc|short), term(考点短名), stem, options(选择题必须 4 项), distractors(可选，3 个干扰项), correct, explanation。',
     allowedSourceIds.length
-      ? '范围测验时每题必须带 sourceId，等于该题所考那篇【讲义ID:xxx｜标题】里的 xxx。'
+      ? '范围测验时每题必须带 sourceId，等于该题所考那篇【讲义ID:xxx｜标题】里的 xxx。每题只考这一篇自己的允许考查点。'
       : '',
     '【计算题 calc】correct 只写最终结果短串。【简答题 short】correct 写参考要点。',
+    '干扰项只用讲义里相邻、易混的说法，不要拿讲义没讲的概念来凑选项。',
     '选择题 correct 必须是 options 里某一项的原文；判断题 correct 写「正确」或「错误」。',
-    '【选题】必须覆盖讲义里不同的专节标题与加粗定义。同一 term、同一问法在本轮只能出现一次。只改几个字、换一个例子仍算同一题，不要出。禁止整轮都压在开头示例上。干扰项尽量用讲义里相邻/易混表述。',
+    '【选题】每题对应「允许考查」里的一个点，并覆盖不同专节。同一 term、同一问法在本轮只能出现一次。只改几个字仍算同一题。禁止整轮都压在开头，也禁止跑到划定范围外。',
     '选择题 correct 写选项全文，不要写 A/B/C/D。解析不要重复正确答案原文。缩写中文提示只放 explanation。',
     avoidHint,
     '仅返回 JSON 数组。',
@@ -344,6 +508,7 @@ export async function requestComputerHandoutQuiz(input: {
         allowedSourceIds,
       })
       if (!q || seen.has(q.fingerprint) || seen.has(normalizeQuizAvoidText(q.stem))) continue
+      if (quizQuestionOffScope(q.term || '', q.stem, scope)) continue
       const termKey = `term:${q.kind}:${String(q.term || '').replace(/\s+/g, '')}`
       const askKey = `ask:${q.kind}:${String(q.stem || '').replace(/```[\s\S]*?```/g, '').replace(/<[^>]+>/g, '').replace(/\s+/g, '').slice(0, 36)}`
       const stemKey = `stem:${q.kind}:${String(q.stem || '').replace(/```[\s\S]*?```/g, '').replace(/\s+/g, '').slice(0, 48)}`
@@ -417,7 +582,6 @@ export async function requestFrontendHandoutQuiz(input: {
     totalFrontendQuizCount,
     extractFrontendQuizSources,
     frontendHandoutLooksLikeProgramming,
-    extractFrontendHandoutQuizFocus,
     materialForFrontendQuiz,
     frontendQuizDedupeKey,
     frontendQuizTooSimilar,
@@ -425,6 +589,14 @@ export async function requestFrontendHandoutQuiz(input: {
   } = await import('@/utils/frontend/frontendHandoutQuiz')
   const total = totalFrontendQuizCount(input.counts)
   if (total <= 0) throw new Error('请至少设置 1 道题')
+  const material = materialForFrontendQuiz(input.material)
+  const scope = await analyzeHandoutQuizScope({
+    title: input.title,
+    material,
+    subject: '前端',
+    provider: input.provider,
+    onProgress: input.onProgress,
+  })
   input.onProgress?.(aiRequestProgressText('前端学习测验', input.provider))
   const avoid = (input.avoidStems ?? []).filter(Boolean).slice(-24)
   const avoidHint = avoid.length
@@ -436,30 +608,30 @@ export async function requestFrontendHandoutQuiz(input: {
   const allowedSources = extractFrontendQuizSources(input.material)
   const allowedSourceIds = allowedSources.map((x) => x.id)
   const codingHeavy = frontendHandoutLooksLikeProgramming(input.material)
-  const focus = extractFrontendHandoutQuizFocus(input.material, total)
-  const keyPointBlock = focus.promptBlock || '先通读全文，自行列出专节与核心概念（标题、加粗、定义），核心概念要定义+易混+应用都考到。'
   const system = [
-    '你是前端（JavaScript / ES6）命题老师，专出高频、实用、易错考点题。只根据给定讲义出题，用简体中文。',
+    '你是前端讲义命题老师。只根据给定讲义和已经划定的考点范围出题，用简体中文。',
     '只输出合法 JSON 数组，不要 markdown 围栏，不要其它说明。',
     HANDOUT_QUIZ_SPEED_HINT,
     HANDOUT_QUIZ_CONSISTENCY_HINT,
-    '出题前必须把讲义全部看完，先按专节标题出题，不要只盯开头几段示例，也不要丢掉后半自己整理的章节。每题换一个考点，禁止把同一题换个说法再出一遍。',
+    '考点范围已经划好。只考「允许考查」里的点。讲义里顺带出现的闭包、原型、事件循环等，如果不在允许范围内，一律不要出。禁止用面试常识补题。',
+    '每题换一个允许范围内的考点，禁止把同一题换个说法再出一遍。',
     '禁止 falsy/truthy，写成假值/真值或具体值。完整代码用 ```js 代码块；短关键字用行内反引号。',
     '问运行结果时 stem 里必须带完整代码。解析用中文，不要把整段解析放进代码块。',
   ].join('\n')
   const user = [
     `讲义标题：${input.title}`,
-    keyPointBlock,
-    '讲义正文：',
-    materialForFrontendQuiz(input.material),
+    scope.promptBlock,
+    '讲义正文（只用来核对事实，不要另找考点）：',
+    material,
     '',
     handoutQuizCountLine(total, input.counts),
     '字段：kind(choice|judge|calc|short), term(考点短名), stem, options(选择题必须 4 项), distractors(可选，3 个干扰项), correct, explanation。',
     allowedSourceIds.length
-      ? '范围测验时每题必须带 sourceId，等于该题所考那篇【讲义ID:xxx｜标题】里的 xxx。'
+      ? '范围测验时每题必须带 sourceId，等于该题所考那篇【讲义ID:xxx｜标题】里的 xxx。每题只考这一篇自己的允许考查点。'
       : '',
     '选择题 correct 必须是 options 里某一项的原文；判断题 correct 写「正确」或「错误」。计算题 correct 只写结果短串。',
-    '【选题】核心专节和其它专节都要覆盖，但每个考点只出一题。禁止把同一题换词、换变量名后再出。不要整轮都压在开头几段示例上。',
+    '干扰项只用讲义里相邻、易混的说法，不要拿讲义没讲的概念来凑选项。',
+    '【选题】每题对应「允许考查」里的一个点，并覆盖不同专节。每个考点只出一题。禁止把同一题换词、换变量名后再出，也不要整轮都压在开头几段。',
     codingHeavy
       ? [
           '【编程题】大约三分之一到一半即可，先保证定义/易混题。',
@@ -485,6 +657,7 @@ export async function requestFrontendHandoutQuiz(input: {
         allowedSourceIds,
       })
       if (!q) continue
+      if (quizQuestionOffScope(q.term || '', q.stem, scope)) continue
       const key = frontendQuizDedupeKey(q)
       const termKey = `term:${q.kind}:${String(q.term || '').replace(/\s+/g, '')}`
       if (seen.has(key) || seen.has(q.fingerprint) || seen.has(termKey) || frontendQuizTooSimilar(q, seen)) continue

@@ -335,8 +335,6 @@ export function frontendQuizPlainText(s: string): string {
 }
 
 const WEAK_HANDOUT_HEADING = /^(概述|简介|引言|小结|总结|目录|前言|说明|注意|备注|示例|例子|练习|导读)$/
-const CORE_JS_TOPIC_RE =
-  /闭包|作用域链?|词法作用域|原型链?|执行上下文|事件循环|微任务|宏任务|Promise|async|await|柯里化|防抖|节流|事件委托|高阶函数|箭头函数|立即执行|IIFE|变量提升|暂时性死区|垃圾回收|内存泄漏|深拷贝|浅拷贝|事件冒泡|\bthis\b|\b(?:call|apply|bind)\b|继承|迭代器|生成器|模块化|可选链/
 
 function pushUniqueTitle(points: string[], raw: string, maxLen = 48): void {
   const x = frontendQuizPlainText(raw).replace(/^#+\s*/, '').trim()
@@ -354,16 +352,6 @@ function extractHandoutHeadings(material: string): string[] {
   return points
 }
 
-function isCoreJsTopicTitle(title: string): boolean {
-  return CORE_JS_TOPIC_RE.test(title.replace(/\s+/g, ''))
-}
-
-function mentionCount(haystack: string, term: string): number {
-  if (!term) return 0
-  const re = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
-  return (String(haystack).match(re) || []).length
-}
-
 /** 从整篇讲义抽标题/加粗，供出题时先覆盖重点。 */
 export function extractFrontendHandoutKeyPoints(material: string, limit = 40): string[] {
   const s = String(material || '')
@@ -373,53 +361,22 @@ export function extractFrontendHandoutKeyPoints(material: string, limit = 40): s
   return points.slice(0, limit)
 }
 
-/** 专节/高频核心概念：必须加码（定义+易混），不能只用一道编程题打发。 */
+/** 只按讲义自己的标题列范围。顺带出现的词不算考点。 */
 export function extractFrontendHandoutQuizFocus(
   material: string,
   total: number,
 ): { cores: string[]; others: string[]; minPerCore: number; promptBlock: string } {
   void total
-  const s = String(material || '')
-  const headings = extractHandoutHeadings(s)
-  const cores: string[] = headings.filter((h) => isCoreJsTopicTitle(h))
-  const hinted = [
-    '闭包',
-    '作用域链',
-    '词法作用域',
-    '原型链',
-    '执行上下文',
-    '事件循环',
-    '柯里化',
-    '防抖',
-    '节流',
-    '事件委托',
-    '变量提升',
-    '暂时性死区',
-    '高阶函数',
-    '箭头函数',
-  ]
-  for (const term of hinted) {
-    if (cores.some((c) => c.includes(term))) continue
-    if (mentionCount(s, term) >= 3) cores.push(term)
+  const headings = extractHandoutHeadings(material)
+  const lines = headings.slice(0, 24).map((p, i) => `${i + 1}. ${p}`)
+  return {
+    cores: [],
+    others: headings,
+    minPerCore: 0,
+    promptBlock: lines.length
+      ? `【讲义专节】只考这些标题下展开过的内容：\n${lines.join('\n')}`
+      : '只考正文展开讲过的内容。',
   }
-  const others = headings.filter((h) => !cores.some((c) => c === h || c.includes(h) || h.includes(c)))
-  const minPerCore = cores.length === 0 ? 0 : 1
-  const coreLines = cores.map((p, i) => {
-    return `${i + 1}. ${p} → 只出 1 题，定义、易混、看代码三选一，禁止换个说法再出第二题`
-  })
-  const otherLines = others.slice(0, 20).map((p, i) => `${i + 1}. ${p}`)
-  const promptBlock = [
-    cores.length
-      ? `【核心专节·各出一题】\n${coreLines.join('\n')}\n每个核心只保留问法明显不同的一题，换词、换变量名都算重复。`
-      : '',
-    otherLines.length ? `【其它专节·各至少 1 题】\n${otherLines.join('\n')}` : '',
-    cores.length
-      ? '编程题不得挤占核心专节的定义题：先保证每个核心的①②，再用剩余名额出看代码。'
-      : '先覆盖标题/加粗/定义，再考虑其它。',
-  ]
-    .filter(Boolean)
-    .join('\n')
-  return { cores, others, minPerCore, promptBlock }
 }
 
 /** 出题只读讲义，必须送全文；禁止抽样/截断后半专节。 */
